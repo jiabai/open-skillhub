@@ -104,8 +104,10 @@ async def test_token_create_creates_audit_log(client, async_session):
         headers=headers,
     )
     assert create_response.status_code == 201
+    token_id = create_response.json()["id"]
     query = select(AuditLog).where(
         AuditLog.action == "token.create",
+        AuditLog.target == token_id,
     )
     result = await async_session.execute(query)
     event = result.scalar_one_or_none()

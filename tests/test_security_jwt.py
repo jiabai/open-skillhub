@@ -2,6 +2,7 @@ from datetime import datetime, timedelta, timezone
 
 import jwt
 
+from skillhub.config.settings import settings
 from skillhub.core.security.jwt_utils import (
     create_access_token,
     create_refresh_token,
@@ -30,7 +31,8 @@ def test_decode_token_rejects_expired():
         "type": "access",
         "exp": datetime.now(timezone.utc) - timedelta(seconds=1),
     }
-    token = jwt.encode(expired_payload, "a" * 32, algorithm="HS256")
+    # Use the same secret key and algorithm as the application
+    token = jwt.encode(expired_payload, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
     try:
         decode_token(token)
         assert False

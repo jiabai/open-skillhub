@@ -1,4 +1,4 @@
-# <img src="docs/figure/skillhub-logo.png" alt="Open SkillHub Logo" width="5%" style="vertical-align: middle;"> Open SkillHub 私有化 Skills 管理 SaaS
+# <img src="docs/figure/skillhub-logo.png" alt="Open SkillHub Logo" width="5%" style="vertical-align: middle;"> Open SkillHub
 
 <p align="center">
   <a href="https://pypi.org/project/open-skillhub/"><img src="https://img.shields.io/badge/python-3.10+-blue" alt="Python Version"></a>
@@ -11,42 +11,55 @@
   简体中文 | <a href="./README.md">English</a>
 </p>
 
-## 📖 项目概览
+## 项目简介
 
-Open SkillHub 是**私有化 Skills 管理 SaaS**，提供多用户账户体系、私有 Skill 空间、可视化控制台与 MCP 接入能力。系统通过 Web API 管理 Skill 生命周期，并通过 MCP HTTP/SSE 端点供客户端执行 Skills，实现"上传-管理-调用"的闭环。
+Open SkillHub 是一个**私有化 Skills 管理 SaaS 平台**，专为 AI Agent 设计。它提供多租户账户体系、私有技能空间、可视化控制台以及 MCP HTTP/SSE 接入能力。系统通过 Web API 管理 Skill 生命周期，并通过 MCP 端点供客户端执行 Skills，实现"上传-管理-调用"的完整闭环。
 
-## ✅ 核心能力
+## 功能特性
 
-- 多用户账户与 JWT 认证
-- API Token 管理与 MCP 访问控制
-- Skill 创建、上传（ZIP）、版本归档与回滚、下架与启用
-- 统一控制台：Skills、Tokens、个人资料与安全设置
-- 概览指标与统计维护接口
-- MCP HTTP/SSE 入口与用户隔离
+### 核心能力
+- **多租户架构** - 用户隔离与 JWT 认证
+- **API Token 管理** - 通过 `ask_live_...` Token 安全访问 MCP
+- **Skill 生命周期管理** - 创建、上传（ZIP）、版本管理、回滚、启用/停用
+- **Web 控制台** - 技能、Token、个人资料与安全设置的统一管理界面
+- **MCP 集成** - HTTP/SSE 端点供 AI Agent 接入
 
-## 🧩 企业私有云 P0 对齐
+### 企业级功能（可选）
+- **组织模型** - 企业/团队/用户层级结构
+- **RBAC 权限** - 基于角色的访问控制，权限可配置
+- **技能可见性** - 企业级/团队级/私有三级可见性
+- **审计日志** - 完整的操作审计追踪，支持导出
+- **SSO 集成** - 基于 JWT 的 SSO，支持 LDAP
+- **邮件验证** - OTP 登录与邮箱验证码
 
-- 企业认证与身份映射（LDAP/AD/SSO）
-- RBAC 与企业/团队/个人可见性
-- MCP/REST 接口契约（`skill://list`、`skill://{id}@{version}`、`execute_skill`、`skills/download`）
-- 审计日志采集、查询与导出
-- 版本自动递增策略与冲突校验
+### MCP 工具（7 个）
+1. `load_skill_metadata` - 扫描可用技能
+2. `load_skill` - 加载技能指令（SKILL.md）
+3. `read_reference_file` - 读取技能参考文件
+4. `run_shell_command` - 执行 Shell 命令（白名单控制）
+5. `skill_list_resource` - MCP Resource `skill://list`
+6. `skill_detail_resource` - MCP Resource `skill://{uuid}@{version}`
+7. `execute_skill` - 执行技能（带 RBAC 检查）
 
-详见 [docs/project-spec.md](docs/project-spec.md)、[docs/task_list.md](docs/task_list.md)、[docs/checklist.md](docs/checklist.md)。
+## 快速开始
 
-## 🚀 快速开始（SaaS 模式）
+### 环境要求
+- Python 3.10+
+- PostgreSQL 14+（生产环境）
+- Node.js 18+（前端控制台）
 
 ### 1. 安装依赖
 
 ```bash
 python -m venv .venv
-source .venv/bin/activate
+source .venv/bin/activate  # Linux/macOS
+# .venv\Scripts\activate   # Windows
 pip install -e ".[dev]"
 ```
 
 ### 2. 配置环境变量
 
-复制 `.env.example` 为 `.env`，至少设置以下变量：
+复制 `.env.example` 为 `.env` 并配置：
 
 ```bash
 DATABASE_URL=postgresql+asyncpg://user:pass@localhost:5432/skillhub
@@ -75,7 +88,9 @@ npm install
 NEXT_PUBLIC_API_BASE_URL=http://localhost:8000 npm run dev
 ```
 
-## 🔌 MCP 接入示例
+## MCP 接入配置
+
+在 AI 客户端中配置 Open SkillHub：
 
 ```json
 {
@@ -91,17 +106,70 @@ NEXT_PUBLIC_API_BASE_URL=http://localhost:8000 npm run dev
 }
 ```
 
-## 📚 文档入口
+### 认证流程
 
-- 文档导航：[docs/README.md](docs/README.md)
-- 技术规范：[docs/project-spec.md](docs/project-spec.md)
-- 部署指南：[docs/deployment.md](docs/deployment.md)
-- MCP 工具说明：[docs/tools.md](docs/tools.md)
+1. 通过 `/api/v1/auth/login` 登录获取 JWT Token
+2. 通过 `/api/v1/tokens` 创建 API Token
+3. 使用 API Token（`ask_live_...`）访问 MCP 服务
+4. MCP 服务自动识别用户身份，访问其私有 Skill 空间
 
-## 🤝 贡献指南
+## Skill 存储结构
 
-欢迎提交 PR 与反馈问题。
+```
+/data/skills/
+├── {user_id_1}/
+│   ├── pdf/
+│   │   ├── SKILL.md
+│   │   └── reference.md
+│   └── xlsx/
+│       └── SKILL.md
+├── {user_id_2}/
+│   └── pdf/
+│       └── SKILL.md
+└── ...
+```
 
-## ⚖️ 许可证
+每个用户只能访问自己目录下的 Skills，确保数据隔离与安全。
+
+## 文档
+
+| 文档 | 说明 |
+|------|------|
+| [docs/project-spec.md](docs/project-spec.md) | 技术规范 |
+| [docs/deployment.md](docs/deployment.md) | 部署指南 |
+| [docs/tools.md](docs/tools.md) | MCP 工具文档 |
+| [docs/frontend-design/](docs/frontend-design/) | 前端设计规范 |
+
+## API 端点
+
+### 认证
+- `POST /api/v1/auth/register` - 用户注册
+- `POST /api/v1/auth/login` - 用户登录
+- `POST /api/v1/auth/refresh` - 刷新 Token
+- `POST /api/v1/auth/verify-email` - 邮箱验证
+
+### 技能管理
+- `GET /api/v1/skills` - 获取技能列表
+- `POST /api/v1/skills` - 创建技能
+- `GET /api/v1/skills/{id}` - 获取技能详情
+- `PUT /api/v1/skills/{id}` - 更新技能
+- `DELETE /api/v1/skills/{id}` - 删除技能
+- `POST /api/v1/skills/{id}/upload` - 上传技能 ZIP 包
+- `POST /api/v1/skills/{id}/rollback` - 版本回滚
+
+### Token 管理
+- `GET /api/v1/tokens` - 获取 API Token 列表
+- `POST /api/v1/tokens` - 创建 API Token
+- `DELETE /api/v1/tokens/{id}` - 撤销 Token
+
+### MCP
+- `POST /mcp` - MCP HTTP 端点
+- `GET /sse` - MCP SSE 端点
+
+## 许可证
 
 本项目采用 Apache License 2.0 许可证 —— 详情请参见 [LICENSE](./LICENSE) 文件。
+
+## 贡献指南
+
+欢迎提交 PR 与反馈问题。

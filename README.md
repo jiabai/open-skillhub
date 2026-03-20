@@ -1,4 +1,4 @@
-# <img src="docs/figure/skillhub-logo.png" alt="Open SkillHub Logo" width="5%" style="vertical-align: middle;"> Open SkillHub - Private Skills SaaS
+# <img src="docs/figure/skillhub-logo.png" alt="Open SkillHub Logo" width="5%" style="vertical-align: middle;"> Open SkillHub
 
 <p align="center">
   <a href="https://pypi.org/project/open-skillhub/"><img src="https://img.shields.io/badge/python-3.10+-blue" alt="Python Version"></a>
@@ -11,32 +11,55 @@
   <a href="./README_ZH.md">简体中文</a> | English
 </p>
 
-## 📖 Project Overview
+## Overview
 
-Open SkillHub is a **private Skills management SaaS**. It provides multi-tenant accounts, private Skill spaces, a web console, and MCP HTTP/SSE access so clients can execute Skills securely. The system manages Skill lifecycles through the Web API and exposes MCP endpoints for execution, enabling a complete "upload → manage → run" workflow.
+Open SkillHub is a **private Skills management SaaS platform** designed for AI agents. It provides multi-tenant accounts, private skill spaces, a web console, and MCP HTTP/SSE endpoints so clients can execute skills securely. The system manages skill lifecycles through the Web API and exposes MCP endpoints for execution, enabling a complete "upload → manage → run" workflow.
 
-## ✅ Key Capabilities
+## Features
 
-- Multi-user accounts with JWT authentication
-- API Tokens for MCP access control
-- Skill creation, ZIP upload, versioning, rollback, deactivate/activate
-- Console for Skills, Tokens, profile, and security settings
-- Dashboard metrics with maintenance endpoints
-- MCP HTTP/SSE endpoints with user isolation
+### Core Capabilities
+- **Multi-tenant Architecture** - User isolation with JWT authentication
+- **API Token Management** - Secure MCP access control with `ask_live_...` tokens
+- **Skill Lifecycle Management** - Create, upload (ZIP), version, rollback, activate/deactivate
+- **Web Console** - Dashboard for skills, tokens, profile, and security settings
+- **MCP Integration** - HTTP/SSE endpoints for AI agent integration
 
-## 🚀 Quick Start (SaaS mode)
+### Enterprise Features (Optional)
+- **Organization Model** - Enterprise/Team/User hierarchy
+- **RBAC** - Role-based access control with configurable permissions
+- **Skill Visibility** - Enterprise/Team/Private visibility levels
+- **Audit Logging** - Comprehensive audit trail with export capability
+- **SSO Integration** - JWT-based SSO with LDAP support
+- **Email Verification** - OTP login and email verification codes
 
-### 1. Install dependencies
+### MCP Tools (7 Tools)
+1. `load_skill_metadata` - Scan available skills
+2. `load_skill` - Load skill instructions (SKILL.md)
+3. `read_reference_file` - Read skill reference files
+4. `run_shell_command` - Execute shell commands (whitelist-controlled)
+5. `skill_list_resource` - MCP Resource for `skill://list`
+6. `skill_detail_resource` - MCP Resource for `skill://{uuid}@{version}`
+7. `execute_skill` - Execute skill with RBAC checks
+
+## Quick Start
+
+### Prerequisites
+- Python 3.10+
+- PostgreSQL 14+ (production)
+- Node.js 18+ (frontend console)
+
+### 1. Install Dependencies
 
 ```bash
 python -m venv .venv
-source .venv/bin/activate
+source .venv/bin/activate  # Linux/macOS
+# .venv\Scripts\activate   # Windows
 pip install -e ".[dev]"
 ```
 
-### 2. Configure environment variables
+### 2. Configure Environment
 
-Copy `.env.example` to `.env` and set at least:
+Copy `.env.example` to `.env` and configure:
 
 ```bash
 DATABASE_URL=postgresql+asyncpg://user:pass@localhost:5432/skillhub
@@ -45,19 +68,19 @@ SKILL_STORAGE_PATH=/data/skills
 CORS_ORIGINS=["http://localhost:3000"]
 ```
 
-### 3. Initialize the database
+### 3. Initialize Database
 
 ```bash
 alembic upgrade head
 ```
 
-### 4. Start the API server
+### 4. Start API Server
 
 ```bash
 uvicorn skillhub.api_app:app --host 0.0.0.0 --port 8000
 ```
 
-### 5. Start the frontend console
+### 5. Start Frontend Console
 
 ```bash
 cd frontend
@@ -65,7 +88,9 @@ npm install
 NEXT_PUBLIC_API_BASE_URL=http://localhost:8000 npm run dev
 ```
 
-## 🔌 MCP Integration Example
+## MCP Integration
+
+Configure your AI client to connect to Open SkillHub:
 
 ```json
 {
@@ -81,17 +106,70 @@ NEXT_PUBLIC_API_BASE_URL=http://localhost:8000 npm run dev
 }
 ```
 
-## 📚 Documentation
+### Authentication Flow
 
-- Docs index: [docs/README.md](docs/README.md)
-- Technical spec: [docs/project-spec.md](docs/project-spec.md)
-- Deployment guide: [docs/deployment.md](docs/deployment.md)
-- MCP tools: [docs/tools.md](docs/tools.md)
+1. Login via `/api/v1/auth/login` to get JWT token
+2. Create API token via `/api/v1/tokens`
+3. Use API token (`ask_live_...`) for MCP access
+4. MCP service automatically identifies user and accesses their private skill space
 
-## 🤝 Contributing
+## Skill Storage Structure
+
+```
+/data/skills/
+├── {user_id_1}/
+│   ├── pdf/
+│   │   ├── SKILL.md
+│   │   └── reference.md
+│   └── xlsx/
+│       └── SKILL.md
+├── {user_id_2}/
+│   └── pdf/
+│       └── SKILL.md
+└── ...
+```
+
+Each user can only access their own skill directory, ensuring data isolation.
+
+## Documentation
+
+| Document | Description |
+|----------|-------------|
+| [docs/project-spec.md](docs/project-spec.md) | Technical specification |
+| [docs/deployment.md](docs/deployment.md) | Deployment guide |
+| [docs/tools.md](docs/tools.md) | MCP tools documentation |
+| [docs/frontend-design/](docs/frontend-design/) | Frontend design specs |
+
+## API Endpoints
+
+### Authentication
+- `POST /api/v1/auth/register` - User registration
+- `POST /api/v1/auth/login` - User login
+- `POST /api/v1/auth/refresh` - Refresh token
+- `POST /api/v1/auth/verify-email` - Email verification
+
+### Skills
+- `GET /api/v1/skills` - List skills
+- `POST /api/v1/skills` - Create skill
+- `GET /api/v1/skills/{id}` - Get skill detail
+- `PUT /api/v1/skills/{id}` - Update skill
+- `DELETE /api/v1/skills/{id}` - Delete skill
+- `POST /api/v1/skills/{id}/upload` - Upload skill ZIP
+- `POST /api/v1/skills/{id}/rollback` - Rollback to version
+
+### Tokens
+- `GET /api/v1/tokens` - List API tokens
+- `POST /api/v1/tokens` - Create API token
+- `DELETE /api/v1/tokens/{id}` - Revoke token
+
+### MCP
+- `POST /mcp` - MCP HTTP endpoint
+- `GET /sse` - MCP SSE endpoint
+
+## License
+
+This project is licensed under the Apache License 2.0 - see [LICENSE](./LICENSE) for details.
+
+## Contributing
 
 Issues and pull requests are welcome.
-
-## ⚖️ License
-
-This project is licensed under the Apache License 2.0 — see [LICENSE](./LICENSE).

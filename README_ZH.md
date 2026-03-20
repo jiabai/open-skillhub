@@ -1,10 +1,10 @@
-# <img src="docs/figure/agentskills-logo.png" alt="Agent Skills MCP Logo" width="5%" style="vertical-align: middle;"> AgentSkills MCP 私有化 Skills 管理 SaaS
+# <img src="docs/figure/skillhub-logo.png" alt="Open SkillHub Logo" width="5%" style="vertical-align: middle;"> Open SkillHub 私有化 Skills 管理 SaaS
 
 <p align="center">
-  <a href="https://pypi.org/project/mcp-agentskills/"><img src="https://img.shields.io/badge/python-3.10+-blue" alt="Python Version"></a>
-  <a href="https://pypi.org/project/mcp-agentskills/"><img src="https://img.shields.io/pypi/v/mcp-agentskills.svg?logo=pypi" alt="PyPI Version"></a>
+  <a href="https://pypi.org/project/open-skillhub/"><img src="https://img.shields.io/badge/python-3.10+-blue" alt="Python Version"></a>
+  <a href="https://pypi.org/project/open-skillhub/"><img src="https://img.shields.io/pypi/v/open-skillhub.svg?logo=pypi" alt="PyPI Version"></a>
   <a href="./LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0-black" alt="License"></a>
-  <a href="https://github.com/zouyingcao/agentskills-mcp"><img src="https://img.shields.io/github/stars/zouyingcao/agentskills-mcp?style=social" alt="GitHub Stars"></a>
+  <a href="https://github.com/zouyingcao/open-skillhub"><img src="https://img.shields.io/github/stars/zouyingcao/open-skillhub?style=social" alt="GitHub Stars"></a>
 </p>
 
 <p align="center">
@@ -13,7 +13,7 @@
 
 ## 📖 项目概览
 
-AgentSkills MCP 已演进为**私有化 Skills 管理 SaaS**，提供多用户账户体系、私有 Skill 空间、可视化控制台与 MCP 接入能力。系统通过 Web API 管理 Skill 生命周期，并通过 MCP HTTP/SSE 端点供客户端执行 Skills，实现“上传-管理-调用”的闭环。
+Open SkillHub 是**私有化 Skills 管理 SaaS**，提供多用户账户体系、私有 Skill 空间、可视化控制台与 MCP 接入能力。系统通过 Web API 管理 Skill 生命周期，并通过 MCP HTTP/SSE 端点供客户端执行 Skills，实现"上传-管理-调用"的闭环。
 
 ## ✅ 核心能力
 
@@ -49,7 +49,7 @@ pip install -e ".[dev]"
 复制 `.env.example` 为 `.env`，至少设置以下变量：
 
 ```bash
-DATABASE_URL=postgresql+asyncpg://user:pass@localhost:5432/agentskills
+DATABASE_URL=postgresql+asyncpg://user:pass@localhost:5432/skillhub
 SECRET_KEY=your-secret-key-min-32-chars
 SKILL_STORAGE_PATH=/data/skills
 CORS_ORIGINS=["http://localhost:3000"]
@@ -64,7 +64,7 @@ alembic upgrade head
 ### 4. 启动后端 API
 
 ```bash
-uvicorn mcp_agentskills.api_app:app --host 0.0.0.0 --port 8000
+uvicorn skillhub.api_app:app --host 0.0.0.0 --port 8000
 ```
 
 ### 5. 启动前端控制台
@@ -80,7 +80,7 @@ NEXT_PUBLIC_API_BASE_URL=http://localhost:8000 npm run dev
 ```json
 {
   "mcpServers": {
-    "agentskills-mcp": {
+    "skillhub-mcp": {
       "type": "http",
       "url": "https://your-domain.com/mcp",
       "headers": {

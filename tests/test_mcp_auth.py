@@ -1,10 +1,10 @@
 import pytest
 
-from mcp_agentskills.api.mcp.auth import ApiTokenVerifier, reset_session_provider, set_session_provider
-from mcp_agentskills.core.utils.user_context import get_current_user_id, set_current_user_id
-from mcp_agentskills.repositories.token import TokenRepository
-from mcp_agentskills.repositories.user import UserRepository
-from mcp_agentskills.services.token import TokenService
+from skillhub.api.mcp.auth import ApiTokenVerifier, reset_session_provider, set_session_provider
+from skillhub.core.utils.user_context import get_current_user_id, set_current_user_id
+from skillhub.repositories.token import TokenRepository
+from skillhub.repositories.user import UserRepository
+from skillhub.services.token import TokenService
 
 
 @pytest.mark.asyncio

@@ -1,7 +1,11 @@
 {
   "permissions": {
     "allow": [
-      "Bash(cd:*)"
+      "Bash(cd:*)",
+      "Bash(head:*)",
+      "Bash(cd /d/Github/open-skillhub && python -m pytest tests/test_mcp_tools_user_scope.py tests/test_audit_missing.py::test_token_create_creates_audit_log tests/test_security_jwt.py::test_decode_token_rejects_expired -v --tb=short 2>&1)",
+      "Bash(cd /d/Github/open-skillhub && python -m pytest tests/test_mcp_tools_user_scope.py -v --tb=short 2>&1)",
+      "Bash(tail:*)"
     ]
   }
 }

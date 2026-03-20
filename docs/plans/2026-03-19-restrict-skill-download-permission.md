@@ -40,8 +40,8 @@ Skill download is a high-risk operation that exposes complete skill source code 
 ```python
 import pytest
 
-from mcp_agentskills.core.security.rbac import _DEFAULT_ROLE_PERMISSIONS, has_permission
-from mcp_agentskills.models.user import User
+from skillhub.core.security.rbac import _DEFAULT_ROLE_PERMISSIONS, has_permission
+from skillhub.models.user import User
 
 
 class MockUser:
@@ -96,7 +96,7 @@ Expected: FAIL - tests expect download permission to be removed
 ### Task 2: Modify RBAC default permissions
 
 **Files:**
-- Modify: `mcp_agentskills/core/security/rbac.py:8-23`
+- Modify: `skillhub/core/security/rbac.py:8-23`
 
 **Step 1: Update default permissions**
 
@@ -190,7 +190,7 @@ Expected: PASS (or only pre-existing failures)
 **Step 1: Stage and commit**
 
 ```bash
-git add mcp_agentskills/core/security/rbac.py
+git add skillhub/core/security/rbac.py
 git add tests/test_rbac_download_permission.py
 git add docs/project-spec.md
 git commit -m "security: restrict skill.download permission to admin only
@@ -209,7 +209,7 @@ permission by default. Grant manually via RBAC_ROLE_PERMISSIONS if needed."
 
 | File | Change |
 |------|--------|
-| `mcp_agentskills/core/security/rbac.py` | Remove `skill.download` from member/viewer defaults |
+| `skillhub/core/security/rbac.py` | Remove `skill.download` from member/viewer defaults |
 | `tests/test_rbac_download_permission.py` | New test file for permission model |
 | `docs/project-spec.md` | Update RBAC example and add security note |
 

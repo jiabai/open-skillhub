@@ -1,9 +1,9 @@
-"""Test module for the agentskills-mcp MCP service over HTTP.
+"""Test module for the skillhub-mcp MCP service over HTTP.
 
-This module exercises the agentskills-mcp MCP service by:
+This module exercises the skillhub-mcp MCP service by:
 
 1. Starting the service with the given configuration using
-   :class:`AgentSkillsMcpServiceRunner`.
+   :class:`SkillHubMcpServiceRunner`.
 2. Connecting to the service via :class:`FastMcpClient`.
 3. Listing available tools exposed by the MCP server.
 4. Invoking a selection of tools and asserting that each call succeeds.
@@ -18,7 +18,7 @@ import asyncio
 from loguru import logger
 from fastmcp.client.client import CallToolResult
 from flowllm.core.utils.fastmcp_client import FastMcpClient
-from mcp_agentskills.core.utils.service_runner import AgentSkillsMcpServiceRunner
+from skillhub.core.utils.service_runner import SkillHubMcpServiceRunner
 
 
 async def test_mcp_service(mcp_config) -> None:
@@ -26,7 +26,7 @@ async def test_mcp_service(mcp_config) -> None:
 
     # Connect to the MCP service using FastMcpClient
     async with FastMcpClient(
-        name="agentskills-mcp-test",
+        name="skillhub-mcp-test",
         config=mcp_config,
         max_retries=1,
     ) as client:
@@ -56,7 +56,7 @@ def main(skill_dir: str) -> None:
     """Run the MCP service in-process and execute the async test routine."""
     # Service configuration
     service_args = [
-        "agentskills-mcp",
+        "skillhub-mcp",
         "config=default",
         "mcp.transport=http",
         f"metadata.skill_dir={skill_dir}",
@@ -70,7 +70,7 @@ def main(skill_dir: str) -> None:
         "url": f"http://{host}:{port}/mcp",
     }
 
-    with AgentSkillsMcpServiceRunner(
+    with SkillHubMcpServiceRunner(
         service_args,
         host=host,
         port=port,

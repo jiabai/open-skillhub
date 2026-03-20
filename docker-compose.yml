@@ -4,13 +4,13 @@ services:
     env_file:
       - .env
     environment:
-      POSTGRES_USER: ${POSTGRES_USER:-agentskills}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-agentskills}
-      POSTGRES_DB: ${POSTGRES_DB:-agentskills}
+      POSTGRES_USER: ${POSTGRES_USER:-skillhub}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-skillhub}
+      POSTGRES_DB: ${POSTGRES_DB:-skillhub}
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-agentskills} -d ${POSTGRES_DB:-agentskills}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-skillhub} -d ${POSTGRES_DB:-skillhub}"]
       interval: 5s
       timeout: 5s
       retries: 10
@@ -22,7 +22,7 @@ services:
     env_file:
       - .env
     environment:
-      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-agentskills}:${POSTGRES_PASSWORD:-agentskills}@db:5432/${POSTGRES_DB:-agentskills}
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-skillhub}:${POSTGRES_PASSWORD:-skillhub}@db:5432/${POSTGRES_DB:-skillhub}
     depends_on:
       db:
         condition: service_healthy
@@ -30,11 +30,11 @@ services:
 
   api:
     build: .
-    command: sh -c "uvicorn mcp_agentskills.api_app:app --host 0.0.0.0 --port 8000"
+    command: sh -c "uvicorn skillhub.api_app:app --host 0.0.0.0 --port 8000"
     env_file:
       - .env
     environment:
-      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-agentskills}:${POSTGRES_PASSWORD:-agentskills}@db:5432/${POSTGRES_DB:-agentskills}
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-skillhub}:${POSTGRES_PASSWORD:-skillhub}@db:5432/${POSTGRES_DB:-skillhub}
       DEBUG: "false"
       CORS_ORIGINS: ${CORS_ORIGINS}
       LOG_FILE: ""

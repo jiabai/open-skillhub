@@ -168,7 +168,7 @@ from datetime import datetime
 from sqlalchemy import Boolean, DateTime, ForeignKey, JSON, String, UniqueConstraint, CheckConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from mcp_agentskills.models.base import Base, TimestampMixin, UUIDPrimaryKeyMixin
+from skillhub.models.base import Base, TimestampMixin, UUIDPrimaryKeyMixin
 
 
 class Skill(UUIDPrimaryKeyMixin, TimestampMixin, Base):

@@ -66,34 +66,61 @@ def install_flowllm_stubs(skill_dir: Path, monkeypatch):
 
 
 def install_mcp_package_stubs(monkeypatch, user_context_module, command_whitelist_module=None, skill_status=None):
-    mcp_agentskills = ModuleType("mcp_agentskills")
-    mcp_agentskills.__path__ = []
-    mcp_core = ModuleType("mcp_agentskills.core")
+    skillhub_module = ModuleType("skillhub")
+    skillhub_module.__path__ = []
+    mcp_core = ModuleType("skillhub.core")
     mcp_core.__path__ = []
-    mcp_utils = ModuleType("mcp_agentskills.core.utils")
+    mcp_utils = ModuleType("skillhub.core.utils")
     mcp_utils.__path__ = []
-    mcp_metrics = ModuleType("mcp_agentskills.core.metrics")
+    mcp_utils_skill_storage = ModuleType("skillhub.core.utils.skill_storage")
+    mcp_metrics = ModuleType("skillhub.core.metrics")
     mcp_metrics.__path__ = []
-    mcp_metrics_tool_call = ModuleType("mcp_agentskills.core.metrics.tool_call_metrics")
-    mcp_db = ModuleType("mcp_agentskills.db")
+    mcp_metrics_tool_call = ModuleType("skillhub.core.metrics.tool_call_metrics")
+    mcp_db = ModuleType("skillhub.db")
     mcp_db.__path__ = []
-    mcp_db_session = ModuleType("mcp_agentskills.db.session")
-    mcp_repositories = ModuleType("mcp_agentskills.repositories")
+    mcp_db_session = ModuleType("skillhub.db.session")
+    mcp_repositories = ModuleType("skillhub.repositories")
     mcp_repositories.__path__ = []
-    mcp_repositories_skill = ModuleType("mcp_agentskills.repositories.skill")
+    mcp_repositories_skill = ModuleType("skillhub.repositories.skill")
 
-    monkeypatch.setitem(sys.modules, "mcp_agentskills", mcp_agentskills)
-    monkeypatch.setitem(sys.modules, "mcp_agentskills.core", mcp_core)
-    monkeypatch.setitem(sys.modules, "mcp_agentskills.core.utils", mcp_utils)
-    monkeypatch.setitem(sys.modules, "mcp_agentskills.core.utils.user_context", user_context_module)
-    monkeypatch.setitem(sys.modules, "mcp_agentskills.core.metrics", mcp_metrics)
-    monkeypatch.setitem(sys.modules, "mcp_agentskills.core.metrics.tool_call_metrics", mcp_metrics_tool_call)
+    # Add skill_storage functions
+    import json
+    from datetime import datetime, timezone
+
+    def tool_error_payload(detail: object, code: str) -> str:
+        return json.dumps({
+            "detail": detail,
+            "code": code,
+            "timestamp": datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z"),
+        })
+
+    def validate_skill_name(name: str):
+        if not name or not name.strip():
+            return False, "Skill name cannot be empty"
+        if len(name) > 100:
+            return False, "Skill name too long"
+        return True, ""
+
+    def validate_file_path(path: str):
+        return True, ""
+
+    mcp_utils_skill_storage.tool_error_payload = tool_error_payload
+    mcp_utils_skill_storage.validate_skill_name = validate_skill_name
+    mcp_utils_skill_storage.validate_file_path = validate_file_path
+
+    monkeypatch.setitem(sys.modules, "skillhub", skillhub_module)
+    monkeypatch.setitem(sys.modules, "skillhub.core", mcp_core)
+    monkeypatch.setitem(sys.modules, "skillhub.core.utils", mcp_utils)
+    monkeypatch.setitem(sys.modules, "skillhub.core.utils.user_context", user_context_module)
+    monkeypatch.setitem(sys.modules, "skillhub.core.utils.skill_storage", mcp_utils_skill_storage)
+    monkeypatch.setitem(sys.modules, "skillhub.core.metrics", mcp_metrics)
+    monkeypatch.setitem(sys.modules, "skillhub.core.metrics.tool_call_metrics", mcp_metrics_tool_call)
     if command_whitelist_module:
-        monkeypatch.setitem(sys.modules, "mcp_agentskills.core.utils.command_whitelist", command_whitelist_module)
-    monkeypatch.setitem(sys.modules, "mcp_agentskills.db", mcp_db)
-    monkeypatch.setitem(sys.modules, "mcp_agentskills.db.session", mcp_db_session)
-    monkeypatch.setitem(sys.modules, "mcp_agentskills.repositories", mcp_repositories)
-    monkeypatch.setitem(sys.modules, "mcp_agentskills.repositories.skill", mcp_repositories_skill)
+        monkeypatch.setitem(sys.modules, "skillhub.core.utils.command_whitelist", command_whitelist_module)
+    monkeypatch.setitem(sys.modules, "skillhub.db", mcp_db)
+    monkeypatch.setitem(sys.modules, "skillhub.db.session", mcp_db_session)
+    monkeypatch.setitem(sys.modules, "skillhub.repositories", mcp_repositories)
+    monkeypatch.setitem(sys.modules, "skillhub.repositories.skill", mcp_repositories_skill)
 
     status_map = skill_status or {}
 
@@ -133,13 +160,13 @@ def write_skill(base: Path, skill_name: str, description: str, body: str):
 
 
 def load_user_context():
-    module_path = Path(__file__).resolve().parents[1] / "mcp_agentskills" / "core" / "utils" / "user_context.py"
-    return load_module("mcp_agentskills.core.utils.user_context", module_path)
+    module_path = Path(__file__).resolve().parents[1] / "skillhub" / "core" / "utils" / "user_context.py"
+    return load_module("skillhub.core.utils.user_context", module_path)
 
 
 def load_command_whitelist():
-    module_path = Path(__file__).resolve().parents[1] / "mcp_agentskills" / "core" / "utils" / "command_whitelist.py"
-    return load_module("mcp_agentskills.core.utils.command_whitelist", module_path)
+    module_path = Path(__file__).resolve().parents[1] / "skillhub" / "core" / "utils" / "command_whitelist.py"
+    return load_module("skillhub.core.utils.command_whitelist", module_path)
 
 
 def test_load_skill_metadata_scopes_by_user_id(tmp_path, monkeypatch):
@@ -152,9 +179,9 @@ def test_load_skill_metadata_scopes_by_user_id(tmp_path, monkeypatch):
     write_skill(tmp_path / "user-1", "user_skill", "user", "user body")
 
     module_path = (
-        Path(__file__).resolve().parents[1] / "mcp_agentskills" / "core" / "tools" / "load_skill_metadata_op.py"
+        Path(__file__).resolve().parents[1] / "skillhub" / "core" / "tools" / "load_skill_metadata_op.py"
     )
-    module = load_module("mcp_agentskills.core.tools.load_skill_metadata_op", module_path)
+    module = load_module("skillhub.core.tools.load_skill_metadata_op", module_path)
 
     user_context.set_current_user_id("user-1")
     op = module.LoadSkillMetadataOp()
@@ -177,8 +204,8 @@ def test_load_skill_scopes_by_user_id(tmp_path, monkeypatch):
     write_skill(tmp_path, "shared_skill", "global", "global body")
     write_skill(tmp_path / "user-2", "shared_skill", "user", "user body")
 
-    module_path = Path(__file__).resolve().parents[1] / "mcp_agentskills" / "core" / "tools" / "load_skill_op.py"
-    module = load_module("mcp_agentskills.core.tools.load_skill_op", module_path)
+    module_path = Path(__file__).resolve().parents[1] / "skillhub" / "core" / "tools" / "load_skill_op.py"
+    module = load_module("skillhub.core.tools.load_skill_op", module_path)
 
     user_context.set_current_user_id("user-2")
     op = module.LoadSkillOp()
@@ -206,8 +233,8 @@ def test_load_skill_blocks_deactivated(tmp_path, monkeypatch):
 
     write_skill(tmp_path / "user-9", "blocked_skill", "user", "blocked body")
 
-    module_path = Path(__file__).resolve().parents[1] / "mcp_agentskills" / "core" / "tools" / "load_skill_op.py"
-    module = load_module("mcp_agentskills.core.tools.load_skill_op", module_path)
+    module_path = Path(__file__).resolve().parents[1] / "skillhub" / "core" / "tools" / "load_skill_op.py"
+    module = load_module("skillhub.core.tools.load_skill_op", module_path)
 
     user_context.set_current_user_id("user-9")
     op = module.LoadSkillOp()
@@ -231,9 +258,9 @@ def test_read_reference_file_scopes_by_user_id(tmp_path, monkeypatch):
     (tmp_path / "user-3" / "skill_x" / "reference.md").write_text("user ref", encoding="utf-8")
 
     module_path = (
-        Path(__file__).resolve().parents[1] / "mcp_agentskills" / "core" / "tools" / "read_reference_file_op.py"
+        Path(__file__).resolve().parents[1] / "skillhub" / "core" / "tools" / "read_reference_file_op.py"
     )
-    module = load_module("mcp_agentskills.core.tools.read_reference_file_op", module_path)
+    module = load_module("skillhub.core.tools.read_reference_file_op", module_path)
 
     user_context.set_current_user_id("user-3")
     op = module.ReadReferenceFileOp()
@@ -257,8 +284,8 @@ def test_run_shell_command_uses_user_scoped_workdir(tmp_path, monkeypatch):
     write_skill(tmp_path, "skill_cmd", "global", "global body")
     write_skill(tmp_path / "user-4", "skill_cmd", "user", "user body")
 
-    module_path = Path(__file__).resolve().parents[1] / "mcp_agentskills" / "core" / "tools" / "run_shell_command_op.py"
-    module = load_module("mcp_agentskills.core.tools.run_shell_command_op", module_path)
+    module_path = Path(__file__).resolve().parents[1] / "skillhub" / "core" / "tools" / "run_shell_command_op.py"
+    module = load_module("skillhub.core.tools.run_shell_command_op", module_path)
 
     captured = {}
 

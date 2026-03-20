@@ -1,10 +1,10 @@
 import pytest
 from datetime import datetime, timedelta, timezone
 
-from mcp_agentskills.api.mcp import reset_mcp_session_provider, set_mcp_session_provider
-from mcp_agentskills.repositories.token import TokenRepository
-from mcp_agentskills.repositories.user import UserRepository
-from mcp_agentskills.services.token import TokenService
+from skillhub.api.mcp import reset_mcp_session_provider, set_mcp_session_provider
+from skillhub.repositories.token import TokenRepository
+from skillhub.repositories.user import UserRepository
+from skillhub.services.token import TokenService
 
 
 @pytest.mark.asyncio
@@ -125,7 +125,7 @@ async def test_mcp_initialization_does_not_set_auth(monkeypatch):
     import sys
     import types
 
-    import mcp_agentskills.api.mcp as mcp_module
+    import skillhub.api.mcp as mcp_module
 
     class Context:
         flow_dict = {}
@@ -162,9 +162,9 @@ async def test_mcp_initialization_does_not_set_auth(monkeypatch):
 
     flowllm_mcp_service.MCPService = MCPService
 
-    agentskills_main = types.ModuleType("mcp_agentskills.main")
+    agentskills_main = types.ModuleType("skillhub.main")
 
-    class AgentSkillsMcpApp:
+    class SkillHubMcpApp:
         def __init__(self, *args, **kwargs):
             self.service_config = types.SimpleNamespace(metadata={})
 
@@ -174,12 +174,12 @@ async def test_mcp_initialization_does_not_set_auth(monkeypatch):
         async def async_stop(self):
             return None
 
-    agentskills_main.AgentSkillsMcpApp = AgentSkillsMcpApp
+    agentskills_main.SkillHubMcpApp = SkillHubMcpApp
 
     monkeypatch.setitem(sys.modules, "flowllm.core.context", flowllm_context)
     monkeypatch.setitem(sys.modules, "flowllm.core.flow", flowllm_flow)
     monkeypatch.setitem(sys.modules, "flowllm.core.service.mcp_service", flowllm_mcp_service)
-    monkeypatch.setitem(sys.modules, "mcp_agentskills.main", agentskills_main)
+    monkeypatch.setitem(sys.modules, "skillhub.main", agentskills_main)
 
     await mcp_module.shutdown_mcp()
     await mcp_module.ensure_mcp_initialized()
@@ -192,7 +192,7 @@ async def test_mcp_initialization_does_not_set_auth(monkeypatch):
 async def test_mcp_fallback_error_format():
     import httpx
 
-    import mcp_agentskills.api.mcp as mcp_module
+    import skillhub.api.mcp as mcp_module
 
     app = mcp_module._build_fallback_app()
     transport = httpx.ASGITransport(app=app)

@@ -1,10 +1,10 @@
-# <img src="docs/figure/agentskills-logo.png" alt="Agent Skills MCP Logo" width="5%" style="vertical-align: middle;"> AgentSkills MCP Private Skills SaaS
+# <img src="docs/figure/skillhub-logo.png" alt="Open SkillHub Logo" width="5%" style="vertical-align: middle;"> Open SkillHub - Private Skills SaaS
 
 <p align="center">
-  <a href="https://pypi.org/project/mcp-agentskills/"><img src="https://img.shields.io/badge/python-3.10+-blue" alt="Python Version"></a>
-  <a href="https://pypi.org/project/mcp-agentskills/"><img src="https://img.shields.io/pypi/v/mcp-agentskills.svg?logo=pypi" alt="PyPI Version"></a>
+  <a href="https://pypi.org/project/open-skillhub/"><img src="https://img.shields.io/badge/python-3.10+-blue" alt="Python Version"></a>
+  <a href="https://pypi.org/project/open-skillhub/"><img src="https://img.shields.io/pypi/v/open-skillhub.svg?logo=pypi" alt="PyPI Version"></a>
   <a href="./LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0-black" alt="License"></a>
-  <a href="https://github.com/zouyingcao/agentskills-mcp"><img src="https://img.shields.io/github/stars/zouyingcao/agentskills-mcp?style=social" alt="GitHub Stars"></a>
+  <a href="https://github.com/zouyingcao/open-skillhub"><img src="https://img.shields.io/github/stars/zouyingcao/open-skillhub?style=social" alt="GitHub Stars"></a>
 </p>
 
 <p align="center">
@@ -13,7 +13,7 @@
 
 ## 📖 Project Overview
 
-AgentSkills MCP is now a **private Skills management SaaS**. It provides multi-tenant accounts, private Skill spaces, a web console, and MCP HTTP/SSE access so clients can execute Skills securely. The system manages Skill lifecycles through the Web API and exposes MCP endpoints for execution, enabling a complete “upload → manage → run” workflow.
+Open SkillHub is a **private Skills management SaaS**. It provides multi-tenant accounts, private Skill spaces, a web console, and MCP HTTP/SSE access so clients can execute Skills securely. The system manages Skill lifecycles through the Web API and exposes MCP endpoints for execution, enabling a complete "upload → manage → run" workflow.
 
 ## ✅ Key Capabilities
 
@@ -39,7 +39,7 @@ pip install -e ".[dev]"
 Copy `.env.example` to `.env` and set at least:
 
 ```bash
-DATABASE_URL=postgresql+asyncpg://user:pass@localhost:5432/agentskills
+DATABASE_URL=postgresql+asyncpg://user:pass@localhost:5432/skillhub
 SECRET_KEY=your-secret-key-min-32-chars
 SKILL_STORAGE_PATH=/data/skills
 CORS_ORIGINS=["http://localhost:3000"]
@@ -54,7 +54,7 @@ alembic upgrade head
 ### 4. Start the API server
 
 ```bash
-uvicorn mcp_agentskills.api_app:app --host 0.0.0.0 --port 8000
+uvicorn skillhub.api_app:app --host 0.0.0.0 --port 8000
 ```
 
 ### 5. Start the frontend console
@@ -70,7 +70,7 @@ NEXT_PUBLIC_API_BASE_URL=http://localhost:8000 npm run dev
 ```json
 {
   "mcpServers": {
-    "agentskills-mcp": {
+    "skillhub-mcp": {
       "type": "http",
       "url": "https://your-domain.com/mcp",
       "headers": {

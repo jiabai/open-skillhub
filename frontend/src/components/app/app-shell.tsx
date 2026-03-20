@@ -61,7 +61,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   <Wrench className="h-5 w-5" />
                 </div>
                 <div>
-                  <p className="font-display text-lg">AgentSkills</p>
+                  <p className="font-display text-lg">SkillHub</p>
                   <p className="text-xs text-muted-foreground">多用户控制台</p>
                 </div>
               </Link>

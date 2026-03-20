@@ -17,8 +17,8 @@ const bodyFont = IBM_Plex_Sans({
 })
 
 export const metadata: Metadata = {
-  title: "AgentSkills 控制台",
-  description: "多用户 Agent Skills 控制台"
+  title: "SkillHub 控制台",
+  description: "多用户 Skill Hub 控制台"
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

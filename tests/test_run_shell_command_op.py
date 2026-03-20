@@ -3,9 +3,9 @@
 import sys
 import asyncio
 
-from mcp_agentskills import AgentSkillsMcpApp
-from mcp_agentskills.core.tools import LoadSkillMetadataOp, RunShellCommandOp
-from mcp_agentskills.core.utils.command_whitelist import validate_command
+from skillhub import SkillHubMcpApp
+from skillhub.core.tools import LoadSkillMetadataOp, RunShellCommandOp
+from skillhub.core.utils.command_whitelist import validate_command
 
 
 def test_command_whitelist_blocks_windows_traversal():
@@ -15,7 +15,7 @@ def test_command_whitelist_blocks_windows_traversal():
 
 
 def test_command_whitelist_blocks_network_egress_when_enabled(monkeypatch):
-    from mcp_agentskills.config import settings as settings_module
+    from skillhub.config import settings as settings_module
 
     monkeypatch.setattr(settings_module.settings, "ENABLE_NETWORK_EGRESS_CONTROL", True, raising=False)
     allowed, message = validate_command(
@@ -26,7 +26,7 @@ def test_command_whitelist_blocks_network_egress_when_enabled(monkeypatch):
 
 
 def test_command_whitelist_allows_network_related_text_when_disabled(monkeypatch):
-    from mcp_agentskills.config import settings as settings_module
+    from skillhub.config import settings as settings_module
 
     monkeypatch.setattr(settings_module.settings, "ENABLE_NETWORK_EGRESS_CONTROL", False, raising=False)
     allowed, _ = validate_command(
@@ -37,7 +37,7 @@ def test_command_whitelist_allows_network_related_text_when_disabled(monkeypatch
 
 async def main(skill_dir: str, skill_name: str, command: str):
     """Execute the run_shell_command operation given a skill directory, a skill name, and a command."""
-    async with AgentSkillsMcpApp(
+    async with SkillHubMcpApp(
         f"metadata.skill_dir={skill_dir}",
     ):
         op = LoadSkillMetadataOp()

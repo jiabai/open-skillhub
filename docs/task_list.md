@@ -1,4 +1,4 @@
-# AgentSkills MCP 多用户Web服务改造 - 任务列表
+# Open SkillHub 多用户Web服务改造 - 任务列表
 
 > 本文档定义了项目改造的详细任务分解，按阶段和优先级组织。
 >
@@ -21,7 +21,7 @@
 
 | ID | 任务 | 描述 | 依赖 | 状态 |
 |----|------|------|------|------|
-| T1.1.1 | 创建配置模块 | 创建 `mcp_agentskills/config/settings.py`，定义 Pydantic Settings | 无 | ✅ |
+| T1.1.1 | 创建配置模块 | 创建 `skillhub/config/settings.py`，定义 Pydantic Settings | 无 | ✅ |
 | T1.1.2 | 更新依赖配置 | 更新 `pyproject.toml`，添加新依赖 (使用 PyJWT) | T1.1.1 | ✅ |
 | T1.1.3 | 创建环境变量模板 | 创建 `.env.example` 文件 | T1.1.1 | ✅ |
 | T1.1.4 | 扩展 default.yaml | 添加用户隔离相关配置 | T1.1.1 | ✅ |

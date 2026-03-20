@@ -61,7 +61,7 @@ export type VerificationCodeResponse = {
   attempts_left?: number
 }
 
-const storageKey = "agentskills.tokens"
+const storageKey = "skillhub.tokens"
 
 const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000"
 

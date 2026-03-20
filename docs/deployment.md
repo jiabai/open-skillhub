@@ -1,17 +1,17 @@
 # 部署指南
 
-本文档提供 AgentSkills MCP 的本地开发与生产部署说明，涵盖 FastAPI 模式与 FlowLLM 模式。
+本文档提供 Open SkillHub 的本地开发与生产部署说明，涵盖 FastAPI 模式与 FlowLLM 模式。
 
 ## 部署模式
 
 ### FastAPI 模式（HTTP API + MCP）
 - 适用：多用户 Web API、MCP HTTP/SSE 访问
-- 入口：`mcp_agentskills.api_app:app`
+- 入口：`skillhub.api_app:app`
 - MCP 端点：`/mcp`、`/sse`
 
 ### FlowLLM 模式（stdio/SSE）
 - 适用：本地单用户、CLI 集成
-- 入口：`mcp_agentskills.main`
+- 入口：`skillhub.main`
 
 ## 部署能力开关建议（企业私有化）
 
@@ -40,7 +40,7 @@
 > 说明：`.env.example` 展示的是代码内建默认值与示例值；私有化部署需显式覆盖相关能力开关。
 
 ```bash
-DATABASE_URL=postgresql+asyncpg://user:pass@localhost:5432/agentskills
+DATABASE_URL=postgresql+asyncpg://user:pass@localhost:5432/skillhub
 DATABASE_POOL_SIZE=20
 DATABASE_MAX_OVERFLOW=10
 DATABASE_POOL_TIMEOUT=30
@@ -53,7 +53,7 @@ DEBUG=false
 CORS_ORIGINS=["https://your-domain.com"]
 LOG_LEVEL=INFO
 LOG_FORMAT=json
-LOG_FILE=/var/log/agentskills/app.log
+LOG_FILE=/var/log/skillhub/app.log
 SKILL_STORAGE_PATH=/data/skills
 SKILL_ARCHIVE_BACKEND=local
 SKILL_ARCHIVE_S3_BUCKET=
@@ -75,9 +75,9 @@ RATE_LIMIT_WINDOW=60
 METRICS_RETENTION_DAYS=90
 FLOW_LLM_API_KEY=your-api-key
 FLOW_LLM_BASE_URL=https://api.openai.com/v1
-POSTGRES_USER=agentskills
-POSTGRES_PASSWORD=agentskills
-POSTGRES_DB=agentskills
+POSTGRES_USER=skillhub
+POSTGRES_PASSWORD=skillhub
+POSTGRES_DB=skillhub
 SMTP_HOST=smtp.example.com
 SMTP_PORT=587
 SMTP_USERNAME=your-smtp-user
@@ -87,7 +87,7 @@ SMTP_USE_TLS=true
 ALIYUN_DM_ACCESS_KEY_ID=your-aliyun-access-key-id
 ALIYUN_DM_ACCESS_KEY_SECRET=your-aliyun-access-key-secret
 ALIYUN_DM_ACCOUNT_NAME=sender@your-domain.com
-ALIYUN_DM_FROM_ALIAS=AgentSkills
+ALIYUN_DM_FROM_ALIAS=Open SkillHub
 ALIYUN_DM_REPLY_TO_ADDRESS=true
 ALIYUN_DM_ENDPOINT=https://dm.aliyuncs.com/
 ENABLE_PUBLIC_SIGNUP=true
@@ -150,7 +150,7 @@ ENABLE_AUDIT_EXPORT=true
 ## 数据库准备
 
 ```bash
-createdb agentskills
+createdb skillhub
 alembic upgrade head
 ```
 
@@ -192,7 +192,7 @@ pip install -e ".[dev]"
 ### 2. 启动 FastAPI 服务
 
 ```bash
-uvicorn mcp_agentskills.api_app:app --host 0.0.0.0 --port 8000
+uvicorn skillhub.api_app:app --host 0.0.0.0 --port 8000
 ```
 
 ### 3. 启动前端控制台
@@ -227,7 +227,7 @@ docker compose run --rm migrate
 ## 运行 FlowLLM 模式（可选）
 
 ```bash
-agentskills-mcp
+skillhub-mcp
 ```
 
 ## 健康检查与指标
@@ -256,16 +256,16 @@ GET /metrics
 ### 数据库备份（Linux/macOS）
 
 ```bash
-pg_dump agentskills > backup/agentskills_$(date +%Y%m%d).sql
-find /backup -name "agentskills_*.sql" -mtime +7 -delete
+pg_dump skillhub > backup/skillhub_$(date +%Y%m%d).sql
+find /backup -name "skillhub_*.sql" -mtime +7 -delete
 ```
 
 ### 数据库备份（Windows PowerShell）
 
 ```powershell
-$backupPath = "C:\backup\agentskills_$(Get-Date -Format 'yyyyMMdd').sql"
-pg_dump agentskills > $backupPath
-Get-ChildItem "C:\backup\agentskills_*.sql" | Where-Object { $_.LastWriteTime -lt (Get-Date).AddDays(-7) } | Remove-Item
+$backupPath = "C:\backup\skillhub_$(Get-Date -Format 'yyyyMMdd').sql"
+pg_dump skillhub > $backupPath
+Get-ChildItem "C:\backup\skillhub_*.sql" | Where-Object { $_.LastWriteTime -lt (Get-Date).AddDays(-7) } | Remove-Item
 ```
 
 ### Skill 文件备份（Linux/macOS）
@@ -296,7 +296,7 @@ Get-ChildItem "C:\backup\skills_*.zip" | Where-Object { $_.LastWriteTime -lt (Ge
 ```json
 {
   "mcpServers": {
-    "agentskills-mcp": {
+    "skillhub-mcp": {
       "type": "http",
       "url": "https://your-domain.com/mcp",
       "headers": {

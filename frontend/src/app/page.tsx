@@ -8,7 +8,7 @@ export default function HomePage() {
     <div className="grid gap-6">
       <Card className="overflow-hidden">
         <CardHeader>
-          <CardTitle>AgentSkills 控制台</CardTitle>
+          <CardTitle>SkillHub 控制台</CardTitle>
           <CardDescription>为你的私有 Skills 提供清晰、可追踪的管理体验。</CardDescription>
         </CardHeader>
         <CardContent className="flex flex-wrap items-center gap-3">

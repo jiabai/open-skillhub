@@ -37,7 +37,7 @@ describe("AppShell auth guard", () => {
   it("redirects to login when not authenticated", async () => {
     replaceMock.mockClear()
     storedTokens = null
-    window.localStorage.removeItem("agentskills.tokens")
+    window.localStorage.removeItem("skillhub.tokens")
     render(<AppShell>content</AppShell>)
     await waitFor(() => {
       expect(replaceMock).toHaveBeenCalledWith("/login")
@@ -48,7 +48,7 @@ describe("AppShell auth guard", () => {
     replaceMock.mockClear()
     storedTokens = { access_token: "token", refresh_token: "refresh" }
     window.localStorage.setItem(
-      "agentskills.tokens",
+      "skillhub.tokens",
       JSON.stringify({ access_token: "token", refresh_token: "refresh" })
     )
     const { findByRole, findByText } = render(<AppShell>content</AppShell>)
@@ -58,7 +58,7 @@ describe("AppShell auth guard", () => {
     const logoutItem = await findByText("退出登录")
     fireEvent.click(logoutItem)
     await waitFor(() => {
-      expect(window.localStorage.getItem("agentskills.tokens")).toBeNull()
+      expect(window.localStorage.getItem("skillhub.tokens")).toBeNull()
       expect(replaceMock).toHaveBeenCalledWith("/login")
     })
   })

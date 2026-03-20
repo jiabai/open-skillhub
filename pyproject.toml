@@ -3,9 +3,9 @@ requires = ["setuptools>=61.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "mcp-agentskills"
+name = "open-skillhub"
 dynamic = ["version"]
-description = "An MCP server for bringing Anthropic's Agent Skills to any MCP-compatible agent."
+description = "A private Skills management SaaS with MCP server for AI agents."
 authors = [
     { name = "jinli.yl", email = "jinli.yl@alibaba-inc.com" },
     { name = "caozouying.czy", email = "caozouying.czy@alibaba-inc.com" },
@@ -14,7 +14,7 @@ license = {file = "LICENSE"}
 readme = "README.md"
 keywords = [
   "llm", "agent", "skills",
-  "claude-skills", "anthropic-agent-skills",
+  "skill-management", "skill-hub",
   "mcp", "model-context-protocol", "flowllm",
   "progressive-disclosure"
 ]
@@ -73,24 +73,24 @@ dev = [
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["mcp_agentskills*"]
+include = ["skillhub*"]
 exclude = ["tests*"]
 
 [tool.setuptools.package-data]
-mcp_agentskills = [
+skillhub = [
     "**/*.yaml",
 ]
 
 [tool.setuptools.dynamic]
-version = {attr = "mcp_agentskills.__version__"}
+version = {attr = "skillhub.__version__"}
 
 [project.urls]
-Homepage = "https://github.com/zouyingcao/agentskills-mcp"
-Documentation = "https://github.com/zouyingcao/agentskills-mcp/README.md"
-Repository = "https://github.com/zouyingcao/agentskills-mcp"
+Homepage = "https://github.com/zouyingcao/open-skillhub"
+Documentation = "https://github.com/zouyingcao/open-skillhub/README.md"
+Repository = "https://github.com/zouyingcao/open-skillhub"
 
 [project.scripts]
-agentskills-mcp = "mcp_agentskills.main:main"
+skillhub-mcp = "skillhub.main:main"
 
 [tool.mypy]
 plugins = ["pydantic.mypy"]

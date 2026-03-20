@@ -1,4 +1,4 @@
-# AgentSkills MCP 前端构建与设计文档 - Part 3
+# Open SkillHub 前端构建与设计文档 - Part 3
 
 ## API与数据模型
 
@@ -27,7 +27,7 @@
 // src/lib/api.ts
 
 // ========== Token 管理 ==========
-const storageKey = "agentskills.tokens"
+const storageKey = "skillhub.tokens"
 
 export interface TokenPair {
   access_token: string

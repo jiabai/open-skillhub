@@ -3,8 +3,8 @@ from datetime import datetime, timedelta, timezone
 import pytest
 from sqlalchemy import func, select
 
-from mcp_agentskills.models.request_metric import RequestMetric
-from mcp_agentskills.repositories.user import UserRepository
+from skillhub.models.request_metric import RequestMetric
+from skillhub.repositories.user import UserRepository
 
 
 @pytest.mark.asyncio

@@ -1,4 +1,4 @@
-# Agent Skills MCP 两种运行模式架构图
+# Open SkillHub 两种运行模式架构图
 
 ## 当前代码耦合度分析
 
@@ -7,10 +7,10 @@
 ```
 ┌──────────────┐     ┌──────────────────────────────────────────────┐
 │   CLI/终端    │     │              FlowLLM 框架                    │
-│   agentskills │────▶│  ┌─────────────────────────────────────────┐ │
-│   -mcp        │     │  │  AgentSkillsMcpApp (core/app.py)       │ │
-│   transport   │     │  │    ├── mcp.transport=stdio/sse         │ │
-│   =stdio/sse  │     │  │    ├── ConfigParser                    │ │
+│   skillhub   │────▶│  ┌─────────────────────────────────────────┐ │
+│   -mcp       │     │  │  SkillHubMcpApp (core/app.py)            │ │
+│   transport  │     │  │    ├── mcp.transport=stdio/sse         │ │
+│   =stdio/sse │     │  │    ├── ConfigParser                    │ │
 └──────────────┘     │  │    └── run_service()                    │ │
                     │  └─────────────────────────────────────────┘ │
                     │                     │                          │
@@ -82,7 +82,7 @@
 │          ▼                                       ▼                  │
 │   ┌─────────────────────────────────────────────────────────┐      │
 │   │                    core/app.py                           │      │
-│   │              AgentSkillsMcpApp (公共)                    │      │
+│   │              Open SkillHubMcpApp (公共)                    │      │
 │   │              - fastmcp stub 定义                         │      │
 │   │              - Application 子类                          │      │
 │   └─────────────────────────────────────────────────────────┘      │
@@ -102,7 +102,7 @@
 
 | 特性 | FlowLLM 独立模式 | FastAPI HTTP/SSE 模式 |
 |-----|-----------------|---------------------|
-| **启动方式** | `agentskills-mcp` CLI | `uvicorn mcp_agentskills.api_app` |
+| **启动方式** | `skillhub-mcp` CLI | `uvicorn skillhub.api_app` |
 | **认证** | ❌ 无 | ✅ Bearer Token |
 | **用户隔离** | ❌ 无 | ✅ ContextVar |
 | **端口** | 8001 (当 SSE) | 8002 |
@@ -112,7 +112,7 @@
 
 | 特性 | 重构前 | 重构后 |
 |-----|-------|-------|
-| AgentSkillsMcpApp 位置 | main.py | core/app.py |
+| Open SkillHubMcpApp 位置 | main.py | core/app.py |
 | FastAPI 模式导入 | from main import | from core.app import |
 | main.py 职责 | 类定义 + CLI | 纯 CLI |
 | 耦合度 | 中等 | 低 |
@@ -122,5 +122,5 @@
 ✅ 当前架构符合设计要求：
 - **FlowLLM 独立模式**：无认证、无用户隔离，适合本地/开发场景
 - **FastAPI HTTP/SSE 模式**：有认证、有用户隔离，适合生产环境
-- **AgentSkillsMcpApp** 已剥离到 `core/app.py`，两种模式共享此公共模块
+- **Open SkillHubMcpApp** 已剥离到 `core/app.py`，两种模式共享此公共模块
 - 两种模式耦合度低，认证逻辑在 FastAPI 层独立处理

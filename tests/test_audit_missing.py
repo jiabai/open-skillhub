@@ -3,7 +3,7 @@ import jwt
 import pytest
 from sqlalchemy import select
 
-from mcp_agentskills.models.audit_log import AuditLog
+from skillhub.models.audit_log import AuditLog
 
 
 async def _sso_login(client, email, username, role="admin"):

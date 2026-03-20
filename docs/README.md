@@ -1,6 +1,6 @@
 # 文档导航
 
-本目录用于汇总 AgentSkills MCP 的规范、方案与实施记录。为避免信息分散，请优先从下方入口检索。
+本目录用于汇总 Open SkillHub 的规范、方案与实施记录。为避免信息分散，请优先从下方入口检索。
 
 ## 快速入口
 - 权威技术规范：[project-spec.md](./project-spec.md)

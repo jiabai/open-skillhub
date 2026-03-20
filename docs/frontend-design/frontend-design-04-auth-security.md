@@ -1,4 +1,4 @@
-# AgentSkills MCP 前端构建与设计文档 - Part 4
+# Open SkillHub 前端构建与设计文档 - Part 4
 
 ## 认证与安全
 
@@ -85,7 +85,7 @@
 
 ```tsx
 // src/lib/api.ts
-const storageKey = "agentskills.tokens"
+const storageKey = "skillhub.tokens"
 
 export function getStoredTokens(): TokenPair | null {
   if (typeof window === "undefined") return null

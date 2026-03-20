@@ -34,7 +34,7 @@ def _set_default_env():
     os.environ.setdefault("ENABLE_METRICS", "true")
     os.environ.setdefault("SSO_JWT_SECRET", "test-sso-secret")
     os.environ.setdefault("SSO_JWT_ISSUER", "test-issuer")
-    os.environ.setdefault("SSO_JWT_AUDIENCE", "agentskills")
+    os.environ.setdefault("SSO_JWT_AUDIENCE", "skillhub")
 
 
 _set_default_env()
@@ -42,8 +42,8 @@ _set_default_env()
 
 @pytest_asyncio.fixture(scope="session")
 async def async_engine():
-    from mcp_agentskills import models as _models
-    from mcp_agentskills.models.base import Base
+    from skillhub import models as _models
+    from skillhub.models.base import Base
     _ = _models.__all__
 
     engine = create_async_engine(os.environ["DATABASE_URL"], future=True)
@@ -66,8 +66,8 @@ async def async_session(async_engine) -> AsyncGenerator[AsyncSession, None]:
 
 @pytest_asyncio.fixture
 async def app(async_session) -> AsyncGenerator:
-    from mcp_agentskills.api_app import create_application
-    from mcp_agentskills.db.session import get_async_session
+    from skillhub.api_app import create_application
+    from skillhub.db.session import get_async_session
 
     application = create_application()
 

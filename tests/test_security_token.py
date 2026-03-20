@@ -1,4 +1,4 @@
-from mcp_agentskills.core.security.token import generate_api_token, hash_token, verify_token_hash
+from skillhub.core.security.token import generate_api_token, hash_token, verify_token_hash
 
 
 def test_generate_api_token_format():

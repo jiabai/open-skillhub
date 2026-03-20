@@ -3,13 +3,13 @@
 import sys
 import asyncio
 
-from mcp_agentskills import AgentSkillsMcpApp
-from mcp_agentskills.core.tools import LoadSkillMetadataOp
+from skillhub import SkillHubMcpApp
+from skillhub.core.tools import LoadSkillMetadataOp
 
 
 async def main(skill_dir: str):
     """Execute the load_skill_metadata operation given a skill directory."""
-    async with AgentSkillsMcpApp(
+    async with SkillHubMcpApp(
         f"metadata.skill_dir={skill_dir}",
     ):
         op = LoadSkillMetadataOp()

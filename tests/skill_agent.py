@@ -2,7 +2,7 @@
 
 Since Qwen supports function calling,
 you can implement Agent Skills by passing the MCP tools
-registered by the AgentSkills MCP service to the tools parameter.
+registered by the SkillHub MCP service to the tools parameter.
 """
 
 import json

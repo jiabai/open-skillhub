@@ -1,8 +1,8 @@
 import pytest
 
-from mcp_agentskills.repositories.token import TokenRepository
-from mcp_agentskills.repositories.user import UserRepository
-from mcp_agentskills.services.token import TokenService
+from skillhub.repositories.token import TokenRepository
+from skillhub.repositories.user import UserRepository
+from skillhub.services.token import TokenService
 
 
 @pytest.mark.asyncio

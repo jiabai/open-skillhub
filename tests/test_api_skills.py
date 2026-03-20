@@ -3,7 +3,7 @@ import zipfile
 
 import pytest
 
-from mcp_agentskills.config.settings import settings
+from skillhub.config.settings import settings
 
 
 @pytest.mark.asyncio

@@ -6,11 +6,11 @@ import pytest
 
 @pytest.mark.asyncio
 async def test_local_archive_roundtrip(tmp_path, monkeypatch):
-    from mcp_agentskills.config import settings as settings_module
+    from skillhub.config import settings as settings_module
 
     monkeypatch.setattr(settings_module.settings, "SKILL_STORAGE_PATH", str(tmp_path))
     monkeypatch.setattr(settings_module.settings, "SKILL_ARCHIVE_BACKEND", "local")
-    from mcp_agentskills.core.utils.skill_archive import load_archive, save_archive
+    from skillhub.core.utils.skill_archive import load_archive, save_archive
 
     payload = b"zip-content"
     await save_archive("user-1", "skill-1", "1.0.0", payload)
@@ -20,14 +20,14 @@ async def test_local_archive_roundtrip(tmp_path, monkeypatch):
 
 @pytest.mark.asyncio
 async def test_s3_archive_roundtrip(monkeypatch):
-    from mcp_agentskills.config import settings as settings_module
+    from skillhub.config import settings as settings_module
 
     monkeypatch.setattr(settings_module.settings, "SKILL_ARCHIVE_BACKEND", "s3")
     monkeypatch.setattr(settings_module.settings, "SKILL_ARCHIVE_S3_BUCKET", "bucket")
     monkeypatch.setattr(settings_module.settings, "SKILL_ARCHIVE_S3_ENDPOINT", "https://s3.test")
     monkeypatch.setattr(settings_module.settings, "SKILL_ARCHIVE_S3_ACCESS_KEY_ID", "key")
     monkeypatch.setattr(settings_module.settings, "SKILL_ARCHIVE_S3_SECRET_ACCESS_KEY", "secret")
-    from mcp_agentskills.core.utils import skill_archive
+    from skillhub.core.utils import skill_archive
 
     stored = io.BytesIO()
 
@@ -51,8 +51,8 @@ async def test_s3_archive_roundtrip(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_local_archive_expired_cache_is_cleaned(tmp_path, monkeypatch):
-    from mcp_agentskills.config import settings as settings_module
-    from mcp_agentskills.core.utils import skill_archive
+    from skillhub.config import settings as settings_module
+    from skillhub.core.utils import skill_archive
 
     monkeypatch.setattr(settings_module.settings, "SKILL_STORAGE_PATH", str(tmp_path))
     monkeypatch.setattr(settings_module.settings, "SKILL_ARCHIVE_BACKEND", "local")
@@ -71,8 +71,8 @@ async def test_local_archive_expired_cache_is_cleaned(tmp_path, monkeypatch):
 
 @pytest.mark.asyncio
 async def test_s3_archive_falls_back_to_local_cache_when_offline(tmp_path, monkeypatch):
-    from mcp_agentskills.config import settings as settings_module
-    from mcp_agentskills.core.utils import skill_archive
+    from skillhub.config import settings as settings_module
+    from skillhub.core.utils import skill_archive
 
     monkeypatch.setattr(settings_module.settings, "SKILL_STORAGE_PATH", str(tmp_path))
     monkeypatch.setattr(settings_module.settings, "SKILL_ARCHIVE_BACKEND", "s3")

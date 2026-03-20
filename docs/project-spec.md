@@ -1,6 +1,6 @@
-# AgentSkills MCP 多用户Web服务改造规范
+# Open SkillHub 多用户Web服务改造规范
 
-> 本文档定义了 AgentSkills MCP 多用户 Web 服务的技术规范。当前代码库已生成并集成后端 Python 侧的核心能力（多用户隔离、API Token 认证、私有 Skill 空间等），并已补齐前端控制台实现。
+> 本文档定义了 Open SkillHub 多用户 Web 服务的技术规范。当前代码库已生成并集成后端 Python 侧的核心能力（多用户隔离、API Token 认证、私有 Skill 空间等），并已补齐前端控制台实现。
 >
 > 本文档中也包含少量“可选扩展/参考实现”的示例片段，未必在仓库中默认启用；如与实际实现不一致，以代码为准。
 
@@ -147,9 +147,9 @@ RBAC_ROLE_PERMISSIONS={"admin":["*"],"member":["skill.list","skill.read","skill.
 
 | 模式           | 启动方式                                                             | 代码入口                                        | 认证                                   | 用户隔离 | Skill 路径                                      |
 | ------------ | ---------------------------------------------------------------- | ------------------------------------------- | ------------------------------------ | ---- | --------------------------------------------- |
-| **stdio**    | `python -m mcp_agentskills.main`<br>`agentskills-mcp`            | [main.py](../mcp_agentskills/main.py)       | ❌ 无                                  | ❌    | `{skill_dir}/{skill_name}/SKILL.md`           |
-| **单用户 SSE**  | `agentskills-mcp config=default mcp.transport=sse`               | [main.py](../mcp_agentskills/main.py)       | ❌ 无                                  | ❌    | `{skill_dir}/{skill_name}/SKILL.md`           |
-| **HTTP API** | `uvicorn mcp_agentskills.api_app:app --host 0.0.0.0 --port 8000` | [api_app.py](../mcp_agentskills/api_app.py) | ✅ API Token（优先），JWT Access Token（兼容） | ✅    | `{skill_dir}/{user_id}/{skill_name}/SKILL.md` |
+| **stdio**    | `python -m skillhub.main`<br>`skillhub-mcp`            | [main.py](../skillhub/main.py)       | ❌ 无                                  | ❌    | `{skill_dir}/{skill_name}/SKILL.md`           |
+| **单用户 SSE**  | `skillhub-mcp config=default mcp.transport=sse`               | [main.py](../skillhub/main.py)       | ❌ 无                                  | ❌    | `{skill_dir}/{skill_name}/SKILL.md`           |
+| **HTTP API** | `uvicorn skillhub.api_app:app --host 0.0.0.0 --port 8000` | [api_app.py](../skillhub/api_app.py) | ✅ API Token（优先），JWT Access Token（兼容） | ✅    | `{skill_dir}/{user_id}/{skill_name}/SKILL.md` |
 
 **核心区分逻辑：**
 
@@ -170,7 +170,7 @@ RBAC_ROLE_PERMISSIONS={"admin":["*"],"member":["skill.list","skill.read","skill.
 
 2. **HTTP API 认证流程**
    - 通过 `McpAppProxy` 代理所有 MCP 请求
-   - 在 [`McpAppProxy.__call__`](../mcp_agentskills/api/mcp/__init__.py#L183) 中调用 `_authorize_mcp_request` 进行认证
+   - 在 [`McpAppProxy.__call__`](../skillhub/api/mcp/__init__.py#L183) 中调用 `_authorize_mcp_request` 进行认证
    - 认证成功后通过 `set_current_user_id()` 设置用户上下文
    - 请求结束后自动清理用户上下文
 
@@ -385,7 +385,7 @@ RBAC_ROLE_PERMISSIONS={"admin":["*"],"member":["skill.list","skill.read","skill.
 > **路径风格说明**: 文档中的路径示例使用 Linux/POSIX 风格（正斜杠 `/`）。在 Windows 环境下开发时：
 > - 配置文件中的路径可使用正斜杠或反斜杠
 > - Python 的 `pathlib.Path` 会自动处理跨平台路径
-> - 环境变量 `SKILL_STORAGE_PATH` 示例：`/data/skills` 或 `/var/lib/agentskills/skills`
+> - 环境变量 `SKILL_STORAGE_PATH` 示例：`/data/skills` 或 `/var/lib/skillhub/skills`
 
 ### 2.3 性能注意事项
 
@@ -410,7 +410,7 @@ from typing import List, Optional
 from sqlalchemy import String, Boolean, DateTime, ForeignKey, UniqueConstraint, Index
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
-from mcp_agentskills.models.base import generate_uuid
+from skillhub.models.base import generate_uuid
 
 class User(Base):
     __tablename__ = "users"
@@ -451,7 +451,7 @@ from typing import List
 from sqlalchemy import JSON, String, Boolean, DateTime, ForeignKey, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
-from mcp_agentskills.models.base import generate_uuid
+from skillhub.models.base import generate_uuid
 
 class Skill(Base):
     __tablename__ = "skills"
@@ -495,7 +495,7 @@ from datetime import datetime
 from sqlalchemy import JSON, DateTime, ForeignKey, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
-from mcp_agentskills.models.base import generate_uuid
+from skillhub.models.base import generate_uuid
 
 class SkillVersion(Base):
     __tablename__ = "skill_versions"
@@ -525,7 +525,7 @@ from typing import Optional
 from sqlalchemy import String, Boolean, DateTime, ForeignKey, Index
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
-from mcp_agentskills.models.base import generate_uuid
+from skillhub.models.base import generate_uuid
 
 class APIToken(Base):
     __tablename__ = "api_tokens"
@@ -648,7 +648,7 @@ class DeprecationMiddleware:
 
 
 def create_deprecation_middleware(app: ASGIApp) -> DeprecationMiddleware:
-    from mcp_agentskills.config.settings import settings
+    from skillhub.config.settings import settings
 
     return DeprecationMiddleware(
         app,
@@ -683,7 +683,7 @@ class Settings(BaseSettings):
 **在 api_app.py 中集成**：
 
 ```python
-from mcp_agentskills.core.middleware.deprecation import DeprecationMiddleware
+from skillhub.core.middleware.deprecation import DeprecationMiddleware
 
 def create_application() -> FastAPI:
     # ... 其他中间件 ...
@@ -700,9 +700,9 @@ def create_application() -> FastAPI:
 ```python
 from contextlib import asynccontextmanager
 
-from mcp_agentskills.db.session import get_async_session
-from mcp_agentskills.repositories.audit_log import AuditLogRepository
-from mcp_agentskills.services.deprecation_notification import DeprecationNotifier
+from skillhub.db.session import get_async_session
+from skillhub.repositories.audit_log import AuditLogRepository
+from skillhub.services.deprecation_notification import DeprecationNotifier
 
 @asynccontextmanager
 async def lifespan(_application: FastAPI):
@@ -799,7 +799,7 @@ def get_deprecation_metadata(func: Callable) -> dict:
 
 ```python
 from fastapi import APIRouter, Response
-from mcp_agentskills.core.decorators.deprecation import deprecated
+from skillhub.core.decorators.deprecation import deprecated
 
 router = APIRouter()
 
@@ -822,9 +822,9 @@ async def legacy_endpoint(response: Response):
 # services/deprecation_notification.py
 from datetime import datetime, timezone
 
-from mcp_agentskills.config.settings import settings
-from mcp_agentskills.repositories.audit_log import AuditLogRepository
-from mcp_agentskills.services.audit import AuditService
+from skillhub.config.settings import settings
+from skillhub.repositories.audit_log import AuditLogRepository
+from skillhub.services.audit import AuditService
 
 
 class DeprecationNotifier:
@@ -1459,17 +1459,17 @@ token_hash = hashlib.sha256(token.encode()).hexdigest()
 #### 实现代码示例
 
 ```python
-# mcp_agentskills/api/mcp/auth.py（FastMCP TokenVerifier 版本）
+# skillhub/api/mcp/auth.py（FastMCP TokenVerifier 版本）
 import re
 from datetime import timezone
 
 from mcp.server.auth.provider import AccessToken
 
-from mcp_agentskills.core.utils.user_context import set_current_user_id
-from mcp_agentskills.db.session import get_async_session
-from mcp_agentskills.repositories.token import TokenRepository
-from mcp_agentskills.repositories.user import UserRepository
-from mcp_agentskills.services.token import TokenService
+from skillhub.core.utils.user_context import set_current_user_id
+from skillhub.db.session import get_async_session
+from skillhub.repositories.token import TokenRepository
+from skillhub.repositories.user import UserRepository
+from skillhub.services.token import TokenService
 
 _token_pattern = re.compile(r"^ask_live_[0-9a-f]{64}$")
 
@@ -1503,7 +1503,7 @@ class ApiTokenVerifier:
 ```
 
 ```python
-# mcp_agentskills/api/mcp/__init__.py（MCP 入口兼容校验）
+# skillhub/api/mcp/__init__.py（MCP 入口兼容校验）
 async def _authorize_mcp_request(scope: Scope, receive: Receive, send: Send) -> bool:
     token = _extract_bearer_token(scope)
     verifier = ApiTokenVerifier()
@@ -1572,7 +1572,7 @@ def get_current_user_id() -> Optional[str]:
 #### MCP 工具中的使用方式
 
 ```python
-from mcp_agentskills.core.utils.user_context import get_current_user_id
+from skillhub.core.utils.user_context import get_current_user_id
 
 async def async_execute(self):
     user_id = get_current_user_id()  # 从请求级上下文获取
@@ -1588,7 +1588,7 @@ async def async_execute(self):
 
 ```python
 # api/mcp/auth.py
-from mcp_agentskills.core.utils.user_context import set_current_user_id
+from skillhub.core.utils.user_context import set_current_user_id
 
 async def get_current_user_from_token(token: str) -> User:
     """从 API Token 获取用户并设置上下文"""
@@ -1608,7 +1608,7 @@ async def get_current_user_from_token(token: str) -> User:
 ### 6.3 LoadSkillOp 改造
 
 ```python
-from mcp_agentskills.core.utils.user_context import get_current_user_id
+from skillhub.core.utils.user_context import get_current_user_id
 
 async def async_execute(self):
     skill_name = self.input_dict["skill_name"]
@@ -1634,7 +1634,7 @@ async def async_execute(self):
 ### 6.4 LoadSkillMetadataOp 改造
 
 ```python
-from mcp_agentskills.core.utils.user_context import get_current_user_id
+from skillhub.core.utils.user_context import get_current_user_id
 
 async def async_execute(self):
     user_id = get_current_user_id()  # 使用请求级上下文
@@ -1651,7 +1651,7 @@ async def async_execute(self):
 ### 6.5 ReadReferenceFileOp 改造
 
 ```python
-from mcp_agentskills.core.utils.user_context import get_current_user_id
+from skillhub.core.utils.user_context import get_current_user_id
 
 async def async_execute(self):
     skill_name = self.input_dict["skill_name"]
@@ -1676,9 +1676,9 @@ async def async_execute(self):
 ### 6.6 RunShellCommandOp 改造
 
 ```python
-from mcp_agentskills.core.utils.user_context import get_current_user_id
-from mcp_agentskills.core.utils.command_whitelist import validate_command
-from mcp_agentskills.core.utils.skill_storage import tool_error_payload
+from skillhub.core.utils.user_context import get_current_user_id
+from skillhub.core.utils.command_whitelist import validate_command
+from skillhub.core.utils.skill_storage import tool_error_payload
 
 async def async_execute(self):
     skill_name = self.input_dict["skill_name"]
@@ -1734,7 +1734,7 @@ async def async_execute(self):
 
 ## 7. 项目结构
 
-> **说明**: 项目根目录为 `agentskills-mcp/`，Python 包名为 `mcp_agentskills`。
+> **说明**: 项目根目录为 `skillhub-mcp/`，Python 包名为 `skillhub`。
 >
 > **注意**: 以下结构为当前仓库后端与前端控制台的实际结构。`core/security/`、`core/middleware/`、`models/`、`schemas/`、`repositories/`、`services/`、`api/`、`db/` 等目录为多用户改造引入的模块，已在仓库中创建。现有 `core/tools/` 和 `core/utils/` 目录将保留并扩展。
 
@@ -1748,8 +1748,8 @@ async def async_execute(self):
 | **FastAPI 模式** | `api_app.py` (新增) | Web API + MCP | HTTP/SSE |
 
 ```
-agentskills-mcp/
-├── mcp_agentskills/
+skillhub-mcp/
+├── skillhub/
 │   ├── __init__.py
 │   ├── main.py
 │   ├── api_app.py
@@ -1856,12 +1856,12 @@ agentskills-mcp/
 
 ```bash
 # FlowLLM 模式（stdio/SSE，无用户认证）
-agentskills-mcp
+skillhub-mcp
 # 或直接指定模块入口
-python -m mcp_agentskills.main
+python -m skillhub.main
 
 # FastAPI 模式（HTTP API，多用户认证）
-uvicorn mcp_agentskills.api_app:app --host 0.0.0.0 --port 8000
+uvicorn skillhub.api_app:app --host 0.0.0.0 --port 8000
 ```
 
 ### 7.3 入口文件说明
@@ -1871,11 +1871,11 @@ uvicorn mcp_agentskills.api_app:app --host 0.0.0.0 --port 8000
 ```python
 import sys
 
-from mcp_agentskills.core.app import AgentSkillsMcpApp
+from skillhub.core.app import Open SkillHubMcpApp
 
 
 def main() -> None:
-    with AgentSkillsMcpApp(*sys.argv[1:]) as app:
+    with Open SkillHubMcpApp(*sys.argv[1:]) as app:
         app.run_service()
 ```
 
@@ -1886,15 +1886,15 @@ from contextlib import AsyncExitStack, asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from mcp_agentskills.api.mcp import McpAppProxy, ensure_mcp_initialized, get_http_app, get_sse_app, shutdown_mcp
-from mcp_agentskills.api.router import api_router
-from mcp_agentskills.config.settings import settings
-from mcp_agentskills.core.middleware.deprecation import DeprecationMiddleware
-from mcp_agentskills.core.middleware.logging import RequestLoggingMiddleware, configure_loguru
-from mcp_agentskills.core.middleware.rate_limit import RateLimitMiddleware
-from mcp_agentskills.db.session import get_async_session, init_db
-from mcp_agentskills.repositories.audit_log import AuditLogRepository
-from mcp_agentskills.services.deprecation_notification import DeprecationNotifier
+from skillhub.api.mcp import McpAppProxy, ensure_mcp_initialized, get_http_app, get_sse_app, shutdown_mcp
+from skillhub.api.router import api_router
+from skillhub.config.settings import settings
+from skillhub.core.middleware.deprecation import DeprecationMiddleware
+from skillhub.core.middleware.logging import RequestLoggingMiddleware, configure_loguru
+from skillhub.core.middleware.rate_limit import RateLimitMiddleware
+from skillhub.db.session import get_async_session, init_db
+from skillhub.repositories.audit_log import AuditLogRepository
+from skillhub.services.deprecation_notification import DeprecationNotifier
 
 @asynccontextmanager
 async def lifespan(_application: FastAPI):
@@ -2016,7 +2016,7 @@ NEXT_PUBLIC_API_BASE_URL=http://localhost:8000
 
 ```toml
 [project]
-name = "mcp-agentskills"
+name = "open-skillhub"
 dynamic = ["version"]
 requires-python = ">=3.10"
 
@@ -2065,7 +2065,7 @@ dev = [
 
 ```env
 # 数据库
-DATABASE_URL=postgresql+asyncpg://user:pass@localhost:5432/agentskills
+DATABASE_URL=postgresql+asyncpg://user:pass@localhost:5432/skillhub
 DATABASE_POOL_SIZE=20
 DATABASE_MAX_OVERFLOW=10
 DATABASE_POOL_TIMEOUT=30
@@ -2084,7 +2084,7 @@ CORS_ORIGINS=["http://localhost:3000"]
 # 日志
 LOG_LEVEL=INFO
 LOG_FORMAT=json
-LOG_FILE=/var/log/agentskills/app.log
+LOG_FILE=/var/log/skillhub/app.log
 
 # 存储
 SKILL_STORAGE_PATH=/data/skills
@@ -2116,7 +2116,7 @@ SMTP_USE_TLS=true
 ALIYUN_DM_ACCESS_KEY_ID=your-aliyun-access-key-id
 ALIYUN_DM_ACCESS_KEY_SECRET=your-aliyun-access-key-secret
 ALIYUN_DM_ACCOUNT_NAME=sender@your-domain.com
-ALIYUN_DM_FROM_ALIAS=AgentSkills
+ALIYUN_DM_FROM_ALIAS=Open SkillHub
 ALIYUN_DM_REPLY_TO_ADDRESS=true
 ALIYUN_DM_ENDPOINT=https://dm.aliyuncs.com/
 
@@ -2222,7 +2222,7 @@ class Settings(BaseSettings):
     # 日志
     LOG_LEVEL: str = "INFO"
     LOG_FORMAT: str = "json"
-    LOG_FILE: str = "/var/log/agentskills/app.log"
+    LOG_FILE: str = "/var/log/skillhub/app.log"
 
     # 存储
     SKILL_STORAGE_PATH: str = "/data/skills"
@@ -2314,7 +2314,7 @@ settings = Settings()
 
 ### 9.2.1 Settings 补充说明（与当前实现对齐）
 
-上方代码片段用于说明主要校验逻辑，未完整展开全部配置项。企业私有云相关开关与映射字段以仓库实际实现为准（`mcp_agentskills/config/settings.py`），重点包括：
+上方代码片段用于说明主要校验逻辑，未完整展开全部配置项。企业私有云相关开关与映射字段以仓库实际实现为准（`skillhub/config/settings.py`），重点包括：
 
 - 公网/私有化能力开关：`ENABLE_*`
 - API 弃用治理：`ENABLE_DEPRECATION_HEADERS`、`ENABLE_DEPRECATION_NOTIFIER_ON_STARTUP`、`DEPRECATED_*`
@@ -2575,10 +2575,10 @@ def validate_filename(filename: str) -> tuple[bool, str]:
 
 ```python
 # 在 API 端点中使用
-from mcp_agentskills.core.utils.skill_storage import get_safe_skill_path, validate_filename
-from mcp_agentskills.db.session import get_async_session
-from mcp_agentskills.repositories.skill import SkillRepository
-from mcp_agentskills.services.skill import SkillService
+from skillhub.core.utils.skill_storage import get_safe_skill_path, validate_filename
+from skillhub.db.session import get_async_session
+from skillhub.repositories.skill import SkillRepository
+from skillhub.services.skill import SkillService
 
 @app.post("/api/v1/skills/upload")
 async def upload_skill_file(
@@ -2742,7 +2742,7 @@ TEST_DATABASE_URL = "sqlite+aiosqlite:///:memory:"
 
 - 使用Alembic进行数据库迁移
 - 提供初始化迁移脚本
-- 迁移目录已初始化为 `mcp_agentskills/db/migrations`，包含 `env.py` 与多个 `versions/*.py`
+- 迁移目录已初始化为 `skillhub/db/migrations`，包含 `env.py` 与多个 `versions/*.py`
 
 #### Alembic 异步配置
 
@@ -2760,8 +2760,8 @@ from sqlalchemy.ext.asyncio import async_engine_from_config
 
 from alembic import context
 
-from mcp_agentskills.db.session import Base
-from mcp_agentskills.config.settings import settings
+from skillhub.db.session import Base
+from skillhub.config.settings import settings
 
 config = context.config
 config.set_main_option("sqlalchemy.url", settings.DATABASE_URL)
@@ -2865,7 +2865,7 @@ alembic downgrade -1
 ```json
 {
   "mcpServers": {
-    "agentskills-mcp": {
+    "skillhub-mcp": {
       "type": "http",
       "url": "https://your-domain.com/mcp",
       "headers": {

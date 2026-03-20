@@ -1,6 +1,6 @@
 import pytest
 
-from mcp_agentskills.core.security.rbac import _DEFAULT_ROLE_PERMISSIONS, has_permission
+from skillhub.core.security.rbac import _DEFAULT_ROLE_PERMISSIONS, has_permission
 
 
 class MockUser:

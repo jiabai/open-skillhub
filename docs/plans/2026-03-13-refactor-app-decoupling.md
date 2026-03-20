@@ -1,10 +1,10 @@
-# 重构：AgentSkillsMcpApp 类解耦实施计划
+# 重构：Open SkillHubMcpApp 类解耦实施计划
 
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
-**Goal:** 将 AgentSkillsMcpApp 类从 main.py 剥离到独立模块，实现两种运行模式的低耦合。
+**Goal:** 将 Open SkillHubMcpApp 类从 main.py 剥离到独立模块，实现两种运行模式的低耦合。
 
-**Architecture:** 创建 `core/app.py` 作为公共模块，包含 AgentSkillsMcpApp 类和 fastmcp stub 定义。main.py 只负责 CLI 入口，FastAPI 模式从 core/app.py 导入。
+**Architecture:** 创建 `core/app.py` 作为公共模块，包含 Open SkillHubMcpApp 类和 fastmcp stub 定义。main.py 只负责 CLI 入口，FastAPI 模式从 core/app.py 导入。
 
 **Tech Stack:** Python, FlowLLM, FastAPI
 
@@ -13,16 +13,16 @@
 ### Task 1: 创建 core/app.py 公共模块
 
 **Files:**
-- Create: `mcp_agentskills/core/app.py`
+- Create: `skillhub/core/app.py`
 
 **Step 1: 创建 core/app.py 文件**
 
 ```python
-"""公共应用模块，提供 AgentSkillsMcpApp 类供两种运行模式使用。
+"""公共应用模块，提供 Open SkillHubMcpApp 类供两种运行模式使用。
 
 此模块包含：
 - fastmcp stub 定义（可选依赖）
-- AgentSkillsMcpApp 类
+- Open SkillHubMcpApp 类
 """
 
 import importlib
@@ -37,7 +37,7 @@ try:
 except Exception:
     fastmcp_stub = types.ModuleType("fastmcp")
     fastmcp_stub.__path__ = []
-    setattr(fastmcp_stub, "__agentskills_stub__", True)
+    setattr(fastmcp_stub, "__skillhub_stub__", True)
 
     class Client:
         def __init__(self, *args, **kwargs):
@@ -140,17 +140,17 @@ except Exception:
 
 if TYPE_CHECKING:
     from flowllm.core.application import Application
-    from mcp_agentskills.config import ConfigParser
+    from skillhub.config import ConfigParser
 else:
     Application = importlib.import_module("flowllm.core.application").Application
-    ConfigParser = importlib.import_module("mcp_agentskills.config.config_parser").ConfigParser
+    ConfigParser = importlib.import_module("skillhub.config.config_parser").ConfigParser
 
 
-class AgentSkillsMcpApp(Application):
+class Open SkillHubMcpApp(Application):
     """Concrete FlowLLM application for the Agent Skills MCP package.
 
     This subclass simply pre-configures the base :class:`Application` with the
-    agentskills-mcp specific configuration parser and sensible defaults. All heavy
+    skillhub-mcp specific configuration parser and sensible defaults. All heavy
     lifting (service lifecycle, routing, etc.) is delegated to the parent class.
     """
 
@@ -178,12 +178,12 @@ class AgentSkillsMcpApp(Application):
         )
 
 
-__all__ = ["AgentSkillsMcpApp"]
+__all__ = ["Open SkillHubMcpApp"]
 ```
 
 **Step 2: 验证文件创建成功**
 
-Run: `ls mcp_agentskills/core/app.py`
+Run: `ls skillhub/core/app.py`
 Expected: 文件存在
 
 ---
@@ -191,19 +191,19 @@ Expected: 文件存在
 ### Task 2: 更新 core/__init__.py 导出
 
 **Files:**
-- Modify: `mcp_agentskills/core/__init__.py`
+- Modify: `skillhub/core/__init__.py`
 
-**Step 1: 添加 AgentSkillsMcpApp 导出**
+**Step 1: 添加 Open SkillHubMcpApp 导出**
 
 ```python
-from mcp_agentskills.core.app import AgentSkillsMcpApp
+from skillhub.core.app import Open SkillHubMcpApp
 
-__all__ = ["AgentSkillsMcpApp"]
+__all__ = ["Open SkillHubMcpApp"]
 ```
 
 **Step 2: 验证导入**
 
-Run: `python -c "from mcp_agentskills.core import AgentSkillsMcpApp; print(AgentSkillsMcpApp)"`
+Run: `python -c "from skillhub.core import Open SkillHubMcpApp; print(Open SkillHubMcpApp)"`
 Expected: 输出类名，无错误
 
 ---
@@ -211,28 +211,28 @@ Expected: 输出类名，无错误
 ### Task 3: 重构 main.py 为纯 CLI 入口
 
 **Files:**
-- Modify: `mcp_agentskills/main.py`
+- Modify: `skillhub/main.py`
 
 **Step 1: 简化 main.py**
 
 ```python
 """CLI 入口点，负责启动 FlowLLM 独立模式。
 
-此模块只负责命令行入口，AgentSkillsMcpApp 类已移至 core/app.py。
+此模块只负责命令行入口，Open SkillHubMcpApp 类已移至 core/app.py。
 """
 
 import sys
 
-from mcp_agentskills.core.app import AgentSkillsMcpApp
+from skillhub.core.app import Open SkillHubMcpApp
 
 
 def main() -> None:
     """Run the Agent Skills MCP service as a command-line application.
 
-    The function builds :class:`AgentSkillsMcpApp` from the command-line arguments
+    The function builds :class:`Open SkillHubMcpApp` from the command-line arguments
     (excluding the script name) and starts the FlowLLM service loop.
     """
-    with AgentSkillsMcpApp(*sys.argv[1:]) as app:
+    with Open SkillHubMcpApp(*sys.argv[1:]) as app:
         app.run_service()
 
 
@@ -242,7 +242,7 @@ if __name__ == "__main__":
 
 **Step 2: 验证 CLI 入口**
 
-Run: `python -c "from mcp_agentskills.main import main; print('OK')"`
+Run: `python -c "from skillhub.main import main; print('OK')"`
 Expected: 输出 OK，无错误
 
 ---
@@ -250,23 +250,23 @@ Expected: 输出 OK，无错误
 ### Task 4: 更新 api/mcp/__init__.py 导入路径
 
 **Files:**
-- Modify: `mcp_agentskills/api/mcp/__init__.py`
+- Modify: `skillhub/api/mcp/__init__.py`
 
 **Step 1: 修改导入路径**
 
 找到：
 ```python
-from mcp_agentskills.main import AgentSkillsMcpApp
+from skillhub.main import Open SkillHubMcpApp
 ```
 
 改为：
 ```python
-from mcp_agentskills.core.app import AgentSkillsMcpApp
+from skillhub.core.app import Open SkillHubMcpApp
 ```
 
 **Step 2: 验证导入**
 
-Run: `python -c "from mcp_agentskills.api.mcp import ensure_mcp_initialized; print('OK')"`
+Run: `python -c "from skillhub.api.mcp import ensure_mcp_initialized; print('OK')"`
 Expected: 输出 OK，无错误
 
 ---
@@ -280,7 +280,7 @@ Expected: 所有测试通过
 
 **Step 2: 验证两种模式导入**
 
-Run: `python -c "from mcp_agentskills.main import main; from mcp_agentskills.core.app import AgentSkillsMcpApp; print('Both modes OK')"`
+Run: `python -c "from skillhub.main import main; from skillhub.core.app import Open SkillHubMcpApp; print('Both modes OK')"`
 Expected: 输出 Both modes OK
 
 ---
@@ -308,7 +308,7 @@ Expected: 输出 Both modes OK
 │          ▼                                       ▼                  │
 │   ┌─────────────────────────────────────────────────────────┐      │
 │   │                    core/app.py                           │      │
-│   │              AgentSkillsMcpApp (公共)                    │      │
+│   │              Open SkillHubMcpApp (公共)                    │      │
 │   └─────────────────────────────────────────────────────────┘      │
 │          │                                       │                  │
 │          └───────────────────┬───────────────────┘                  │
@@ -324,8 +324,8 @@ Expected: 输出 Both modes OK
 **Step 2: 提交更改**
 
 ```bash
-git add mcp_agentskills/core/app.py mcp_agentskills/core/__init__.py mcp_agentskills/main.py mcp_agentskills/api/mcp/__init__.py docs/architecture.md
-git commit -m "refactor: extract AgentSkillsMcpApp to core/app.py for better decoupling"
+git add skillhub/core/app.py skillhub/core/__init__.py skillhub/main.py skillhub/api/mcp/__init__.py docs/architecture.md
+git commit -m "refactor: extract Open SkillHubMcpApp to core/app.py for better decoupling"
 ```
 
 ---
@@ -334,7 +334,7 @@ git commit -m "refactor: extract AgentSkillsMcpApp to core/app.py for better dec
 
 | 特性 | 重构前 | 重构后 |
 |-----|-------|-------|
-| AgentSkillsMcpApp 位置 | main.py | core/app.py |
+| Open SkillHubMcpApp 位置 | main.py | core/app.py |
 | FastAPI 模式导入 | from main import | from core.app import |
 | main.py 职责 | 类定义 + CLI | 纯 CLI |
 | 耦合度 | 中等 | 低 |

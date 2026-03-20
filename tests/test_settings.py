@@ -5,10 +5,10 @@ from pathlib import Path
 import pytest
 from pydantic import ValidationError
 
-settings_path = Path(__file__).resolve().parents[1] / "mcp_agentskills" / "config" / "settings.py"
+settings_path = Path(__file__).resolve().parents[1] / "skillhub" / "config" / "settings.py"
 os.environ.setdefault(
     "DATABASE_URL",
-    "postgresql+asyncpg://user:pass@localhost:5432/agentskills",
+    "postgresql+asyncpg://user:pass@localhost:5432/skillhub",
 )
 os.environ.setdefault("SECRET_KEY", "a" * 32)
 os.environ.setdefault("DEBUG", "true")
@@ -23,7 +23,7 @@ Settings = settings_module.Settings
 
 def base_settings_kwargs():
     return {
-        "DATABASE_URL": "postgresql+asyncpg://user:pass@localhost:5432/agentskills",
+        "DATABASE_URL": "postgresql+asyncpg://user:pass@localhost:5432/skillhub",
         "SECRET_KEY": "a" * 32,
         "DEBUG": True,
         "CORS_ORIGINS": ["http://localhost:3000"],
@@ -116,15 +116,15 @@ def test_parse_deprecation_notify_offsets_days_from_string():
 def test_alembic_files_exist():
     root = Path(__file__).resolve().parents[1]
     assert (root / "alembic.ini").exists()
-    assert (root / "mcp_agentskills" / "db" / "migrations" / "env.py").exists()
+    assert (root / "skillhub" / "db" / "migrations" / "env.py").exists()
 
 
 @pytest.mark.asyncio
 async def test_init_db_skips_create_all_for_non_sqlite(monkeypatch):
-    from mcp_agentskills.db import session as db_session
+    from skillhub.db import session as db_session
 
     original_database_url = db_session.settings.DATABASE_URL
-    db_session.settings.DATABASE_URL = "postgresql+asyncpg://user:pass@localhost:5432/agentskills"
+    db_session.settings.DATABASE_URL = "postgresql+asyncpg://user:pass@localhost:5432/skillhub"
 
     class BrokenBegin:
         async def __aenter__(self):

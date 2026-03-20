@@ -7,13 +7,13 @@ from typing import Any
 import pytest
 from sqlalchemy import select
 
-from mcp_agentskills.core.security.jwt_utils import create_access_token
-from mcp_agentskills.core.utils.user_context import set_current_user_id
-from mcp_agentskills.core.utils.skill_storage import get_skill_versions_dir, get_user_skill_dir
-from mcp_agentskills.models.audit_log import AuditLog
-from mcp_agentskills.models.skill import Skill
-from mcp_agentskills.models.skill_version import SkillVersion
-from mcp_agentskills.models.user import User
+from skillhub.core.security.jwt_utils import create_access_token
+from skillhub.core.utils.user_context import set_current_user_id
+from skillhub.core.utils.skill_storage import get_skill_versions_dir, get_user_skill_dir
+from skillhub.models.audit_log import AuditLog
+from skillhub.models.skill import Skill
+from skillhub.models.skill_version import SkillVersion
+from skillhub.models.user import User
 
 
 def _install_flowllm_stubs(skill_dir: Path, monkeypatch):
@@ -70,7 +70,7 @@ async def _override_session(async_session):
 async def test_skill_resource_ops_return_metadata(async_session, tmp_path, monkeypatch):
     monkeypatch.setenv("SKILL_STORAGE_PATH", str(tmp_path))
     _install_flowllm_stubs(tmp_path, monkeypatch)
-    from mcp_agentskills.db import session as db_session
+    from skillhub.db import session as db_session
 
     monkeypatch.setattr(db_session, "get_async_session", lambda: _override_session(async_session))
     user = User(
@@ -127,7 +127,7 @@ async def test_skill_resource_ops_return_metadata(async_session, tmp_path, monke
     )
     (version_dir / "SKILL.md").write_text(skill_md, encoding="utf-8")
     set_current_user_id(str(user.id))
-    from mcp_agentskills.core.tools.skill_resource_ops import SkillDetailResourceOp, SkillListResourceOp
+    from skillhub.core.tools.skill_resource_ops import SkillDetailResourceOp, SkillListResourceOp
 
     list_op = SkillListResourceOp()
     await list_op.async_execute()
@@ -151,7 +151,7 @@ async def test_skill_resource_ops_return_metadata(async_session, tmp_path, monke
 async def test_skill_list_resource_normalizes_visible_field(async_session, tmp_path, monkeypatch):
     monkeypatch.setenv("SKILL_STORAGE_PATH", str(tmp_path))
     _install_flowllm_stubs(tmp_path, monkeypatch)
-    from mcp_agentskills.db import session as db_session
+    from skillhub.db import session as db_session
 
     monkeypatch.setattr(db_session, "get_async_session", lambda: _override_session(async_session))
     user = User(
@@ -178,7 +178,7 @@ async def test_skill_list_resource_normalizes_visible_field(async_session, tmp_p
     async_session.add(skill)
     await async_session.commit()
     set_current_user_id(str(user.id))
-    from mcp_agentskills.core.tools.skill_resource_ops import SkillListResourceOp
+    from skillhub.core.tools.skill_resource_ops import SkillListResourceOp
 
     list_op = SkillListResourceOp()
     await list_op.async_execute()
@@ -192,7 +192,7 @@ async def test_skill_list_resource_normalizes_visible_field(async_session, tmp_p
 async def test_execute_skill_runs_entrypoint(async_session, tmp_path, monkeypatch):
     monkeypatch.setenv("SKILL_STORAGE_PATH", str(tmp_path))
     _install_flowllm_stubs(tmp_path, monkeypatch)
-    from mcp_agentskills.db import session as db_session
+    from skillhub.db import session as db_session
 
     monkeypatch.setattr(db_session, "get_async_session", lambda: _override_session(async_session))
     user = User(email="exec@example.com", username="exec", hashed_password="x")
@@ -230,7 +230,7 @@ async def test_execute_skill_runs_entrypoint(async_session, tmp_path, monkeypatc
     skill_md = "---\nname: skillexec\ndescription: desc\nentrypoint: run.py\n---\nbody"
     (version_dir / "SKILL.md").write_text(skill_md, encoding="utf-8")
     set_current_user_id(str(user.id))
-    from mcp_agentskills.core.tools.execute_skill_op import ExecuteSkillOp
+    from skillhub.core.tools.execute_skill_op import ExecuteSkillOp
 
     op = ExecuteSkillOp()
     op.input_dict = {"skill_uuid": skill.id, "version": "1.0.0", "parameters": {"foo": "bar"}}
@@ -255,8 +255,8 @@ async def test_mcp_authorize_accepts_jwt(async_session, monkeypatch):
     await async_session.commit()
     await async_session.refresh(user)
     token = create_access_token(str(user.id))
-    from mcp_agentskills.api import mcp as mcp_module
-    from mcp_agentskills.db import session as db_session
+    from skillhub.api import mcp as mcp_module
+    from skillhub.db import session as db_session
 
     monkeypatch.setattr(db_session, "get_async_session", lambda: _override_session(async_session))
     monkeypatch.setattr(mcp_module, "get_async_session", lambda: _override_session(async_session))

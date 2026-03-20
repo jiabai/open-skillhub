@@ -1,4 +1,4 @@
-# AgentSkills MCP 多用户Web服务改造 - 检查清单
+# Open SkillHub 多用户Web服务改造 - 检查清单
 
 > 本文档用于验证项目改造的完整性和正确性，按模块组织。
 >
@@ -85,7 +85,7 @@
 
 ### 1.3 Settings 配置
 
-- [x] `mcp_agentskills/config/settings.py` 正确定义 Settings 类
+- [x] `skillhub/config/settings.py` 正确定义 Settings 类
 - [x] 所有环境变量已映射到 Settings 属性
 - [x] 默认值设置合理
 - [x] 包含 `.env` 文件加载配置
@@ -111,7 +111,7 @@
 
 ### 2.1 User 模型
 
-- [x] `mcp_agentskills/models/user.py` 文件存在
+- [x] `skillhub/models/user.py` 文件存在
 - [x] User 类继承自 Base
 - [x] 包含所有必需字段：
   - [x] id (UUID, 主键)
@@ -127,7 +127,7 @@
 
 ### 2.2 Skill 模型
 
-- [x] `mcp_agentskills/models/skill.py` 文件存在
+- [x] `skillhub/models/skill.py` 文件存在
 - [x] Skill 类继承自 Base
 - [x] 包含所有必需字段：
   - [x] id (UUID, 主键)
@@ -145,7 +145,7 @@
 
 ### 2.5 SkillVersion 模型（版本归档）
 
-- [x] `mcp_agentskills/models/skill_version.py` 文件存在
+- [x] `skillhub/models/skill_version.py` 文件存在
 - [x] SkillVersion 类继承自 Base
 - [x] 包含所有必需字段：
   - [x] id (UUID, 主键)
@@ -160,7 +160,7 @@
 
 ### 2.3 APIToken 模型
 
-- [x] `mcp_agentskills/models/token.py` 文件存在
+- [x] `skillhub/models/token.py` 文件存在
 - [x] APIToken 类继承自 Base
 - [x] 包含所有必需字段：
   - [x] id (UUID, 主键)
@@ -186,7 +186,7 @@
 
 ### 3.1 User Schemas
 
-- [x] `mcp_agentskills/schemas/user.py` 文件存在
+- [x] `skillhub/schemas/user.py` 文件存在
 - [x] UserCreate schema 定义正确
   - [x] email 验证
   - [x] username 验证
@@ -197,7 +197,7 @@
 
 ### 3.2 Skill Schemas
 
-- [x] `mcp_agentskills/schemas/skill.py` 文件存在
+- [x] `skillhub/schemas/skill.py` 文件存在
 - [x] SkillCreate schema 定义正确
 - [x] SkillUpdate schema 定义正确
 - [x] SkillResponse schema 定义正确
@@ -205,7 +205,7 @@
 
 ### 3.3 Token Schemas
 
-- [x] `mcp_agentskills/schemas/token.py` 文件存在
+- [x] `skillhub/schemas/token.py` 文件存在
 - [x] TokenCreate schema 定义正确
 - [x] TokenResponse schema 定义正确
   - [x] token 字段仅在创建时返回
@@ -213,7 +213,7 @@
 
 ### 3.4 通用响应 Schemas
 
-- [x] `mcp_agentskills/schemas/response.py` 文件存在
+- [x] `skillhub/schemas/response.py` 文件存在
 - [x] 通用错误响应格式定义
 - [x] 分页响应格式定义
 
@@ -231,7 +231,7 @@
 
 ### 4.2 JWT 认证
 
-- [x] `mcp_agentskills/core/security/jwt_utils.py` 文件存在
+- [x] `skillhub/core/security/jwt_utils.py` 文件存在
 - [x] `create_access_token()` 函数正确实现 (使用 PyJWT)
 - [x] `create_refresh_token()` 函数正确实现
 - [x] `decode_token()` 函数正确实现
@@ -239,7 +239,7 @@
 
 ### 4.3 API Token
 
-- [x] `mcp_agentskills/core/security/token.py` 文件存在
+- [x] `skillhub/core/security/token.py` 文件存在
 - [x] `generate_api_token()` 函数正确实现
   - [x] 格式: `ask_live_{64位hex}`
 - [x] `hash_token()` 函数正确实现
@@ -251,7 +251,7 @@
 
 ### 5.1 Base Repository
 
-- [x] `mcp_agentskills/repositories/base.py` 文件存在
+- [x] `skillhub/repositories/base.py` 文件存在
 - [x] 定义通用 CRUD 方法
   - [x] get()
   - [x] get_multi()
@@ -261,20 +261,20 @@
 
 ### 5.2 User Repository
 
-- [x] `mcp_agentskills/repositories/user.py` 文件存在
+- [x] `skillhub/repositories/user.py` 文件存在
 - [x] `get_by_email()` 方法
 - [x] `get_by_username()` 方法
 - [x] `create()` 方法正确哈希密码
 
 ### 5.3 Skill Repository
 
-- [x] `mcp_agentskills/repositories/skill.py` 文件存在
+- [x] `skillhub/repositories/skill.py` 文件存在
 - [x] `get_by_name()` 方法
 - [x] `list_by_user()` 方法（分页）
 
 ### 5.4 Token Repository
 
-- [x] `mcp_agentskills/repositories/token.py` 文件存在
+- [x] `skillhub/repositories/token.py` 文件存在
 - [x] `get_by_hash()` 方法
 - [x] `list_by_user()` 方法
 - [x] `count_by_user()` 方法
@@ -287,7 +287,7 @@
 
 ### 6.1 Auth Service
 
-- [x] `mcp_agentskills/services/auth.py` 文件存在
+- [x] `skillhub/services/auth.py` 文件存在
 - [x] `register()` 方法
   - [x] 检查邮箱唯一性
   - [x] 检查用户名唯一性
@@ -303,7 +303,7 @@
 
 ### 6.2 User Service
 
-- [x] `mcp_agentskills/services/user.py` 文件存在
+- [x] `skillhub/services/user.py` 文件存在
 - [x] `update_user()` 方法
 - [x] `delete_user()` 方法
   - [x] 验证密码
@@ -312,7 +312,7 @@
 
 ### 6.3 Token Service
 
-- [x] `mcp_agentskills/services/token.py` 文件存在
+- [x] `skillhub/services/token.py` 文件存在
 - [x] `create_token()` 方法
   - [x] 生成 Token
   - [x] 存储哈希值
@@ -323,7 +323,7 @@
 
 ### 6.4 Skill Service
 
-- [x] `mcp_agentskills/services/skill.py` 文件存在
+- [x] `skillhub/services/skill.py` 文件存在
 - [x] `create_skill()` 方法
 - [x] `get_skill()` 方法
 - [x] `list_skills()` 方法（分页）
@@ -483,7 +483,7 @@
 
 ### 9.1 JWT 认证中间件
 
-- [x] `mcp_agentskills/core/middleware/auth.py` 文件存在
+- [x] `skillhub/core/middleware/auth.py` 文件存在
 - [x] `get_current_user()` 依赖正确
 - [x] `get_current_active_user()` 依赖正确
 - [x] Token 过期处理正确
@@ -492,7 +492,7 @@
 
 ### 9.2 MCP Token 认证
 
-- [x] `mcp_agentskills/api/mcp/auth.py` 文件存在
+- [x] `skillhub/api/mcp/auth.py` 文件存在
 - [x] Token 验证正确
 - [x] Token 过期检查
 - [x] Token 撤销检查
@@ -504,7 +504,7 @@
 
 ### 10.1 Skill 存储工具
 
-- [x] `mcp_agentskills/core/utils/skill_storage.py` 文件存在
+- [x] `skillhub/core/utils/skill_storage.py` 文件存在
 - [x] `get_user_skill_dir()` 方法
 - [x] `create_skill_dir()` 方法
 - [x] `delete_skill_dir()` 方法
@@ -524,7 +524,7 @@
 
 ### 11.1 应用入口
 
-- [x] `mcp_agentskills/api_app.py` 文件存在
+- [x] `skillhub/api_app.py` 文件存在
 - [x] `create_application()` 工厂函数
 - [x] CORS 中间件配置
 - [x] 请求日志中间件配置
@@ -607,7 +607,7 @@
 
 ### 13.4 测试覆盖率
 
-- [ ] 单元测试覆盖率 >= 80%（2026-03-07 实测 `python -m pytest --cov=mcp_agentskills --cov-report=term`：TOTAL 69%）
+- [ ] 单元测试覆盖率 >= 80%（2026-03-07 实测 `python -m pytest --cov=skillhub --cov-report=term`：TOTAL 69%）
 - [ ] 核心业务逻辑覆盖率 >= 90%（当前未达标，待补齐覆盖率后复核）
 
 ---

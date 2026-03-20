@@ -13,13 +13,13 @@
 ## Task 1: 添加 Skill→SkillVersion ORM 级联关系
 
 **Files:**
-- Modify: `mcp_agentskills/models/skill.py`
-- Modify: `mcp_agentskills/models/skill_version.py`
+- Modify: `skillhub/models/skill.py`
+- Modify: `skillhub/models/skill_version.py`
 - Test: `tests/test_skill_service.py`
 
 **Step 1: 修改 Skill 模型添加 versions 关系**
 
-在 `mcp_agentskills/models/skill.py` 中添加与 SkillVersion 的关系：
+在 `skillhub/models/skill.py` 中添加与 SkillVersion 的关系：
 
 ```python
 from datetime import datetime
@@ -27,7 +27,7 @@ from datetime import datetime
 from sqlalchemy import Boolean, DateTime, ForeignKey, JSON, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from mcp_agentskills.models.base import Base, TimestampMixin, UUIDPrimaryKeyMixin
+from skillhub.models.base import Base, TimestampMixin, UUIDPrimaryKeyMixin
 
 
 class Skill(UUIDPrimaryKeyMixin, TimestampMixin, Base):
@@ -57,13 +57,13 @@ class Skill(UUIDPrimaryKeyMixin, TimestampMixin, Base):
 
 **Step 2: 修改 SkillVersion 模型添加 back_populates**
 
-在 `mcp_agentskills/models/skill_version.py` 中添加 `back_populates`：
+在 `skillhub/models/skill_version.py` 中添加 `back_populates`：
 
 ```python
 from sqlalchemy import JSON, ForeignKey, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from mcp_agentskills.models.base import Base, TimestampMixin, UUIDPrimaryKeyMixin
+from skillhub.models.base import Base, TimestampMixin, UUIDPrimaryKeyMixin
 
 
 class SkillVersion(UUIDPrimaryKeyMixin, TimestampMixin, Base):
@@ -87,11 +87,11 @@ class SkillVersion(UUIDPrimaryKeyMixin, TimestampMixin, Base):
 
 ```python
 import pytest
-from mcp_agentskills.repositories.user import UserRepository
-from mcp_agentskills.repositories.skill import SkillRepository
-from mcp_agentskills.repositories.skill_version import SkillVersionRepository
-from mcp_agentskills.services.skill import SkillService
-from mcp_agentskills.models.skill_version import SkillVersion
+from skillhub.repositories.user import UserRepository
+from skillhub.repositories.skill import SkillRepository
+from skillhub.repositories.skill_version import SkillVersionRepository
+from skillhub.services.skill import SkillService
+from skillhub.models.skill_version import SkillVersion
 
 
 @pytest.mark.asyncio
@@ -132,7 +132,7 @@ Expected: PASS
 **Step 5: Commit**
 
 ```bash
-git add mcp_agentskills/models/skill.py mcp_agentskills/models/skill_version.py tests/test_skill_service.py
+git add skillhub/models/skill.py skillhub/models/skill_version.py tests/test_skill_service.py
 git commit -m "fix: add cascade delete relationship from Skill to SkillVersion"
 ```
 
@@ -141,11 +141,11 @@ git commit -m "fix: add cascade delete relationship from Skill to SkillVersion"
 ## Task 2: 添加数据库层外键级联删除迁移
 
 **Files:**
-- Create: `mcp_agentskills/db/migrations/versions/j5k6l7m8n9o0_add_cascade_delete.py`
+- Create: `skillhub/db/migrations/versions/j5k6l7m8n9o0_add_cascade_delete.py`
 
 **Step 1: 创建迁移脚本**
 
-创建新迁移文件 `mcp_agentskills/db/migrations/versions/j5k6l7m8n9o0_add_cascade_delete.py`：
+创建新迁移文件 `skillhub/db/migrations/versions/j5k6l7m8n9o0_add_cascade_delete.py`：
 
 ```python
 from typing import Any, cast
@@ -223,13 +223,13 @@ def downgrade() -> None:
 
 **Step 2: 验证迁移脚本语法**
 
-Run: `python -c "from mcp_agentskills.db.migrations.versions.j5k6l7m8n9o0_add_cascade_delete import upgrade, downgrade; print('OK')"`
+Run: `python -c "from skillhub.db.migrations.versions.j5k6l7m8n9o0_add_cascade_delete import upgrade, downgrade; print('OK')"`
 Expected: OK
 
 **Step 3: Commit**
 
 ```bash
-git add mcp_agentskills/db/migrations/versions/j5k6l7m8n9o0_add_cascade_delete.py
+git add skillhub/db/migrations/versions/j5k6l7m8n9o0_add_cascade_delete.py
 git commit -m "feat(db): add CASCADE delete to foreign key constraints"
 ```
 
@@ -248,7 +248,7 @@ git commit -m "feat(db): add CASCADE delete to foreign key constraints"
 from sqlalchemy import String, Boolean
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from mcp_agentskills.models.base import Base, TimestampMixin, UUIDPrimaryKeyMixin
+from skillhub.models.base import Base, TimestampMixin, UUIDPrimaryKeyMixin
 
 
 class User(UUIDPrimaryKeyMixin, TimestampMixin, Base):
@@ -278,7 +278,7 @@ from datetime import datetime
 from sqlalchemy import Boolean, DateTime, ForeignKey, JSON, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from mcp_agentskills.models.base import Base, TimestampMixin, UUIDPrimaryKeyMixin
+from skillhub.models.base import Base, TimestampMixin, UUIDPrimaryKeyMixin
 
 
 class Skill(UUIDPrimaryKeyMixin, TimestampMixin, Base):
@@ -314,7 +314,7 @@ class Skill(UUIDPrimaryKeyMixin, TimestampMixin, Base):
 from sqlalchemy import JSON, ForeignKey, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from mcp_agentskills.models.base import Base, TimestampMixin, UUIDPrimaryKeyMixin
+from skillhub.models.base import Base, TimestampMixin, UUIDPrimaryKeyMixin
 
 
 class SkillVersion(UUIDPrimaryKeyMixin, TimestampMixin, Base):
@@ -342,7 +342,7 @@ from datetime import datetime
 from sqlalchemy import String, Boolean, DateTime, ForeignKey
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from mcp_agentskills.models.base import Base, TimestampMixin, UUIDPrimaryKeyMixin
+from skillhub.models.base import Base, TimestampMixin, UUIDPrimaryKeyMixin
 
 
 class APIToken(UUIDPrimaryKeyMixin, TimestampMixin, Base):
@@ -386,7 +386,7 @@ Expected: All PASS
 
 **Step 2: 运行模型导入测试**
 
-Run: `python -c "from mcp_agentskills.models import User, Skill, SkillVersion, APIToken; print('Models imported successfully')"`
+Run: `python -c "from skillhub.models import User, Skill, SkillVersion, APIToken; print('Models imported successfully')"`
 Expected: Models imported successfully
 
 **Step 3: 最终提交（如有遗漏）**

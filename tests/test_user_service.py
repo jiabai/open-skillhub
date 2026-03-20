@@ -1,10 +1,10 @@
 import pytest
 
-from mcp_agentskills.config.settings import settings
-from mcp_agentskills.repositories.skill import SkillRepository
-from mcp_agentskills.repositories.user import UserRepository
-from mcp_agentskills.services.skill import SkillService
-from mcp_agentskills.services.user import UserService
+from skillhub.config.settings import settings
+from skillhub.repositories.skill import SkillRepository
+from skillhub.repositories.user import UserRepository
+from skillhub.services.skill import SkillService
+from skillhub.services.user import UserService
 
 
 @pytest.mark.asyncio

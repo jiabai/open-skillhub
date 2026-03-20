@@ -34,7 +34,7 @@
 
 ---
 
-AgentSkills MCP 提供 7 个工具：基础 4 个技能文件工具 + 企业接口对齐 3 个资源/执行工具，并参考 [Anthropic 的 Agent Skills 工程实践](https://www.anthropic.com/engineering/equipping-agents-for-the-real-world-with-agent-skills) 来实现 *Progressive Disclosure* 架构。
+Open SkillHub 提供 7 个工具：基础 4 个技能文件工具 + 企业接口对齐 3 个资源/执行工具，并参考 [Anthropic 的 Agent Skills 工程实践](https://www.anthropic.com/engineering/equipping-agents-for-the-real-world-with-agent-skills) 来实现 *Progressive Disclosure* 架构。
 
 ---
 
@@ -66,7 +66,7 @@ This tool requires no input parameters.
 
 **多用户版本内部逻辑**:
 ```python
-from mcp_agentskills.core.utils.user_context import get_current_user_id
+from skillhub.core.utils.user_context import get_current_user_id
 
 user_id = get_current_user_id()  # 从请求级上下文获取
 skill_dir = Path(C.service_config.metadata["skill_dir"]).resolve()
@@ -125,7 +125,7 @@ This tool loads the content of a SKILL.md file for a given skill name and return
 
 **多用户版本内部逻辑**:
 ```python
-from mcp_agentskills.core.utils.user_context import get_current_user_id
+from skillhub.core.utils.user_context import get_current_user_id
 
 skill_name = self.input_dict["skill_name"]
 user_id = get_current_user_id()  # 从请求级上下文获取
@@ -181,7 +181,7 @@ This tool allows reading reference files like forms.md, reference.md, or ooxml.m
 
 **多用户版本内部逻辑**:
 ```python
-from mcp_agentskills.core.utils.user_context import get_current_user_id
+from skillhub.core.utils.user_context import get_current_user_id
 
 skill_name = self.input_dict["skill_name"]
 file_name = self.input_dict["file_name"]
@@ -238,9 +238,9 @@ This tool executes shell commands. Optionally (disabled by default), it can auto
 
 **多用户版本内部逻辑**:
 ```python
-from mcp_agentskills.core.utils.user_context import get_current_user_id
-from mcp_agentskills.core.utils.command_whitelist import validate_command
-from mcp_agentskills.core.utils.skill_storage import tool_error_payload
+from skillhub.core.utils.user_context import get_current_user_id
+from skillhub.core.utils.command_whitelist import validate_command
+from skillhub.core.utils.skill_storage import tool_error_payload
 
 skill_name = self.input_dict["skill_name"]
 command = self.input_dict["command"]
@@ -360,7 +360,7 @@ python tests/test_run_shell_command_op.py <path/to/skills> <skill_name> <command
 ```json
 {
   "mcpServers": {
-    "agentskills-mcp": {
+    "skillhub-mcp": {
       "type": "http",
       "url": "https://your-domain.com/mcp",
       "headers": {

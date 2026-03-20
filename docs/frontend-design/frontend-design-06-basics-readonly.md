@@ -1,4 +1,4 @@
-# AgentSkills MCP 前端构建与设计文档 - Part 6
+# Open SkillHub 前端构建与设计文档 - Part 6
 
 ## 技术基础（只读）
 
@@ -493,7 +493,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <div className="container mx-auto max-w-screen-xl px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-6">
             <Link href="/dashboard" className="font-semibold text-lg">
-              AgentSkills
+              Open SkillHub
             </Link>
             <nav className="hidden md:flex items-center gap-4">
               <Link href="/dashboard" className={`text-sm ${pathname === "/dashboard" ? "text-primary" : "text-muted-foreground hover:text-foreground"}`}>
@@ -1623,7 +1623,7 @@ npm start
 
 ```bash
 # 后端服务
-uvicorn mcp_agentskills.api_app:app --host 0.0.0.0 --port 8000
+uvicorn skillhub.api_app:app --host 0.0.0.0 --port 8000
 
 # 前端服务
 NEXT_PUBLIC_API_BASE_URL=http://localhost:8000 npm run dev

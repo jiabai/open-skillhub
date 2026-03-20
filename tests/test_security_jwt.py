@@ -2,12 +2,12 @@ from datetime import datetime, timedelta, timezone
 
 import jwt
 
-from mcp_agentskills.core.security.jwt_utils import (
+from skillhub.core.security.jwt_utils import (
     create_access_token,
     create_refresh_token,
     decode_token,
 )
-from mcp_agentskills.core.security.password import get_password_hash, verify_password
+from skillhub.core.security.password import get_password_hash, verify_password
 
 
 def test_access_token_contains_type_and_subject():

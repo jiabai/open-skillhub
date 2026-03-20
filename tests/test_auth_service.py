@@ -1,11 +1,11 @@
 import pytest
 
-from mcp_agentskills.core.security.jwt_utils import decode_token
-from mcp_agentskills.models.user import User
-from mcp_agentskills.repositories.base import BaseRepository
-from mcp_agentskills.repositories.user import UserRepository
-from mcp_agentskills.schemas.user import UserInDB
-from mcp_agentskills.services.auth import AuthService
+from skillhub.core.security.jwt_utils import decode_token
+from skillhub.models.user import User
+from skillhub.repositories.base import BaseRepository
+from skillhub.repositories.user import UserRepository
+from skillhub.schemas.user import UserInDB
+from skillhub.services.auth import AuthService
 
 
 @pytest.mark.asyncio

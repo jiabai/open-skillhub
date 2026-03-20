@@ -1,4 +1,4 @@
-# AgentSkills MCP 前端构建与设计文档 - Part 5
+# Open SkillHub 前端构建与设计文档 - Part 5
 
 ## 业务逻辑与异常
 

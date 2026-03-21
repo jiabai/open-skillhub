@@ -192,3 +192,22 @@ async def ldap_login(payload: LDAPLoginRequest, session=Depends(get_async_sessio
         audit_service = AuditService(AuditLogRepository(session))
         await audit_service.create_event(actor_id=user_id, action="auth.ldap.login", target=user_id)
     return TokenPair(access_token=token_pair.access_token, refresh_token=token_pair.refresh_token)
+
+@router.post("/logout")
+async def logout(
+    current_user=Depends(get_current_active_user),
+    session=Depends(get_async_session),
+):
+    """
+    Logout current user.
+    Note: JWT tokens cannot be invalidated server-side, this is mainly for audit logging.
+    """
+    if settings.ENABLE_AUDIT_LOG:
+        audit_service = AuditService(AuditLogRepository(session))
+        await audit_service.create_event(
+            actor_id=current_user.id,
+            action="auth.logout",
+            target=current_user.id,
+        )
+    return None
+

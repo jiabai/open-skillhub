@@ -108,10 +108,11 @@ Configure your AI client to connect to Open SkillHub:
 
 ### Authentication Flow
 
-1. Login via `/api/v1/auth/login` to get JWT token
-2. Create API token via `/api/v1/tokens`
-3. Use API token (`ask_live_...`) for MCP access
-4. MCP service automatically identifies user and accesses their private skill space
+1. Send verification code via `POST /api/v1/auth/verification-code` (purpose: `login`/`register`/`delete_account`)
+2. Login via `POST /api/v1/auth/login` with email and verification code to get JWT token
+3. Create API token via `POST /api/v1/tokens`
+4. Use API token (`ask_live_...`) for MCP access
+5. MCP service automatically identifies user and accesses their private skill space
 
 ## Skill Storage Structure
 
@@ -135,7 +136,7 @@ Each user can only access their own skill directory, ensuring data isolation.
 
 | Document | Description |
 |----------|-------------|
-| [docs/project-spec.md](docs/project-spec.md) | Technical specification |
+| [docs/backend-design/](docs/backend-design/) | Backend architecture and design docs |
 | [docs/deployment.md](docs/deployment.md) | Deployment guide |
 | [docs/tools.md](docs/tools.md) | MCP tools documentation |
 | [docs/frontend-design/](docs/frontend-design/) | Frontend design specs |
@@ -143,24 +144,50 @@ Each user can only access their own skill directory, ensuring data isolation.
 ## API Endpoints
 
 ### Authentication
-- `POST /api/v1/auth/register` - User registration
-- `POST /api/v1/auth/login` - User login
+- `POST /api/v1/auth/verification-code` - Send email verification code
+- `POST /api/v1/auth/register` - User registration (with verification code)
+- `POST /api/v1/auth/login` - User login (with verification code)
 - `POST /api/v1/auth/refresh` - Refresh token
-- `POST /api/v1/auth/verify-email` - Email verification
+- `POST /api/v1/auth/sso/login` - SSO login
+- `POST /api/v1/auth/ldap/login` - LDAP login
+
+### Users
+- `GET /api/v1/users/me` - Get current user info
+- `PUT /api/v1/users/me` - Update user info
+- `POST /api/v1/users/me/delete-request` - Request account deletion code
+- `DELETE /api/v1/users/me` - Delete account (with verification code)
+- `POST /api/v1/users/bind-email` - Bind email address
+- `PUT /api/v1/users/{user_id}/identity` - Update user identity (admin only)
 
 ### Skills
 - `GET /api/v1/skills` - List skills
+- `GET /api/v1/skills/cache-policy` - Get cache policy
 - `POST /api/v1/skills` - Create skill
 - `GET /api/v1/skills/{id}` - Get skill detail
 - `PUT /api/v1/skills/{id}` - Update skill
 - `DELETE /api/v1/skills/{id}` - Delete skill
-- `POST /api/v1/skills/{id}/upload` - Upload skill ZIP
-- `POST /api/v1/skills/{id}/rollback` - Rollback to version
+- `POST /api/v1/skills/upload` - Upload skill ZIP
+- `POST /api/v1/skills/download` - Download skill (admin only)
+- `POST /api/v1/skills/{id}/deactivate` - Deactivate skill
+- `POST /api/v1/skills/{id}/activate` - Activate skill
+- `GET /api/v1/skills/{id}/versions` - List skill versions
+- `POST /api/v1/skills/{id}/versions/{version}/rollback` - Rollback to version
+- `GET /api/v1/skills/{id}/files` - List skill files
+- `GET /api/v1/skills/{id}/files/{file_path}` - Read file content
 
 ### Tokens
 - `GET /api/v1/tokens` - List API tokens
 - `POST /api/v1/tokens` - Create API token
 - `DELETE /api/v1/tokens/{id}` - Revoke token
+
+### Dashboard
+- `GET /api/v1/dashboard/overview` - Get dashboard overview
+- `POST /api/v1/dashboard/metrics/cleanup` - Cleanup metrics (admin only)
+- `POST /api/v1/dashboard/metrics/reset-24h` - Reset 24h metrics (admin only)
+
+### Audit Logs
+- `GET /api/v1/audit/logs` - Query audit logs
+- `POST /api/v1/audit/logs/export` - Export audit logs
 
 ### MCP
 - `POST /mcp` - MCP HTTP endpoint

@@ -108,10 +108,11 @@ NEXT_PUBLIC_API_BASE_URL=http://localhost:8000 npm run dev
 
 ### 认证流程
 
-1. 通过 `/api/v1/auth/login` 登录获取 JWT Token
-2. 通过 `/api/v1/tokens` 创建 API Token
-3. 使用 API Token（`ask_live_...`）访问 MCP 服务
-4. MCP 服务自动识别用户身份，访问其私有 Skill 空间
+1. 通过 `POST /api/v1/auth/verification-code` 发送验证码（用途：`login`/`register`/`delete_account`）
+2. 通过 `POST /api/v1/auth/login` 使用邮箱和验证码登录获取 JWT Token
+3. 通过 `POST /api/v1/tokens` 创建 API Token
+4. 使用 API Token（`ask_live_...`）访问 MCP 服务
+5. MCP 服务自动识别用户身份，访问其私有 Skill 空间
 
 ## Skill 存储结构
 
@@ -135,7 +136,7 @@ NEXT_PUBLIC_API_BASE_URL=http://localhost:8000 npm run dev
 
 | 文档 | 说明 |
 |------|------|
-| [docs/project-spec.md](docs/project-spec.md) | 技术规范 |
+| [docs/backend-design/](docs/backend-design/) | 后端架构与设计文档 |
 | [docs/deployment.md](docs/deployment.md) | 部署指南 |
 | [docs/tools.md](docs/tools.md) | MCP 工具文档 |
 | [docs/frontend-design/](docs/frontend-design/) | 前端设计规范 |
@@ -143,24 +144,50 @@ NEXT_PUBLIC_API_BASE_URL=http://localhost:8000 npm run dev
 ## API 端点
 
 ### 认证
-- `POST /api/v1/auth/register` - 用户注册
-- `POST /api/v1/auth/login` - 用户登录
+- `POST /api/v1/auth/verification-code` - 发送邮箱验证码
+- `POST /api/v1/auth/register` - 用户注册（验证码方式）
+- `POST /api/v1/auth/login` - 用户登录（验证码方式）
 - `POST /api/v1/auth/refresh` - 刷新 Token
-- `POST /api/v1/auth/verify-email` - 邮箱验证
+- `POST /api/v1/auth/sso/login` - SSO 登录
+- `POST /api/v1/auth/ldap/login` - LDAP 登录
+
+### 用户管理
+- `GET /api/v1/users/me` - 获取当前用户信息
+- `PUT /api/v1/users/me` - 更新用户信息
+- `POST /api/v1/users/me/delete-request` - 请求删除账户验证码
+- `DELETE /api/v1/users/me` - 删除账户（需验证码）
+- `POST /api/v1/users/bind-email` - 绑定邮箱
+- `PUT /api/v1/users/{user_id}/identity` - 更新用户身份（管理员）
 
 ### 技能管理
 - `GET /api/v1/skills` - 获取技能列表
+- `GET /api/v1/skills/cache-policy` - 获取缓存策略
 - `POST /api/v1/skills` - 创建技能
 - `GET /api/v1/skills/{id}` - 获取技能详情
 - `PUT /api/v1/skills/{id}` - 更新技能
 - `DELETE /api/v1/skills/{id}` - 删除技能
-- `POST /api/v1/skills/{id}/upload` - 上传技能 ZIP 包
-- `POST /api/v1/skills/{id}/rollback` - 版本回滚
+- `POST /api/v1/skills/upload` - 上传技能 ZIP 包
+- `POST /api/v1/skills/download` - 下载技能（仅管理员）
+- `POST /api/v1/skills/{id}/deactivate` - 停用技能
+- `POST /api/v1/skills/{id}/activate` - 启用技能
+- `GET /api/v1/skills/{id}/versions` - 获取技能版本列表
+- `POST /api/v1/skills/{id}/versions/{version}/rollback` - 版本回滚
+- `GET /api/v1/skills/{id}/files` - 获取文件列表
+- `GET /api/v1/skills/{id}/files/{file_path}` - 读取文件内容
 
 ### Token 管理
 - `GET /api/v1/tokens` - 获取 API Token 列表
 - `POST /api/v1/tokens` - 创建 API Token
 - `DELETE /api/v1/tokens/{id}` - 撤销 Token
+
+### 仪表盘
+- `GET /api/v1/dashboard/overview` - 获取仪表盘概览
+- `POST /api/v1/dashboard/metrics/cleanup` - 清理指标数据（仅管理员）
+- `POST /api/v1/dashboard/metrics/reset-24h` - 重置24小时指标（仅管理员）
+
+### 审计日志
+- `GET /api/v1/audit/logs` - 查询审计日志
+- `POST /api/v1/audit/logs/export` - 导出审计日志
 
 ### MCP
 - `POST /mcp` - MCP HTTP 端点

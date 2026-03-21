@@ -1871,11 +1871,11 @@ uvicorn skillhub.api_app:app --host 0.0.0.0 --port 8000
 ```python
 import sys
 
-from skillhub.core.app import Open SkillHubMcpApp
+from skillhub.core.app import OpenSkillHubMcpApp
 
 
 def main() -> None:
-    with Open SkillHubMcpApp(*sys.argv[1:]) as app:
+    with OpenSkillHubMcpApp(*sys.argv[1:]) as app:
         app.run_service()
 ```
 

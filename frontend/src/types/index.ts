@@ -1,0 +1,308 @@
+// Open SkillHub Frontend Type Definitions
+// 参考文档：docs/frontend-design/01-api-types.md
+
+// ========== 基础类型 ==========
+
+export type TokenPair = {
+  access_token: string
+  refresh_token: string
+}
+
+export type AccessTokenResponse = {
+  access_token: string
+  token_type?: string
+  expires_in?: number
+}
+
+export type SkillVisible = "private" | "team" | "enterprise"
+
+// ========== 核心数据模型 ==========
+
+export type Skill = {
+  id: string
+  user_id?: string
+  name: string
+  description: string | null
+  tags?: string[]
+  visible?: SkillVisible
+  enterprise_id?: string | null
+  team_id?: string | null
+  skill_dir?: string
+  current_version?: string | null
+  is_active?: boolean
+  cache_revoked_at?: string | null
+  created_at?: string
+  updated_at?: string
+}
+
+export type Token = {
+  id: string
+  user_id?: string
+  name: string
+  token?: string | null
+  is_active: boolean
+  expires_at?: string | null
+  last_used_at?: string | null
+  created_at: string
+}
+
+export type User = {
+  id: string
+  email: string
+  username: string
+  is_active: boolean
+  is_superuser: boolean
+  enterprise_id: string | null
+  team_id: string | null
+  role: string
+  status: string
+  created_at: string
+  updated_at: string
+}
+
+export type UserIdentityUpdate = {
+  enterprise_id?: string | null
+  team_id?: string | null
+  role?: string | null
+  status?: string | null
+}
+
+// ========== 响应类型 ==========
+
+export type DashboardOverview = {
+  active_skills: number
+  available_tokens: number
+  success_rate: number | null
+  success_rate_window_hours: number
+  success_rate_total: number
+}
+
+export type VerificationCodeResponse = {
+  sent: boolean
+  expires_in?: number
+  resend_interval?: number
+  max_attempts?: number
+  attempts_left?: number
+}
+
+export type MetricsCleanupResponse = {
+  removed: number
+  retention_days: number
+  cutoff: string
+}
+
+export type MetricsReset24hResponse = {
+  removed: number
+  window_hours: number
+  window_start: string
+  window_end: string
+}
+
+// ========== Skill 版本相关类型 ==========
+
+export type SkillVersion = {
+  version: string
+  description: string
+  dependencies: string[]
+  dependency_spec?: Record<string, any>
+  dependency_spec_version?: string
+  metadata: Record<string, any>
+  created_at: string
+}
+
+export type SkillVersionDiff = {
+  from_version: string
+  to_version: string
+  added: string[]
+  removed: string[]
+  modified: Array<{ path: string; diff: string }>
+}
+
+export type SkillInstallInstructions = {
+  strategy: string
+  dependencies: string[]
+  requirements_text: string
+  commands: string[]
+  ecosystem?: string
+  manifests?: Record<string, any>
+  dependency_spec?: Record<string, any>
+}
+
+export type SkillDownloadResponse = {
+  skill_uuid: string
+  version: string
+  encrypted_code: string
+  checksum: string
+  expires_at: string
+  cache_ttl_seconds?: number
+}
+
+export type SkillCachePolicyResponse = {
+  default_ttl_seconds: number
+  max_ttl_seconds: number
+  cache_enabled: boolean
+}
+
+// ========== 审计日志类型 ==========
+
+export type AuditLogItem = {
+  id: string
+  actor_id: string
+  action: string
+  target: string
+  result: string
+  timestamp: string
+  ip: string
+  user_agent: string
+  details: Record<string, any>
+}
+
+export type AuditLogExportRequest = {
+  format: "json" | "csv"
+  filters?: {
+    actor_id?: string
+    action?: string
+    start?: string
+    end?: string
+  }
+}
+
+export type AuditLogExportResponse = {
+  format: string
+  content: string
+}
+
+export type AuditLogListResponse = {
+  items: AuditLogItem[]
+}
+
+// ========== 错误响应类型 ==========
+
+export type ErrorCode =
+  | "CODE_EXPIRED"
+  | "CODE_INVALID"
+  | "CODE_MISMATCH"
+  | "TOO_MANY_ATTEMPTS"
+  | "RESEND_TOO_FREQUENT"
+  | "EMAIL_ALREADY_EXISTS"
+  | "USERNAME_ALREADY_EXISTS"
+  | "REGISTRATION_DISABLED"
+  | "LOGIN_DISABLED"
+  | "ACCOUNT_DELETED"
+  | "TOKEN_EXPIRED"
+  | "TOKEN_INVALID"
+  | "PERMISSION_DENIED"
+  | "RESOURCE_NOT_FOUND"
+  | "VALIDATION_ERROR"
+  | "INTERNAL_SERVER_ERROR"
+
+export type ApiErrorResponse = {
+  detail: string
+  code?: ErrorCode
+}
+
+// ========== 列表响应类型 ==========
+
+export type SkillListResponse = {
+  items: Skill[]
+  total: number
+}
+
+export type TokenListResponse = {
+  items: Token[]
+  total: number
+}
+
+export type SkillVersionListResponse = {
+  items: SkillVersion[]
+}
+
+// ========== 请求体类型 ==========
+
+export type VerificationCodeRequest = {
+  email: string
+  purpose: "login" | "register" | "bind_email" | "delete_account"
+}
+
+export type RegisterRequest = {
+  email: string
+  username: string
+  code: string
+}
+
+export type LoginRequest = {
+  email: string
+  code: string
+}
+
+export type TokenRefreshRequest = {
+  refresh_token: string
+}
+
+export type UserUpdateRequest = {
+  username?: string
+  email?: string
+}
+
+export type PasswordChangeRequest = {
+  current_password: string
+  new_password: string
+}
+
+export type AccountDeleteRequest = {
+  code: string
+}
+
+export type BindEmailRequest = {
+  email: string
+  code: string
+}
+
+export type SkillCreateRequest = {
+  name: string
+  description?: string | null
+  tags?: string[]
+  visible?: SkillVisible
+}
+
+export type SkillUpdateRequest = {
+  name?: string
+  description?: string | null
+  tags?: string[]
+  visible?: SkillVisible
+}
+
+export type TokenCreateRequest = {
+  name: string
+  expires_at?: string | null
+}
+
+export type SkillDownloadRequest = {
+  skill_uuid: string
+  version?: string
+}
+
+export type MetricsCleanupRequest = {
+  retention_days?: number | null
+}
+
+export type AuditLogListParams = {
+  actor_id?: string
+  action?: string
+  start?: string
+  end?: string
+  skip?: number
+  limit?: number
+}
+
+// ========== 工具函数类型 ==========
+
+export type ApiRequestOptions = RequestInit & {
+  skipRefresh?: boolean
+  accessToken?: string
+}
+
+export type FetchResult<T> = {
+  response: Response
+  payload: T
+}

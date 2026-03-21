@@ -1,90 +1,23 @@
-export type TokenPair = {
-  access_token: string
-  refresh_token: string
-}
-
-export type AccessTokenResponse = {
-  access_token: string
-}
-
-export type SkillVisible = "private" | "team" | "enterprise"
-
-export type Skill = {
-  id: string
-  user_id?: string
-  name: string
-  description: string | null
-  tags?: string[]
-  visible?: "private" | "team" | "enterprise"
-  enterprise_id?: string | null
-  team_id?: string | null
-  skill_dir?: string
-  current_version?: string | null
-  is_active?: boolean
-  cache_revoked_at?: string | null
-  created_at?: string
-  updated_at?: string
-}
-
-export type Token = {
-  id: string
-  name: string
-  token?: string | null
-  is_active?: boolean
-  created_at?: string
-  last_used_at?: string | null
-  expires_at?: string | null
-}
-
-export type User = {
-  id: string
-  email: string
-  username: string
-  is_active: boolean
-  is_superuser: boolean
-  enterprise_id: string | null
-  team_id: string | null
-  role: string
-  status: string
-  created_at: string
-  updated_at: string
-}
-
-export type UserIdentityUpdate = {
-  enterprise_id?: string | null
-  team_id?: string | null
-  role?: string | null
-  status?: string | null
-}
-
-export type DashboardOverview = {
-  active_skills: number
-  available_tokens: number
-  success_rate: number | null
-  success_rate_window_hours: number
-  success_rate_total: number
-}
-
-export type MetricsCleanupResponse = {
-  removed: number
-  retention_days: number
-  cutoff: string
-}
-
-export type MetricsReset24hResponse = {
-  removed: number
-  window_hours: number
-  window_start: string
-  window_end: string
-}
-
-export type VerificationCodeResponse = {
-  sent: boolean
-  expires_in?: number
-  resend_interval?: number
-  max_attempts?: number
-  attempts_left?: number
-}
+import type {
+  TokenPair,
+  AccessTokenResponse,
+  Skill,
+  SkillVisible,
+  Token,
+  User,
+  UserIdentityUpdate,
+  DashboardOverview,
+  MetricsCleanupResponse,
+  MetricsReset24hResponse,
+  VerificationCodeResponse,
+  SkillListResponse,
+  TokenListResponse,
+  SkillCreateRequest,
+  SkillUpdateRequest,
+  TokenCreateRequest,
+  VerificationCodeRequest,
+  UserUpdateRequest,
+} from "../types"
 
 const storageKey = "skillhub.tokens"
 

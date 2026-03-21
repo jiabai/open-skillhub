@@ -1,13 +1,13 @@
-# Open SkillHub 前端构建与设计文档 - Part 4
+# Open SkillHub 前端构建与设计文档 - Part 2
 
 ## 认证与安全
 
-> 本文档为 `frontend-design.md` 的第4部分，聚焦于认证流程、安全机制、审计日志、权限系统。
+> 本文档为 `index.md` 的第2部分，聚焦于认证流程、安全机制、审计日志、权限系统。
 >
 > **关联文档**：
-> - [frontend-design-03-api-types.md](./frontend-design-03-api-types.md) - API类型定义
-> - [frontend-design-05-business-exception.md](./frontend-design-05-business-exception.md) - 业务逻辑与异常
-> - [frontend-design-06-basics-readonly.md](./frontend-design-06-basics-readonly.md) - 技术基础（只读）
+> - [01-api-types.md](./01-api-types.md) - API类型定义
+> - [03-business-exception.md](./03-business-exception.md) - 业务逻辑与异常
+> - [04-basics-readonly.md](./04-basics-readonly.md) - 技术基础（只读）
 
 ---
 

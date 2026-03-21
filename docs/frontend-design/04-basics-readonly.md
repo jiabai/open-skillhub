@@ -1,15 +1,15 @@
-# Open SkillHub 前端构建与设计文档 - Part 6
+# Open SkillHub 前端构建与设计文档 - Part 4
 
 ## 技术基础（只读）
 
-> 本文档为 `frontend-design.md` 的第6部分，聚焦于技术栈、设计系统、组件架构、页面结构。
+> 本文档为 `index.md` 的第4部分，聚焦于技术栈、设计系统、组件架构、页面结构。
 >
 > **注意**：本部分内容与后端代码对照无关，仅作为前端实现参考。
 >
 > **关联文档**：
-> - [frontend-design-03-api-types.md](./frontend-design-03-api-types.md) - API类型定义
-> - [frontend-design-04-auth-security.md](./frontend-design-04-auth-security.md) - 认证与安全
-> - [frontend-design-05-business-exception.md](./frontend-design-05-business-exception.md) - 业务逻辑与异常
+> - [01-api-types.md](./01-api-types.md) - API类型定义
+> - [02-auth-security.md](./02-auth-security.md) - 认证与安全
+> - [03-business-exception.md](./03-business-exception.md) - 业务逻辑与异常
 
 ---
 

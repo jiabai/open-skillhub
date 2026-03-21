@@ -1,13 +1,13 @@
-# Open SkillHub 前端构建与设计文档 - Part 3
+# Open SkillHub 前端构建与设计文档 - Part 1
 
 ## API与数据模型
 
-> 本文档为 `frontend-design.md` 的第3部分，聚焦于 API 类型定义、客户端结构、契约映射。
+> 本文档为 `index.md` 的第1部分，聚焦于 API 类型定义、客户端结构、契约映射。
 >
 > **关联文档**：
-> - [frontend-design-04-auth-security.md](./frontend-design-04-auth-security.md) - 认证与安全
-> - [frontend-design-05-business-exception.md](./frontend-design-05-business-exception.md) - 业务逻辑与异常
-> - [frontend-design-06-basics-readonly.md](./frontend-design-06-basics-readonly.md) - 技术基础（只读）
+> - [02-auth-security.md](./02-auth-security.md) - 认证与安全
+> - [03-business-exception.md](./03-business-exception.md) - 业务逻辑与异常
+> - [04-basics-readonly.md](./04-basics-readonly.md) - 技术基础（只读）
 
 ---
 
@@ -197,6 +197,7 @@ export const api = {
     apiFetch<TokenPair>("/api/v1/auth/sso/login", { method: "POST", body: JSON.stringify(payload) }),
   ldapLogin: (payload: { username: string; password: string }) =>
     apiFetch<TokenPair>("/api/v1/auth/ldap/login", { method: "POST", body: JSON.stringify(payload) }),
+  logout: () => apiFetch<void>("/api/v1/auth/logout", { method: "POST", skipRefresh: true }),
 
   // 用户
   getMe: () => apiFetch<User>("/api/v1/users/me"),
@@ -237,6 +238,8 @@ export const api = {
   // Skill 版本管理
   listSkillVersions: (skillUuid: string) =>
     apiFetch<{ items: SkillVersion[] }>(`/api/v1/skills/${skillUuid}/versions`),
+  getSkillVersion: (skillUuid: string, version: string) =>
+    apiFetch<SkillVersion>(`/api/v1/skills/${skillUuid}/versions/${version}`),
   diffSkillVersions: (skillUuid: string, fromVersion: string, toVersion: string) =>
     apiFetch<SkillVersionDiff>(`/api/v1/skills/${skillUuid}/versions/diff?from=${encodeURIComponent(fromVersion)}&to=${encodeURIComponent(toVersion)}`),
   getInstallInstructions: (skillUuid: string, version: string) =>
@@ -323,6 +326,7 @@ export type SkillVisible = "private" | "team" | "enterprise"
 ```tsx
 export type Skill = {
   id: string
+  user_id?: string
   name: string
   description: string | null
   tags?: string[]
@@ -339,6 +343,7 @@ export type Skill = {
 
 export type Token = {
   id: string
+  user_id?: string
   name: string
   token?: string | null
   is_active: boolean
@@ -616,6 +621,7 @@ export function getNetworkErrorMessage(): string {
 | Token 撤销 | `api.revokeToken` | `DELETE /api/v1/tokens/{token_id}` | ✅ 已实现 |
 | SSO 登录 | `api.ssoLogin({ id_token })` | `POST /api/v1/auth/sso/login` | ✅ 已实现（需后端配置 `ENABLE_SSO=true`） |
 | LDAP 登录 | `api.ldapLogin({ username, password })` | `POST /api/v1/auth/ldap/login` | ✅ 已实现（需后端配置 `ENABLE_LDAP=true`） |
+| 登出 | `api.logout()` | `POST /api/v1/auth/logout` | ✅ 已实现 |
 | Skill 缓存策略 | `api.getSkillCachePolicy()` | `GET /api/v1/skills/cache-policy` | ✅ 已实现 |
 | 请求删除账户验证码 | `api.requestDeleteAccount` | `POST /api/v1/users/me/delete-request` | ✅ 已实现 |
 | 账户删除 | `api.deleteAccount({ code })` | `DELETE /api/v1/users/me` | ✅ 已实现 |
@@ -624,6 +630,7 @@ export function getNetworkErrorMessage(): string {
 | Skill 激活 | `api.activateSkill(skillUuid)` | `POST /api/v1/skills/{skill_uuid}/activate` | ✅ 已实现 |
 | Skill 停用 | `api.deactivateSkill(skillUuid)` | `POST /api/v1/skills/{skill_uuid}/deactivate` | ✅ 已实现 |
 | Skill 版本列表 | `api.listSkillVersions(skillUuid)` | `GET /api/v1/skills/{skill_uuid}/versions` | ✅ 已实现 |
+| Skill 版本详情 | `api.getSkillVersion(skillUuid, version)` | `GET /api/v1/skills/{skill_uuid}/versions/{version}` | ✅ 已实现 |
 | Skill 版本对比 | `api.diffSkillVersions(skillUuid, from, to)` | `GET /api/v1/skills/{skill_uuid}/versions/diff` | ✅ 已实现 |
 | Skill 安装说明 | `api.getInstallInstructions(skillUuid, version)` | `GET /api/v1/skills/{skill_uuid}/versions/{version}/install-instructions` | ✅ 已实现 |
 | Skill 版本回滚 | `api.rollbackSkillVersion(skillUuid, version)` | `POST /api/v1/skills/{skill_uuid}/versions/{version}/rollback` | ✅ 已实现 |
@@ -635,8 +642,8 @@ export function getNetworkErrorMessage(): string {
 
 | 后端 Schema | 后端实际字段 | 前端类型字段 | 说明 |
 |------------|------------|------------|------|
-| `SkillResponse` | `id, name, description, tags, visible, enterprise_id, team_id, skill_dir, current_version, is_active, cache_revoked_at, created_at, updated_at` | `id, name, description, tags?, visible?, enterprise_id?, team_id?, skill_dir?, current_version?, is_active?, cache_revoked_at?, created_at?, updated_at?` | ✅ 已对齐 |
-| `TokenResponse` | `id, name, token?, is_active, expires_at, last_used_at, created_at` | `id, name, token?, is_active, expires_at?, last_used_at?, created_at` | ✅ 已对齐 |
+| `SkillResponse` | `id, user_id, name, description, tags, visible, enterprise_id, team_id, skill_dir, current_version, is_active, cache_revoked_at, created_at, updated_at` | `id, user_id?, name, description, tags?, visible?, enterprise_id?, team_id?, skill_dir?, current_version?, is_active?, cache_revoked_at?, created_at?, updated_at?` | ✅ 已对齐 |
+| `TokenResponse` | `id, user_id, name, token?, is_active, expires_at, last_used_at, created_at` | `id, user_id?, name, token?, is_active, expires_at?, last_used_at?, created_at` | ✅ 已对齐 |
 | `UserResponse` | `id, email, username, is_active, is_superuser, enterprise_id, team_id, role, status, created_at, updated_at` | `id, email, username, is_active, is_superuser, enterprise_id?, team_id?, role, status, created_at, updated_at` | ✅ 已对齐 |
 | `SkillVersionResponse` | `version, description, dependencies, dependency_spec, dependency_spec_version, metadata, created_at` | `version, description, dependencies, dependency_spec?, dependency_spec_version?, metadata, created_at` | 已对齐 |
 | `SkillVersionDiffResponse` | `from_version, to_version, added, removed, modified` | `from_version, to_version, added, removed, modified` | 已对齐 |

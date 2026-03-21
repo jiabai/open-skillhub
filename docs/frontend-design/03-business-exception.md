@@ -1,13 +1,13 @@
-# Open SkillHub 前端构建与设计文档 - Part 5
+# Open SkillHub 前端构建与设计文档 - Part 3
 
 ## 业务逻辑与异常
 
-> 本文档为 `frontend-design.md` 的第5部分，聚焦于功能开关、异常场景处理、业务逻辑。
+> 本文档为 `index.md` 的第3部分，聚焦于功能开关、异常场景处理、业务逻辑。
 >
 > **关联文档**：
-> - [frontend-design-03-api-types.md](./frontend-design-03-api-types.md) - API类型定义
-> - [frontend-design-04-auth-security.md](./frontend-design-04-auth-security.md) - 认证与安全
-> - [frontend-design-06-basics-readonly.md](./frontend-design-06-basics-readonly.md) - 技术基础（只读）
+> - [01-api-types.md](./01-api-types.md) - API类型定义
+> - [02-auth-security.md](./02-auth-security.md) - 认证与安全
+> - [04-basics-readonly.md](./04-basics-readonly.md) - 技术基础（只读）
 
 ---
 
@@ -641,7 +641,7 @@ function EmptyState({ icon, title, description, action }: EmptyStateProps) {
 
 ### 4.1 P0（已修复）
 
-> ✅ 以下问题已在 `frontend-design-03-api-types.md` 中修复
+> ✅ 以下问题已在 `01-api-types.md` 中修复
 
 1. ~~**安全页账户删除流程重构**~~
    - ~~当前前端：`DELETE /api/v1/users/me` 发送 `{ password }`~~
@@ -660,7 +660,7 @@ function EmptyState({ icon, title, description, action }: EmptyStateProps) {
 
 ### 4.2 P1（部分已修复）
 
-> ✅ 以下问题已在 `frontend-design-03-api-types.md` 中修复
+> ✅ 以下问题已在 `01-api-types.md` 中修复
 
 1. **注册成功后的 Token 使用策略**
    - 当前前端仅提示成功并跳转登录

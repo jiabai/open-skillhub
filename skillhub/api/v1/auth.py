@@ -1,6 +1,7 @@
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, status
 
 from skillhub.config.settings import settings
+from skillhub.core.middleware.auth import get_current_active_user
 from skillhub.core.security.jwt_utils import decode_token
 from skillhub.db.session import get_async_session
 from skillhub.repositories.audit_log import AuditLogRepository

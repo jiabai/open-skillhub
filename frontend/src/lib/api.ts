@@ -37,10 +37,24 @@ export type Token = {
 }
 
 export type User = {
-  id?: string
+  id: string
   email: string
   username: string
-  is_superuser?: boolean
+  is_active: boolean
+  is_superuser: boolean
+  enterprise_id: string | null
+  team_id: string | null
+  role: string
+  status: string
+  created_at: string
+  updated_at: string
+}
+
+export type UserIdentityUpdate = {
+  enterprise_id?: string | null
+  team_id?: string | null
+  role?: string | null
+  status?: string | null
 }
 
 export type DashboardOverview = {

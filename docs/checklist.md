@@ -801,7 +801,7 @@ python scripts/checklist_stats.py
 
 ### 17.4 审计日志
 
-- [ ] 审计日志采集覆盖认证/权限/技能操作（关键操作已接入，尚未全覆盖）
+- [x] 审计日志采集覆盖认证/权限/技能操作（已覆盖 auth/user/token/skill/execute 全链路）
 - [x] 审计日志可按用户/时间/操作查询
 - [x] 审计日志支持 CSV/JSON 导出
 

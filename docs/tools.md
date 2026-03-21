@@ -139,10 +139,13 @@ else:
 
 ### Returns
 
-str: The skill instructions content. If the SKILL.md file exists, returns the file content. Otherwise, returns a JSON string payload produced by `tool_error_payload` (including `detail`, `code`, and `timestamp`).
+str: The skill instructions content (complete SKILL.md file including YAML frontmatter). If the SKILL.md file exists, returns the file content as-is. Otherwise, returns a JSON string payload produced by `tool_error_payload` (including `detail`, `code`, and `timestamp`).
+
+> [!NOTE]
+> Unlike the description in earlier versions, this tool returns the **complete** SKILL.md file content including YAML frontmatter. The frontmatter is **not** stripped.
 
 > [!TIP]
-> You can ref to [official Anthropic documentation](https://code.claude.com/docs/en/skills) on the Skills format.
+> You can refer to [official Anthropic documentation](https://code.claude.com/docs/en/skills) on the Skills format.
 
 ### Test Demo
 
@@ -219,6 +222,18 @@ This tool executes shell commands. Optionally (disabled by default), it can auto
 **多用户版本**: 在用户私有的Skill目录中执行命令。
 
 > **⚠️ 安全警告**: 出于安全考虑，该工具在多用户环境下仅允许执行**白名单内的安全命令**（如 `python`, `node`, `bash` 等），且严禁包含危险操作（如 `rm -rf`, `sudo` 等）。任何未授权的命令执行请求都将被拒绝。详见 [安全规范](./project-spec.md#105-runshellcommandop-安全增强建议)。
+
+### 执行控制特性
+
+当启用资源配额 (`ENABLE_RESOURCE_QUOTA=true`) 时，该工具还支持：
+
+| 特性 | 配置项 | 说明 |
+|------|--------|------|
+| 执行超时 | `SKILL_EXECUTION_TIMEOUT_SECONDS` | 命令执行超时时间（秒），超时后自动终止进程 |
+| 工作目录配额 | `MAX_WORKDIR_BYTES` | Skill 工作目录最大字节数限制 |
+| 并发控制 | `MAX_CONCURRENT_EXECUTIONS` | 同时执行的最大命令数 |
+| 输出截断 | `MAX_OUTPUT_BYTES` | 命令输出最大字节数 |
+| 沙箱执行 | `ENABLE_SANDBOX_EXECUTION` | 仅传递 PATH 环境变量，隔离执行环境 |
 
 ### Key Operation Flow
 
@@ -304,6 +319,26 @@ python tests/test_run_shell_command_op.py <path/to/skills> <skill_name> <command
 }
 ```
 
+`text` 字段解析后的 `skills` 数组中每项包含：
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `skill_id` | string | Skill UUID |
+| `name` | string | Skill 名称 |
+| `version` | string | 当前版本 |
+| `description` | string | Skill 描述 |
+| `author` | string | 作者用户 ID |
+| `visible` | string | 可见性：`private` / `team` / `enterprise` |
+| `created_at` | string | 创建时间（ISO 8601） |
+| `updated_at` | string | 更新时间（ISO 8601） |
+| `tags` | array | 标签列表 |
+| `deprecation_info` | object | 废弃信息：`{deprecated: bool, sunset: string|null}` |
+
+### 权限要求
+
+- 需要 `skill.list` 权限
+- 仅返回用户可见的 Skills（根据 visibility 和用户所属组织过滤）
+
 ---
 
 ## Tool 6: skill_detail_resource
@@ -327,6 +362,27 @@ python tests/test_run_shell_command_op.py <path/to/skills> <skill_name> <command
 
 `str`：JSON 字符串，`uri` 形如 `skill://{skill_uuid}@{version}`，`text` 为技能详情 JSON。
 
+`text` 字段解析后的结构：
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `skill_id` | string | Skill UUID |
+| `version` | string | 版本号 |
+| `name` | string | Skill 名称 |
+| `description` | string | Skill 描述 |
+| `author` | string | 作者用户 ID |
+| `parameters` | object | 参数定义（从 SKILL.md frontmatter 解析） |
+| `dependencies` | array | 依赖列表 |
+| `visible` | string | 可见性：`private` / `team` / `enterprise` |
+| `created_at` | string | 创建时间（ISO 8601） |
+| `updated_at` | string | 更新时间（ISO 8601） |
+| `dependency_spec` | object | 依赖规格（多生态声明，如 Python/Node） |
+
+### 权限要求
+
+- 需要 `skill.read` 权限
+- 仅返回用户可见的 Skill（根据 visibility 校验）
+
 ---
 
 ## Tool 7: execute_skill
@@ -339,6 +395,18 @@ python tests/test_run_shell_command_op.py <path/to/skills> <skill_name> <command
 
 按 `skill_uuid` 与可选 `version` 执行技能。执行命令从目标版本 `SKILL.md` 的 `command` 或 `entrypoint` 推导，受命令白名单限制；输入参数通过 `SKILL_PARAMS` 注入环境变量。
 
+### 执行控制特性
+
+当启用资源配额 (`ENABLE_RESOURCE_QUOTA=true`) 时，该工具支持：
+
+| 特性 | 配置项 | 说明 |
+|------|--------|------|
+| 执行超时 | `SKILL_EXECUTION_TIMEOUT_SECONDS` | 命令执行超时时间（秒），超时后自动终止进程 |
+| 工作目录配额 | `MAX_WORKDIR_BYTES` | Skill 工作目录最大字节数限制 |
+| 并发控制 | `MAX_CONCURRENT_EXECUTIONS` | 同时执行的最大命令数 |
+| 输出截断 | `MAX_OUTPUT_BYTES` | 命令输出最大字节数 |
+| 沙箱执行 | `ENABLE_SANDBOX_EXECUTION` | 仅传递 PATH 和 SKILL_PARAMS 环境变量 |
+
 ### Input Parameters
 
 | Parameter | Type | Required | Default | Description |
@@ -349,7 +417,50 @@ python tests/test_run_shell_command_op.py <path/to/skills> <skill_name> <command
 
 ### Returns
 
-`str`：JSON 字符串，格式为 `{"result":{"status":"...","output":"...","execution_time_ms":123}}`。
+`str`：JSON 字符串，格式为：
+
+```json
+{
+  "result": {
+    "status": "success|error|timeout",
+    "output": "...",
+    "execution_time_ms": 123
+  }
+}
+```
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `status` | string | 执行状态：`success` / `error` / `timeout` |
+| `output` | string | 命令输出（stdout + stderr） |
+| `execution_time_ms` | int | 执行耗时（毫秒） |
+
+### 权限要求
+
+- 需要 `skill.execute` 权限
+- 仅可执行用户可见的 Skill（根据 visibility 校验）
+
+### 错误码
+
+| 错误码 | 说明 |
+|--------|------|
+| `UNAUTHORIZED` | 未认证（缺少 user_id） |
+| `PERMISSION_DENIED` | 无 `skill.execute` 权限 |
+| `SKILL_NOT_FOUND` | Skill 不存在或不可见 |
+| `SKILL_DEACTIVATED` | Skill 已下架 |
+| `VERSION_NOT_FOUND` | 版本不存在 |
+| `SKILL_MD_NOT_FOUND` | SKILL.md 文件不存在 |
+| `SKILL_EXECUTION_NOT_CONFIGURED` | Skill 未配置 command 或 entrypoint |
+| `COMMAND_BLOCKED` | 命令被白名单拦截 |
+| `QUOTA_EXCEEDED` | 工作目录配额超限 |
+| `CONCURRENCY_LIMIT` | 并发执行数超限 |
+
+### 审计日志
+
+当 `ENABLE_AUDIT_LOG=true` 时，每次执行会记录审计日志：
+- `action`: `skill.execute`
+- `result`: `success` / `error` / `timeout`
+- `metadata`: `{version, execution_time_ms}`
 
 ---
 

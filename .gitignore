@@ -1,5 +1,6 @@
 .vscode
 .trae
+.claude/
 .worktrees/
 .env*
 !.env.example
@@ -61,6 +62,9 @@ frontend/.next/
 *.pyo
 .pytest_cache/
 .coverage
+coverage.json
+coverage.xml
+htmlcov/
 .ruff_cache/
 .mypy_cache/
 .tox/

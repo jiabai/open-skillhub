@@ -607,8 +607,26 @@
 
 ### 13.4 测试覆盖率
 
-- [ ] 单元测试覆盖率 >= 80%（2026-03-07 实测 `python -m pytest --cov=skillhub --cov-report=term`：TOTAL 69%）
+- [ ] 单元测试覆盖率 >= 80%（2026-03-21 实测 `python -m pytest --cov=skillhub --cov-report=term`：TOTAL 70%，211 passed）
 - [ ] 核心业务逻辑覆盖率 >= 90%（当前未达标，待补齐覆盖率后复核）
+
+**覆盖率改进记录**：
+- 2026-03-07：69%（133 passed）
+- 2026-03-21：70%（211 passed，+78 个测试）
+
+**主要改进模块**：
+- `services/auth.py`：37% → 43%
+- `services/verification_code.py`：82% → 87%
+- 新增 `test_skill_service_unit.py`（49 个单元测试）
+- 新增 `test_api_auth_extended.py`（27 个 API 测试）
+
+**待改进模块**（覆盖率 < 50%）：
+- `services/skill.py`：42%（最大缺口）
+- `services/auth.py`：43%
+- `services/email_sender.py`：57%
+- `core/utils/service_runner.py`：18%
+- `repositories/enterprise.py`：46%
+- `repositories/team.py`：46%
 
 ---
 

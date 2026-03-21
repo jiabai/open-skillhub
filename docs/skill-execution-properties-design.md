@@ -10,7 +10,10 @@ last_updated: 2026-03-12
 
 本文档详细描述了 SKILL 模块的执行属性设计，包括 `dependencies`、`execution_mode`、`requires_gui`、`client_capabilities` 四个核心属性的定义、使用场景、实现方案和前端展示规范。
 
-**重要设计原则**：这些属性**仅存储在数据库**中，不通过 SKILL.md Frontmatter 定义和解析。用户通过前端界面或 API 来设置这些属性。
+**重要设计原则**：
+- `dependencies` 存储在 `skill_versions` 表中（因为不同版本有独立依赖）
+- `execution_mode`、`requires_gui`、`client_capabilities` 存储在 `skills` 表中（通过 API 设置）
+- 用户通过前端界面或 API 来设置这些属性
 
 SKILL.md Frontmatter 仅包含：
 - `name`
@@ -43,6 +46,8 @@ SKILL.md Frontmatter 仅包含：
 ### 1. dependencies（依赖包列表）
 
 定义 Skill 运行时需要的依赖包列表。
+
+**存储位置**：`skill_versions` 表（不同版本有独立依赖）
 
 | 值 | 说明 | 格式示例 |
 |----|------|----------|
@@ -115,8 +120,8 @@ SKILL.md Frontmatter 仅包含：
 ## SKILL.md Frontmatter 规范（保持不变）
 
 **重要**：SKILL.md Frontmatter 仅包含 `name`、`description`、`version` 三个字段。
-- `dependencies` 存储在数据库中，通过 API 设置
-- 执行属性（`execution_mode`、`requires_gui`、`client_capabilities`）存储在数据库中，通过 API 设置
+- `dependencies` 存储在 `skill_versions` 表中（版本级别依赖，通过 API 设置）
+- 执行属性（`execution_mode`、`requires_gui`、`client_capabilities`）存储在 `skills` 表中，通过 API 设置
 
 ```yaml
 ---
@@ -151,8 +156,8 @@ version: 1.0.0
 ```
 
 **注意**：
-- 这个 Skill 的 `dependencies: ["playwright>=1.40.0", "python-dotenv"]` 是通过数据库字段设置的
-- 这个 Skill 的 `execution_mode: client`、`requires_gui: true`、`client_capabilities: ["browser", "screen_capture"]` 是通过数据库字段设置的
+- 这个 Skill 的 `dependencies: ["playwright>=1.40.0", "python-dotenv"]` 是存储在 `skill_versions` 表中（版本级别依赖）
+- 这个 Skill 的 `execution_mode: client`、`requires_gui: true`、`client_capabilities: ["browser", "screen_capture"]` 是存储在 `skills` 表中（Skill 级别属性）
 - 以上属性都不是写在 SKILL.md 里的
 
 ---
@@ -194,14 +199,16 @@ class Skill(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     cache_revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
-    # 新增字段 - 依赖和执行属性（仅数据库，不通过 SKILL.md 解析）
-    dependencies: Mapped[list[str]] = mapped_column(JSON, default=list)
+    # 新增字段 - 执行属性（仅数据库，不通过 SKILL.md 解析）
+    # 注意：dependencies 在 skill_versions 表中，因为不同版本有独立依赖
     execution_mode: Mapped[str] = mapped_column(String(20), default="both")
     requires_gui: Mapped[bool] = mapped_column(Boolean, default=False)
     client_capabilities: Mapped[list[str]] = mapped_column(JSON, default=list)
 
     user = relationship("User", back_populates="skills")
 ```
+
+**注意**：`dependencies` 字段已存在于 `skill_versions` 表中（见 `models/skill_version.py`），此处不再重复定义。
 
 ---
 
@@ -224,21 +231,11 @@ class SkillCreate(BaseModel):
         max_length=20,
         validation_alias=AliasChoices("visible", "visibility"),
     )
-    # 新增字段 - 依赖和执行属性（通过 API 设置）
-    dependencies: list[str] = Field(default_factory=list)
+    # 新增字段 - 执行属性（通过 API 设置）
+    # 注意：dependencies 在 skill_versions 表中，通过 SkillVersionCreate 设置
     execution_mode: str = Field(default="both", max_length=20)
     requires_gui: bool = Field(default=False)
     client_capabilities: list[str] = Field(default_factory=list)
-
-    @field_validator("dependencies")
-    @classmethod
-    def validate_dependencies(cls, v: list[str]) -> list[str]:
-        import re
-        package_pattern = re.compile(r'^[a-zA-Z0-9_-]+(?:[~=<>!]=?[a-zA-Z0-9._-]+)?$')
-        for dep in v:
-            if not package_pattern.match(dep):
-                raise ValueError(f"Invalid dependency format: {dep}. Should be like 'package' or 'package>=1.0.0'")
-        return v
 
     @field_validator("execution_mode")
     @classmethod
@@ -270,23 +267,11 @@ class SkillUpdate(BaseModel):
         max_length=20,
         validation_alias=AliasChoices("visible", "visibility"),
     )
-    # 新增字段 - 依赖和执行属性（可通过 API 更新）
-    dependencies: list[str] | None = Field(default=None)
+    # 新增字段 - 执行属性（可通过 API 更新）
+    # 注意：dependencies 在 skill_versions 表中，通过 SkillVersionUpdate 更新
     execution_mode: str | None = Field(default=None, max_length=20)
     requires_gui: bool | None = Field(default=None)
     client_capabilities: list[str] | None = Field(default=None)
-
-    @field_validator("dependencies")
-    @classmethod
-    def validate_dependencies(cls, v: list[str] | None) -> list[str] | None:
-        if v is None:
-            return v
-        import re
-        package_pattern = re.compile(r'^[a-zA-Z0-9_-]+(?:[~=<>!]=?[a-zA-Z0-9._-]+)?$')
-        for dep in v:
-            if not package_pattern.match(dep):
-                raise ValueError(f"Invalid dependency format: {dep}. Should be like 'package' or 'package>=1.0.0'")
-        return v
 
     @field_validator("execution_mode")
     @classmethod
@@ -327,8 +312,8 @@ class SkillResponse(BaseModel):
     cache_revoked_at: datetime | None
     created_at: datetime
     updated_at: datetime
-    # 新增字段 - 依赖和执行属性
-    dependencies: list[str]
+    # 新增字段 - 执行属性
+    # 注意：dependencies 在 SkillVersionResponse 中返回
     execution_mode: str
     requires_gui: bool
     client_capabilities: list[str]
@@ -338,6 +323,8 @@ class SkillResponse(BaseModel):
 
 # ... 其他现有 Schema 保持不变
 ```
+
+**注意**：`dependencies` 字段应在 `SkillVersionCreate`、`SkillVersionUpdate`、`SkillVersionResponse` 中定义，因为依赖是版本级别的。
 
 ---
 
@@ -438,7 +425,7 @@ depends_on = None
 
 def upgrade() -> None:
     # ### commands auto generated by Alembic - please adjust! ###
-    op.add_column('skills', sa.Column('dependencies', sa.JSON(), nullable=False, server_default=sa.text("'[]'")))
+    # 注意：dependencies 已存在于 skill_versions 表中，此处不再添加
     op.add_column('skills', sa.Column('execution_mode', sa.String(length=20), nullable=False, server_default=sa.text("'both'")))
     op.add_column('skills', sa.Column('requires_gui', sa.Boolean(), nullable=False, server_default=sa.false()))
     op.add_column('skills', sa.Column('client_capabilities', sa.JSON(), nullable=False, server_default=sa.text("'[]'")))
@@ -456,7 +443,6 @@ def downgrade() -> None:
     op.drop_column('skills', 'client_capabilities')
     op.drop_column('skills', 'requires_gui')
     op.drop_column('skills', 'execution_mode')
-    op.drop_column('skills', 'dependencies')
     # ### end Alembic commands ###
 ```
 
@@ -472,6 +458,7 @@ def downgrade() -> None:
 > 1. 在现有 `Skill` 类型中添加新字段
 > 2. 在现有 `api.createSkill` 和 `api.updateSkill` 方法中添加新参数支持
 > 3. 现有字段 `description` 在当前代码中为 `string | null`，建议保持一致
+> 4. `dependencies` 在 `SkillVersion` 类型中定义，因为依赖是版本级别的
 
 ```typescript
 // 扩展现有 Skill 类型（添加新字段）
@@ -489,8 +476,8 @@ export interface Skill {
   cache_revoked_at: string | null;
   created_at: string;
   updated_at: string;
-  // 新增字段 - 依赖和执行属性
-  dependencies: string[];
+  // 新增字段 - 执行属性
+  // 注意：dependencies 在 SkillVersion 类型中，因为依赖是版本级别的
   execution_mode: "server" | "client" | "both";
   requires_gui: boolean;
   client_capabilities: string[];
@@ -501,8 +488,8 @@ export interface SkillCreate {
   description?: string;
   tags?: string[];
   visible?: string;
-  // 新增字段 - 依赖和执行属性（通过 API 设置）
-  dependencies?: string[];
+  // 新增字段 - 执行属性（通过 API 设置）
+  // 注意：dependencies 在 SkillVersionCreate 中设置
   execution_mode?: "server" | "client" | "both";
   requires_gui?: boolean;
   client_capabilities?: string[];
@@ -513,8 +500,8 @@ export interface SkillUpdate {
   description?: string | null;
   tags?: string[];
   visible?: string;
-  // 新增字段 - 依赖和执行属性（可通过 API 更新）
-  dependencies?: string[];
+  // 新增字段 - 执行属性（可通过 API 更新）
+  // 注意：dependencies 在 SkillVersionUpdate 中更新
   execution_mode?: "server" | "client" | "both";
   requires_gui?: boolean;
   client_capabilities?: string[];
@@ -566,8 +553,8 @@ export default function NewSkillPage() {
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [tagsInput, setTagsInput] = useState("");
-  // 新增状态 - 依赖和执行属性
-  const [dependenciesInput, setDependenciesInput] = useState("");
+  // 新增状态 - 执行属性
+  // 注意：dependencies 在版本上传时设置，因为依赖是版本级别的
   const [executionMode, setExecutionMode] = useState<"server" | "client" | "both">("both");
   const [requiresGui, setRequiresGui] = useState(false);
   const [selectedCapabilities, setSelectedCapabilities] = useState<string[]>([]);
@@ -607,13 +594,8 @@ export default function NewSkillPage() {
 
   const handleUpdateExecutionProperties = async () => {
     if (!skillUuid) return;
-    const dependencies = dependenciesInput
-      .split(",")
-      .map((d) => d.trim())
-      .filter((d) => d.length > 0);
 
     await api.updateSkill(skillUuid, {
-      dependencies: dependencies.length > 0 ? dependencies : undefined,
       execution_mode: executionMode !== "both" ? executionMode : undefined,
       requires_gui: requiresGui ? true : undefined,
       client_capabilities: selectedCapabilities.length > 0 ? selectedCapabilities : undefined,
@@ -674,15 +656,6 @@ export default function NewSkillPage() {
                   value={tagsInput}
                   onChange={(e) => setTagsInput(e.target.value)}
                   placeholder="tag1, tag2, tag3"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="dependencies">依赖包（逗号分隔）</Label>
-                <Input
-                  id="dependencies"
-                  value={dependenciesInput}
-                  onChange={(e) => setDependenciesInput(e.target.value)}
-                  placeholder="playwright>=1.40.0, python-dotenv"
                 />
               </div>
             </CardContent>
@@ -1286,7 +1259,7 @@ GET skill://{skill_uuid}@{version}
 ## 向后兼容性
 
 1. **默认值**：新增字段都有合理的默认值
-   - `dependencies = []`
+   - `dependencies = []`（已在 `skill_versions` 表中实现）
    - `execution_mode = "both"`
    - `requires_gui = false`
    - `client_capabilities = []`
@@ -1301,32 +1274,43 @@ GET skill://{skill_uuid}@{version}
 
 ## 设计原则总结
 
-### 为什么 dependencies 和执行属性只存在数据库中？
+### 为什么依赖存储在版本表、执行属性存储在 Skill 表？
 
 1. **关注点分离**：
    - SKILL.md 负责描述 Skill 的内容、功能（仅包含 name、description、version）
-   - 数据库字段负责 Skill 的元数据、依赖、执行配置、运行时属性
+   - 数据库字段负责 Skill 的元数据、执行配置、运行时属性
+   - `dependencies` 存储在 `skill_versions` 表（版本级别依赖）
+   - 执行属性存储在 `skills` 表（Skill 级别属性）
 
 2. **灵活性**：
-   - 用户可以在不修改 SKILL.md 的情况下更改 dependencies 和执行属性
-   - 可以通过 API 批量更新多个 Skill 的 dependencies 和执行属性
+   - 用户可以在不修改 SKILL.md 的情况下更改执行属性
+   - 每个版本可以有独立的依赖，便于版本管理和回滚
+   - 可以通过 API 批量更新多个 Skill 的执行属性
    - 便于未来的权限控制和策略管理
 
 3. **可查询性**：
    - 可以根据 `execution_mode` 过滤 Skill
    - 可以根据 `client_capabilities` 匹配客户端能力
-   - 可以根据 `dependencies` 查询依赖特定库的 Skill
+   - 可以根据 `dependencies` 查询依赖特定库的版本
    - 数据库索引可以提高查询性能
 
 4. **版本控制**：
-   - SKILL.md 的版本变化不影响 dependencies 和执行属性
-   - dependencies 和执行属性的变更可以单独追踪和审计
+   - SKILL.md 的版本变化不影响执行属性
+   - `dependencies` 跟随版本变化，不同版本可有不同依赖
+   - 执行属性的变更可以单独追踪和审计
 
 ---
 
 ## 总结
 
-本文档完整定义了 SKILL 模块的四个核心执行属性：`dependencies`、`execution_mode`、`requires_gui` 和 `client_capabilities`。通过将这些属性存储在数据库中而非 SKILL.md Frontmatter 中，实现了关注点分离、灵活性和可查询性的提升。
+本文档完整定义了 SKILL 模块的四个核心执行属性：
+- `dependencies`：存储在 `skill_versions` 表，版本级别依赖
+- `execution_mode`、`requires_gui`、`client_capabilities`：存储在 `skills` 表，Skill 级别属性
+
+通过将依赖存储在版本表、执行属性存储在 Skill 表，实现了：
+1. **版本独立性**：不同版本可以有不同依赖
+2. **关注点分离**：SKILL.md 只包含内容描述，元数据在数据库中管理
+3. **灵活性和可查询性**：便于管理和查询
 
 整个设计遵循以下核心原则：
 1. **向后兼容**：所有新增字段都有合理默认值，确保老数据和老客户端正常运行

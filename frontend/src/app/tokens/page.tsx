@@ -139,36 +139,45 @@ export default function TokensPage() {
             {status === "ready" && tokens.length === 0 ? (
               <p className="text-sm text-muted-foreground">暂无 Token。</p>
             ) : null}
-            {tokens.map((token) => (
-              <div key={token.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border bg-background px-4 py-3">
-                <div className="space-y-1">
-                  <p className="text-sm font-medium text-foreground">{token.name}</p>
-                  <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
-                    <Badge variant="muted">id: {token.id.slice(0, 8)}</Badge>
-                    {token.expires_at ? <Badge variant="outline">到期：{token.expires_at.slice(0, 10)}</Badge> : null}
-                    {token.is_active !== undefined ? <Badge variant={token.is_active ? "default" : "muted"}>{token.is_active ? "已激活" : "已停用"}</Badge> : null}
-                    {token.last_used_at ? <Badge variant="outline">最后使用：{token.last_used_at.slice(0, 10)}</Badge> : null}
+            {tokens.map((token) => {
+              // 计算 Token 状态
+              const isExpired = token.expires_at ? new Date(token.expires_at) < new Date() : false
+              const isRevoked = !token.is_active
+              const isActive = token.is_active && !isExpired
+
+              return (
+                <div key={token.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border bg-background px-4 py-3">
+                  <div className="space-y-1">
+                    <p className="text-sm font-medium text-foreground">{token.name}</p>
+                    <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
+                      <Badge variant="muted">id: {token.id.slice(0, 8)}</Badge>
+                      <Badge variant={isActive ? "accent" : isExpired ? "outline" : "muted"}>
+                        {isActive ? "活跃" : isExpired ? "已过期" : "已撤销"}
+                      </Badge>
+                      {token.expires_at && <Badge variant="outline">到期：{token.expires_at.slice(0, 10)}</Badge>}
+                      {token.last_used_at && <Badge variant="outline">最后使用：{token.last_used_at.slice(0, 10)}</Badge>}
+                    </div>
                   </div>
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button variant="destructive" size="icon">
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>撤销 Token？</AlertDialogTitle>
+                        <AlertDialogDescription>撤销后该 Token 将无法访问 MCP 服务。</AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>取消</AlertDialogCancel>
+                        <AlertDialogAction onClick={() => handleRevoke(token.id)}>确认撤销</AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
                 </div>
-                <AlertDialog>
-                  <AlertDialogTrigger asChild>
-                    <Button variant="destructive" size="icon">
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </AlertDialogTrigger>
-                  <AlertDialogContent>
-                    <AlertDialogHeader>
-                      <AlertDialogTitle>撤销 Token？</AlertDialogTitle>
-                      <AlertDialogDescription>撤销后该 Token 将无法访问 MCP 服务。</AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                      <AlertDialogCancel>取消</AlertDialogCancel>
-                      <AlertDialogAction onClick={() => handleRevoke(token.id)}>确认撤销</AlertDialogAction>
-                    </AlertDialogFooter>
-                  </AlertDialogContent>
-                </AlertDialog>
-              </div>
-            ))}
+              )
+            })}
           </CardContent>
         </Card>
       </div>

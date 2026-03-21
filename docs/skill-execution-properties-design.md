@@ -1,7 +1,7 @@
 ---
 status: draft
 ai_read: true
-last_updated: 2026-03-12
+last_updated: 2026-03-21
 ---
 
 # SKILL 属性设计：dependencies、execution_mode、requires_gui、client_capabilities
@@ -19,6 +19,47 @@ SKILL.md Frontmatter 仅包含：
 - `name`
 - `description`
 - `version`
+
+---
+
+## 实施状态
+
+| 属性 | 存储位置 | 后端模型 | Schema | 数据库迁移 | 前端类型 | 状态 |
+|------|----------|----------|--------|------------|----------|------|
+| `dependencies` | `skill_versions` 表 | ✅ 已实现 | ✅ 已实现 | ✅ 已实现 | ❌ 待实现 | 部分完成 |
+| `execution_mode` | `skills` 表 | ❌ 待实现 | ❌ 待实现 | ❌ 待实现 | ❌ 待实施 | 未开始 |
+| `requires_gui` | `skills` 表 | ❌ 待实现 | ❌ 待实现 | ❌ 待实现 | ❌ 待实施 | 未开始 |
+| `client_capabilities` | `skills` 表 | ❌ 待实现 | ❌ 待实现 | ❌ 待实现 | ❌ 待实施 | 未开始 |
+
+### 已完成项
+
+- **`dependencies` 后端实现**：
+  - 模型：`skillhub/models/skill_version.py` 中的 `dependencies` 字段
+  - Schema：通过 `SkillVersion` 相关 Schema 管理
+  - 迁移：`e2f3a4b5c6d7_add_skill_versions.py`
+
+### 待实施项
+
+按照文档中的实施计划执行：
+
+**Phase 1: 后端基础（高优先级）**
+- [ ] 创建数据库迁移：添加 `execution_mode`、`requires_gui`、`client_capabilities` 到 `skills` 表
+- [ ] 扩展 Skill 模型：添加三个新字段
+- [ ] 扩展 Schema：更新 `SkillCreate`、`SkillUpdate`、`SkillResponse`
+- [ ] 修改 `execute_skill`：验证 `execution_mode`
+
+**Phase 2: 前端展示（中优先级）**
+- [ ] 更新 API 类型：添加新字段的 TypeScript 定义
+- [ ] 修改列表页：显示执行属性 Badge
+- [ ] 修改详情页：展示执行属性详情
+- [ ] 修改创建页：添加执行属性表单
+
+**Phase 3: 完善和测试（低优先级）**
+- [ ] 单元测试：验证新字段的验证逻辑
+- [ ] 集成测试：验证完整流程
+- [ ] 文档更新：更新 user guide
+
+---
 
 ### 背景与问题
 

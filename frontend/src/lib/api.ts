@@ -30,9 +30,10 @@ export type Token = {
   id: string
   name: string
   token?: string | null
+  is_active?: boolean
   created_at?: string
+  last_used_at?: string | null
   expires_at?: string | null
-  revoked_at?: string | null
 }
 
 export type User = {

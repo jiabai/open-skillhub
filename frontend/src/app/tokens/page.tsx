@@ -144,7 +144,9 @@ export default function TokensPage() {
                   <p className="text-sm font-medium text-foreground">{token.name}</p>
                   <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
                     <Badge variant="muted">id: {token.id.slice(0, 8)}</Badge>
-                    {token.expires_at ? <Badge variant="outline">到期: {token.expires_at.slice(0, 10)}</Badge> : null}
+                    {token.expires_at ? <Badge variant="outline">到期：{token.expires_at.slice(0, 10)}</Badge> : null}
+                    {token.is_active !== undefined ? <Badge variant={token.is_active ? "default" : "muted"}>{token.is_active ? "已激活" : "已停用"}</Badge> : null}
+                    {token.last_used_at ? <Badge variant="outline">最后使用：{token.last_used_at.slice(0, 10)}</Badge> : null}
                   </div>
                 </div>
                 <AlertDialog>

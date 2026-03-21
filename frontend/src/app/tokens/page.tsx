@@ -3,7 +3,8 @@
 import { useEffect, useState } from "react"
 import { Copy, KeyRound, Loader2, Trash2 } from "lucide-react"
 
-import { api, type Token } from "@/lib/api"
+import { api } from "@/lib/api"
+import type { Token } from "@/types"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"

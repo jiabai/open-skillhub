@@ -17,6 +17,14 @@ import type {
   TokenCreateRequest,
   VerificationCodeRequest,
   UserUpdateRequest,
+  SkillCachePolicyResponse,
+  SkillVersion,
+  SkillVersionDiff,
+  SkillInstallInstructions,
+  SkillDownloadResponse,
+  AuditLogItem,
+  AuditLogExportRequest,
+  AuditLogExportResponse,
 } from "../types"
 
 const storageKey = "skillhub.tokens"
@@ -183,18 +191,39 @@ async function apiFetchText(path: string, options: ApiRequestOptions = {}): Prom
 }
 
 export const api = {
-  sendVerificationCode: (payload: { email: string; purpose: "login" | "register" | "bind_email" }) =>
+  // ========== 认证 ==========
+  sendVerificationCode: (payload: { email: string; purpose: "login" | "register" | "bind_email" | "delete_account" }) =>
     apiFetch<VerificationCodeResponse>("/api/v1/auth/verification-code", {
       method: "POST",
       body: JSON.stringify(payload)
     }),
   register: (payload: { email: string; username: string; code: string }) =>
-    apiFetch("/api/v1/auth/register", { method: "POST", body: JSON.stringify(payload) }),
+    apiFetch<TokenPair>("/api/v1/auth/register", { method: "POST", body: JSON.stringify(payload) }),
   login: (payload: { email: string; code: string }) =>
     apiFetch<TokenPair>("/api/v1/auth/login", { method: "POST", body: JSON.stringify(payload) }),
   refresh: (payload: { refresh_token: string }) =>
     apiFetch<AccessTokenResponse>("/api/v1/auth/refresh", { method: "POST", body: JSON.stringify(payload) }),
+  ssoLogin: (payload: { id_token: string }) =>
+    apiFetch<TokenPair>("/api/v1/auth/sso/login", { method: "POST", body: JSON.stringify(payload) }),
+  ldapLogin: (payload: { username: string; password: string }) =>
+    apiFetch<TokenPair>("/api/v1/auth/ldap/login", { method: "POST", body: JSON.stringify(payload) }),
+  logout: () =>
+    apiFetch<void>("/api/v1/auth/logout", { method: "POST", skipRefresh: true }),
+
+  // ========== 用户 ==========
   getMe: () => apiFetch<User>("/api/v1/users/me"),
+  updateMe: (payload: { username?: string; email?: string }) =>
+    apiFetch("/api/v1/users/me", { method: "PUT", body: JSON.stringify(payload) }),
+  requestDeleteAccount: () =>
+    apiFetch<void>("/api/v1/users/me/delete-request", { method: "POST" }),
+  deleteAccount: (payload: { code: string }) =>
+    apiFetch<void>("/api/v1/users/me", { method: "DELETE", body: JSON.stringify(payload) }),
+  bindEmail: (payload: { email: string; code: string }) =>
+    apiFetch<{ bound: boolean }>("/api/v1/users/bind-email", { method: "POST", body: JSON.stringify(payload) }),
+  updateUserIdentity: (userId: string, payload: UserIdentityUpdate) =>
+    apiFetch<User>(`/api/v1/users/${userId}/identity`, { method: "PUT", body: JSON.stringify(payload) }),
+
+  // ========== Dashboard ==========
   getDashboardOverview: () => apiFetch<DashboardOverview>("/api/v1/dashboard/overview"),
   cleanupMetrics: (payload?: { retention_days?: number | null }) =>
     apiFetch<MetricsCleanupResponse>("/api/v1/dashboard/metrics/cleanup", {
@@ -206,20 +235,29 @@ export const api = {
       method: "POST",
       body: JSON.stringify({})
     }),
-  updateMe: (payload: { username?: string; email?: string }) =>
-    apiFetch("/api/v1/users/me", { method: "PUT", body: JSON.stringify(payload) }),
-  changePassword: (payload: { current_password: string; new_password: string }) =>
-    apiFetch("/api/v1/users/me/password", { method: "PUT", body: JSON.stringify(payload) }),
-  deleteAccount: (payload: { password: string }) =>
-    apiFetch("/api/v1/users/me", { method: "DELETE", body: JSON.stringify(payload) }),
-  listSkills: (query?: string) =>
-    apiFetch<{ items: Skill[]; total: number }>(`/api/v1/skills${query ? `?q=${encodeURIComponent(query)}` : ""}`),
-  createSkill: (payload: { name: string; description?: string | null; tags?: string[] }) =>
+
+  // ========== Skills ==========
+  listSkills: (query?: string, include_inactive?: boolean) => {
+    const params = new URLSearchParams()
+    if (query) params.set("q", query)
+    if (include_inactive) params.set("include_inactive", "true")
+    const queryString = params.toString()
+    return apiFetch<{ items: Skill[]; total: number }>(`/api/v1/skills${queryString ? `?${queryString}` : ""}`)
+  },
+  createSkill: (payload: { name: string; description?: string | null; tags?: string[]; visible?: "private" | "team" | "enterprise" }) =>
     apiFetch<Skill>("/api/v1/skills", { method: "POST", body: JSON.stringify(payload) }),
   getSkill: (skillUuid: string) => apiFetch<Skill>(`/api/v1/skills/${skillUuid}`),
-  updateSkill: (skillUuid: string, payload: { name?: string; description?: string | null; tags?: string[] }) =>
+  updateSkill: (skillUuid: string, payload: { name?: string; description?: string | null; tags?: string[]; visible?: "private" | "team" | "enterprise" }) =>
     apiFetch<Skill>(`/api/v1/skills/${skillUuid}`, { method: "PUT", body: JSON.stringify(payload) }),
   deleteSkill: (skillUuid: string) => apiFetch(`/api/v1/skills/${skillUuid}`, { method: "DELETE" }),
+  activateSkill: (skillUuid: string) =>
+    apiFetch<Skill>(`/api/v1/skills/${skillUuid}/activate`, { method: "POST" }),
+  deactivateSkill: (skillUuid: string) =>
+    apiFetch<Skill>(`/api/v1/skills/${skillUuid}/deactivate`, { method: "POST" }),
+  getSkillCachePolicy: () =>
+    apiFetch<SkillCachePolicyResponse>("/api/v1/skills/cache-policy"),
+
+  // ========== Skill 文件管理 ==========
   listSkillFiles: (skillUuid: string) => apiFetch<string[]>(`/api/v1/skills/${skillUuid}/files`),
   getSkillFileContent: (skillUuid: string, filePath: string) =>
     apiFetchText(`/api/v1/skills/${skillUuid}/files/${encodeURIComponent(filePath)}`),
@@ -240,8 +278,41 @@ export const api = {
     }
     return (await response.json()) as { filename: string }
   },
+
+  // ========== Skill 版本管理 ==========
+  listSkillVersions: (skillUuid: string) =>
+    apiFetch<{ items: SkillVersion[] }>(`/api/v1/skills/${skillUuid}/versions`),
+  getSkillVersion: (skillUuid: string, version: string) =>
+    apiFetch<SkillVersion>(`/api/v1/skills/${skillUuid}/versions/${version}`),
+  diffSkillVersions: (skillUuid: string, fromVersion: string, toVersion: string) =>
+    apiFetch<SkillVersionDiff>(`/api/v1/skills/${skillUuid}/versions/diff?from=${encodeURIComponent(fromVersion)}&to=${encodeURIComponent(toVersion)}`),
+  getInstallInstructions: (skillUuid: string, version: string) =>
+    apiFetch<SkillInstallInstructions>(`/api/v1/skills/${skillUuid}/versions/${version}/install-instructions`),
+  rollbackSkillVersion: (skillUuid: string, version: string) =>
+    apiFetch<SkillVersion>(`/api/v1/skills/${skillUuid}/versions/${version}/rollback`, { method: "POST" }),
+  downloadSkill: (payload: { skill_uuid: string; version?: string }) =>
+    apiFetch<SkillDownloadResponse>("/api/v1/skills/download", { method: "POST", body: JSON.stringify(payload) }),
+
+  // ========== Tokens ==========
   listTokens: () => apiFetch<{ items: Token[]; total: number }>("/api/v1/tokens"),
   createToken: (payload: { name: string; expires_at?: string | null }) =>
     apiFetch<Token>("/api/v1/tokens", { method: "POST", body: JSON.stringify(payload) }),
-  revokeToken: (tokenId: string) => apiFetch(`/api/v1/tokens/${tokenId}`, { method: "DELETE" })
+  revokeToken: (tokenId: string) => apiFetch(`/api/v1/tokens/${tokenId}`, { method: "DELETE" }),
+
+  // ========== 审计日志 ==========
+  listAuditLogs: (params?: {
+    actor_id?: string
+    action?: string
+    start?: string
+    end?: string
+    skip?: number
+    limit?: number
+  }) => apiFetch<{ items: AuditLogItem[] }>(
+    `/api/v1/audit/logs${params ? `?${new URLSearchParams(params as any)}` : ""}`
+  ),
+  exportAuditLogs: (payload: AuditLogExportRequest) =>
+    apiFetch<AuditLogExportResponse>("/api/v1/audit/logs/export", {
+      method: "POST",
+      body: JSON.stringify(payload)
+    })
 }

@@ -7,11 +7,21 @@ export type AccessTokenResponse = {
   access_token: string
 }
 
+export type SkillVisible = "private" | "team" | "enterprise"
+
 export type Skill = {
   id: string
+  user_id?: string
   name: string
   description: string | null
   tags?: string[]
+  visible?: "private" | "team" | "enterprise"
+  enterprise_id?: string | null
+  team_id?: string | null
+  skill_dir?: string
+  current_version?: string | null
+  is_active?: boolean
+  cache_revoked_at?: string | null
   created_at?: string
   updated_at?: string
 }

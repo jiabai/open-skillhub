@@ -14,6 +14,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Textarea } from "@/components/ui/textarea"
+import { VersionsTab } from "./_components/versions-tab"
 
 type SkillDetailProps = {
   params: { skillUuid: string }
@@ -123,6 +124,7 @@ export default function SkillDetailPage({ params }: SkillDetailProps) {
           <TabsList>
             <TabsTrigger value="overview">概览</TabsTrigger>
             <TabsTrigger value="files">文件</TabsTrigger>
+            <TabsTrigger value="versions">版本</TabsTrigger>
             <TabsTrigger value="settings">设置</TabsTrigger>
           </TabsList>
           <TabsContent value="overview">
@@ -198,6 +200,9 @@ export default function SkillDetailPage({ params }: SkillDetailProps) {
                 </AlertDialog>
               </CardContent>
             </Card>
+          </TabsContent>
+          <TabsContent value="versions">
+            <VersionsTab skillUuid={params.skillUuid} />
           </TabsContent>
           <TabsContent value="settings">
             <Card>

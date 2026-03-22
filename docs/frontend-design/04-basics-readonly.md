@@ -807,10 +807,109 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   </TabsList>
   <TabsContent value="overview">{/* 概览内容 */}</TabsContent>
   <TabsContent value="files">{/* 文件列表 */}</TabsContent>
-  <TabsContent value="versions">{/* 版本列表 */}</TabsContent>
+  <TabsContent value="versions"><VersionsTab skillUuid={params.skillUuid} /></TabsContent>
   <TabsContent value="settings">{/* 设置表单 */}</TabsContent>
 </Tabs>
 ```
+
+**版本 Tab (VersionsTab)：**
+
+```tsx
+// src/app/skills/[skillUuid]/_components/versions-tab.tsx
+"use client"
+
+import { useCallback, useEffect, useState } from "react"
+import { formatDistanceToNow } from "date-fns"
+import { zhCN } from "date-fns/locale"
+import { GitCompare, Loader2, RotateCcw, Package } from "lucide-react"
+
+import { api } from "@/lib/api"
+import type { SkillVersion, SkillVersionDiff } from "@/types"
+import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Checkbox } from "@/components/ui/checkbox"
+import { Skeleton } from "@/components/ui/skeleton"
+
+interface VersionsTabProps {
+  skillUuid: string
+}
+
+export function VersionsTab({ skillUuid }: VersionsTabProps) {
+  const [versions, setVersions] = useState<SkillVersion[]>([])
+  const [selectedVersions, setSelectedVersions] = useState<string[]>([])
+  const [diffResult, setDiffResult] = useState<SkillVersionDiff | null>(null)
+  const [loading, setLoading] = useState(false)
+
+  // 加载版本列表
+  const fetchVersions = useCallback(async () => {
+    setLoading(true)
+    const response = await api.listSkillVersions(skillUuid)
+    setVersions(response.items)
+    setLoading(false)
+  }, [skillUuid])
+
+  useEffect(() => {
+    fetchVersions()
+  }, [fetchVersions])
+
+  // 处理版本选择（最多2个）
+  const handleVersionSelect = useCallback((version: string) => {
+    setSelectedVersions((prev) => {
+      if (prev.includes(version)) {
+        return prev.filter((v) => v !== version)
+      }
+      if (prev.length >= 2) {
+        return [prev[1], version]
+      }
+      return [...prev, version]
+    })
+  }, [])
+
+  // 双选时自动获取差异
+  useEffect(() => {
+    if (selectedVersions.length === 2) {
+      api.diffSkillVersions(skillUuid, selectedVersions[0], selectedVersions[1])
+        .then(setDiffResult)
+    } else {
+      setDiffResult(null)
+    }
+  }, [selectedVersions, skillUuid])
+
+  // 回滚到指定版本
+  const handleRollback = async (version: string) => {
+    await api.rollbackSkillVersion(skillUuid, version)
+    await fetchVersions()
+    setSelectedVersions([])
+  }
+
+  return (
+    <div className="grid gap-6 lg:grid-cols-[320px_1fr]">
+      {/* 左侧：版本列表 */}
+      <div className="space-y-4">
+        <h3 className="text-sm font-medium">版本列表</h3>
+        {/* 版本列表项 */}
+      </div>
+      {/* 右侧：详情/对比 */}
+      <div>
+        {/* 单选：版本详情 / 双选：版本对比 */}
+      </div>
+    </div>
+  )
+}
+```
+
+**功能说明：**
+
+| 功能 | 说明 |
+|------|------|
+| 版本列表 | 显示版本号、描述、创建时间（相对时间） |
+| 版本选择 | 复选框选择，最多选2个版本 |
+| 单选模式 | 显示版本详情：描述、依赖列表、元数据、回滚按钮 |
+| 双选模式 | 显示版本对比：依赖变更（新增/移除）、文件差异 |
+| 回滚功能 | 创建新版本（复制目标版本内容） |
+
+**布局：** 左右分栏（左侧 320px 版本列表 + 右侧自适应详情面板）
 
 ### 4.4 Token 管理页面
 

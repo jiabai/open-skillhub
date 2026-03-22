@@ -13,8 +13,10 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
+import { useToast } from "@/hooks/use-toast"
 
 export default function NewSkillPage() {
+  const { error: showError } = useToast()
   const [name, setName] = useState("")
   const [description, setDescription] = useState("")
   const [visible, setVisible] = useState<SkillVisible>("private")
@@ -35,15 +37,34 @@ export default function NewSkillPage() {
     setMessage("Skill 已创建，可以开始上传文件。")
   }
 
+  const MAX_FILE_SIZE = 10 * 1024 * 1024 // 10MB
+  const ALLOWED_EXTENSIONS = [".md", ".txt", ".json", ".yaml", ".yml", ".py", ".js", ".ts"]
+
   const handleUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
     if (!file || !skillUuid) {
       return
     }
+
+    // 验证文件大小
+    if (file.size > MAX_FILE_SIZE) {
+      showError(`文件大小超过限制，最大允许 ${MAX_FILE_SIZE / 1024 / 1024}MB`)
+      return
+    }
+
+    // 验证文件类型
+    const fileExt = file.name.substring(file.name.lastIndexOf(".")).toLowerCase()
+    if (!ALLOWED_EXTENSIONS.includes(fileExt)) {
+      showError(`不支持的文件类型，允许: ${ALLOWED_EXTENSIONS.join(", ")}`)
+      return
+    }
+
     setUploading(true)
     try {
       const result = await api.uploadSkillFile(skillUuid, file)
       setFiles((prev) => [...prev, result.filename])
+    } catch (err) {
+      showError(err instanceof Error ? err.message : "上传失败")
     } finally {
       setUploading(false)
     }

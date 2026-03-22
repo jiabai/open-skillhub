@@ -31,7 +31,7 @@ describe("console pages", () => {
     render(<LoginPage />)
     fireEvent.change(screen.getByLabelText("邮箱"), { target: { value: "user@example.com" } })
     fireEvent.change(screen.getByLabelText("验证码"), { target: { value: "123456" } })
-    fireEvent.click(screen.getByRole("button", { name: "登录" }))
+    fireEvent.click(screen.getByRole("button", { name: "邮箱验证码登录" }))
     await waitFor(() => {
       expect(replaceMock).toHaveBeenCalledWith("/dashboard")
     })
@@ -104,6 +104,7 @@ describe("console pages", () => {
   it("renders security form", () => {
     render(<SecurityPage />)
     expect(screen.getByRole("heading", { name: "安全设置" })).toBeInTheDocument()
-    expect(screen.getByLabelText("删除验证码")).toBeInTheDocument()
+    // 初始状态显示"申请删除验证码"按钮，输入框在点击后才显示
+    expect(screen.getByRole("button", { name: "申请删除验证码" })).toBeInTheDocument()
   })
 })

@@ -297,24 +297,43 @@
 
 ### 2.7 Toast 通知
 
+基于 [sonner](https://sonner.emilkowal.ski/) 库实现，使用 `useToast` Hook 进行调用。
+
+#### 使用方法
+
+```tsx
+import { useToast } from "@/hooks/use-toast"
+
+function MyComponent() {
+  const { success, error, warning, info } = useToast()
+
+  const handleAction = () => {
+    success("操作成功", { description: "详细信息", duration: 4000 })
+    error("操作失败", { description: "错误详情", duration: 5000 })
+    warning("注意", { description: "警告信息" })
+    info("提示", { description: "一般信息" })
+  }
+}
+```
+
 #### 位置
 
 固定在屏幕右下角 (bottom-4 right-4)
 
 #### 变体
 
-| 变体 | 用途 | 背景 |
-|------|------|------|
-| `default` | 一般信息 | `--background` |
-| `success` | 成功 | Success 颜色 |
-| `warning` | 警告 | Warning 颜色 |
-| `error` | 错误 | `--destructive` |
+| 变体 | 用途 | 对应方法 |
+|------|------|----------|
+| `success` | 成功 | `toast.success()` |
+| `error` | 错误 | `toast.error()` |
+| `warning` | 警告 | `toast.warning()` |
+| `info` | 一般信息 | `toast.info()` |
 
 #### 动画
 
 - 进入: 300ms slide-in-from-right
 - 退出: 200ms fade-out
-- 自动消失: 5000ms (默认), 8000ms (错误)
+- 默认持续时间: 4000ms (success/warning/info), 5000ms (error)
 
 #### 结构
 
@@ -516,19 +535,157 @@
 
 ### 5.5 运动偏好
 
+**CSS 实现：**
+
 ```css
 @media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after {
+  *,
+  *::before,
+  *::after {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }
 ```
 
+**说明：**
+- 尊重用户的减少动画偏好设置
+- 应用于全局 CSS (globals.css)
+- 禁用所有动画和过渡效果
+- 滚动行为改为即时
+
 ---
 
-## 6. 页面特定规范
+## 6. 组件模式
+
+### 6.1 AppShell 应用外壳
+
+**功能：**
+- 统一的应用布局框架
+- 响应式导航（桌面标签栏 + 移动端 Sheet）
+- 用户菜单下拉框
+- 退出登录确认对话框
+- Skip Link 无障碍支持
+
+**结构：**
+
+```
+┌─ AppShell ───────────────────────────┐
+│  ┌─ Skip Link (sr-only) ────────────┐ │  无障碍跳转
+│  └──────────────────────────────────┘ │
+│  ┌─ Header ─────────────────────────┐ │
+│  │  ┌─ Logo ───────────────────────┐ │ │
+│  │  │  [Icon] SkillHub              │ │ │
+│  │  └──────────────────────────────┘ │ │
+│  │  ┌─ Desktop Nav ────────────────┐ │ │  md:flex
+│  │  │  [概览] [Skills] [Tokens]...  │ │ │
+│  │  └──────────────────────────────┘ │ │
+│  │  ┌─ Actions ───────────────────┐ │ │
+│  │  │  [Theme] [工作台 ▼] [Menu ☰]│ │ │  Menu = mobile
+│  │  └──────────────────────────────┘ │ │
+│  └──────────────────────────────────┘ │
+│  ┌─ Main Content ──────────────────┐ │
+│  │  {children}                      │ │
+│  └──────────────────────────────────┘ │
+└────────────────────────────────────────┘
+```
+
+**响应式行为：**
+
+| 断点 | 布局 |
+|------|------|
+| `< md` (768px) | Sheet 抽屉导航 + 汉堡菜单 |
+| `>= md` | 水平标签导航 |
+
+**无障碍特性：**
+
+| 特性 | 实现 |
+|------|------|
+| Skip Link | `sr-only focus:not-sr-only` |
+| ARIA Labels | Logo、菜单按钮、图标 |
+| Focus States | `focus-visible:ring-2` |
+| Touch Targets | `min-h-[44px]` |
+| Logout Confirm | AlertDialog 确认 |
+
+**代码示例：**
+
+```tsx
+// Skip Link
+<a
+  href="#main-content"
+  className="sr-only focus:not-sr-only focus:absolute ..."
+>
+  跳转到主内容
+</a>
+
+// Navigation Link with Accessibility
+<Link
+  href={item.href}
+  className={cn(
+    "inline-flex items-center gap-2 rounded-lg px-3 py-2",
+    "min-h-[44px]", // Touch target
+    "focus-visible:ring-2 focus-visible:ring-ring", // Focus state
+    isActive ? "bg-primary text-primary-foreground" : "bg-muted/60"
+  )}
+>
+  <Icon className="h-4 w-4" aria-hidden="true" />
+  {item.label}
+</Link>
+
+// Logout with Confirmation
+<AlertDialog>
+  <AlertDialogTrigger asChild>
+    <DropdownMenuItem className="text-destructive">
+      <LogOut className="h-4 w-4" aria-hidden="true" />
+      退出登录
+    </DropdownMenuItem>
+  </AlertDialogTrigger>
+  <AlertDialogContent>
+    <AlertDialogHeader>
+      <AlertDialogTitle>确认退出登录？</AlertDialogTitle>
+      <AlertDialogDescription>
+        退出后需要重新登录才能访问您的账户。
+      </AlertDialogDescription>
+    </AlertDialogHeader>
+    <AlertDialogFooter>
+      <AlertDialogCancel>取消</AlertDialogCancel>
+      <AlertDialogAction onClick={handleLogout}>
+        确认退出
+      </AlertDialogAction>
+    </AlertDialogFooter>
+  </AlertDialogContent>
+</AlertDialog>
+```
+
+### 6.2 Sheet 抽屉组件
+
+**用途：**
+- 移动端导航抽屉
+- 侧边栏菜单
+- 从屏幕边缘滑入的面板
+
+**变体：**
+
+| Side | 用途 |
+|------|------|
+| `left` | 左侧导航栏 |
+| `right` | 右侧设置面板、移动端菜单 |
+| `top` | 顶部通知栏 |
+| `bottom` | 底部操作栏 |
+
+**无障碍：**
+
+- `role="dialog"` + `aria-modal="true"`
+- 焦点困在 Sheet 内
+- Escape 关闭
+- 点击遮罩关闭
+- 关闭按钮有 `sr-only` 文字
+
+---
+
+## 7. 页面特定规范
 
 ### 6.1 登录/注册页
 
@@ -552,6 +709,26 @@
 
 - Tabs: 概览、文件、版本、设置
 - 内容区: 根据 Tab 变化
+
+#### 版本 Tab (VersionsTab)
+
+**功能：**
+- 展示版本历史列表
+- 支持选择两个版本进行对比
+- 显示依赖变更（新增/移除）
+- 支持回滚到指定版本
+
+**组件：**
+- `VersionsTab` - 主容器组件
+- 布局：左侧版本列表 + 右侧详情面板
+
+**交互：**
+- 单选：查看版本详情（描述、依赖、元数据）
+- 双选：对比版本差异
+- 回滚：创建新版本（复制目标版本）
+
+**文件位置：**
+- `frontend/src/app/skills/[skillUuid]/_components/versions-tab.tsx`
 
 ### 6.5 Tokens
 

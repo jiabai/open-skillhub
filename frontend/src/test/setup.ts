@@ -1,6 +1,14 @@
 import "@testing-library/jest-dom"
 import { vi } from "vitest"
 
+// Mock ResizeObserver for tests
+class ResizeObserverMock {
+  observe() {}
+  unobserve() {}
+  disconnect() {}
+}
+global.ResizeObserver = ResizeObserverMock
+
 vi.mock("@/lib/api", () => {
   return {
     api: {
@@ -23,6 +31,8 @@ vi.mock("@/lib/api", () => {
       getSkill: vi.fn(async () => ({ id: "skill", name: "demo", description: "" })),
       updateSkill: vi.fn(async () => ({ id: "skill", name: "demo", description: "" })),
       deleteSkill: vi.fn(async () => ({})),
+      activateSkill: vi.fn(async () => ({})),
+      deactivateSkill: vi.fn(async () => ({})),
       listSkillFiles: vi.fn(async () => []),
       uploadSkillFile: vi.fn(async () => ({ filename: "SKILL.md" })),
       listTokens: vi.fn(async () => ({ items: [], total: 0 })),
@@ -36,8 +46,20 @@ vi.mock("@/lib/api", () => {
         window_end: "2026-03-04T00:00:00Z"
       }))
     },
-    storeTokens: vi.fn(),
-    clearTokens: vi.fn(),
-    getStoredTokens: vi.fn(() => null)
+    storeTokens: vi.fn((tokens) => {
+      window.localStorage.setItem("skillhub.tokens", JSON.stringify(tokens))
+    }),
+    clearTokens: vi.fn(() => {
+      window.localStorage.removeItem("skillhub.tokens")
+    }),
+    getStoredTokens: vi.fn(() => {
+      const raw = window.localStorage.getItem("skillhub.tokens")
+      if (!raw) return null
+      try {
+        return JSON.parse(raw)
+      } catch {
+        return null
+      }
+    })
   }
 })

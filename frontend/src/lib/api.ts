@@ -27,6 +27,11 @@ import type {
   AuditLogExportResponse,
 } from "../types"
 
+// SECURITY WARNING: Storing tokens in localStorage makes them vulnerable to XSS attacks.
+// For production applications, consider:
+// 1. Using HttpOnly cookies (requires backend changes)
+// 2. Implementing Content Security Policy (CSP)
+// 3. Using short-lived tokens with refresh token rotation
 const storageKey = "skillhub.tokens"
 
 const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000"
@@ -266,16 +271,19 @@ export const api = {
     const formData = new FormData()
     formData.append("skill_uuid", skillUuid)
     formData.append("file", file)
+
     const response = await fetch(`${apiBaseUrl}/api/v1/skills/upload`, {
       method: "POST",
       body: formData,
       headers: tokens?.access_token ? { Authorization: `Bearer ${tokens.access_token}` } : undefined
     })
+
     if (!response.ok) {
       const errorPayload = await response.json().catch(() => ({}))
-      const detail = errorPayload.detail || response.statusText
+      const detail = getDetail(errorPayload, response.statusText)
       throw new Error(detail)
     }
+
     return (await response.json()) as { filename: string }
   },
 

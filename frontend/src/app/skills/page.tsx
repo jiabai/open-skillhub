@@ -11,20 +11,23 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 
 export default function SkillsPage() {
   const { success, error: showError } = useToast()
   const [query, setQuery] = useState("")
+  const [includeInactive, setIncludeInactive] = useState(false)
   const [skills, setSkills] = useState<Skill[]>([])
   const [status, setStatus] = useState<"idle" | "loading" | "error">("idle")
   const [error, setError] = useState<string | null>(null)
 
-  const loadSkills = async (search?: string) => {
+  const loadSkills = async (search?: string, includeInactiveParam?: boolean) => {
     setStatus("loading")
     setError(null)
     try {
-      const data = await api.listSkills(search)
+      const data = await api.listSkills(search, includeInactiveParam)
       setSkills(data.items)
       setStatus("idle")
     } catch (err) {
@@ -39,7 +42,7 @@ export default function SkillsPage() {
 
   const handleSearch = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
-    loadSkills(query)
+    loadSkills(query, includeInactive)
   }
 
   const handleDelete = async (skillUuid: string) => {
@@ -90,6 +93,16 @@ export default function SkillsPage() {
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
               />
+            </div>
+            <div className="flex items-center gap-2">
+              <Checkbox
+                id="include-inactive"
+                checked={includeInactive}
+                onCheckedChange={(checked) => setIncludeInactive(checked === true)}
+              />
+              <Label htmlFor="include-inactive" className="text-sm whitespace-nowrap">
+                显示已停用
+              </Label>
             </div>
             <Button type="submit" variant="secondary">
               搜索

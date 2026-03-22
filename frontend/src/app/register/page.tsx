@@ -5,7 +5,7 @@ import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { Sparkles } from "lucide-react"
 
-import { api } from "@/lib/api"
+import { api, getErrorMessage } from "@/lib/api"
 import { featureFlags } from "@/lib/feature-flags"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
@@ -27,6 +27,12 @@ export default function RegisterPage() {
   const [code, setCode] = useState("")
   const [codeMessage, setCodeMessage] = useState<string | null>(null)
   const [resendSeconds, setResendSeconds] = useState(0)
+  const resendSecondsRef = useRef(resendSeconds)
+
+  // 保持 ref 和 state 同步
+  useEffect(() => {
+    resendSecondsRef.current = resendSeconds
+  }, [resendSeconds])
   const [isSending, setIsSending] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -46,7 +52,7 @@ export default function RegisterPage() {
       setResendSeconds(cooldown)
       setCodeMessage(`验证码已发送，有效期 ${response.expires_in ?? 300} 秒`)
     } catch (err) {
-      setError(err instanceof Error ? err.message : "发送验证码失败")
+      setError(getErrorMessage(err))
     } finally {
       setIsSending(false)
     }
@@ -64,7 +70,7 @@ export default function RegisterPage() {
       setEmail("")
       setCode("")
     } catch (err) {
-      setError(err instanceof Error ? err.message : "注册失败")
+      setError(getErrorMessage(err))
     } finally {
       setIsLoading(false)
     }
@@ -92,14 +98,14 @@ export default function RegisterPage() {
   }, [router, success])
 
   useEffect(() => {
-    if (resendSeconds <= 0) {
+    if (resendSecondsRef.current <= 0) {
       return
     }
     const timer = window.setInterval(() => {
       setResendSeconds((current) => (current > 0 ? current - 1 : 0))
     }, 1000)
     return () => window.clearInterval(timer)
-  }, [resendSeconds])
+  }, [])
 
   return (
     <div className="min-h-screen bg-background">
@@ -145,6 +151,9 @@ export default function RegisterPage() {
                     onChange={(event) => setCode(event.target.value)}
                     disabled={isLoading}
                     required
+                    pattern="[0-9]{6}"
+                    maxLength={6}
+                    title="请输入 6 位数字验证码"
                   />
                   <Button
                     type="button"

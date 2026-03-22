@@ -1,11 +1,11 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { Mail, Shield, Fingerprint, Building2 } from "lucide-react"
 
-import { api, storeTokens } from "@/lib/api"
+import { api, storeTokens, getErrorMessage } from "@/lib/api"
 import { featureFlags } from "@/lib/feature-flags"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
@@ -19,6 +19,12 @@ export default function LoginPage() {
   const [code, setCode] = useState("")
   const [codeMessage, setCodeMessage] = useState<string | null>(null)
   const [resendSeconds, setResendSeconds] = useState(0)
+  const resendSecondsRef = useRef(resendSeconds)
+
+  // 保持 ref 和 state 同步
+  useEffect(() => {
+    resendSecondsRef.current = resendSeconds
+  }, [resendSeconds])
   const [isSending, setIsSending] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -37,21 +43,21 @@ export default function LoginPage() {
       setResendSeconds(cooldown)
       setCodeMessage(`验证码已发送，有效期 ${response.expires_in ?? 300} 秒`)
     } catch (err) {
-      setError(err instanceof Error ? err.message : "发送验证码失败")
+      setError(getErrorMessage(err))
     } finally {
       setIsSending(false)
     }
   }
 
   useEffect(() => {
-    if (resendSeconds <= 0) {
+    if (resendSecondsRef.current <= 0) {
       return
     }
     const timer = window.setInterval(() => {
       setResendSeconds((current) => (current > 0 ? current - 1 : 0))
     }, 1000)
     return () => window.clearInterval(timer)
-  }, [resendSeconds])
+  }, [])
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -64,7 +70,7 @@ export default function LoginPage() {
       router.replace("/dashboard")
       setSuccess("登录成功，已保存凭证。")
     } catch (err) {
-      setError(err instanceof Error ? err.message : "登录失败")
+      setError(getErrorMessage(err))
     } finally {
       setIsLoading(false)
     }
@@ -137,6 +143,9 @@ export default function LoginPage() {
                     value={code}
                     onChange={(event) => setCode(event.target.value)}
                     required
+                    pattern="[0-9]{6}"
+                    maxLength={6}
+                    title="请输入 6 位数字验证码"
                   />
                   <Button
                     type="button"

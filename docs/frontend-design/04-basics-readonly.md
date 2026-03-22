@@ -139,6 +139,18 @@ const bodyFont = IBM_Plex_Sans({
   --input: 222 16% 26%;
   --ring: 36 75% 65%;
 }
+
+/* 减少动画偏好支持 */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
 ```
 
 **色彩语义**：
@@ -348,7 +360,7 @@ interface CardDescriptionProps extends React.HTMLAttributes<HTMLParagraphElement
 
 ```tsx
 interface BadgeProps extends React.HTMLAttributes<HTMLDivElement> {
-  variant?: "default" | "outline" | "accent" | "muted"
+  variant?: "default" | "secondary" | "outline" | "accent" | "muted" | "destructive"
 }
 ```
 
@@ -451,144 +463,207 @@ interface AlertDialogDescriptionProps extends React.HTMLAttributes<HTMLParagraph
 interface AlertDialogActionProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {}
 
 interface AlertDialogCancelProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {}
+```
+
+> **注意**: 实际代码中，AlertDialog 组件使用 `React.ComponentPropsWithoutRef<typeof AlertDialogPrimitive.Xxx>` 从 Radix UI 继承类型，而非手动定义。
 
 ### 3.9 AppShell 应用外壳组件
 
+**Props 接口：**
+
 ```tsx
-// src/components/app/app-shell.tsx
+interface AppShellProps {
+  children: React.ReactNode
+}
+
+interface NavItem {
+  href: string
+  label: string
+  icon: React.ComponentType<{ className?: string }>
+}
+```
+
+**结构：**
+
+```
+┌─ AppShell ───────────────────────────┐
+│  ┌─ Skip Link (sr-only) ────────────┐ │  无障碍跳转
+│  └──────────────────────────────────┘ │
+│  ┌─ Header ─────────────────────────┐ │
+│  │  ┌─ Logo ───────────────────────┐ │ │
+│  │  │  [Icon] SkillHub              │ │ │
+│  │  └──────────────────────────────┘ │ │
+│  │  ┌─ Desktop Nav ────────────────┐ │ │  md+: flex
+│  │  │  [概览] [Skills] [Tokens]...  │ │ │
+│  │  └──────────────────────────────┘ │ │
+│  │  ┌─ Actions ───────────────────┐ │ │
+│  │  │  [Theme] [工作台 ▼] [Menu ☰]│ │ │  Menu = mobile only
+│  │  └──────────────────────────────┘ │ │
+│  └──────────────────────────────────┘ │
+│  ┌─ Main Content ──────────────────┐ │
+│  │  {children}                      │ │
+│  └──────────────────────────────────┘ │
+└────────────────────────────────────────┘
+```
+
+**响应式行为：**
+
+| 断点 | 布局 |
+|------|------|
+| `< md` | Sheet 抽屉导航 + 汉堡菜单 |
+| `>= md` | 水平标签导航 |
+
+**无障碍特性：**
+
+| 特性 | 实现 |
+|------|------|
+| Skip Link | 跳转到主内容 |
+| ARIA Labels | Logo、菜单按钮、图标 |
+| Focus States | `focus-visible:ring-2` |
+| Touch Targets | `min-h-[44px]` |
+| Logout Confirm | AlertDialog 确认 |
+
+**使用示例：**
+
+```tsx
+// app/layout.tsx
+export default function RootLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <html lang="zh-CN" suppressHydrationWarning>
+      <body>
+        <ThemeProvider>
+          <AppShell>{children}</AppShell>
+        </ThemeProvider>
+      </body>
+    </html>
+  )
+}
+```
+
+---
+
+### 3.10 Sheet 抽屉组件
+
+```tsx
+// src/components/ui/sheet.tsx
 "use client"
 
-import { usePathname, useRouter } from "next/navigation"
-import { useEffect, useState } from "react"
-import Link from "next/link"
-import { getStoredTokens, clearTokens } from "@/lib/api"
-import { Button } from "@/components/ui/button"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import { ThemeToggle } from "./theme-toggle"
+import * as React from "react"
+import * as SheetPrimitive from "@radix-ui/react-dialog"
+import { cva, type VariantProps } from "class-variance-authority"
+import { X } from "lucide-react"
 
-export function AppShell({ children }: { children: React.ReactNode }) {
-  const pathname = usePathname()
-  const router = useRouter()
-  const [checking, setChecking] = useState(true)
-  const [user, setUser] = useState<{ username: string; email: string } | null>(null)
+import { cn } from "@/lib/utils"
 
-  const isAuthRoute = pathname === "/login" || pathname === "/register"
-  const isHomePage = pathname === "/"
+const Sheet = SheetPrimitive.Root
+const SheetTrigger = SheetPrimitive.Trigger
+const SheetClose = SheetPrimitive.Close
+const SheetPortal = SheetPrimitive.Portal
 
-  useEffect(() => {
-    const tokens = getStoredTokens()
+const SheetOverlay = React.forwardRef<
+  React.ElementRef<typeof SheetPrimitive.Overlay>,
+  React.ComponentPropsWithoutRef<typeof SheetPrimitive.Overlay>
+>(({ className, ...props }, ref) => (
+  <SheetPrimitive.Overlay
+    className={cn(
+      "fixed inset-0 z-50 bg-black/80 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
+      className
+    )}
+    {...props}
+    ref={ref}
+  />
+))
+SheetOverlay.displayName = SheetPrimitive.Overlay.displayName
 
-    if (isAuthRoute && tokens?.access_token) {
-      router.replace("/dashboard")
-      return
-    }
-
-    if (!isAuthRoute && !isHomePage && !tokens?.access_token) {
-      router.replace("/login")
-      return
-    }
-
-    if (tokens?.access_token) {
-      fetchUser(tokens.access_token).then(setUser).catch(() => {
-        clearTokens()
-        router.replace("/login")
-      })
-    }
-
-    setChecking(false)
-  }, [isAuthRoute, isHomePage, router])
-
-  async function fetchUser(accessToken: string) {
-    const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/v1/users/me`, {
-      headers: { Authorization: `Bearer ${accessToken}` },
-    })
-    if (!response.ok) throw new Error("Failed to fetch user")
-    return response.json()
+const sheetVariants = cva(
+  "fixed z-50 gap-4 bg-background p-6 shadow-lg transition ease-in-out data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:duration-300 data-[state=open]:duration-500",
+  {
+    variants: {
+      side: {
+        top: "inset-x-0 top-0 border-b data-[state=closed]:slide-out-to-top data-[state=open]:slide-in-from-top",
+        bottom: "inset-x-0 bottom-0 border-t data-[state=closed]:slide-out-to-bottom data-[state=open]:slide-in-from-bottom",
+        left: "inset-y-0 left-0 h-full w-3/4 border-r data-[state=closed]:slide-out-to-left data-[state=open]:slide-in-from-left sm:max-w-sm",
+        right: "inset-y-0 right-0 h-full w-3/4 border-l data-[state=closed]:slide-out-to-right data-[state=open]:slide-in-from-right sm:max-w-sm",
+      },
+    },
+    defaultVariants: { side: "right" },
   }
+)
 
-  const handleLogout = () => {
-    clearTokens()
-    router.replace("/login")
-  }
+interface SheetContentProps extends React.ComponentPropsWithoutRef<typeof SheetPrimitive.Content>, VariantProps<typeof sheetVariants> {}
 
-  if (checking && !isAuthRoute && !isHomePage) {
-    return null
-  }
+const SheetContent = React.forwardRef<React.ElementRef<typeof SheetPrimitive.Content>, SheetContentProps>(
+  ({ side = "right", className, children, ...props }, ref) => (
+    <SheetPortal>
+      <SheetOverlay />
+      <SheetPrimitive.Content ref={ref} className={cn(sheetVariants({ side }), className)} {...props}>
+        {children}
+        <SheetPrimitive.Close className="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2">
+          <X className="h-4 w-4" />
+          <span className="sr-only">Close</span>
+        </SheetPrimitive.Close>
+      </SheetPrimitive.Content>
+    </SheetPortal>
+  )
+)
+SheetContent.displayName = SheetPrimitive.Content.displayName
 
-  if (isAuthRoute) {
-    return <main className="min-h-screen">{children}</main>
-  }
+const SheetHeader = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) => (
+  <div className={cn("flex flex-col space-y-2 text-center sm:text-left", className)} {...props} />
+)
+SheetHeader.displayName = "SheetHeader"
 
-  return (
-    <div className="min-h-screen bg-[radial-gradient(circle_at_top,_hsl(var(--secondary)),_transparent_60%),_linear-gradient(to_bottom,_hsl(var(--muted)_/_0.8),_transparent)]">
-      <header className="border-b border-border bg-background/80 backdrop-blur-sm sticky top-0 z-50">
-        <div className="container mx-auto max-w-screen-xl px-6 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-6">
-            <Link href="/dashboard" className="font-semibold text-lg">
-              Open SkillHub
-            </Link>
-            <nav className="hidden md:flex items-center gap-4">
-              <Link href="/dashboard" className={`text-sm ${pathname === "/dashboard" ? "text-primary" : "text-muted-foreground hover:text-foreground"}`}>
-                控制台
-              </Link>
-              <Link href="/skills" className={`text-sm ${pathname.startsWith("/skills") ? "text-primary" : "text-muted-foreground hover:text-foreground"}`}>
-                Skills
-              </Link>
-              <Link href="/tokens" className={`text-sm ${pathname === "/tokens" ? "text-primary" : "text-muted-foreground hover:text-foreground"}`}>
-                Tokens
-              </Link>
+const SheetTitle = React.forwardRef<React.ElementRef<typeof SheetPrimitive.Title>, React.ComponentPropsWithoutRef<typeof SheetPrimitive.Title>>(
+  ({ className, ...props }, ref) => (
+    <SheetPrimitive.Title ref={ref} className={cn("text-lg font-semibold text-foreground", className)} {...props} />
+  )
+)
+SheetTitle.displayName = SheetPrimitive.Title.displayName
+
+export { Sheet, SheetTrigger, SheetClose, SheetContent, SheetHeader, SheetTitle }
+```
+                      <Link href="/security" className="flex w-full items-center gap-2">
+                        <ShieldCheck className="h-4 w-4" />
+                        安全设置
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem className="text-destructive" onSelect={handleLogout}>
+                      <LogOut className="h-4 w-4" />
+                      退出登录
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+            </div>
+            <nav className="mt-4 flex flex-wrap gap-2">
+              {navItems.map((item) => {
+                const Icon = item.icon
+                const isActive = pathname.startsWith(item.href)
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    className={cn(
+                      "inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+                      isActive ? "bg-primary text-primary-foreground" : "bg-muted/60 text-muted-foreground hover:bg-muted"
+                    )}
+                  >
+                    <Icon className="h-4 w-4" />
+                    {item.label}
+                  </Link>
+                )
+              })}
             </nav>
-          </div>
-          <div className="flex items-center gap-2">
-            <ThemeToggle />
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="sm" className="gap-2">
-                  <div className="h-8 w-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-sm font-medium">
-                    {user?.username?.[0]?.toUpperCase() || "U"}
-                  </div>
-                  <span className="hidden sm:inline">{user?.username || "User"}</span>
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-48">
-                <DropdownMenuLabel>
-                  <div className="flex flex-col">
-                    <span>{user?.username}</span>
-                    <span className="text-xs font-normal text-muted-foreground">{user?.email}</span>
-                  </div>
-                </DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem asChild>
-                  <Link href="/profile">个人信息</Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link href="/security">安全设置</Link>
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={handleLogout} className="text-destructive">
-                  退出登录
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
         </div>
       </header>
-      <main className="container mx-auto max-w-screen-xl px-6 py-8">
-        {children}
-      </main>
+      <main className="container mx-auto max-w-screen-xl px-6 py-8">{children}</main>
     </div>
   )
 }
 ```
 
-### 3.10 ThemeToggle 主题切换组件
+### 3.11 ThemeToggle 主题切换组件
 
 ```tsx
 // src/components/app/theme-toggle.tsx
@@ -608,8 +683,13 @@ export function ThemeToggle() {
   }, [theme])
 
   return (
-    <Button variant="outline" size="icon" onClick={() => setTheme(isDark ? "light" : "dark")}>
-      {isDark ? <Sun className="h-4 w-4" /> : <MoonStar className="h-4 w-4" />}
+    <Button
+      variant="outline"
+      size="icon"
+      onClick={() => setTheme(isDark ? "light" : "dark")}
+      aria-label={isDark ? "切换到亮色模式" : "切换到暗色模式"}
+    >
+      {isDark ? <Sun className="h-4 w-4" aria-hidden="true" /> : <MoonStar className="h-4 w-4" aria-hidden="true" />}
     </Button>
   )
 }

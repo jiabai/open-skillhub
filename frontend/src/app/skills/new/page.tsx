@@ -5,15 +5,19 @@ import Link from "next/link"
 import { FileUp, UploadCloud } from "lucide-react"
 
 import { api } from "@/lib/api"
+import { featureFlags } from "@/lib/feature-flags"
+import type { SkillVisible } from "@/types"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 
 export default function NewSkillPage() {
   const [name, setName] = useState("")
   const [description, setDescription] = useState("")
+  const [visible, setVisible] = useState<SkillVisible>("private")
   const [skillUuid, setSkillUuid] = useState<string | null>(null)
   const [uploading, setUploading] = useState(false)
   const [files, setFiles] = useState<string[]>([])
@@ -22,7 +26,11 @@ export default function NewSkillPage() {
   const handleCreate = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     setMessage(null)
-    const skill = await api.createSkill({ name, description })
+    const skill = await api.createSkill({
+      name,
+      description,
+      visible: featureFlags.enableSkillVisibility ? visible : "private"
+    })
     setSkillUuid(skill.id)
     setMessage("Skill 已创建，可以开始上传文件。")
   }
@@ -79,6 +87,24 @@ export default function NewSkillPage() {
                   onChange={(event) => setDescription(event.target.value)}
                 />
               </div>
+              {featureFlags.enableSkillVisibility && (
+                <div className="space-y-2">
+                  <Label htmlFor="visible">可见性</Label>
+                  <Select value={visible} onValueChange={(value) => setVisible(value as SkillVisible)}>
+                    <SelectTrigger id="visible">
+                      <SelectValue placeholder="选择可见性" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="private">私有</SelectItem>
+                      <SelectItem value="team">团队</SelectItem>
+                      <SelectItem value="enterprise">企业</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">
+                    私有：仅自己可见；团队：团队成员可见；企业：全企业可见
+                  </p>
+                </div>
+              )}
               <Button type="submit">创建 Skill</Button>
               {message ? <p className="text-sm text-primary">{message}</p> : null}
             </form>

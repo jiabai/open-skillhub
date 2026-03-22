@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation"
 import { Mail, Shield } from "lucide-react"
 
 import { api, storeTokens } from "@/lib/api"
+import { featureFlags } from "@/lib/feature-flags"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -139,9 +140,11 @@ export default function LoginPage() {
                   <Mail className="h-4 w-4" />
                   仅用于认证
                 </span>
-                <Link href="/register" className="text-primary hover:underline">
-                  创建账户
-                </Link>
+                {featureFlags.enablePublicSignup && (
+                  <Link href="/register" className="text-primary hover:underline">
+                    创建账户
+                  </Link>
+                )}
               </div>
             </CardFooter>
           </form>

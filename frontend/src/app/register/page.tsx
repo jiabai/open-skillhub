@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation"
 import { Sparkles } from "lucide-react"
 
 import { api } from "@/lib/api"
+import { featureFlags } from "@/lib/feature-flags"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -13,6 +14,14 @@ import { Label } from "@/components/ui/label"
 
 export default function RegisterPage() {
   const router = useRouter()
+
+  // 如果注册被禁用，重定向到登录页
+  useEffect(() => {
+    if (!featureFlags.enablePublicSignup) {
+      router.replace("/login")
+    }
+  }, [router])
+
   const [username, setUsername] = useState("")
   const [email, setEmail] = useState("")
   const [code, setCode] = useState("")

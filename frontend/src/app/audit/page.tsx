@@ -71,9 +71,13 @@ export default function AuditLogsPage() {
   useEffect(() => {
     const sevenDaysAgo = new Date()
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7)
-    setStartDate(format(sevenDaysAgo, "yyyy-MM-dd"))
-    setEndDate(format(new Date(), "yyyy-MM-dd"))
-  }, [])
+    const start = format(sevenDaysAgo, "yyyy-MM-dd")
+    const end = format(new Date(), "yyyy-MM-dd")
+    setStartDate(start)
+    setEndDate(end)
+    // 自动加载数据
+    fetchLogs()
+  }, [fetchLogs])
 
   // 应用筛选
   const handleApplyFilter = () => {
@@ -323,6 +327,9 @@ export default function AuditLogsPage() {
                   CSV
                 </Button>
               </div>
+              {exporting && (
+                <p className="text-xs text-muted-foreground">导出中...</p>
+              )}
             </div>
           </CardContent>
         </Card>

@@ -104,6 +104,6 @@ describe("console pages", () => {
   it("renders security form", () => {
     render(<SecurityPage />)
     expect(screen.getByRole("heading", { name: "安全设置" })).toBeInTheDocument()
-    expect(screen.getByLabelText("当前密码")).toBeInTheDocument()
+    expect(screen.getByLabelText("删除验证码")).toBeInTheDocument()
   })
 })

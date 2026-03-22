@@ -6,6 +6,7 @@ import { FileText, Loader2, Save, Trash2 } from "lucide-react"
 
 import { api } from "@/lib/api"
 import type { Skill } from "@/types"
+import { useToast } from "@/hooks/use-toast"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -21,6 +22,7 @@ type SkillDetailProps = {
 }
 
 export default function SkillDetailPage({ params }: SkillDetailProps) {
+  const { success, error: showError } = useToast()
   const [skill, setSkill] = useState<Skill | null>(null)
   const [files, setFiles] = useState<string[]>([])
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading")
@@ -130,12 +132,16 @@ export default function SkillDetailPage({ params }: SkillDetailProps) {
                 try {
                   if (skill.is_active) {
                     await api.deactivateSkill(skill.id)
+                    success("Skill 已停用")
                   } else {
                     await api.activateSkill(skill.id)
+                    success("Skill 已启用")
                   }
                   await fetchData()
                 } catch (err) {
-                  setError(err instanceof Error ? err.message : "操作失败")
+                  const message = err instanceof Error ? err.message : "操作失败"
+                  setError(message)
+                  showError("操作失败", { description: message })
                 }
               }}
             >

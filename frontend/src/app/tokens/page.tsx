@@ -5,6 +5,7 @@ import { Copy, KeyRound, Loader2, Trash2 } from "lucide-react"
 
 import { api } from "@/lib/api"
 import type { Token } from "@/types"
+import { useToast } from "@/hooks/use-toast"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -14,6 +15,7 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 
 export default function TokensPage() {
+  const { success, error: showError } = useToast()
   const [tokens, setTokens] = useState<Token[]>([])
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading")
   const [error, setError] = useState<string | null>(null)
@@ -49,14 +51,26 @@ export default function TokensPage() {
       setName("")
       setDays("30")
       await loadTokens()
+      success("Token 创建成功", { description: "请保存好您的 Token，它只会显示一次" })
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "创建失败"
+      setError(message)
+      showError("创建失败", { description: message })
     } finally {
       setCreating(false)
     }
   }
 
   const handleRevoke = async (tokenId: string) => {
-    await api.revokeToken(tokenId)
-    await loadTokens()
+    try {
+      await api.revokeToken(tokenId)
+      await loadTokens()
+      success("Token 已撤销")
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "撤销失败"
+      setError(message)
+      showError("撤销失败", { description: message })
+    }
   }
 
   const handleCopy = async () => {

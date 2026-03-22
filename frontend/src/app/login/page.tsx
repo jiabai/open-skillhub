@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { Mail, Shield } from "lucide-react"
+import { Mail, Shield, Fingerprint, Building2 } from "lucide-react"
 
 import { api, storeTokens } from "@/lib/api"
 import { featureFlags } from "@/lib/feature-flags"
@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Separator } from "@/components/ui/separator"
 
 export default function LoginPage() {
   const router = useRouter()
@@ -67,6 +68,26 @@ export default function LoginPage() {
     } finally {
       setIsLoading(false)
     }
+  }
+
+  const handleSSOLogin = async () => {
+    setError(null)
+    setSuccess(null)
+    try {
+      // SSO 登录需要跳转到 SSO 提供商
+      // 这里简化处理，实际实现可能需要打开新窗口或跳转
+      window.location.href = `/api/v1/auth/sso/authorize`
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "SSO 登录失败")
+    }
+  }
+
+  const handleLDAPLogin = async () => {
+    setError(null)
+    setSuccess(null)
+    // LDAP 登录可以弹出对话框输入用户名密码
+    // 或者跳转到专门的 LDAP 登录页面
+    router.push("/login/ldap")
   }
 
   return (
@@ -132,8 +153,46 @@ export default function LoginPage() {
               {success ? <p className="text-sm text-primary">{success}</p> : null}
             </CardContent>
             <CardFooter className="flex flex-col gap-3">
+              {(featureFlags.enableSSO || featureFlags.enableLDAP) && (
+                <>
+                  <div className="flex w-full gap-2">
+                    {featureFlags.enableSSO && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="flex-1"
+                        onClick={handleSSOLogin}
+                      >
+                        <Building2 className="mr-2 h-4 w-4" />
+                        SSO 登录
+                      </Button>
+                    )}
+                    {featureFlags.enableLDAP && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="flex-1"
+                        onClick={handleLDAPLogin}
+                      >
+                        <Fingerprint className="mr-2 h-4 w-4" />
+                        LDAP 登录
+                      </Button>
+                    )}
+                  </div>
+                  <div className="relative w-full">
+                    <div className="absolute inset-0 flex items-center">
+                      <Separator className="w-full" />
+                    </div>
+                    <div className="relative flex justify-center text-xs uppercase">
+                      <span className="bg-background px-2 text-muted-foreground">
+                        或
+                      </span>
+                    </div>
+                  </div>
+                </>
+              )}
               <Button type="submit" className="w-full" disabled={isLoading}>
-                {isLoading ? "正在登录..." : "登录"}
+                {isLoading ? "正在登录..." : "邮箱验证码登录"}
               </Button>
               <div className="flex w-full items-center justify-between text-sm text-muted-foreground">
                 <span className="flex items-center gap-2">

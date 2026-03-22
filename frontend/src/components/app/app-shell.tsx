@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react"
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
-import { BarChart3, KeyRound, LayoutGrid, LogOut, ShieldCheck, Sparkles, User2, Wrench } from "lucide-react"
+import { BarChart3, KeyRound, LayoutGrid, LogOut, ScrollText, ShieldCheck, Sparkles, User2, Wrench } from "lucide-react"
 
 import { clearTokens, getStoredTokens } from "@/lib/api"
 import { cn } from "@/lib/utils"
@@ -15,6 +15,7 @@ const navItems = [
   { href: "/dashboard", label: "概览", icon: LayoutGrid },
   { href: "/skills", label: "Skills", icon: Sparkles },
   { href: "/tokens", label: "Tokens", icon: KeyRound },
+  { href: "/audit", label: "审计日志", icon: ScrollText },
   { href: "/profile", label: "个人信息", icon: User2 },
   { href: "/security", label: "安全", icon: ShieldCheck }
 ]

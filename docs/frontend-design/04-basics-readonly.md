@@ -188,6 +188,43 @@ theme: {
 
 ## 3. 组件架构
 
+### 3.X Toast 通知组件
+
+**依赖:** sonner
+
+**文件位置:**
+- `frontend/src/components/ui/sonner.tsx` - 组件封装
+- `frontend/src/hooks/use-toast.ts` - Hook 封装
+
+**使用方法:**
+
+```tsx
+import { useToast } from "@/hooks/use-toast"
+
+function MyComponent() {
+  const { success, error, warning, info } = useToast()
+
+  const handleAction = async () => {
+    try {
+      await api.doSomething()
+      success("操作成功")
+    } catch (err) {
+      error("操作失败", { description: err.message })
+    }
+  }
+}
+```
+
+**Toast 类型:**
+- `success(title, options?)` - 成功提示（绿色，4秒）
+- `error(title, options?)` - 错误提示（红色，5秒）
+- `warning(title, options?)` - 警告提示（黄色，4秒）
+- `info(title, options?)` - 信息提示（蓝色，4秒）
+
+**位置:** 右下角 (`position="bottom-right"`)
+
+---
+
 ### 3.1 组件分类
 
 ```

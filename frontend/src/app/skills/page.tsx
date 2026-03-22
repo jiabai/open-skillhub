@@ -45,6 +45,19 @@ export default function SkillsPage() {
     await loadSkills(query)
   }
 
+  const handleToggleActive = async (skillUuid: string, currentStatus: boolean) => {
+    try {
+      if (currentStatus) {
+        await api.deactivateSkill(skillUuid)
+      } else {
+        await api.activateSkill(skillUuid)
+      }
+      await loadSkills(query)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "操作失败")
+    }
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-4">
@@ -108,6 +121,9 @@ export default function SkillsPage() {
                 <CardTitle>{skill.name}</CardTitle>
                 <CardDescription>{skill.description || "暂无描述"}</CardDescription>
                 <div className="flex flex-wrap gap-2">
+                  <Badge variant={skill.is_active ? "accent" : "muted"}>
+                    {skill.is_active ? "已启用" : "已停用"}
+                  </Badge>
                   <Badge variant="muted">私有目录</Badge>
                   <Badge variant="outline">id: {skill.id.slice(0, 8)}</Badge>
                 </div>
@@ -115,6 +131,13 @@ export default function SkillsPage() {
               <div className="flex items-center gap-2">
                 <Button variant="outline" asChild>
                   <Link href={`/skills/${skillUuid}`}>查看</Link>
+                </Button>
+                <Button
+                  variant={skill.is_active ? "secondary" : "outline"}
+                  size="sm"
+                  onClick={() => handleToggleActive(skillUuid, skill.is_active ?? false)}
+                >
+                  {skill.is_active ? "停用" : "启用"}
                 </Button>
                 <AlertDialog>
                   <AlertDialogTrigger asChild>

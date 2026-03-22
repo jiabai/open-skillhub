@@ -15,7 +15,19 @@ export const featureFlags = {
   enableAuditLog: process.env.NEXT_PUBLIC_ENABLE_AUDIT_LOG !== "false", // 默认开启
 
   // 组织模型开关 (企业/团队功能)
-  enableOrgModel: process.env.NEXT_PUBLIC_ENABLE_ORG_MODEL === "true"
+  enableOrgModel: process.env.NEXT_PUBLIC_ENABLE_ORG_MODEL === "true",
+
+  // 邮箱验证码登录开关
+  enableEmailOtpLogin: process.env.NEXT_PUBLIC_ENABLE_EMAIL_OTP_LOGIN !== "false", // 默认开启
+
+  // RBAC 权限控制开关
+  enableRBAC: process.env.NEXT_PUBLIC_ENABLE_RBAC === "true",
+
+  // Skill 可见性控制开关
+  enableSkillVisibility: process.env.NEXT_PUBLIC_ENABLE_SKILL_VISIBILITY === "true",
+
+  // 审计日志导出开关
+  enableAuditExport: process.env.NEXT_PUBLIC_ENABLE_AUDIT_EXPORT !== "false" // 默认开启
 }
 
 // 导出单个开关便于使用
@@ -24,7 +36,11 @@ export const {
   enableSSO,
   enableLDAP,
   enableAuditLog,
-  enableOrgModel
+  enableOrgModel,
+  enableEmailOtpLogin,
+  enableRBAC,
+  enableSkillVisibility,
+  enableAuditExport
 } = featureFlags
 
 // 默认导出

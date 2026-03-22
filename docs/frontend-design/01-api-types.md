@@ -452,9 +452,9 @@ export type SkillDownloadResponse = {
 }
 
 export type SkillCachePolicyResponse = {
-  default_ttl_seconds: number
-  max_ttl_seconds: number
-  cache_enabled: boolean
+  cache_ttl_seconds: number
+  encryption_enabled: boolean
+  download_encryption_enabled: boolean
 }
 ```
 

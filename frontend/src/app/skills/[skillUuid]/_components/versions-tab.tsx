@@ -43,7 +43,7 @@ export function VersionsTab({ skillUuid }: VersionsTabProps) {
     fetchVersions()
   }, [fetchVersions])
 
-  const handleVersionSelect = (version: string) => {
+  const handleVersionSelect = useCallback((version: string) => {
     setSelectedVersions((prev) => {
       if (prev.includes(version)) {
         return prev.filter((v) => v !== version)
@@ -53,9 +53,11 @@ export function VersionsTab({ skillUuid }: VersionsTabProps) {
       }
       return [...prev, version]
     })
-  }
+  }, [])
 
   useEffect(() => {
+    const abortController = new AbortController()
+
     if (selectedVersions.length === 2) {
       const fetchDiff = async () => {
         setDiffLoading(true)
@@ -65,17 +67,26 @@ export function VersionsTab({ skillUuid }: VersionsTabProps) {
             selectedVersions[0],
             selectedVersions[1]
           )
-          setDiffResult(result)
+          // Check if component is still mounted
+          if (!abortController.signal.aborted) {
+            setDiffResult(result)
+          }
         } catch (err) {
-          console.error("Failed to fetch diff:", err)
+          if (!abortController.signal.aborted) {
+            console.error("Failed to fetch diff:", err)
+          }
         } finally {
-          setDiffLoading(false)
+          if (!abortController.signal.aborted) {
+            setDiffLoading(false)
+          }
         }
       }
       fetchDiff()
     } else {
       setDiffResult(null)
     }
+
+    return () => abortController.abort()
   }, [selectedVersions, skillUuid])
 
   const handleRollback = async (version: string) => {
@@ -84,6 +95,9 @@ export function VersionsTab({ skillUuid }: VersionsTabProps) {
       await api.rollbackSkillVersion(skillUuid, version)
       await fetchVersions()
       setSelectedVersions([])
+    } catch (err) {
+      console.error("Failed to rollback:", err)
+      setError(err instanceof Error ? err.message : "回滚失败")
     } finally {
       setRollbackLoading(false)
     }

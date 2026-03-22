@@ -4,6 +4,7 @@ import { Fraunces, IBM_Plex_Sans } from "next/font/google"
 import "./globals.css"
 import { ThemeProvider } from "@/components/theme-provider"
 import { AppShell } from "@/components/app/app-shell"
+import { Toaster } from "@/components/ui/sonner"
 
 const displayFont = Fraunces({
   subsets: ["latin"],
@@ -27,6 +28,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className="min-h-screen bg-background text-foreground antialiased">
         <ThemeProvider>
           <AppShell>{children}</AppShell>
+          <Toaster position="bottom-right" />
         </ThemeProvider>
       </body>
     </html>

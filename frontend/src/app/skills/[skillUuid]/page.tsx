@@ -106,6 +106,45 @@ export default function SkillDetailPage({ params }: SkillDetailProps) {
           <Link href="/skills">返回列表</Link>
         </Button>
       </div>
+
+      {/* 状态栏 */}
+      {status === "ready" && skill && (
+        <Card className={skill.is_active ? "border-accent/50 bg-accent/5" : "border-muted"}>
+          <CardContent className="flex items-center justify-between py-4">
+            <div className="flex items-center gap-4">
+              <div className={`h-3 w-3 rounded-full ${skill.is_active ? "bg-accent" : "bg-muted-foreground"}`} />
+              <div>
+                <p className="font-medium">
+                  {skill.is_active ? "已启用" : "已停用"}
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  {skill.is_active
+                    ? "Skill 当前处于活跃状态，可以正常使用"
+                    : "Skill 当前处于停用状态，不可访问"}
+                </p>
+              </div>
+            </div>
+            <Button
+              variant={skill.is_active ? "outline" : "default"}
+              onClick={async () => {
+                try {
+                  if (skill.is_active) {
+                    await api.deactivateSkill(skill.id)
+                  } else {
+                    await api.activateSkill(skill.id)
+                  }
+                  await fetchData()
+                } catch (err) {
+                  setError(err instanceof Error ? err.message : "操作失败")
+                }
+              }}
+            >
+              {skill.is_active ? "停用 Skill" : "启用 Skill"}
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
       {status === "loading" ? (
         <Card>
           <CardContent className="flex items-center gap-3 py-10 text-sm text-muted-foreground">

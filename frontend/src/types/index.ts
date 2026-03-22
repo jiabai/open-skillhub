@@ -195,6 +195,7 @@ export type ErrorCode =
   | "RESOURCE_NOT_FOUND"
   | "VALIDATION_ERROR"
   | "INTERNAL_SERVER_ERROR"
+  | "SKILL_DEACTIVATED"
 
 export type ApiErrorResponse = {
   detail: string

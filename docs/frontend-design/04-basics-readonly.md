@@ -778,7 +778,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 </div>
 ```
 
-#### Skills 列表页（搜索 + 列表）
+#### Skills 列表页（搜索 + 列表 + 状态管理）
 
 ```tsx
 <Card>
@@ -795,11 +795,72 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     </form>
   </CardContent>
 </Card>
+
+{/* Skill 卡片列表 */}
+{skills.map((skill) => (
+  <Card key={skill.id}>
+    <CardHeader className="flex flex-row items-start justify-between gap-4">
+      <div className="space-y-2">
+        <CardTitle>{skill.name}</CardTitle>
+        <CardDescription>{skill.description}</CardDescription>
+        <div className="flex flex-wrap gap-2">
+          {/* 状态徽章 */}
+          <Badge variant={skill.is_active ? "accent" : "muted"}>
+            {skill.is_active ? "已启用" : "已停用"}
+          </Badge>
+          <Badge variant="muted">私有目录</Badge>
+          <Badge variant="outline">id: {skill.id.slice(0, 8)}</Badge>
+        </div>
+      </div>
+      <div className="flex items-center gap-2">
+        <Button variant="outline" asChild>
+          <Link href={`/skills/${skill.id}`}>查看</Link>
+        </Button>
+        {/* 启用/停用按钮 */}
+        <Button
+          variant={skill.is_active ? "secondary" : "outline"}
+          size="sm"
+          onClick={() => handleToggleActive(skill.id, skill.is_active)}
+        >
+          {skill.is_active ? "停用" : "启用"}
+        </Button>
+        {/* 删除按钮 */}
+        <AlertDialog>
+          ...
+        </AlertDialog>
+      </div>
+    </CardHeader>
+  </Card>
+))}
 ```
 
-#### Skill 详情页（Tabs 组织）
+**功能说明：**
+- 搜索栏支持按名称/描述查找
+- 每个 Skill 卡片显示：名称、描述、状态徽章、ID
+- 操作按钮：查看、启用/停用、删除
+- 状态徽章根据 `is_active` 显示不同颜色和文本
+
+#### Skill 详情页（Tabs 组织 + 状态栏）
 
 ```tsx
+{/* 状态栏 */}
+<Card className={skill.is_active ? "border-accent/50 bg-accent/5" : "border-muted"}>
+  <CardContent className="flex items-center justify-between py-4">
+    <div className="flex items-center gap-4">
+      <div className={`h-3 w-3 rounded-full ${skill.is_active ? "bg-accent" : "bg-muted-foreground"}`} />
+      <div>
+        <p className="font-medium">{skill.is_active ? "已启用" : "已停用"}</p>
+        <p className="text-sm text-muted-foreground">
+          {skill.is_active ? "Skill 当前处于活跃状态" : "Skill 当前处于停用状态"}
+        </p>
+      </div>
+    </div>
+    <Button variant={skill.is_active ? "outline" : "default"}>
+      {skill.is_active ? "停用 Skill" : "启用 Skill"}
+    </Button>
+  </CardContent>
+</Card>
+
 <Tabs defaultValue="overview">
   <TabsList>
     <TabsTrigger value="overview">概览</TabsTrigger>
@@ -813,6 +874,16 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   <TabsContent value="settings">{/* 设置表单 */}</TabsContent>
 </Tabs>
 ```
+
+**状态栏功能：**
+- 显示当前激活状态（已启用/已停用）
+- 提供启用/停用切换按钮
+- 卡片边框和背景根据状态变化
+
+**页面结构：**
+1. 页面标题 + 返回按钮
+2. **状态栏**（新增）
+3. Tabs（概览/文件/版本/设置）
 
 **版本 Tab (VersionsTab)：**
 

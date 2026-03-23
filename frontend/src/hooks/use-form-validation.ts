@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from "react"
+import { useState, useMemo, useCallback, useRef } from "react"
 
 export interface ValidationRule<T> {
   validate: (value: T) => boolean
@@ -22,15 +22,26 @@ export function useField<T>(
   const [value, setValue] = useState<T>(initialValue)
   const [touched, setTouched] = useState(false)
 
+  // Store rules in ref to avoid memoization issues when inline arrays are passed
+  // Consumers can also memoize their rules array for optimal performance
+  const rulesRef = useRef(rules)
+  if (
+    rules.length !== rulesRef.current.length ||
+    rules.some((r, i) => r !== rulesRef.current[i])
+  ) {
+    rulesRef.current = rules
+  }
+  const stableRules = rulesRef.current
+
   const error = useMemo(() => {
     if (!touched) return null
-    for (const rule of rules) {
+    for (const rule of stableRules) {
       if (!rule.validate(value)) {
         return rule.message
       }
     }
     return null
-  }, [value, touched, rules])
+  }, [value, touched, stableRules])
 
   const isValid = error === null
 

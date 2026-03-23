@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest"
 import { renderHook, act } from "@testing-library/react"
-import { useField } from "@/hooks/use-form-validation"
+import {
+  useField,
+  createEmailRules,
+  createUsernameRules,
+} from "@/hooks/use-form-validation"
 
 describe("useField", () => {
   const emailRules = [
@@ -89,5 +93,29 @@ describe("useField", () => {
       result.current.setValue("abcdefghijk")
     })
     expect(result.current.error).toBe("最多10字符")
+  })
+})
+
+describe("factory functions", () => {
+  it("createEmailRules returns correct validation rules", () => {
+    const rules = createEmailRules()
+    expect(rules).toHaveLength(1)
+    expect(rules[0].validate("test@example.com")).toBe(true)
+    expect(rules[0].validate("invalid")).toBe(false)
+    expect(rules[0].message).toBe("请输入有效的邮箱地址")
+  })
+
+  it("createUsernameRules returns rules in correct order", () => {
+    const rules = createUsernameRules()
+    expect(rules).toHaveLength(3)
+    // Test minLength (first rule)
+    expect(rules[0].validate("ab")).toBe(false)
+    expect(rules[0].validate("abc")).toBe(true)
+    // Test maxLength (second rule)
+    expect(rules[1].validate("a".repeat(51))).toBe(false)
+    expect(rules[1].validate("a".repeat(50))).toBe(true)
+    // Test pattern (third rule)
+    expect(rules[2].validate("valid_user")).toBe(true)
+    expect(rules[2].validate("invalid user!")).toBe(false)
   })
 })

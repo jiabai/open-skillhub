@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation"
 import { Mail, Shield, Fingerprint, Building2 } from "lucide-react"
 
 import { api, storeTokens, getErrorMessage } from "@/lib/api"
+import { useField, createEmailRules, createVerificationCodeRules } from "@/hooks/use-form-validation"
 import { featureFlags } from "@/lib/feature-flags"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
@@ -15,8 +16,8 @@ import { Separator } from "@/components/ui/separator"
 
 export default function LoginPage() {
   const router = useRouter()
-  const [email, setEmail] = useState("")
-  const [code, setCode] = useState("")
+  const emailField = useField("", createEmailRules())
+  const codeField = useField("", createVerificationCodeRules())
   const [codeMessage, setCodeMessage] = useState<string | null>(null)
   const [resendSeconds, setResendSeconds] = useState(0)
   const resendSecondsRef = useRef(resendSeconds)
@@ -31,14 +32,14 @@ export default function LoginPage() {
   const [success, setSuccess] = useState<string | null>(null)
 
   const handleSendCode = async () => {
-    if (!email || isSending || resendSeconds > 0) {
+    if (!emailField.value || isSending || resendSeconds > 0) {
       return
     }
     setIsSending(true)
     setError(null)
     setCodeMessage(null)
     try {
-      const response = await api.sendVerificationCode({ email, purpose: "login" })
+      const response = await api.sendVerificationCode({ email: emailField.value, purpose: "login" })
       const cooldown = response.resend_interval ?? 60
       setResendSeconds(cooldown)
       setCodeMessage(`验证码已发送，有效期 ${response.expires_in ?? 300} 秒`)
@@ -61,11 +62,15 @@ export default function LoginPage() {
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
+    emailField.validate()
+    codeField.validate()
+    if (!emailField.isValid || !codeField.isValid) return
+
     setIsLoading(true)
     setError(null)
     setSuccess(null)
     try {
-      const tokenPair = await api.login({ email, code })
+      const tokenPair = await api.login({ email: emailField.value, code: codeField.value })
       storeTokens(tokenPair)
       router.replace("/dashboard")
       setSuccess("登录成功，已保存凭证。")
@@ -126,12 +131,13 @@ export default function LoginPage() {
                 <Label htmlFor="email">邮箱</Label>
                 <Input
                   id="email"
-                  type="email"
+                  type="text"
                   placeholder="you@company.com"
-                  value={email}
-                  onChange={(event) => setEmail(event.target.value)}
-                  required
+                  value={emailField.value}
+                  onChange={(event) => emailField.setValue(event.target.value)}
+                  onBlur={emailField.handleBlur}
                 />
+                {emailField.error && <p className="text-sm text-destructive">{emailField.error}</p>}
               </div>
               <div className="space-y-2">
                 <Label htmlFor="code">验证码</Label>
@@ -140,22 +146,21 @@ export default function LoginPage() {
                     id="code"
                     inputMode="numeric"
                     placeholder="6 位验证码"
-                    value={code}
-                    onChange={(event) => setCode(event.target.value)}
-                    required
-                    pattern="[0-9]{6}"
+                    value={codeField.value}
+                    onChange={(event) => codeField.setValue(event.target.value)}
+                    onBlur={codeField.handleBlur}
                     maxLength={6}
-                    title="请输入 6 位数字验证码"
                   />
                   <Button
                     type="button"
                     variant="secondary"
                     onClick={handleSendCode}
-                    disabled={!email || isSending || resendSeconds > 0}
+                    disabled={!emailField.value || isSending || resendSeconds > 0}
                   >
                     {resendSeconds > 0 ? `${resendSeconds}s` : isSending ? "发送中..." : "发送验证码"}
                   </Button>
                 </div>
+                {codeField.error && <p className="text-sm text-destructive">{codeField.error}</p>}
               </div>
               {error ? <p className="text-sm text-destructive">{error}</p> : null}
               {codeMessage ? <p className="text-sm text-muted-foreground">{codeMessage}</p> : null}

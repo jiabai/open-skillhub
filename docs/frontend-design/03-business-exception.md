@@ -265,8 +265,11 @@ useEffect(() => {
 
 **表单验证 Hook 实现**：
 
+> **已实现**：`frontend/src/hooks/use-form-validation.ts`
+> 导出：`useField`, `createEmailRules`, `createUsernameRules` 等工厂函数。
+
 ```tsx
-// src/lib/use-form-validation.ts
+// src/hooks/use-form-validation.ts
 interface ValidationRule<T> {
   validate: (value: T) => boolean
   message: string
@@ -274,20 +277,18 @@ interface ValidationRule<T> {
 
 interface FieldState<T> {
   value: T
+  setValue: (value: T) => void
   error: string | null
-  touched: boolean
+  isValid: boolean
+  handleBlur: () => void
+  validate: () => void
+  reset: () => void
 }
 
 export function useField<T>(
   initialValue: T,
   rules: ValidationRule<T>[]
-): {
-  value: T
-  setValue: (value: T) => void
-  error: string | null
-  isValid: boolean
-  handleBlur: () => void
-} {
+): FieldState<T> {
   const [value, setValue] = useState<T>(initialValue)
   const [touched, setTouched] = useState(false)
 

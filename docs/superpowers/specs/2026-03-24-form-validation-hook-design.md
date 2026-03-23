@@ -34,10 +34,10 @@ interface FieldState<T> {
   value: T
   setValue: (value: T) => void
   error: string | null
-  isValid: boolean
+  isValid: boolean        // 派生状态：isValid = !error，同步计算无延迟
   handleBlur: () => void  // 触发验证
   validate: () => void    // 手动触发验证（提交时调用）
-  reset: () => void       // 重置字段状态
+  reset: () => void       // 重置为初始值，清除错误和 touched 状态
 }
 
 // Hook
@@ -155,7 +155,10 @@ function LoginPage() {
     emailField.validate()
     codeField.validate()
     if (!emailField.isValid || !codeField.isValid) return
-    // 提交逻辑
+    // 提交逻辑...
+    // 成功后重置表单
+    emailField.reset()
+    codeField.reset()
   }
 
   return (

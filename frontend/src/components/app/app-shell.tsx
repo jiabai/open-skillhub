@@ -35,6 +35,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (isAuthRoute) {
+      const tokens = getStoredTokens()
+      if (tokens?.access_token) {
+        router.replace("/dashboard")
+        return
+      }
       setIsChecking(false)
       return
     }

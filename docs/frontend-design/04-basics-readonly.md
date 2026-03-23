@@ -232,6 +232,7 @@ function MyComponent() {
 - `error(title, options?)` - 错误提示（红色，5秒）
 - `warning(title, options?)` - 警告提示（黄色，4秒）
 - `info(title, options?)` - 信息提示（蓝色，4秒）
+- `toast` - 原始 sonner toast 函数，用于自定义需求
 
 **位置:** 右下角 (`position="bottom-right"`)
 
@@ -634,6 +635,7 @@ function MyComponent() {
 - `error(title, options?)` - 错误提示（红色，5秒）
 - `warning(title, options?)` - 警告提示（黄色，4秒）
 - `info(title, options?)` - 信息提示（蓝色，4秒）
+- `toast` - 原始 sonner toast 函数，用于自定义需求
 
 **位置:** 右下角 (`position="bottom-right"`)
 

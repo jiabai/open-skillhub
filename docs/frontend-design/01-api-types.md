@@ -573,20 +573,6 @@ export function getUserFriendlyMessage(detail: string): string {
 
   return errorMessages[detail] || detail || "操作失败，请稍后再试"
 }
-
-export function isNetworkError(error: unknown): boolean {
-  if (navigator.onLine === false) return true
-  if (error instanceof TypeError && error.message.includes("fetch")) return true
-  if (error instanceof Error && error.message.includes("timeout")) return true
-  return false
-}
-
-export function getNetworkErrorMessage(): string {
-  if (navigator.onLine === false) {
-    return "网络已断开，请检查网络连接"
-  }
-  return "服务器不可用，请稍后再试"
-}
 ```
 
 ---

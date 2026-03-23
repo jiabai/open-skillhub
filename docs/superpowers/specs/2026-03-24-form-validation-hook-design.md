@@ -48,23 +48,26 @@ export function useField<T>(
 
 // 内部状态：touched 不暴露，仅在内部用于控制首次 blur 前不显示错误
 
-// 预定义规则
+// 预定义规则配置
 export const validationRules = {
   email: { pattern, message },
   verificationCode: { pattern, message },
-  username: { minLength, maxLength, pattern, message },
-  skillName: { minLength, maxLength, message },
+  username: { minLength, maxLength, pattern, messages },
+  skillName: { minLength, maxLength, messages },
   skillDescription: { maxLength, message },
-  tokenName: { minLength, maxLength, message },
+  tokenName: { minLength, maxLength, messages },
 }
 
-// 辅助函数
-export function validateEmail(email: string): boolean
-export function validateVerificationCode(code: string): boolean
-export function validateUsername(username: string): string | null
-export function validateSkillName(name: string): string | null
-export function validateTokenName(name: string): string | null
+// 规则工厂函数 - 创建 ValidationRule 数组
+export function createEmailRules(): ValidationRule<string>[]
+export function createVerificationCodeRules(): ValidationRule<string>[]
+export function createUsernameRules(): ValidationRule<string>[]
+export function createSkillNameRules(): ValidationRule<string>[]
+export function createSkillDescriptionRules(): ValidationRule<string>[]
+export function createTokenNameRules(): ValidationRule<string>[]
 ```
+
+> 设计改进：使用工厂函数返回 `ValidationRule[]` 而非独立的验证函数，可直接传入 `useField`，使用更简洁。
 
 ### 验证规则
 
@@ -140,15 +143,11 @@ Blur 验证 —— 用户离开输入框时触发验证，即时显示错误。
 ### 完整使用示例
 
 ```tsx
-import { useField, validationRules } from "@/hooks/use-form-validation"
+import { useField, createEmailRules, createVerificationCodeRules } from "@/hooks/use-form-validation"
 
 function LoginPage() {
-  const emailField = useField("", [
-    { validate: (v) => validationRules.email.pattern.test(v), message: validationRules.email.message },
-  ])
-  const codeField = useField("", [
-    { validate: (v) => validationRules.verificationCode.pattern.test(v), message: validationRules.verificationCode.message },
-  ])
+  const emailField = useField("", createEmailRules())
+  const codeField = useField("", createVerificationCodeRules())
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault()

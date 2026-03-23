@@ -4,6 +4,7 @@ import { useEffect, useState } from "react"
 import { Copy, KeyRound, Loader2, Trash2 } from "lucide-react"
 
 import { api } from "@/lib/api"
+import { useField, createTokenNameRules } from "@/hooks/use-form-validation"
 import type { Token } from "@/types"
 import { useToast } from "@/hooks/use-toast"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog"
@@ -19,7 +20,7 @@ export default function TokensPage() {
   const [tokens, setTokens] = useState<Token[]>([])
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading")
   const [error, setError] = useState<string | null>(null)
-  const [name, setName] = useState("")
+  const nameField = useField("", createTokenNameRules())
   const [days, setDays] = useState("30")
   const [newToken, setNewToken] = useState<string | null>(null)
   const [creating, setCreating] = useState(false)
@@ -43,12 +44,15 @@ export default function TokensPage() {
 
   const handleCreate = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
+    nameField.validate()
+    if (!nameField.isValid) return
+
     setCreating(true)
     try {
       const expiresAt = days ? new Date(Date.now() + Number(days) * 24 * 60 * 60 * 1000).toISOString() : null
-      const token = await api.createToken({ name, expires_at: expiresAt || undefined })
+      const token = await api.createToken({ name: nameField.value, expires_at: expiresAt || undefined })
       setNewToken(token.token || null)
-      setName("")
+      nameField.reset()
       setDays("30")
       await loadTokens()
       success("Token 创建成功", { description: "请保存好您的 Token，它只会显示一次" })
@@ -101,10 +105,11 @@ export default function TokensPage() {
                 <Input
                   id="name"
                   placeholder="例如：prod-client"
-                  value={name}
-                  onChange={(event) => setName(event.target.value)}
-                  required
+                  value={nameField.value}
+                  onChange={(event) => nameField.setValue(event.target.value)}
+                  onBlur={nameField.handleBlur}
                 />
+                {nameField.error && <p className="text-sm text-destructive">{nameField.error}</p>}
               </div>
               <div className="space-y-2">
                 <Label htmlFor="days">有效天数</Label>

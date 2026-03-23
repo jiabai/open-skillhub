@@ -22,6 +22,7 @@ export default function NewSkillPage() {
   const descriptionField = useField("", createSkillDescriptionRules())
   const [visible, setVisible] = useState<SkillVisible>("private")
   const [skillUuid, setSkillUuid] = useState<string | null>(null)
+  const [creating, setCreating] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [files, setFiles] = useState<string[]>([])
   const [message, setMessage] = useState<string | null>(null)
@@ -29,16 +30,24 @@ export default function NewSkillPage() {
   const handleCreate = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     nameField.validate()
+    descriptionField.validate()
     if (!nameField.isValid) return
 
     setMessage(null)
-    const skill = await api.createSkill({
-      name: nameField.value,
-      description: descriptionField.value,
-      visible: featureFlags.enableSkillVisibility ? visible : "private"
-    })
-    setSkillUuid(skill.id)
-    setMessage("Skill 已创建，可以开始上传文件。")
+    setCreating(true)
+    try {
+      const skill = await api.createSkill({
+        name: nameField.value,
+        description: descriptionField.value,
+        visible: featureFlags.enableSkillVisibility ? visible : "private"
+      })
+      setSkillUuid(skill.id)
+      setMessage("Skill 已创建，可以开始上传文件。")
+    } catch (err) {
+      showError(err instanceof Error ? err.message : "创建失败")
+    } finally {
+      setCreating(false)
+    }
   }
 
   const MAX_FILE_SIZE = 10 * 1024 * 1024 // 10MB
@@ -133,7 +142,9 @@ export default function NewSkillPage() {
                   </p>
                 </div>
               )}
-              <Button type="submit">创建 Skill</Button>
+              <Button type="submit" disabled={creating}>
+                {creating ? "创建中..." : "创建 Skill"}
+              </Button>
               {message ? <p className="text-sm text-primary">{message}</p> : null}
             </form>
           </CardContent>

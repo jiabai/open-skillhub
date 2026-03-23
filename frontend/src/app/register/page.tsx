@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation"
 import { Sparkles } from "lucide-react"
 
 import { api, getErrorMessage } from "@/lib/api"
+import { useField, createEmailRules, createVerificationCodeRules, createUsernameRules } from "@/hooks/use-form-validation"
 import { featureFlags } from "@/lib/feature-flags"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
@@ -22,9 +23,9 @@ export default function RegisterPage() {
     }
   }, [router])
 
-  const [username, setUsername] = useState("")
-  const [email, setEmail] = useState("")
-  const [code, setCode] = useState("")
+  const usernameField = useField("", createUsernameRules())
+  const emailField = useField("", createEmailRules())
+  const codeField = useField("", createVerificationCodeRules())
   const [codeMessage, setCodeMessage] = useState<string | null>(null)
   const [resendSeconds, setResendSeconds] = useState(0)
   const resendSecondsRef = useRef(resendSeconds)
@@ -40,14 +41,14 @@ export default function RegisterPage() {
   const redirectTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const handleSendCode = async () => {
-    if (!email || isSending || resendSeconds > 0) {
+    if (!emailField.value || isSending || resendSeconds > 0) {
       return
     }
     setIsSending(true)
     setError(null)
     setCodeMessage(null)
     try {
-      const response = await api.sendVerificationCode({ email, purpose: "register" })
+      const response = await api.sendVerificationCode({ email: emailField.value, purpose: "register" })
       const cooldown = response.resend_interval ?? 60
       setResendSeconds(cooldown)
       setCodeMessage(`验证码已发送，有效期 ${response.expires_in ?? 300} 秒`)
@@ -60,15 +61,20 @@ export default function RegisterPage() {
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
+    usernameField.validate()
+    emailField.validate()
+    codeField.validate()
+    if (!usernameField.isValid || !emailField.isValid || !codeField.isValid) return
+
     setIsLoading(true)
     setError(null)
     setSuccess(null)
     try {
-      await api.register({ username, email, code })
+      await api.register({ username: usernameField.value, email: emailField.value, code: codeField.value })
       setSuccess("注册成功，请登录。")
-      setUsername("")
-      setEmail("")
-      setCode("")
+      usernameField.reset()
+      emailField.reset()
+      codeField.reset()
     } catch (err) {
       setError(getErrorMessage(err))
     } finally {
@@ -122,23 +128,25 @@ export default function RegisterPage() {
                 <Input
                   id="username"
                   placeholder="你的显示名称"
-                  value={username}
-                  onChange={(event) => setUsername(event.target.value)}
+                  value={usernameField.value}
+                  onChange={(event) => usernameField.setValue(event.target.value)}
+                  onBlur={usernameField.handleBlur}
                   disabled={isLoading}
-                  required
                 />
+                {usernameField.error && <p className="text-sm text-destructive">{usernameField.error}</p>}
               </div>
               <div className="space-y-2">
                 <Label htmlFor="email">邮箱</Label>
                 <Input
                   id="email"
-                  type="email"
+                  type="text"
                   placeholder="you@company.com"
-                  value={email}
-                  onChange={(event) => setEmail(event.target.value)}
+                  value={emailField.value}
+                  onChange={(event) => emailField.setValue(event.target.value)}
+                  onBlur={emailField.handleBlur}
                   disabled={isLoading || isSending}
-                  required
                 />
+                {emailField.error && <p className="text-sm text-destructive">{emailField.error}</p>}
               </div>
               <div className="space-y-2">
                 <Label htmlFor="code">验证码</Label>
@@ -147,23 +155,22 @@ export default function RegisterPage() {
                     id="code"
                     inputMode="numeric"
                     placeholder="6 位验证码"
-                    value={code}
-                    onChange={(event) => setCode(event.target.value)}
+                    value={codeField.value}
+                    onChange={(event) => codeField.setValue(event.target.value)}
+                    onBlur={codeField.handleBlur}
                     disabled={isLoading}
-                    required
-                    pattern="[0-9]{6}"
                     maxLength={6}
-                    title="请输入 6 位数字验证码"
                   />
                   <Button
                     type="button"
                     variant="secondary"
                     onClick={handleSendCode}
-                    disabled={!email || isSending || resendSeconds > 0}
+                    disabled={!emailField.value || isSending || resendSeconds > 0}
                   >
                     {resendSeconds > 0 ? `${resendSeconds}s` : isSending ? "发送中..." : "发送验证码"}
                   </Button>
                 </div>
+                {codeField.error && <p className="text-sm text-destructive">{codeField.error}</p>}
               </div>
               {error ? <p className="text-sm text-destructive">{error}</p> : null}
               {codeMessage ? <p className="text-sm text-muted-foreground">{codeMessage}</p> : null}

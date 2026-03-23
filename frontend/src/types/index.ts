@@ -218,6 +218,11 @@ export type SkillVersionListResponse = {
   items: SkillVersion[]
 }
 
+export type UserListResponse = {
+  items: User[]
+  total: number
+}
+
 // ========== 请求体类型 ==========
 
 export type VerificationCodeRequest = {

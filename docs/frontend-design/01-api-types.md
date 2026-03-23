@@ -626,7 +626,7 @@ export function getNetworkErrorMessage(): string {
 | 请求删除账户验证码 | `api.requestDeleteAccount` | `POST /api/v1/users/me/delete-request` | ✅ 已实现 |
 | 账户删除 | `api.deleteAccount({ code })` | `DELETE /api/v1/users/me` | ✅ 已实现 |
 | 邮箱绑定 | `api.bindEmail({ email, code })` | `POST /api/v1/users/bind-email` | ✅ 已实现 |
-| 用户身份管理 | 未实现 | `PUT /api/v1/users/{user_id}/identity` | 🔲 P2 待实现 |
+| 用户身份管理 | `api.updateUserIdentity(userId, payload)` | `PUT /api/v1/users/{user_id}/identity` | ✅ 已实现 |
 | Skill 激活 | `api.activateSkill(skillUuid)` | `POST /api/v1/skills/{skill_uuid}/activate` | ✅ 已实现 |
 | Skill 停用 | `api.deactivateSkill(skillUuid)` | `POST /api/v1/skills/{skill_uuid}/deactivate` | ✅ 已实现 |
 | Skill 版本列表 | `api.listSkillVersions(skillUuid)` | `GET /api/v1/skills/{skill_uuid}/versions` | ✅ 已实现 |

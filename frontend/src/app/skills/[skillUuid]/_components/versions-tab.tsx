@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react"
 import { formatDistanceToNow } from "date-fns"
 import { zhCN } from "date-fns/locale"
-import { GitCompare, Loader2, RotateCcw, Package } from "lucide-react"
+import { GitCompare, Loader2, RotateCcw, Package, FileCode, Clock, ListTree } from "lucide-react"
 
 import { api } from "@/lib/api"
 import type { SkillVersion, SkillVersionDiff } from "@/types"
@@ -12,6 +12,23 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Skeleton } from "@/components/ui/skeleton"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion"
 
 type VersionsTabProps = {
   skillUuid: string
@@ -25,6 +42,11 @@ export function VersionsTab({ skillUuid }: VersionsTabProps) {
   const [diffLoading, setDiffLoading] = useState(false)
   const [rollbackLoading, setRollbackLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  // 版本详情状态
+  const [versionDetail, setVersionDetail] = useState<SkillVersion | null>(null)
+  const [versionDetailLoading, setVersionDetailLoading] = useState(false)
+  const [versionDetailError, setVersionDetailError] = useState<string | null>(null)
 
   const fetchVersions = useCallback(async () => {
     setLoading(true)
@@ -84,6 +106,38 @@ export function VersionsTab({ skillUuid }: VersionsTabProps) {
       fetchDiff()
     } else {
       setDiffResult(null)
+    }
+
+    return () => abortController.abort()
+  }, [selectedVersions, skillUuid])
+
+  // 获取单个版本详情
+  useEffect(() => {
+    const abortController = new AbortController()
+
+    if (selectedVersions.length === 1) {
+      const fetchVersionDetail = async () => {
+        setVersionDetailLoading(true)
+        setVersionDetailError(null)
+        try {
+          const result = await api.getSkillVersion(skillUuid, selectedVersions[0])
+          if (!abortController.signal.aborted) {
+            setVersionDetail(result)
+          }
+        } catch (err) {
+          if (!abortController.signal.aborted) {
+            setVersionDetailError(err instanceof Error ? err.message : "获取版本详情失败")
+          }
+        } finally {
+          if (!abortController.signal.aborted) {
+            setVersionDetailLoading(false)
+          }
+        }
+      }
+      fetchVersionDetail()
+    } else {
+      setVersionDetail(null)
+      setVersionDetailError(null)
     }
 
     return () => abortController.abort()
@@ -182,59 +236,206 @@ export function VersionsTab({ skillUuid }: VersionsTabProps) {
     )
   }
 
-  const renderSingleVersion = (version: SkillVersion) => (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <span>版本 {version.version}</span>
-          <Badge variant="outline">{version.dependencies.length} 个依赖</Badge>
-        </CardTitle>
-        <CardDescription>
-          创建于 {new Date(version.created_at).toLocaleString("zh-CN")}
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <div>
-          <h4 className="text-sm font-medium mb-2">描述</h4>
-          <p className="text-sm text-muted-foreground">
-            {version.description || "无描述"}
-          </p>
-        </div>
-        <div>
-          <h4 className="text-sm font-medium mb-2">依赖</h4>
-          {version.dependencies.length === 0 ? (
-            <p className="text-sm text-muted-foreground">无依赖</p>
-          ) : (
-            <ul className="space-y-1">
-              {version.dependencies.map((dep) => (
-                <li key={dep} className="text-sm text-muted-foreground">
-                  • {dep}
-                </li>
-              ))}
-            </ul>
+  const renderSingleVersion = (version: SkillVersion | null, isLoading: boolean, loadError: string | null) => {
+    if (isLoading) {
+      return (
+        <Card>
+          <CardHeader>
+            <Skeleton className="h-6 w-32" />
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <Skeleton className="h-4 w-full" />
+            <Skeleton className="h-4 w-3/4" />
+            <Skeleton className="h-20 w-full" />
+          </CardContent>
+        </Card>
+      )
+    }
+
+    if (loadError) {
+      return (
+        <Card>
+          <CardContent className="py-8 text-center text-sm text-destructive">
+            <p>{loadError}</p>
+          </CardContent>
+        </Card>
+      )
+    }
+
+    if (!version) return null
+
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <span>版本 {version.version}</span>
+            {version.dependencies.length > 0 && (
+              <Badge variant="outline">{version.dependencies.length} 个依赖</Badge>
+            )}
+            {version.dependency_spec_version && (
+              <Badge variant="secondary" className="text-xs">
+                Spec v{version.dependency_spec_version}
+              </Badge>
+            )}
+          </CardTitle>
+          <CardDescription className="flex items-center gap-1">
+            <Clock className="h-3 w-3" />
+            创建于 {new Date(version.created_at).toLocaleString("zh-CN")}
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div>
+            <h4 className="text-sm font-medium mb-2">描述</h4>
+            <p className="text-sm text-muted-foreground">
+              {version.description || "无描述"}
+            </p>
+          </div>
+
+          {/* 依赖列表 */}
+          <div>
+            <h4 className="text-sm font-medium mb-2">依赖</h4>
+            {version.dependencies.length === 0 ? (
+              <p className="text-sm text-muted-foreground">无依赖</p>
+            ) : (
+              <ul className="space-y-1">
+                {version.dependencies.map((dep) => (
+                  <li key={dep} className="text-sm text-muted-foreground flex items-center gap-2">
+                    <span className="h-1.5 w-1.5 rounded-full bg-primary" />
+                    {dep}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+
+          {/* 依赖规范详情 (dependency_spec) */}
+          {version.dependency_spec && Object.keys(version.dependency_spec).length > 0 && (
+            <Accordion type="single" collapsible className="w-full">
+              <AccordionItem value="dependency-spec" className="border-none">
+                <AccordionTrigger className="text-sm font-medium py-2 hover:no-underline">
+                  <div className="flex items-center gap-2">
+                    <ListTree className="h-4 w-4" />
+                    依赖规范详情
+                  </div>
+                </AccordionTrigger>
+                <AccordionContent>
+                  <div className="space-y-3 pt-2">
+                    {/* Python 依赖 */}
+                    {version.dependency_spec.python && (
+                      <div className="rounded-lg border bg-muted/50 p-3">
+                        <div className="flex items-center gap-2 mb-2">
+                          <Badge variant="outline" className="text-xs">Python</Badge>
+                          <span className="text-xs text-muted-foreground">
+                            管理器: {version.dependency_spec.python.manager || "pip"}
+                          </span>
+                        </div>
+                        {version.dependency_spec.python.requirements?.length > 0 && (
+                          <div className="space-y-1">
+                            <p className="text-xs text-muted-foreground">依赖包:</p>
+                            <ul className="text-xs space-y-0.5">
+                              {version.dependency_spec.python.requirements.map((req: string) => (
+                                <li key={req} className="text-muted-foreground">• {req}</li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+                        {version.dependency_spec.python.files?.length > 0 && (
+                          <div className="mt-2">
+                            <p className="text-xs text-muted-foreground">配置文件:</p>
+                            <div className="flex flex-wrap gap-1 mt-1">
+                              {version.dependency_spec.python.files.map((file: string) => (
+                                <Badge key={file} variant="secondary" className="text-xs">
+                                  <FileCode className="h-3 w-3 mr-1" />
+                                  {file}
+                                </Badge>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Node 依赖 */}
+                    {version.dependency_spec.node && (
+                      <div className="rounded-lg border bg-muted/50 p-3">
+                        <div className="flex items-center gap-2 mb-2">
+                          <Badge variant="outline" className="text-xs">Node.js</Badge>
+                          <span className="text-xs text-muted-foreground">
+                            管理器: {version.dependency_spec.node.manager || "npm"}
+                          </span>
+                        </div>
+                        {version.dependency_spec.node.package_json && (
+                          <div className="text-xs text-muted-foreground">
+                            <p>package.json 已包含</p>
+                          </div>
+                        )}
+                        {version.dependency_spec.node.lockfile && (
+                          <div className="mt-2 flex items-center gap-1">
+                            <FileCode className="h-3 w-3" />
+                            <span className="text-xs text-muted-foreground">
+                              锁定文件: {version.dependency_spec.node.lockfile}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* 原始 JSON */}
+                    <details className="group">
+                      <summary className="cursor-pointer text-xs text-muted-foreground hover:text-foreground">
+                        查看原始 JSON
+                      </summary>
+                      <pre className="text-xs text-muted-foreground bg-muted p-2 rounded mt-2 overflow-auto max-h-48">
+                        {JSON.stringify(version.dependency_spec, null, 2)}
+                      </pre>
+                    </details>
+                  </div>
+                </AccordionContent>
+              </AccordionItem>
+            </Accordion>
           )}
-        </div>
-        <div>
-          <h4 className="text-sm font-medium mb-2">元数据</h4>
-          <pre className="text-xs text-muted-foreground bg-muted p-2 rounded overflow-auto">
-            {JSON.stringify(version.metadata, null, 2)}
-          </pre>
-        </div>
-        <Button
-          variant="outline"
-          onClick={() => handleRollback(version.version)}
-          disabled={rollbackLoading}
-        >
-          {rollbackLoading ? (
-            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-          ) : (
-            <RotateCcw className="mr-2 h-4 w-4" />
+
+          {/* 元数据 */}
+          {version.metadata && Object.keys(version.metadata).length > 0 && (
+            <div>
+              <h4 className="text-sm font-medium mb-2">元数据</h4>
+              <pre className="text-xs text-muted-foreground bg-muted p-2 rounded overflow-auto max-h-48">
+                {JSON.stringify(version.metadata, null, 2)}
+              </pre>
+            </div>
           )}
-          回滚到此版本
-        </Button>
-      </CardContent>
-    </Card>
-  )
+
+          {/* 回滚确认对话框 */}
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button variant="outline">
+                <RotateCcw className="mr-2 h-4 w-4" />
+                回滚到此版本
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>确认回滚</AlertDialogTitle>
+                <AlertDialogDescription>
+                  确定要回滚到版本 {version.version} 吗？当前文件将被替换为该版本的文件。
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>取消</AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={() => handleRollback(version.version)}
+                  disabled={rollbackLoading}
+                >
+                  {rollbackLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  确认回滚
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        </CardContent>
+      </Card>
+    )
+  }
 
   const renderDiff = () => {
     if (!diffResult) return null
@@ -336,9 +537,7 @@ export function VersionsTab({ skillUuid }: VersionsTabProps) {
     }
 
     if (selectedVersions.length === 1) {
-      const version = versions.find((v) => v.version === selectedVersions[0])
-      if (!version) return null
-      return renderSingleVersion(version)
+      return renderSingleVersion(versionDetail, versionDetailLoading, versionDetailError)
     }
 
     return renderDiff()

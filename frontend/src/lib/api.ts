@@ -217,6 +217,12 @@ export const api = {
 
   // ========== 用户 ==========
   getMe: () => apiFetch<User>("/api/v1/users/me"),
+  listUsers: (query?: string) => {
+    const params = new URLSearchParams()
+    if (query) params.set("q", query)
+    const queryString = params.toString()
+    return apiFetch<{ items: User[]; total: number }>(`/api/v1/users${queryString ? `?${queryString}` : ""}`)
+  },
   updateMe: (payload: { username?: string; email?: string }) =>
     apiFetch("/api/v1/users/me", { method: "PUT", body: JSON.stringify(payload) }),
   requestDeleteAccount: () =>

@@ -544,124 +544,34 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 
 ### 3.10 Sheet 抽屉组件
 
+**文件位置:** `frontend/src/components/ui/sheet.tsx`
+
+**组件导出:**
 ```tsx
-// src/components/ui/sheet.tsx
-"use client"
-
-import * as React from "react"
-import * as SheetPrimitive from "@radix-ui/react-dialog"
-import { cva, type VariantProps } from "class-variance-authority"
-import { X } from "lucide-react"
-
-import { cn } from "@/lib/utils"
-
-const Sheet = SheetPrimitive.Root
-const SheetTrigger = SheetPrimitive.Trigger
-const SheetClose = SheetPrimitive.Close
-const SheetPortal = SheetPrimitive.Portal
-
-const SheetOverlay = React.forwardRef<
-  React.ElementRef<typeof SheetPrimitive.Overlay>,
-  React.ComponentPropsWithoutRef<typeof SheetPrimitive.Overlay>
->(({ className, ...props }, ref) => (
-  <SheetPrimitive.Overlay
-    className={cn(
-      "fixed inset-0 z-50 bg-black/80 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
-      className
-    )}
-    {...props}
-    ref={ref}
-  />
-))
-SheetOverlay.displayName = SheetPrimitive.Overlay.displayName
-
-const sheetVariants = cva(
-  "fixed z-50 gap-4 bg-background p-6 shadow-lg transition ease-in-out data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:duration-300 data-[state=open]:duration-500",
-  {
-    variants: {
-      side: {
-        top: "inset-x-0 top-0 border-b data-[state=closed]:slide-out-to-top data-[state=open]:slide-in-from-top",
-        bottom: "inset-x-0 bottom-0 border-t data-[state=closed]:slide-out-to-bottom data-[state=open]:slide-in-from-bottom",
-        left: "inset-y-0 left-0 h-full w-3/4 border-r data-[state=closed]:slide-out-to-left data-[state=open]:slide-in-from-left sm:max-w-sm",
-        right: "inset-y-0 right-0 h-full w-3/4 border-l data-[state=closed]:slide-out-to-right data-[state=open]:slide-in-from-right sm:max-w-sm",
-      },
-    },
-    defaultVariants: { side: "right" },
-  }
-)
-
-interface SheetContentProps extends React.ComponentPropsWithoutRef<typeof SheetPrimitive.Content>, VariantProps<typeof sheetVariants> {}
-
-const SheetContent = React.forwardRef<React.ElementRef<typeof SheetPrimitive.Content>, SheetContentProps>(
-  ({ side = "right", className, children, ...props }, ref) => (
-    <SheetPortal>
-      <SheetOverlay />
-      <SheetPrimitive.Content ref={ref} className={cn(sheetVariants({ side }), className)} {...props}>
-        {children}
-        <SheetPrimitive.Close className="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2">
-          <X className="h-4 w-4" />
-          <span className="sr-only">Close</span>
-        </SheetPrimitive.Close>
-      </SheetPrimitive.Content>
-    </SheetPortal>
-  )
-)
-SheetContent.displayName = SheetPrimitive.Content.displayName
-
-const SheetHeader = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) => (
-  <div className={cn("flex flex-col space-y-2 text-center sm:text-left", className)} {...props} />
-)
-SheetHeader.displayName = "SheetHeader"
-
-const SheetTitle = React.forwardRef<React.ElementRef<typeof SheetPrimitive.Title>, React.ComponentPropsWithoutRef<typeof SheetPrimitive.Title>>(
-  ({ className, ...props }, ref) => (
-    <SheetPrimitive.Title ref={ref} className={cn("text-lg font-semibold text-foreground", className)} {...props} />
-  )
-)
-SheetTitle.displayName = SheetPrimitive.Title.displayName
-
-export { Sheet, SheetTrigger, SheetClose, SheetContent, SheetHeader, SheetTitle }
+export { Sheet, SheetTrigger, SheetClose, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetFooter }
 ```
-                      <Link href="/security" className="flex w-full items-center gap-2">
-                        <ShieldCheck className="h-4 w-4" />
-                        安全设置
-                      </Link>
-                    </DropdownMenuItem>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem className="text-destructive" onSelect={handleLogout}>
-                      <LogOut className="h-4 w-4" />
-                      退出登录
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </div>
-            </div>
-            <nav className="mt-4 flex flex-wrap gap-2">
-              {navItems.map((item) => {
-                const Icon = item.icon
-                const isActive = pathname.startsWith(item.href)
-                return (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    className={cn(
-                      "inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
-                      isActive ? "bg-primary text-primary-foreground" : "bg-muted/60 text-muted-foreground hover:bg-muted"
-                    )}
-                  >
-                    <Icon className="h-4 w-4" />
-                    {item.label}
-                  </Link>
-                )
-              })}
-            </nav>
-        </div>
-      </header>
-      <main className="container mx-auto max-w-screen-xl px-6 py-8">{children}</main>
-    </div>
-  )
-}
+
+**使用示例:**
+```tsx
+import { Sheet, SheetTrigger, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet"
+import { Button } from "@/components/ui/button"
+
+<Sheet>
+  <SheetTrigger asChild>
+    <Button>打开侧边栏</Button>
+  </SheetTrigger>
+  <SheetContent side="right">
+    <SheetHeader>
+      <SheetTitle>侧边栏标题</SheetTitle>
+    </SheetHeader>
+    {/* 内容 */}
+  </SheetContent>
+</Sheet>
 ```
+
+**Props:**
+- `side`: `top` | `bottom` | `left` | `right` - 抽屉滑出方向
+- 默认值: `right`
 
 ### 3.11 ThemeToggle 主题切换组件
 
@@ -697,98 +607,45 @@ export function ThemeToggle() {
 
 ### 3.11 Toast 通知组件
 
+**文件位置:** 
+- `frontend/src/components/ui/sonner.tsx`
+- `frontend/src/hooks/use-toast.ts`
+
+**使用方法:**
 ```tsx
-// src/components/ui/toast.tsx
-"use client"
+import { useToast } from "@/hooks/use-toast"
 
-import * as React from "react"
-import { X } from "lucide-react"
-import { cn } from "@/lib/utils"
+function MyComponent() {
+  const { success, error, warning, info } = useToast()
 
-interface ToastProps {
-  id: string
-  title: string
-  description?: string
-  variant?: "default" | "success" | "error" | "warning"
-  duration?: number
-  onClose: (id: string) => void
-}
-
-const variantStyles = {
-  default: "bg-background border-border",
-  success: "bg-green-50 border-green-500 text-green-900 dark:bg-green-950 dark:text-green-100",
-  error: "bg-destructive/10 border-destructive text-destructive",
-  warning: "bg-yellow-50 border-yellow-500 text-yellow-900 dark:bg-yellow-950 dark:text-yellow-100",
-}
-
-export function Toast({ id, title, description, variant = "default", duration = 5000, onClose }: ToastProps) {
-  React.useEffect(() => {
-    if (duration > 0) {
-      const timer = setTimeout(() => onClose(id), duration)
-      return () => clearTimeout(timer)
+  const handleAction = async () => {
+    try {
+      await api.doSomething()
+      success("操作成功")
+    } catch (err) {
+      error("操作失败", { description: err.message })
     }
-  }, [duration, id, onClose])
-
-  return (
-    <div className={cn(
-      "pointer-events-auto flex w-80 items-start gap-3 rounded-lg border p-4 shadow-lg animate-in slide-in-from-right",
-      variantStyles[variant]
-    )}>
-      <div className="flex-1">
-        <p className="text-sm font-medium">{title}</p>
-        {description && <p className="text-sm text-muted-foreground mt-1">{description}</p>}
-      </div>
-      <button onClick={() => onClose(id)} className="shrink-0 rounded-sm opacity-70 hover:opacity-100">
-        <X className="h-4 w-4" />
-      </button>
-    </div>
-  )
-}
-
-// Toast Hook
-export function useToast() {
-  const [toasts, setToasts] = React.useState<ToastProps[]>([])
-
-  const toast = React.useCallback(({ title, description, variant, duration }: Omit<ToastProps, "id" | "onClose">) => {
-    const id = Math.random().toString(36).substring(7)
-    setToasts((prev) => [...prev, { id, title, description, variant, duration }])
-  }, [])
-
-  const dismiss = React.useCallback((id: string) => {
-    setToasts((prev) => prev.filter((t) => t.id !== id))
-  }, [])
-
-  return { toast, dismiss, toasts }
-}
-
-// Toast Container
-export function ToastContainer({ toasts, onDismiss }: { toasts: ToastProps[], onDismiss: (id: string) => void }) {
-  return (
-    <div className="fixed bottom-4 right-4 z-50 flex flex-col gap-2">
-      {toasts.map((t) => (
-        <Toast key={t.id} {...t} onClose={onDismiss} />
-      ))}
-    </div>
-  )
+  }
 }
 ```
 
+**Toast 类型:**
+- `success(title, options?)` - 成功提示（绿色，4秒）
+- `error(title, options?)` - 错误提示（红色，5秒）
+- `warning(title, options?)` - 警告提示（黄色，4秒）
+- `info(title, options?)` - 信息提示（蓝色，4秒）
+
+**位置:** 右下角 (`position="bottom-right"`)
+
 ### 3.12 Skeleton 骨架屏组件
 
+**文件位置:** `frontend/src/components/ui/skeleton.tsx`
+
+**使用示例:**
 ```tsx
-// src/components/ui/skeleton.tsx
-import { cn } from "@/lib/utils"
+import { Skeleton } from "@/components/ui/skeleton"
 
-function Skeleton({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
-  return (
-    <div
-      className={cn("animate-pulse rounded-md bg-muted", className)}
-      {...props}
-    />
-  )
-}
-
-// 使用示例
+// 卡片骨架屏
 const CardSkeleton = () => (
   <Card>
     <CardHeader>
@@ -801,6 +658,7 @@ const CardSkeleton = () => (
   </Card>
 )
 
+// 列表骨架屏
 const ListSkeleton = ({ count = 5 }: { count?: number }) => (
   <div className="flex flex-col gap-4">
     {Array.from({ length: count }).map((_, i) => (
@@ -1105,6 +963,8 @@ export function VersionsTab({ skillUuid }: VersionsTabProps) {
 
 ### 4.4 Token 管理页面
 
+**文件位置:** `frontend/src/app/tokens/page.tsx`
+
 #### 页面结构
 
 ```
@@ -1120,154 +980,24 @@ export function VersionsTab({ skillUuid }: VersionsTabProps) {
 └── 创建 Token 模态框
 ```
 
-#### 完整代码
+#### 核心功能
 
-```tsx
-interface TokenCardProps {
-  token: Token
-  onRevoke: (tokenId: string) => void
-  onCopy: (tokenId: string) => void
-}
+| 功能 | 说明 |
+|------|------|
+| 创建 Token | 输入名称和有效期，生成新 Token（仅显示一次） |
+| 列表展示 | 显示所有 Token 及其状态 |
+| 撤销 Token | 永久撤销指定 Token |
+| 复制 Token | 复制新创建的 Token 到剪贴板 |
 
-function TokenCard({ token, onRevoke, onCopy }: TokenCardProps) {
-  const maskedToken = token.token
-    ? `${token.token.slice(0, 4)}...${token.token.slice(-4)}`
-    : "已撤销"
+#### 布局说明
 
-  const isExpired = token.expires_at
-    ? new Date(token.expires_at) < new Date()
-    : false
-
-  return (
-    <Card className="relative overflow-hidden">
-      <CardHeader className="pb-3">
-        <div className="flex items-center justify-between">
-          <CardTitle className="text-lg">{token.name}</CardTitle>
-          <Badge variant={token.is_active && !isExpired ? "accent" : "muted"}>
-            {token.is_active && !isExpired ? "活跃" : isExpired ? "已过期" : "已撤销"}
-          </Badge>
-        </div>
-      </CardHeader>
-      <CardContent className="space-y-3">
-        <div className="flex items-center gap-2">
-          <code className="flex-1 rounded bg-muted px-2 py-1 text-sm font-mono">
-            {maskedToken}
-          </code>
-          {token.is_active && !isExpired && (
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => onCopy(token.id)}
-              aria-label="复制 Token"
-            >
-              <Copy className="h-4 w-4" />
-            </Button>
-          )}
-        </div>
-        <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
-          {token.expires_at && (
-            <span>有效期至：{new Date(token.expires_at).toLocaleDateString()}</span>
-          )}
-          {token.last_used_at && (
-            <span>最近使用：{new Date(token.last_used_at).toLocaleDateString()}</span>
-          )}
-        </div>
-      </CardContent>
-      {token.is_active && !isExpired && (
-        <CardFooter className="border-t bg-muted/50 px-6 py-3">
-          <Button
-            variant="ghost"
-            size="sm"
-            className="ml-auto text-destructive hover:text-destructive"
-            onClick={() => onRevoke(token.id)}
-          >
-            <Trash className="mr-2 h-4 w-4" />
-            撤销
-          </Button>
-        </CardFooter>
-      )}
-    </Card>
-  )
-}
-
-interface CreateTokenDialogProps {
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  onSubmit: (data: { name: string; expires_at?: string }) => Promise<void>
-}
-
-function CreateTokenDialog({ open, onOpenChange, onSubmit }: CreateTokenDialogProps) {
-  const [name, setName] = useState("")
-  const [expiresAt, setExpiresAt] = useState("")
-  const [isSubmitting, setIsSubmitting] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setError(null)
-    setIsSubmitting(true)
-    try {
-      await onSubmit({
-        name,
-        expires_at: expiresAt || undefined
-      })
-      setName("")
-      setExpiresAt("")
-      onOpenChange(false)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "创建失败")
-    } finally {
-      setIsSubmitting(false)
-    }
-  }
-
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>创建 API Token</DialogTitle>
-          <DialogDescription>
-            创建一个新的 API Token，用于程序化访问 API。
-          </DialogDescription>
-        </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="token-name">Token 名称 *</Label>
-            <Input
-              id="token-name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="例如：生产环境密钥"
-              required
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="token-expires">有效期（可选）</Label>
-            <Input
-              id="token-expires"
-              type="date"
-              value={expiresAt}
-              onChange={(e) => setExpiresAt(e.target.value)}
-              min={new Date().toISOString().split("T")[0]}
-            />
-          </div>
-          {error && <p className="text-sm text-destructive">{error}</p>}
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-              取消
-            </Button>
-            <Button type="submit" disabled={isSubmitting || !name.trim()}>
-              {isSubmitting ? "创建中..." : "创建"}
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
-  )
-}
-```
+- 左侧：创建 Token 表单
+- 右侧：Token 列表
+- 响应式：`lg:grid-cols-[1.1fr_0.9fr]`
 
 ### 4.5 个人信息页面
+
+**文件位置:** `frontend/src/app/profile/page.tsx`
 
 #### 页面结构
 
@@ -1278,370 +1008,55 @@ function CreateTokenDialog({ open, onOpenChange, onSubmit }: CreateTokenDialogPr
 │   ├── 用户名（可编辑）
 │   ├── 邮箱（可编辑，显示验证状态）
 │   └── 注册时间（只读）
+├── 绑定新邮箱卡片（邮箱验证流程）
 └── 组织信息卡片（条件显示，当 ENABLE_ORG_MODEL=true）
     ├── 企业 ID
     └── 团队 ID
 ```
 
-#### 完整代码
+#### 核心功能
 
-```tsx
-interface ProfilePageProps {
-  user: User
-  onUpdate: (data: { username?: string; email?: string }) => Promise<void>
-  featureFlags: {
-    enableOrgModel: boolean
-  }
-}
+| 功能 | 说明 |
+|------|------|
+| 编辑用户名 | 更新显示名称 |
+| 编辑邮箱 | 更新邮箱地址 |
+| 绑定新邮箱 | 发送验证码 → 验证绑定 |
+| 组织信息 | 显示企业 ID 和团队 ID（如启用） |
 
-function ProfilePage({ user, onUpdate, featureFlags }: ProfilePageProps) {
-  const [username, setUsername] = useState(user.username)
-  const [email, setEmail] = useState(user.email)
-  const [isSubmitting, setIsSubmitting] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [success, setSuccess] = useState(false)
+#### 布局说明
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setError(null)
-    setSuccess(false)
-
-    if (username === user.username && email === user.email) return
-
-    setIsSubmitting(true)
-    try {
-      await onUpdate({ username, email })
-      setSuccess(true)
-      setTimeout(() => setSuccess(false), 3000)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "更新失败")
-    } finally {
-      setIsSubmitting(false)
-    }
-  }
-
-  const hasChanges = username !== user.username || email !== user.email
-
-  return (
-    <div className="mx-auto max-w-2xl space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold">个人信息</h1>
-        <p className="text-muted-foreground">管理您的账户信息</p>
-      </div>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>基本信息</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="username">用户名</Label>
-              <Input
-                id="username"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                placeholder="输入用户名"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="email">邮箱</Label>
-              <Input
-                id="email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="输入邮箱"
-              />
-              {!user.email && (
-                <p className="text-sm text-muted-foreground">
-                  请绑定邮箱以便接收通知
-                </p>
-              )}
-            </div>
-
-            <div className="space-y-2">
-              <Label>注册时间</Label>
-              <Input
-                value={new Date(user.created_at).toLocaleDateString()}
-                disabled
-                className="bg-muted"
-              />
-            </div>
-
-            {error && <p className="text-sm text-destructive">{error}</p>}
-            {success && (
-              <p className="text-sm text-green-600">更新成功</p>
-            )}
-
-            <Button type="submit" disabled={isSubmitting || !hasChanges}>
-              {isSubmitting ? "保存中..." : "保存更改"}
-            </Button>
-          </form>
-        </CardContent>
-      </Card>
-
-      {featureFlags.enableOrgModel && (user.enterprise_id || user.team_id) && (
-        <Card>
-          <CardHeader>
-            <CardTitle>组织信息</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2 text-sm">
-            {user.enterprise_id && (
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">企业 ID</span>
-                <span className="font-mono">{user.enterprise_id}</span>
-              </div>
-            )}
-            {user.team_id && (
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">团队 ID</span>
-                <span className="font-mono">{user.team_id}</span>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      )}
-    </div>
-  )
-}
-```
+- 最大宽度：`max-w-2xl`
+- 卡片式布局，垂直排列
 
 ### 4.6 安全设置页面
+
+**文件位置:** `frontend/src/app/security/page.tsx`
 
 #### 页面结构
 
 ```
 /security
 ├── 页面标题
-├── 账户安全卡片
-│   ├── 绑定邮箱
-│   │   ├── 当前邮箱状态
-│   │   └── 绑定/更新邮箱按钮
-│   └── 删除账户
-│       ├── 危险操作警告
-│       └── 删除账户按钮
-└── 活跃设备卡片（未来扩展）
+└── 删除账户卡片
+    ├── 危险操作警告
+    ├── 申请删除验证码按钮
+    ├── 验证码输入框
+    └── 确认删除按钮
 ```
 
-#### 完整代码
+#### 核心功能
 
-```tsx
-interface SecurityPageProps {
-  user: User
-  featureFlags: {
-    enableEmailOtpLogin: boolean
-  }
-  onBindEmail: (data: { email: string; code: string }) => Promise<void>
-  onRequestDeleteAccount: () => Promise<void>
-  onDeleteAccount: (code: string) => Promise<void>
-}
+| 功能 | 说明 |
+|------|------|
+| 申请删除 | 发送删除验证码到邮箱 |
+| 验证删除 | 输入验证码确认删除账户 |
+| 重发验证码 | 重新发送删除验证码 |
 
-function SecurityPage({
-  user,
-  featureFlags,
-  onBindEmail,
-  onRequestDeleteAccount,
-  onDeleteAccount
-}: SecurityPageProps) {
-  const [showBindEmail, setShowBindEmail] = useState(false)
-  const [bindEmail, setBindEmail] = useState("")
-  const [bindCode, setBindCode] = useState("")
-  const [isSendingCode, setIsSendingCode] = useState(false)
-  const [isBinding, setIsBinding] = useState(false)
-  const [bindError, setBindError] = useState<string | null>(null)
+#### 布局说明
 
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
-  const [deleteCode, setDeleteCode] = useState("")
-  const [isRequestingDelete, setIsRequestingDelete] = useState(false)
-  const [isDeleting, setIsDeleting] = useState(false)
-  const [deleteError, setDeleteError] = useState<string | null>(null)
-
-  const handleSendBindCode = async () => {
-    if (!bindEmail) return
-    setIsSendingCode(true)
-    setBindError(null)
-    try {
-      await api.sendVerificationCode({ email: bindEmail, purpose: "bind_email" })
-    } catch (err) {
-      setBindError(err instanceof Error ? err.message : "发送失败")
-    } finally {
-      setIsSendingCode(false)
-    }
-  }
-
-  const handleBindEmail = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setIsBinding(true)
-    setBindError(null)
-    try {
-      await onBindEmail({ email: bindEmail, code: bindCode })
-      setShowBindEmail(false)
-      setBindEmail("")
-      setBindCode("")
-    } catch (err) {
-      setBindError(err instanceof Error ? err.message : "绑定失败")
-    } finally {
-      setIsBinding(false)
-    }
-  }
-
-  const handleRequestDelete = async () => {
-    setIsRequestingDelete(true)
-    setDeleteError(null)
-    try {
-      await onRequestDeleteAccount()
-    } catch (err) {
-      setDeleteError(err instanceof Error ? err.message : "请求失败")
-    } finally {
-      setIsRequestingDelete(false)
-    }
-  }
-
-  const handleDeleteAccount = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setIsDeleting(true)
-    setDeleteError(null)
-    try {
-      await onDeleteAccount(deleteCode)
-    } catch (err) {
-      setDeleteError(err instanceof Error ? err.message : "删除失败")
-    } finally {
-      setIsDeleting(false)
-    }
-  }
-
-  return (
-    <div className="mx-auto max-w-2xl space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold">安全设置</h1>
-        <p className="text-muted-foreground">管理您的账户安全</p>
-      </div>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>绑定邮箱</CardTitle>
-          <CardDescription>
-            绑定邮箱后可用于接收通知和找回密码
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {user.email ? (
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="font-medium">{user.email}</p>
-                <p className="text-sm text-green-600">已验证</p>
-              </div>
-              <Button variant="outline" onClick={() => setShowBindEmail(true)}>
-                更新邮箱
-              </Button>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {showBindEmail ? (
-                <form onSubmit={handleBindEmail} className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="bind-email">新邮箱</Label>
-                    <Input
-                      id="bind-email"
-                      type="email"
-                      value={bindEmail}
-                      onChange={(e) => setBindEmail(e.target.value)}
-                      placeholder="输入邮箱地址"
-                    />
-                  </div>
-                  <div className="flex gap-2">
-                    <Input
-                      value={bindCode}
-                      onChange={(e) => setBindCode(e.target.value)}
-                      placeholder="验证码"
-                      className="flex-1"
-                    />
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={handleSendBindCode}
-                      disabled={isSendingCode || !bindEmail}
-                    >
-                      {isSendingCode ? "发送中..." : "发送验证码"}
-                    </Button>
-                  </div>
-                  {bindError && <p className="text-sm text-destructive">{bindError}</p>}
-                  <div className="flex gap-2">
-                    <Button type="button" variant="outline" onClick={() => setShowBindEmail(false)}>
-                      取消
-                    </Button>
-                    <Button type="submit" disabled={isBinding || !bindCode}>
-                      {isBinding ? "绑定中..." : "确认绑定"}
-                    </Button>
-                  </div>
-                </form>
-              ) : (
-                <Button onClick={() => setShowBindEmail(true)}>
-                  绑定邮箱
-                </Button>
-              )}
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      <Card className="border-destructive/50">
-        <CardHeader>
-          <CardTitle className="text-destructive">危险区域</CardTitle>
-          <CardDescription>删除账户是不可逆的操作</CardDescription>
-        </CardHeader>
-        <CardContent>
-          {showDeleteConfirm ? (
-            <form onSubmit={handleDeleteAccount} className="space-y-4">
-              <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-4">
-                <p className="text-sm text-destructive">
-                  此操作将永久删除您的账户及相关所有数据。删除后无法恢复。
-                </p>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="delete-code">验证码</Label>
-                <Input
-                  id="delete-code"
-                  value={deleteCode}
-                  onChange={(e) => setDeleteCode(e.target.value)}
-                  placeholder="输入验证码"
-                />
-                <p className="text-sm text-muted-foreground">
-                  点击"发送验证码"获取删除账户的验证码
-                </p>
-              </div>
-              {deleteError && <p className="text-sm text-destructive">{deleteError}</p>}
-              <div className="flex gap-2">
-                <Button type="button" variant="outline" onClick={() => setShowDeleteConfirm(false)}>
-                  取消
-                </Button>
-                <Button type="submit" variant="destructive" disabled={isDeleting || !deleteCode}>
-                  {isDeleting ? "删除中..." : "确认删除账户"}
-                </Button>
-              </div>
-            </form>
-          ) : (
-            <div className="space-y-4">
-              <p className="text-sm text-muted-foreground">
-                如果您确定要删除账户，请点击下方按钮获取验证码。
-              </p>
-              <Button
-                variant="destructive"
-                onClick={handleRequestDelete}
-                disabled={isRequestingDelete}
-              >
-                {isRequestingDelete ? "请求中..." : "删除账户"}
-              </Button>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-    </div>
-  )
-}
-```
+- 最大宽度：`max-w-2xl`
+- 卡片式布局，垂直排列
+- 删除区域使用红色边框强调
 
 ### 4.7 审计日志页面
 

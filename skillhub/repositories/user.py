@@ -20,6 +20,32 @@ class UserRepository(BaseRepository):
         result = await self.session.execute(select(User).where(User.username == username))
         return result.scalar_one_or_none()
 
+    async def list_users(
+        self,
+        skip: int = 0,
+        limit: int = 100,
+        query: str | None = None,
+    ) -> list[User]:
+        stmt = select(User).order_by(User.created_at.desc())
+        if query:
+            stmt = stmt.where(
+                (User.email.ilike(f"%{query}%")) | (User.username.ilike(f"%{query}%"))
+            )
+        stmt = stmt.offset(skip).limit(limit)
+        result = await self.session.execute(stmt)
+        return list(result.scalars().all())
+
+    async def count_users(self, query: str | None = None) -> int:
+        from sqlalchemy import func
+
+        stmt = select(func.count(User.id))
+        if query:
+            stmt = stmt.where(
+                (User.email.ilike(f"%{query}%")) | (User.username.ilike(f"%{query}%"))
+            )
+        result = await self.session.execute(stmt)
+        return result.scalar_one()
+
     async def create(self, model: Any = User, **data: Any) -> User:
         password = data.pop("password")
         user = User(

@@ -7,7 +7,7 @@ from skillhub.db.session import get_async_session
 from skillhub.repositories.audit_log import AuditLogRepository
 from skillhub.repositories.user import UserRepository
 from skillhub.schemas.auth import UserIdentityUpdate
-from skillhub.schemas.user import UserBindEmail, UserDeleteConfirm, UserResponse, UserUpdate
+from skillhub.schemas.user import UserBindEmail, UserDeleteConfirm, UserListResponse, UserResponse, UserUpdate
 from skillhub.services.audit import AuditService
 from skillhub.services.user import UserService
 from skillhub.services.verification_code import get_verification_service
@@ -28,6 +28,22 @@ def _verification_error_payload(detail: str) -> dict | None:
     if not message:
         return None
     return {"detail": message, "code": detail}
+
+
+@router.get("", response_model=UserListResponse)
+async def list_users(
+    skip: int = 0,
+    limit: int = 100,
+    q: str | None = None,
+    current_user=Depends(get_current_active_user),
+    session=Depends(get_async_session),
+):
+    if not has_permission(current_user, "user.manage"):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Permission denied")
+    user_repo = UserRepository(session)
+    users = await user_repo.list_users(skip=skip, limit=limit, query=q)
+    total = await user_repo.count_users(query=q)
+    return UserListResponse(items=[UserResponse.model_validate(user) for user in users], total=total)
 
 
 @router.get("/me", response_model=UserResponse)

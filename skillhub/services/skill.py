@@ -353,6 +353,15 @@ class SkillService:
         skill = await self.get_skill(user, skill_id)
         return await repo.list_by_skill(skill.id)
 
+    async def get_version(self, user: User, skill_id: str, version: str):
+        repo = self._require_version_repo()
+        skill = await self.get_skill(user, skill_id)
+        version = self._validate_version(version)
+        record = await repo.get_by_version(skill.id, version)
+        if not record:
+            raise ValueError("Version not found")
+        return record
+
     async def download_skill(self, user: User, skill_id: str, version: str | None = None) -> dict:
         repo = self._require_version_repo()
         skill = await self.get_skill(user, skill_id)

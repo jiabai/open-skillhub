@@ -308,6 +308,21 @@ async def list_skill_versions(
     return SkillVersionListResponse(items=[SkillVersionResponse.model_validate(item) for item in versions])
 
 
+@router.get("/{skill_uuid}/versions/{version}", response_model=SkillVersionResponse)
+async def get_skill_version(
+    skill_uuid: str,
+    version: str,
+    current_user=Depends(get_current_active_user),
+    session=Depends(get_async_session),
+):
+    service = SkillService(SkillRepository(session), SkillVersionRepository(session))
+    try:
+        record = await service.get_version(current_user, skill_uuid, version)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+    return SkillVersionResponse.model_validate(record)
+
+
 @router.get("/{skill_uuid}/versions/{version}/install-instructions", response_model=SkillInstallInstructionsResponse)
 async def get_install_instructions(
     skill_uuid: str,

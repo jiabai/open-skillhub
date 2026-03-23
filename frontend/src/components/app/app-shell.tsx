@@ -3,11 +3,12 @@
 import { useEffect, useState } from "react"
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
-import { BarChart3, KeyRound, LayoutGrid, LogOut, Menu, ScrollText, ShieldCheck, Sparkles, User2, Wrench, X } from "lucide-react"
+import { BarChart3, KeyRound, LayoutGrid, LogOut, Menu, ScrollText, ShieldCheck, Sparkles, User2, Users, Wrench, X } from "lucide-react"
 
-import { clearTokens, getStoredTokens } from "@/lib/api"
+import { clearTokens, getStoredTokens, api } from "@/lib/api"
 import { featureFlags } from "@/lib/feature-flags"
 import { cn } from "@/lib/utils"
+import type { User } from "@/types"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Button } from "@/components/ui/button"
 import { ThemeToggle } from "@/components/app/theme-toggle"
@@ -24,21 +25,13 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 
-const navItems = [
-  { href: "/dashboard", label: "概览", icon: LayoutGrid },
-  { href: "/skills", label: "Skills", icon: Sparkles },
-  { href: "/tokens", label: "Tokens", icon: KeyRound },
-  ...(featureFlags.enableAuditLog ? [{ href: "/audit", label: "审计日志", icon: ScrollText }] : []),
-  { href: "/profile", label: "个人信息", icon: User2 },
-  { href: "/security", label: "安全", icon: ShieldCheck }
-]
-
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const router = useRouter()
   const isAuthRoute = pathname === "/login" || pathname === "/register"
   const [isChecking, setIsChecking] = useState(!isAuthRoute)
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
+  const [currentUser, setCurrentUser] = useState<User | null>(null)
 
   useEffect(() => {
     if (isAuthRoute) {
@@ -50,8 +43,30 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       router.replace("/login")
       return
     }
+    // 获取当前用户信息
+    const fetchUser = async () => {
+      try {
+        const user = await api.getMe()
+        setCurrentUser(user)
+      } catch {
+        // 忽略错误，用户可能已登出
+      }
+    }
+    fetchUser()
     setIsChecking(false)
   }, [isAuthRoute, router])
+
+  // 根据权限生成导航项
+  const canManageUsers = currentUser?.is_superuser || currentUser?.role === "admin"
+  const navItems = [
+    { href: "/dashboard", label: "概览", icon: LayoutGrid },
+    { href: "/skills", label: "Skills", icon: Sparkles },
+    { href: "/tokens", label: "Tokens", icon: KeyRound },
+    ...(featureFlags.enableAuditLog ? [{ href: "/audit", label: "审计日志", icon: ScrollText }] : []),
+    ...(canManageUsers ? [{ href: "/admin/users", label: "用户管理", icon: Users }] : []),
+    { href: "/profile", label: "个人信息", icon: User2 },
+    { href: "/security", label: "安全", icon: ShieldCheck }
+  ]
 
   const handleLogout = () => {
     clearTokens()

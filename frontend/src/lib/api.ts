@@ -132,6 +132,16 @@ const fetchText = async (path: string, options: ApiRequestOptions = {}): Promise
   return { response, text }
 }
 
+// ========== Token 刷新并发控制 ==========
+// 用于缓存正在进行的刷新请求，防止多个并发请求同时触发多次刷新
+let refreshPromise: Promise<AccessTokenResponse> | null = null
+
+/**
+ * 使用 refresh_token 刷新 access_token
+ * @param refreshToken 当前的 refresh_token
+ * @returns 新的 access_token 响应
+ * @throws 当刷新失败时抛出错误
+ */
 const refreshTokens = async (refreshToken: string): Promise<AccessTokenResponse> => {
   const { response, payload } = await fetchJson("/api/v1/auth/refresh", {
     method: "POST",
@@ -145,23 +155,44 @@ const refreshTokens = async (refreshToken: string): Promise<AccessTokenResponse>
   return payload as AccessTokenResponse
 }
 
+/**
+ * 安全的 token 刷新函数，防止并发刷新
+ * 如果已有刷新请求在进行中，会复用该请求的 Promise，避免重复刷新
+ * @param refreshToken 当前的 refresh_token
+ * @returns 新的 access_token 响应
+ */
+const safeRefreshTokens = async (refreshToken: string): Promise<AccessTokenResponse> => {
+  if (refreshPromise) {
+    return refreshPromise
+  }
+  refreshPromise = refreshTokens(refreshToken).finally(() => {
+    refreshPromise = null
+  })
+  return refreshPromise
+}
+
 async function apiFetch<T>(path: string, options: ApiRequestOptions = {}): Promise<T> {
   const { response, payload } = await fetchJson(path, options)
   if (response.ok) {
     return payload as T
   }
+  // 当收到 401 未授权响应且未设置跳过刷新标记时，尝试使用 refresh_token 刷新 access_token
   if (response.status === 401 && !options.skipRefresh) {
     const tokens = getStoredTokens()
     if (tokens?.refresh_token) {
       try {
-        const refreshed = await refreshTokens(tokens.refresh_token)
+        // 调用安全刷新接口获取新的 access_token（防止并发刷新）
+        const refreshed = await safeRefreshTokens(tokens.refresh_token)
+        // 更新本地存储的 tokens，保留原有的 refresh_token
         storeTokens({ access_token: refreshed.access_token, refresh_token: tokens.refresh_token })
+        // 使用新的 access_token 重新发起原始请求
         const retry = await fetchJson(path, { ...options, accessToken: refreshed.access_token, skipRefresh: true })
         if (retry.response.ok) {
           return retry.payload as T
         }
         throw new Error(getDetail(retry.payload, retry.response.statusText))
       } catch (error) {
+        // 刷新失败时清除本地存储的 tokens，强制用户重新登录
         clearTokens()
         throw error
       }
@@ -175,18 +206,23 @@ async function apiFetchText(path: string, options: ApiRequestOptions = {}): Prom
   if (response.ok) {
     return text
   }
+  // 当收到 401 未授权响应且未设置跳过刷新标记时，尝试使用 refresh_token 刷新 access_token
   if (response.status === 401 && !options.skipRefresh) {
     const tokens = getStoredTokens()
     if (tokens?.refresh_token) {
       try {
-        const refreshed = await refreshTokens(tokens.refresh_token)
+        // 调用安全刷新接口获取新的 access_token（防止并发刷新）
+        const refreshed = await safeRefreshTokens(tokens.refresh_token)
+        // 更新本地存储的 tokens，保留原有的 refresh_token
         storeTokens({ access_token: refreshed.access_token, refresh_token: tokens.refresh_token })
+        // 使用新的 access_token 重新发起原始请求
         const retry = await fetchText(path, { ...options, accessToken: refreshed.access_token, skipRefresh: true })
         if (retry.response.ok) {
           return retry.text
         }
         throw new Error(getDetailFromText(retry.text, retry.response.statusText))
       } catch (error) {
+        // 刷新失败时清除本地存储的 tokens，强制用户重新登录
         clearTokens()
         throw error
       }
@@ -278,11 +314,28 @@ export const api = {
     formData.append("skill_uuid", skillUuid)
     formData.append("file", file)
 
-    const response = await fetch(`${apiBaseUrl}/api/v1/skills/upload`, {
-      method: "POST",
-      body: formData,
-      headers: tokens?.access_token ? { Authorization: `Bearer ${tokens.access_token}` } : undefined
-    })
+    const doUpload = async (accessToken?: string) => {
+      const response = await fetch(`${apiBaseUrl}/api/v1/skills/upload`, {
+        method: "POST",
+        body: formData,
+        headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined
+      })
+      return response
+    }
+
+    let response = await doUpload(tokens?.access_token)
+
+    // 当收到 401 且有 refresh_token 时，尝试刷新后重试
+    if (response.status === 401 && tokens?.refresh_token) {
+      try {
+        const refreshed = await safeRefreshTokens(tokens.refresh_token)
+        storeTokens({ access_token: refreshed.access_token, refresh_token: tokens.refresh_token })
+        response = await doUpload(refreshed.access_token)
+      } catch (error) {
+        clearTokens()
+        throw error
+      }
+    }
 
     if (!response.ok) {
       const errorPayload = await response.json().catch(() => ({}))

@@ -5,6 +5,7 @@ import Link from "next/link"
 import { FileUp, UploadCloud } from "lucide-react"
 
 import { api } from "@/lib/api"
+import { useField, createSkillNameRules, createSkillDescriptionRules } from "@/hooks/use-form-validation"
 import { featureFlags } from "@/lib/feature-flags"
 import type { SkillVisible } from "@/types"
 import { Button } from "@/components/ui/button"
@@ -17,8 +18,8 @@ import { useToast } from "@/hooks/use-toast"
 
 export default function NewSkillPage() {
   const { error: showError } = useToast()
-  const [name, setName] = useState("")
-  const [description, setDescription] = useState("")
+  const nameField = useField("", createSkillNameRules())
+  const descriptionField = useField("", createSkillDescriptionRules())
   const [visible, setVisible] = useState<SkillVisible>("private")
   const [skillUuid, setSkillUuid] = useState<string | null>(null)
   const [uploading, setUploading] = useState(false)
@@ -27,10 +28,13 @@ export default function NewSkillPage() {
 
   const handleCreate = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
+    nameField.validate()
+    if (!nameField.isValid) return
+
     setMessage(null)
     const skill = await api.createSkill({
-      name,
-      description,
+      name: nameField.value,
+      description: descriptionField.value,
       visible: featureFlags.enableSkillVisibility ? visible : "private"
     })
     setSkillUuid(skill.id)
@@ -94,19 +98,22 @@ export default function NewSkillPage() {
                 <Input
                   id="name"
                   placeholder="例如：pdf"
-                  value={name}
-                  onChange={(event) => setName(event.target.value)}
-                  required
+                  value={nameField.value}
+                  onChange={(event) => nameField.setValue(event.target.value)}
+                  onBlur={nameField.handleBlur}
                 />
+                {nameField.error && <p className="text-sm text-destructive">{nameField.error}</p>}
               </div>
               <div className="space-y-2">
                 <Label htmlFor="description">描述</Label>
                 <Textarea
                   id="description"
                   placeholder="简要说明 Skill 的用途"
-                  value={description}
-                  onChange={(event) => setDescription(event.target.value)}
+                  value={descriptionField.value}
+                  onChange={(event) => descriptionField.setValue(event.target.value)}
+                  onBlur={descriptionField.handleBlur}
                 />
+                {descriptionField.error && <p className="text-sm text-destructive">{descriptionField.error}</p>}
               </div>
               {featureFlags.enableSkillVisibility && (
                 <div className="space-y-2">

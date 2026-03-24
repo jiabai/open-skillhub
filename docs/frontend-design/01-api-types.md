@@ -203,6 +203,14 @@ export const api = {
   getMe: () => apiFetch<User>("/api/v1/users/me"),
   updateMe: (payload: { username?: string; email?: string }) =>
     apiFetch<User>("/api/v1/users/me", { method: "PUT", body: JSON.stringify(payload) }),
+  listUsers: (query?: string) => {
+    const params = new URLSearchParams()
+    if (query) params.set("q", query)
+    const queryString = params.toString()
+    return apiFetch<{ items: User[]; total: number }>(`/api/v1/users${queryString ? `?${queryString}` : ""}`)
+  },
+  updateUserIdentity: (userId: string, payload: UserIdentityUpdate) =>
+    apiFetch<User>(`/api/v1/users/${userId}/identity`, { method: "PUT", body: JSON.stringify(payload) }),
 
   // 用户账户管理
   requestDeleteAccount: () =>
@@ -367,8 +375,24 @@ export type User = {
 }
 
 export type UserIdentityUpdate = {
-  role?: string
-  status?: string
+  enterprise_id?: string | null
+  team_id?: string | null
+  role?: string | null
+  status?: string | null
+}
+
+export type SkillCreateRequest = {
+  name: string
+  description?: string | null
+  tags?: string[]
+  visible?: SkillVisible
+}
+
+export type SkillUpdateRequest = {
+  name?: string
+  description?: string | null
+  tags?: string[]
+  visible?: SkillVisible
 }
 ```
 
@@ -514,6 +538,7 @@ export type ErrorCode =
   | "RESOURCE_NOT_FOUND"
   | "VALIDATION_ERROR"
   | "INTERNAL_SERVER_ERROR"
+  | "SKILL_DEACTIVATED"
 ```
 
 ### 2.7 错误码与用户提示映射
@@ -536,42 +561,68 @@ export type ErrorCode =
 | `RESOURCE_NOT_FOUND` | 404 | 请求的资源不存在 |
 | `VALIDATION_ERROR` | 422 | 提交信息有误，请检查后重试 |
 | `INTERNAL_SERVER_ERROR` | 500 | 服务器错误，请稍后再试 |
+| `SKILL_DEACTIVATED` | 403 | 该技能已停用，无法使用 |
 
 ### 2.8 错误处理工具函数
 
 ```tsx
-export function getErrorMessage(error: unknown): string {
-  if (error instanceof Error) {
-    const detail = (error as any).detail
-    if (typeof detail === "string") {
-      return getUserFriendlyMessage(detail)
-    }
-    return error.message
-  }
-  return "操作失败，请稍后再试"
+// 错误码与用户提示映射表（顶层常量，供两个函数共享）
+const errorMessages: Record<string, string> = {
+  "CODE_EXPIRED": "验证码已过期，请重新获取",
+  "CODE_INVALID": "验证码错误，请检查后重试",
+  "CODE_MISMATCH": "验证码不匹配，请重新输入",
+  "TOO_MANY_ATTEMPTS": "操作过于频繁，请稍后再试",
+  "RESEND_TOO_FREQUENT": "验证码发送过于频繁，请稍候再试",
+  "EMAIL_ALREADY_EXISTS": "该邮箱已注册，请直接登录或找回密码",
+  "USERNAME_ALREADY_EXISTS": "该用户名已被占用，请选择其他用户名",
+  "REGISTRATION_DISABLED": "当前关闭注册，请联系管理员",
+  "LOGIN_DISABLED": "登录已被禁用，请联系管理员",
+  "ACCOUNT_DELETED": "账户已注销，无法登录",
+  "TOKEN_EXPIRED": "登录已过期，请重新登录",
+  "TOKEN_INVALID": "无效的认证凭证，请重新登录",
+  "PERMISSION_DENIED": "您没有权限执行此操作",
+  "RESOURCE_NOT_FOUND": "请求的资源不存在",
+  "VALIDATION_ERROR": "提交信息有误，请检查后重试",
+  "INTERNAL_SERVER_ERROR": "服务器错误，请稍后再试",
+  "SKILL_DEACTIVATED": "该技能已停用，无法使用",
 }
 
-export function getUserFriendlyMessage(detail: string): string {
-  const errorMessages: Record<string, string> = {
-    "CODE_EXPIRED": "验证码已过期，请重新获取",
-    "CODE_INVALID": "验证码错误，请检查后重试",
-    "CODE_MISMATCH": "验证码不匹配，请重新输入",
-    "TOO_MANY_ATTEMPTS": "操作过于频繁，请稍后再试",
-    "RESEND_TOO_FREQUENT": "验证码发送过于频繁，请稍候再试",
-    "EMAIL_ALREADY_EXISTS": "该邮箱已注册，请直接登录或找回密码",
-    "USERNAME_ALREADY_EXISTS": "该用户名已被占用，请选择其他用户名",
-    "REGISTRATION_DISABLED": "当前关闭注册，请联系管理员",
-    "LOGIN_DISABLED": "登录已被禁用，请联系管理员",
-    "ACCOUNT_DELETED": "账户已注销，无法登录",
-    "TOKEN_EXPIRED": "登录已过期，请重新登录",
-    "TOKEN_INVALID": "无效的认证凭证，请重新登录",
-    "PERMISSION_DENIED": "您没有权限执行此操作",
-    "RESOURCE_NOT_FOUND": "请求的资源不存在",
-    "VALIDATION_ERROR": "提交信息有误，请检查后重试",
-    "INTERNAL_SERVER_ERROR": "服务器错误，请稍后再试",
-  }
+/**
+ * 根据错误码获取用户友好的错误提示
+ * @param code 错误码
+ * @returns 用户友好的错误提示信息
+ */
+export function getUserFriendlyErrorMessage(code: string): string {
+  return errorMessages[code] || code || "操作失败，请稍后再试"
+}
 
-  return errorMessages[detail] || detail || "操作失败，请稍后再试"
+/**
+ * 从错误对象中提取用户友好的错误消息
+ * @param error 错误对象
+ * @returns 用户友好的错误提示信息
+ */
+export function getErrorMessage(error: unknown): string {
+  if (error instanceof Error) {
+    // 尝试从 detail 字段获取错误码
+    const detail = (error as any).detail
+    if (typeof detail === "string") {
+      // 检查是否是错误码
+      if (detail in errorMessages) {
+        return errorMessages[detail]
+      }
+      return detail
+    }
+    // 尝试从 message 字段解析
+    const message = error.message
+    if (message in errorMessages) {
+      return errorMessages[message]
+    }
+    return message
+  }
+  if (typeof error === "string") {
+    return errorMessages[error] || error
+  }
+  return "操作失败，请稍后再试"
 }
 ```
 
@@ -591,6 +642,8 @@ export function getUserFriendlyMessage(detail: string): string {
 | Token 刷新 | `api.refresh` + `apiFetch` 自动重试 | `POST /api/v1/auth/refresh` | ✅ 已实现 |
 | 获取当前用户 | `api.getMe` | `GET /api/v1/users/me` | ✅ 已实现 |
 | 更新当前用户 | `api.updateMe` | `PUT /api/v1/users/me` | ✅ 已实现 |
+| 列出用户 | `api.listUsers` | `GET /api/v1/users?q=` | ✅ 已实现（仅 superuser） |
+| 更新用户身份 | `api.updateUserIdentity` | `PUT /api/v1/users/:id/identity` | ✅ 已实现（仅 superuser） |
 | 概览统计 | `api.getDashboardOverview` | `GET /api/v1/dashboard/overview` | ✅ 已实现 |
 | 指标清理 | `api.cleanupMetrics` | `POST /api/v1/dashboard/metrics/cleanup` | ✅ 已实现（仅 superuser，删除指定天数前的数据） |
 | 指标 24h 重置 | `api.resetMetrics24h` | `POST /api/v1/dashboard/metrics/reset-24h` | ✅ 已实现（删除过去 24h 数据） |

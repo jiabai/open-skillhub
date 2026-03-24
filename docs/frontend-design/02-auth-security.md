@@ -159,6 +159,7 @@ API 请求 → 401 Unauthorized → 检查 refresh_token
 |---------|------|---------|
 | 公开路由 | `/login`, `/register` | 无需认证，已登录用户自动跳转到 `/dashboard` |
 | 受保护路由 | `/dashboard`, `/skills/*`, `/tokens`, `/profile`, `/security` | 需要有效 Token，否则跳转到 `/login` |
+| 管理员路由 | `/admin/users` | 仅管理员（`is_superuser` 或 `role === "admin"`）可见 |
 | 首页 | `/` | 显示入口卡片，无自动重定向 |
 
 ### 3.2 保护实现
@@ -167,61 +168,117 @@ API 请求 → 401 Unauthorized → 检查 refresh_token
 // src/components/app/app-shell.tsx
 "use client"
 
-import { usePathname, useRouter } from "next/navigation"
 import { useEffect, useState } from "react"
-import { getStoredTokens } from "@/lib/api"
+import { usePathname, useRouter } from "next/navigation"
+import { clearTokens, getStoredTokens, api } from "@/lib/api"
+import { featureFlags } from "@/lib/feature-flags"
+import type { User } from "@/types"
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const router = useRouter()
-  const [checking, setChecking] = useState(true)
-
   const isAuthRoute = pathname === "/login" || pathname === "/register"
-  const isHomePage = pathname === "/"
+  const [isChecking, setIsChecking] = useState(!isAuthRoute)
+  const [currentUser, setCurrentUser] = useState<User | null>(null)
 
   useEffect(() => {
-    const tokens = getStoredTokens()
-
-    // 已登录用户访问认证页面 -> 跳转到控制台
-    if (isAuthRoute && tokens?.access_token) {
-      router.replace("/dashboard")
+    // 认证路由：已登录用户自动跳转到控制台
+    if (isAuthRoute) {
+      const tokens = getStoredTokens()
+      if (tokens?.access_token) {
+        router.replace("/dashboard")
+        return
+      }
+      setIsChecking(false)
       return
     }
 
-    // 未登录用户访问受保护页面 -> 跳转到登录
-    if (!isAuthRoute && !isHomePage && !tokens?.access_token) {
+    // 受保护路由：检查 Token
+    const tokens = getStoredTokens()
+    if (!tokens?.access_token) {
       router.replace("/login")
       return
     }
 
-    setChecking(false)
-  }, [isAuthRoute, isHomePage, router])
+    // 获取当前用户信息（用于权限判断）
+    const fetchUser = async () => {
+      try {
+        const user = await api.getMe()
+        setCurrentUser(user)
+      } catch {
+        // 忽略错误，用户可能已登出
+      }
+    }
+    fetchUser()
+    setIsChecking(false)
+  }, [isAuthRoute, router])
 
-  // 认证检查中，显示空白或加载状态
-  if (checking && !isAuthRoute && !isHomePage) {
-    return null
-  }
-
-  // 认证路由：无导航栏
-  if (isAuthRoute) {
-    return <main className="min-h-screen">{children}</main>
-  }
-
-  // 受保护路由：带导航栏
-  return (
-    <div className="min-h-screen bg-[radial-gradient(...)]">
-      <header>
-        {/* Logo + 用户菜单 + 导航标签 */}
-      </header>
-      <main className="container mx-auto max-w-screen-xl px-6 py-8">
-        {children}
-      </main>
-    </div>
-  )
+  // ... 渲染逻辑
 }
 ```
 
-### 3.3 Token 过期处理
+### 3.3 动态导航菜单
+
+导航菜单根据用户权限和功能开关动态生成：
+
+```tsx
+// 根据权限生成导航项
+const canManageUsers = currentUser?.is_superuser || currentUser?.role === "admin"
+
+const navItems = [
+  { href: "/dashboard", label: "概览", icon: LayoutGrid },
+  { href: "/skills", label: "Skills", icon: Sparkles },
+  { href: "/tokens", label: "Tokens", icon: KeyRound },
+  // 审计日志：根据功能开关显示
+  ...(featureFlags.enableAuditLog ? [{ href: "/audit", label: "审计日志", icon: ScrollText }] : []),
+  // 用户管理：仅管理员可见
+  ...(canManageUsers ? [{ href: "/admin/users", label: "用户管理", icon: Users }] : []),
+  { href: "/profile", label: "个人信息", icon: User2 },
+  { href: "/security", label: "安全", icon: ShieldCheck }
+]
+```
+
+### 3.4 路由保护流程
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                        路由访问请求                               │
+└─────────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+                    ┌─────────────────┐
+                    │  是否为认证路由？ │
+                    │  /login, /register │
+                    └─────────────────┘
+                     /            \
+                   是              否
+                    │              │
+                    ▼              ▼
+            ┌─────────────┐  ┌─────────────────┐
+            │ 检查 Token   │  │ 检查 Token       │
+            └─────────────┘  └─────────────────┘
+              /      \          /          \
+           有Token  无Token   有Token     无Token
+            │        │         │           │
+            ▼        ▼         ▼           ▼
+      跳转/dashboard  渲染页面  获取用户信息  跳转/login
+                               │
+                               ▼
+                      ┌─────────────────┐
+                      │ 根据权限生成导航  │
+                      └─────────────────┘
+```
+
+### 3.5 权限控制点
+
+| 控制点 | 检查条件 | 效果 |
+|--------|----------|------|
+| 用户管理入口 | `is_superuser \|\| role === "admin"` | 仅管理员可见 |
+| 审计日志入口 | `featureFlags.enableAuditLog` | 根据功能开关显示 |
+| Skill 编辑 | `role === "admin" \|\| created_by === user.id` | 创建者或管理员可编辑 |
+| Skill 删除 | `role === "admin"` | 仅管理员可删除 |
+
+### 3.6 Token 过期处理
 
 当 API 返回 401 且 Token 刷新失败时：
 1. 清除本地存储的 Token
@@ -356,11 +413,97 @@ exportAuditLogs: (payload: AuditLogExportRequest) =>
   }),
 ```
 
-### 5.5 条件渲染
+---
+
+## 6. 用户管理功能
+
+### 6.1 功能概述
+
+用户管理是管理员专属功能，用于管理系统中的用户身份信息。
+
+**访问权限**：仅 `is_superuser` 或 `role === "admin"` 可访问
+
+**路由路径**：`/admin/users`
+
+### 6.2 页面功能
+
+| 功能 | 描述 |
+|------|------|
+| 用户列表 | 展示所有用户，包括用户名、邮箱、角色、状态、企业/团队 |
+| 搜索用户 | 支持按用户名或邮箱模糊搜索（防抖 300ms） |
+| 编辑身份 | 修改用户的角色、状态、企业 ID、团队 ID |
+
+### 6.3 用户角色选项
+
+| 角色值 | 显示名称 | 说明 |
+|--------|---------|------|
+| `admin` | 管理员 | 拥有所有权限 |
+| `member` | 成员 | 可创建和管理自己的 Skills |
+| `viewer` | 只读 | 仅可查看 Skills |
+
+### 6.4 用户状态选项
+
+| 状态值 | 显示名称 | 说明 |
+|--------|---------|------|
+| `active` | 正常 | 用户可正常使用系统 |
+| `inactive` | 停用 | 用户被禁用 |
+| `pending` | 待审核 | 用户等待审核 |
+
+### 6.5 页面实现
 
 ```tsx
-// 仅在启用审计日志且用户有权限时显示入口
-{featureFlags.enableAuditLog && (
-  <Link href="/audit-logs">审计日志</Link>
-)}
+// src/app/admin/users/page.tsx
+"use client"
+
+import { api, getErrorMessage } from "@/lib/api"
+import type { User, UserIdentityUpdate } from "@/types"
+
+export default function UsersAdminPage() {
+  const [users, setUsers] = useState<User[]>([])
+  const [searchQuery, setSearchQuery] = useState("")
+  const [editingUser, setEditingUser] = useState<User | null>(null)
+  const [editForm, setEditForm] = useState<UserIdentityUpdate>({})
+
+  // 防抖搜索
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setSearchDebounced(searchQuery)
+    }, 300)
+    return () => clearTimeout(timer)
+  }, [searchQuery])
+
+  // 获取用户列表
+  const fetchUsers = useCallback(async () => {
+    const response = await api.listUsers(searchDebounced)
+    setUsers(response.items)
+  }, [searchDebounced])
+
+  // 编辑用户身份
+  const handleEditSubmit = async () => {
+    await api.updateUserIdentity(editingUser.id, editForm)
+    // 刷新列表
+    await fetchUsers()
+  }
+
+  // ... 渲染逻辑
+}
+```
+
+### 6.6 API 接口
+
+| 接口 | 路径 | 权限 | 说明 |
+|------|------|------|------|
+| 获取用户列表 | `GET /api/v1/users?q=` | superuser | 支持模糊搜索 |
+| 更新用户身份 | `PUT /api/v1/users/{user_id}/identity` | superuser | 修改角色、状态、企业/团队 |
+
+### 6.7 导航入口控制
+
+```tsx
+// 在 AppShell 中动态生成导航项
+const canManageUsers = currentUser?.is_superuser || currentUser?.role === "admin"
+
+const navItems = [
+  // ... 其他导航项
+  ...(canManageUsers ? [{ href: "/admin/users", label: "用户管理", icon: Users }] : []),
+]
 ```

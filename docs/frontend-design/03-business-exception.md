@@ -88,40 +88,102 @@ export const featureFlags = {
 
 ## 2. 异常场景处理
 
-### 2.1 错误码可视化规范
+### 2.1 完整错误码列表
 
-后端返回的验证错误码：
+后端返回的错误码共 17 个，前端已实现完整的用户友好提示映射：
 
-| 错误码 | 说明 | 建议提示文案 |
-|--------|------|--------------|
-| `CODE_EXPIRED` | 验证码已过期 | "验证码已过期，请重新获取" |
-| `CODE_INVALID` | 验证码错误 | "验证码错误，请检查后重试" |
-| `TOO_MANY_ATTEMPTS` | 尝试次数过多 | "尝试次数过多，请稍后再试" |
-| `RESEND_TOO_FREQUENT` | 重发过于频繁 | "验证码发送过于频繁，请稍候再试" |
-| `SKILL_DEACTIVATED` | Skill 已停用 | "Skill 已停用，无法执行此操作" |
+| 错误码 | HTTP 状态码 | 说明 | 用户提示文案 |
+|--------|------------|------|-------------|
+| `CODE_EXPIRED` | 400 | 验证码已过期 | "验证码已过期，请重新获取" |
+| `CODE_INVALID` | 400 | 验证码错误 | "验证码错误，请检查后重试" |
+| `CODE_MISMATCH` | 400 | 验证码不匹配 | "验证码不匹配，请重新输入" |
+| `TOO_MANY_ATTEMPTS` | 429 | 尝试次数过多 | "操作过于频繁，请稍后再试" |
+| `RESEND_TOO_FREQUENT` | 429 | 重发过于频繁 | "验证码发送过于频繁，请稍候再试" |
+| `EMAIL_ALREADY_EXISTS` | 409 | 邮箱已注册 | "该邮箱已注册，请直接登录或找回密码" |
+| `USERNAME_ALREADY_EXISTS` | 409 | 用户名已占用 | "该用户名已被占用，请选择其他用户名" |
+| `REGISTRATION_DISABLED` | 403 | 注册已关闭 | "当前关闭注册，请联系管理员" |
+| `LOGIN_DISABLED` | 403 | 登录已禁用 | "登录已被禁用，请联系管理员" |
+| `ACCOUNT_DELETED` | 410 | 账户已注销 | "账户已注销，无法登录" |
+| `TOKEN_EXPIRED` | 401 | Token 过期 | "登录已过期，请重新登录" |
+| `TOKEN_INVALID` | 401 | Token 无效 | "无效的认证凭证，请重新登录" |
+| `PERMISSION_DENIED` | 403 | 权限不足 | "您没有权限执行此操作" |
+| `RESOURCE_NOT_FOUND` | 404 | 资源不存在 | "请求的资源不存在" |
+| `VALIDATION_ERROR` | 422 | 验证错误 | "提交信息有误，请检查后重试" |
+| `INTERNAL_SERVER_ERROR` | 500 | 服务器错误 | "服务器错误，请稍后再试" |
+| `SKILL_DEACTIVATED` | 403 | Skill 已停用 | "该技能已停用，无法使用" |
 
-### 2.2 错误处理模式
+### 2.2 错误处理实现
 
 ```tsx
-// src/lib/api.ts 错误码映射
-const _verification_error_messages = {
-  "CODE_EXPIRED": "验证码已过期",
-  "CODE_INVALID": "验证码错误",
-  "TOO_MANY_ATTEMPTS": "尝试次数过多，请稍后再试",
-  "RESEND_TOO_FREQUENT": "重发过于频繁",
+// src/lib/api.ts - 错误码映射表
+const errorMessages: Record<string, string> = {
+  "CODE_EXPIRED": "验证码已过期，请重新获取",
+  "CODE_INVALID": "验证码错误，请检查后重试",
+  "CODE_MISMATCH": "验证码不匹配，请重新输入",
+  "TOO_MANY_ATTEMPTS": "操作过于频繁，请稍后再试",
+  "RESEND_TOO_FREQUENT": "验证码发送过于频繁，请稍候再试",
+  "EMAIL_ALREADY_EXISTS": "该邮箱已注册，请直接登录或找回密码",
+  "USERNAME_ALREADY_EXISTS": "该用户名已被占用，请选择其他用户名",
+  "REGISTRATION_DISABLED": "当前关闭注册，请联系管理员",
+  "LOGIN_DISABLED": "登录已被禁用，请联系管理员",
+  "ACCOUNT_DELETED": "账户已注销，无法登录",
+  "TOKEN_EXPIRED": "登录已过期，请重新登录",
+  "TOKEN_INVALID": "无效的认证凭证，请重新登录",
+  "PERMISSION_DENIED": "您没有权限执行此操作",
+  "RESOURCE_NOT_FOUND": "请求的资源不存在",
+  "VALIDATION_ERROR": "提交信息有误，请检查后重试",
+  "INTERNAL_SERVER_ERROR": "服务器错误，请稍后再试",
+  "SKILL_DEACTIVATED": "该技能已停用，无法使用",
 }
 
-// 页面中使用
-try {
-  await api.login({ email, code })
-} catch (err) {
-  const message = err instanceof Error ? err.message : "登录失败"
-  // 根据 message 内容或错误码显示对应的友好提示
-  setError(message)
+// 根据错误码获取用户友好的错误提示
+export function getUserFriendlyErrorMessage(code: string): string {
+  return errorMessages[code] || code || "操作失败，请稍后再试"
+}
+
+// 从错误对象中提取用户友好的错误消息
+export function getErrorMessage(error: unknown): string {
+  if (error instanceof Error) {
+    const detail = (error as any).detail
+    if (typeof detail === "string") {
+      if (detail in errorMessages) {
+        return errorMessages[detail]
+      }
+      return detail
+    }
+    const message = error.message
+    if (message in errorMessages) {
+      return errorMessages[message]
+    }
+    return message
+  }
+  if (typeof error === "string") {
+    return errorMessages[error] || error
+  }
+  return "操作失败，请稍后再试"
 }
 ```
 
-### 2.3 网络异常处理
+### 2.3 使用示例
+
+```tsx
+// 页面中使用错误处理
+import { getErrorMessage, getUserFriendlyErrorMessage } from "@/lib/api"
+
+// 方式一：直接使用错误码
+const message = getUserFriendlyErrorMessage("CODE_EXPIRED")
+// 输出: "验证码已过期，请重新获取"
+
+// 方式二：从捕获的错误中提取
+try {
+  await api.login({ email, code })
+} catch (err) {
+  const message = getErrorMessage(err)
+  toast({ title: "登录失败", description: message, variant: "error" })
+}
+```
+
+### 2.4 网络异常处理
 
 ```tsx
 // 网络异常检测
@@ -146,7 +208,7 @@ try {
 }
 ```
 
-### 2.4 注册异常
+### 2.5 注册异常
 
 | 错误码 | 说明 | 建议提示 |
 |--------|------|---------|
@@ -154,7 +216,7 @@ try {
 | `USERNAME_ALREADY_EXISTS` | 用户名已占用 | "该用户名已被占用，请选择其他用户名" |
 | `REGISTRATION_DISABLED` | 注册已关闭 | "当前关闭注册，请联系管理员" |
 
-### 2.5 验证码发送限制
+### 2.6 验证码发送限制
 
 ```tsx
 // 倒计时实现
@@ -184,7 +246,7 @@ const handleSendCode = async () => {
 {countdown > 0 ? `${countdown}秒后可重新发送` : "发送验证码"}
 ```
 
-### 2.6 并发操作冲突
+### 2.7 并发操作冲突
 
 ```tsx
 // 乐观更新与回滚

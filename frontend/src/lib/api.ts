@@ -260,7 +260,7 @@ export const api = {
     return apiFetch<{ items: User[]; total: number }>(`/api/v1/users${queryString ? `?${queryString}` : ""}`)
   },
   updateMe: (payload: { username?: string; email?: string }) =>
-    apiFetch("/api/v1/users/me", { method: "PUT", body: JSON.stringify(payload) }),
+    apiFetch<User>("/api/v1/users/me", { method: "PUT", body: JSON.stringify(payload) }),
   requestDeleteAccount: () =>
     apiFetch<void>("/api/v1/users/me/delete-request", { method: "POST" }),
   deleteAccount: (payload: { code: string }) =>
@@ -284,10 +284,10 @@ export const api = {
     }),
 
   // ========== Skills ==========
-  listSkills: (query?: string, include_inactive?: boolean) => {
+  listSkills: (query?: string, includeInactive?: boolean) => {
     const params = new URLSearchParams()
     if (query) params.set("q", query)
-    if (include_inactive) params.set("include_inactive", "true")
+    if (includeInactive) params.set("include_inactive", "true")
     const queryString = params.toString()
     return apiFetch<{ items: Skill[]; total: number }>(`/api/v1/skills${queryString ? `?${queryString}` : ""}`)
   },

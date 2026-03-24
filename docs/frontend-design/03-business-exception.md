@@ -328,7 +328,7 @@ useEffect(() => {
 **表单验证 Hook 实现**：
 
 > **已实现**：`frontend/src/hooks/use-form-validation.ts`
-> 导出：`useField`, `createEmailRules`, `createUsernameRules` 等工厂函数。
+> 导出：`useField`, `createEmailRules`, `createVerificationCodeRules`, `createUsernameRules`, `createSkillNameRules`, `createSkillDescriptionRules`, `createTokenNameRules`。
 
 ```tsx
 // src/hooks/use-form-validation.ts
@@ -354,28 +354,45 @@ export function useField<T>(
   const [value, setValue] = useState<T>(initialValue)
   const [touched, setTouched] = useState(false)
 
+  // 使用 ref 存储 rules 避免内联数组导致的 memoization 问题
+  const rulesRef = useRef(rules)
+  if (
+    rules.length !== rulesRef.current.length ||
+    rules.some((r, i) => r !== rulesRef.current[i])
+  ) {
+    rulesRef.current = rules
+  }
+  const stableRules = rulesRef.current
+
   const error = useMemo(() => {
     if (!touched) return null
-    for (const rule of rules) {
+    for (const rule of stableRules) {
       if (!rule.validate(value)) {
         return rule.message
       }
     }
     return null
-  }, [value, touched, rules])
+  }, [value, touched, stableRules])
 
-  const handleBlur = () => setTouched(true)
+  const handleBlur = useCallback(() => setTouched(true), [])
+  const validate = useCallback(() => setTouched(true), [])
+  const reset = useCallback(() => {
+    setValue(initialValue)
+    setTouched(false)
+  }, [initialValue])
 
   return {
     value,
     setValue,
     error,
-    isValid: !error,
+    isValid: error === null,
     handleBlur,
+    validate,
+    reset,
   }
 }
 
-// 预定义验证规则
+// 预定义验证规则配置
 export const validationRules = {
   email: {
     pattern: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
@@ -389,12 +406,19 @@ export const validationRules = {
     minLength: 3,
     maxLength: 50,
     pattern: /^[a-zA-Z0-9_]+$/,
-    message: "用户名只能包含字母、数字和下划线",
+    messages: {
+      minLength: "用户名至少 3 个字符",
+      maxLength: "用户名最多 50 个字符",
+      pattern: "用户名只能包含字母、数字和下划线",
+    },
   },
   skillName: {
     minLength: 1,
     maxLength: 100,
-    message: "名称不能为空 / 名称最长 100 字符",
+    messages: {
+      minLength: "名称不能为空",
+      maxLength: "名称最长 100 字符",
+    },
   },
   skillDescription: {
     maxLength: 500,
@@ -403,51 +427,87 @@ export const validationRules = {
   tokenName: {
     minLength: 1,
     maxLength: 100,
-    message: "Token 名称不能为空 / Token 名称最长 100 字符",
+    messages: {
+      minLength: "Token 名称不能为空",
+      maxLength: "Token 名称最长 100 字符",
+    },
   },
 }
 
-// 验证辅助函数
-export function validateEmail(email: string): boolean {
-  return validationRules.email.pattern.test(email)
+// 工厂函数 - 创建验证规则数组，用于 useField
+export function createEmailRules(): ValidationRule<string>[] {
+  return [
+    { validate: (v) => validationRules.email.pattern.test(v), message: validationRules.email.message },
+  ]
 }
 
-export function validateVerificationCode(code: string): boolean {
-  return validationRules.verificationCode.pattern.test(code)
+export function createVerificationCodeRules(): ValidationRule<string>[] {
+  return [
+    { validate: (v) => validationRules.verificationCode.pattern.test(v), message: validationRules.verificationCode.message },
+  ]
 }
 
-export function validateUsername(username: string): string | null {
-  if (!username || username.length < validationRules.username.minLength) {
-    return "用户名至少 3 个字符"
-  }
-  if (username.length > validationRules.username.maxLength) {
-    return "用户名最多 50 个字符"
-  }
-  if (!validationRules.username.pattern.test(username)) {
-    return validationRules.username.message
-  }
-  return null
+export function createUsernameRules(): ValidationRule<string>[] {
+  const { minLength, maxLength, pattern, messages } = validationRules.username
+  return [
+    { validate: (v) => v.length >= minLength, message: messages.minLength },
+    { validate: (v) => v.length <= maxLength, message: messages.maxLength },
+    { validate: (v) => pattern.test(v), message: messages.pattern },
+  ]
 }
 
-export function validateSkillName(name: string): string | null {
-  if (!name || name.length < validationRules.skillName.minLength) {
-    return "名称不能为空"
-  }
-  if (name.length > validationRules.skillName.maxLength) {
-    return "名称最长 100 字符"
-  }
-  return null
+export function createSkillNameRules(): ValidationRule<string>[] {
+  const { minLength, maxLength, messages } = validationRules.skillName
+  return [
+    { validate: (v) => v.length >= minLength, message: messages.minLength },
+    { validate: (v) => v.length <= maxLength, message: messages.maxLength },
+  ]
 }
 
-export function validateTokenName(name: string): string | null {
-  if (!name || name.length < validationRules.tokenName.minLength) {
-    return "Token 名称不能为空"
-  }
-  if (name.length > validationRules.tokenName.maxLength) {
-    return "Token 名称最长 100 字符"
-  }
-  return null
+export function createSkillDescriptionRules(): ValidationRule<string>[] {
+  return [
+    { validate: (v) => !v || v.length <= validationRules.skillDescription.maxLength, message: validationRules.skillDescription.message },
+  ]
 }
+
+export function createTokenNameRules(): ValidationRule<string>[] {
+  const { minLength, maxLength, messages } = validationRules.tokenName
+  return [
+    { validate: (v) => v.length >= minLength, message: messages.minLength },
+    { validate: (v) => v.length <= maxLength, message: messages.maxLength },
+  ]
+}
+```
+
+**使用示例**：
+
+```tsx
+// 在表单组件中使用
+const email = useField("", createEmailRules())
+const username = useField("", createUsernameRules())
+
+// 手动触发验证（如提交时）
+const handleSubmit = () => {
+  email.validate()
+  username.validate()
+  if (email.isValid && username.isValid) {
+    // 提交表单
+  }
+}
+
+// 重置表单
+const handleReset = () => {
+  email.reset()
+  username.reset()
+}
+
+// JSX
+<Input
+  value={email.value}
+  onChange={(e) => email.setValue(e.target.value)}
+  onBlur={email.handleBlur}
+  error={email.error}
+/>
 ```
 
 ### 3.4 加载状态规范

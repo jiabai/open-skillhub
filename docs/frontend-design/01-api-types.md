@@ -366,8 +366,8 @@ export type User = {
   username: string
   is_active: boolean
   is_superuser: boolean
-  enterprise_id?: string | null
-  team_id?: string | null
+  enterprise_id: string | null
+  team_id: string | null
   role: string
   status: string
   created_at: string
@@ -683,7 +683,7 @@ export function getErrorMessage(error: unknown): string {
 |------------|------------|------------|------|
 | `SkillResponse` | `id, user_id, name, description, tags, visible, enterprise_id, team_id, skill_dir, current_version, is_active, cache_revoked_at, created_at, updated_at` | `id, user_id?, name, description, tags?, visible?, enterprise_id?, team_id?, skill_dir?, current_version?, is_active?, cache_revoked_at?, created_at?, updated_at?` | ✅ 已对齐 |
 | `TokenResponse` | `id, user_id, name, token?, is_active, expires_at, last_used_at, created_at` | `id, user_id?, name, token?, is_active, expires_at?, last_used_at?, created_at` | ✅ 已对齐 |
-| `UserResponse` | `id, email, username, is_active, is_superuser, enterprise_id, team_id, role, status, created_at, updated_at` | `id, email, username, is_active, is_superuser, enterprise_id?, team_id?, role, status, created_at, updated_at` | ✅ 已对齐 |
+| `UserResponse` | `id, email, username, is_active, is_superuser, enterprise_id, team_id, role, status, created_at, updated_at` | `id, email, username, is_active, is_superuser, enterprise_id, team_id, role, status, created_at, updated_at` | ✅ 已对齐 |
 | `SkillVersionResponse` | `version, description, dependencies, dependency_spec, dependency_spec_version, metadata, created_at` | `version, description, dependencies, dependency_spec?, dependency_spec_version?, metadata, created_at` | 已对齐 |
 | `SkillVersionDiffResponse` | `from_version, to_version, added, removed, modified` | `from_version, to_version, added, removed, modified` | 已对齐 |
 | `SkillInstallInstructionsResponse` | `strategy, dependencies, requirements_text, commands, ecosystem, manifests, dependency_spec` | `strategy, dependencies, requirements_text, commands, ecosystem?, manifests?, dependency_spec?` | 已对齐 |

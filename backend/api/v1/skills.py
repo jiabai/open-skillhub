@@ -308,6 +308,28 @@ async def list_skill_versions(
     return SkillVersionListResponse(items=[SkillVersionResponse.model_validate(item) for item in versions])
 
 
+# NOTE: /versions/diff must come before /versions/{version} to avoid route collision
+@router.get("/{skill_uuid}/versions/diff", response_model=SkillVersionDiffResponse)
+async def diff_skill_versions(
+    skill_uuid: str,
+    from_version: str = Query(..., alias="from"),
+    to_version: str = Query(..., alias="to"),
+    current_user=Depends(get_current_active_user),
+    session=Depends(get_async_session),
+):
+    service = SkillService(SkillRepository(session), SkillVersionRepository(session))
+    try:
+        payload = await service.diff_versions(current_user, skill_uuid, from_version, to_version)
+    except ValueError as exc:
+        if str(exc) == "SKILL_DEACTIVATED":
+            raise HTTPException(
+                status_code=status.HTTP_410_GONE,
+                detail={"detail": "Skill deactivated", "code": "SKILL_DEACTIVATED"},
+            ) from exc
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    return SkillVersionDiffResponse.model_validate(payload)
+
+
 @router.get("/{skill_uuid}/versions/{version}", response_model=SkillVersionResponse)
 async def get_skill_version(
     skill_uuid: str,
@@ -341,27 +363,6 @@ async def get_install_instructions(
             ) from exc
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
     return SkillInstallInstructionsResponse.model_validate(payload)
-
-
-@router.get("/{skill_uuid}/versions/diff", response_model=SkillVersionDiffResponse)
-async def diff_skill_versions(
-    skill_uuid: str,
-    from_version: str = Query(..., alias="from"),
-    to_version: str = Query(..., alias="to"),
-    current_user=Depends(get_current_active_user),
-    session=Depends(get_async_session),
-):
-    service = SkillService(SkillRepository(session), SkillVersionRepository(session))
-    try:
-        payload = await service.diff_versions(current_user, skill_uuid, from_version, to_version)
-    except ValueError as exc:
-        if str(exc) == "SKILL_DEACTIVATED":
-            raise HTTPException(
-                status_code=status.HTTP_410_GONE,
-                detail={"detail": "Skill deactivated", "code": "SKILL_DEACTIVATED"},
-            ) from exc
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
-    return SkillVersionDiffResponse.model_validate(payload)
 
 
 @router.post("/{skill_uuid}/versions/{version}/rollback", response_model=SkillVersionResponse)

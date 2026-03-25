@@ -13,28 +13,36 @@ if str(ROOT) not in sys.path:
 
 
 def _set_default_env():
-    os.environ.setdefault("DATABASE_URL", "sqlite+aiosqlite:///:memory:")
-    os.environ.setdefault("SECRET_KEY", "a" * 32)
-    os.environ.setdefault("DEBUG", "true")
-    os.environ.setdefault("CORS_ORIGINS", '["http://localhost:3000"]')
-    os.environ.setdefault("FLOW_LLM_API_KEY", "key")
-    os.environ.setdefault("FLOW_LLM_BASE_URL", "https://api.example.com/v1")
-    os.environ.setdefault("ENABLE_PUBLIC_SIGNUP", "true")
-    os.environ.setdefault("ENABLE_EMAIL_OTP_LOGIN", "true")
-    os.environ.setdefault("ENABLE_SSO", "true")
-    os.environ.setdefault("ENABLE_LDAP", "true")
-    os.environ.setdefault("ENABLE_ORG_MODEL", "true")
-    os.environ.setdefault("ENABLE_RBAC", "true")
-    os.environ.setdefault("ENABLE_SKILL_VISIBILITY", "true")
-    os.environ.setdefault("ENABLE_AUDIT_LOG", "true")
-    os.environ.setdefault("ENABLE_AUDIT_EXPORT", "true")
-    os.environ.setdefault("ENABLE_SKILL_DOWNLOAD_ENCRYPTION", "true")
-    os.environ.setdefault("ENABLE_LOCAL_CACHE_ENCRYPTION", "true")
-    os.environ.setdefault("ENABLE_RATE_LIMIT", "true")
-    os.environ.setdefault("ENABLE_METRICS", "true")
-    os.environ.setdefault("SSO_JWT_SECRET", "test-sso-secret")
-    os.environ.setdefault("SSO_JWT_ISSUER", "test-issuer")
-    os.environ.setdefault("SSO_JWT_AUDIENCE", "skillhub")
+    # Force set env vars to override .env file loaded by FlowLLM
+    os.environ["DATABASE_URL"] = "sqlite+aiosqlite:///:memory:"
+    os.environ["SECRET_KEY"] = "a" * 32
+    os.environ["DEBUG"] = "true"
+    os.environ["CORS_ORIGINS"] = '["http://localhost:3000"]'
+    os.environ["FLOW_LLM_API_KEY"] = "key"
+    os.environ["FLOW_LLM_BASE_URL"] = "https://api.example.com/v1"
+    os.environ["ENABLE_PUBLIC_SIGNUP"] = "true"
+    os.environ["ENABLE_EMAIL_OTP_LOGIN"] = "true"
+    os.environ["ENABLE_SSO"] = "true"
+    os.environ["ENABLE_LDAP"] = "true"
+    os.environ["ENABLE_ORG_MODEL"] = "true"
+    os.environ["ENABLE_RBAC"] = "true"
+    os.environ["ENABLE_SKILL_VISIBILITY"] = "true"
+    os.environ["ENABLE_AUDIT_LOG"] = "true"
+    os.environ["ENABLE_AUDIT_EXPORT"] = "true"
+    os.environ["ENABLE_SKILL_DOWNLOAD_ENCRYPTION"] = "true"
+    os.environ["ENABLE_LOCAL_CACHE_ENCRYPTION"] = "true"
+    os.environ["ENABLE_RATE_LIMIT"] = "true"
+    os.environ["ENABLE_METRICS"] = "true"
+    os.environ["SSO_JWT_SECRET"] = "test-sso-secret"
+    os.environ["SSO_JWT_ISSUER"] = "test-issuer"
+    os.environ["SSO_JWT_AUDIENCE"] = "skillhub"
+    # Override RBAC permissions to match test expectations (no download for member/viewer)
+    os.environ["RBAC_ROLE_PERMISSIONS"] = '{"admin":["*"],"member":["skill.list","skill.read","skill.create","skill.update","skill.delete","skill.upload","skill.execute"],"viewer":["skill.list","skill.read"]}'
+
+    # Reload settings module to pick up new env vars
+    import importlib
+    import backend.config.settings as settings_module
+    importlib.reload(settings_module)
 
 
 _set_default_env()

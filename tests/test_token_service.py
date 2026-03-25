@@ -1,8 +1,8 @@
 import pytest
 
-from skillhub.repositories.token import TokenRepository
-from skillhub.repositories.user import UserRepository
-from skillhub.services.token import TokenService
+from backend.repositories.token import TokenRepository
+from backend.repositories.user import UserRepository
+from backend.services.token import TokenService
 
 
 @pytest.mark.asyncio

@@ -1,11 +1,11 @@
 import pytest
 
-from skillhub.core.security.jwt_utils import decode_token
-from skillhub.models.user import User
-from skillhub.repositories.base import BaseRepository
-from skillhub.repositories.user import UserRepository
-from skillhub.schemas.user import UserInDB
-from skillhub.services.auth import AuthService
+from backend.core.security.jwt_utils import decode_token
+from backend.models.user import User
+from backend.repositories.base import BaseRepository
+from backend.repositories.user import UserRepository
+from backend.schemas.user import UserInDB
+from backend.services.auth import AuthService
 
 
 @pytest.mark.asyncio

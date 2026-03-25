@@ -10,8 +10,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from skillhub.config.settings import settings
-from skillhub.core.security.jwt_utils import create_access_token
+from backend.config.settings import settings
+from backend.core.security.jwt_utils import create_access_token
 
 
 def create_test_zip(

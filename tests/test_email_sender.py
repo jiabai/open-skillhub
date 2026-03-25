@@ -1,7 +1,7 @@
 import pytest
 
-from skillhub.config.settings import settings
-from skillhub.services.verification_code import VerificationCodeService
+from backend.config.settings import settings
+from backend.services.verification_code import VerificationCodeService
 
 
 class DummySender:
@@ -44,7 +44,7 @@ async def test_verification_code_persists_and_verifies(async_session, monkeypatc
 
 def test_email_sender_selects_smtp_in_debug(monkeypatch):
     monkeypatch.setattr(settings, "DEBUG", True)
-    from skillhub.services.email_sender import get_email_sender, SmtpEmailSender
+    from backend.services.email_sender import get_email_sender, SmtpEmailSender
 
     sender = get_email_sender()
     assert isinstance(sender, SmtpEmailSender)
@@ -52,14 +52,14 @@ def test_email_sender_selects_smtp_in_debug(monkeypatch):
 
 def test_email_sender_selects_aliyun_in_production(monkeypatch):
     monkeypatch.setattr(settings, "DEBUG", False)
-    from skillhub.services.email_sender import AliyunEmailSender, get_email_sender
+    from backend.services.email_sender import AliyunEmailSender, get_email_sender
 
     sender = get_email_sender()
     assert isinstance(sender, AliyunEmailSender)
 
 
 def test_verification_email_template_contains_brand_and_bilingual_text():
-    from skillhub.services.email_sender import render_verification_email
+    from backend.services.email_sender import render_verification_email
 
     subject, text, html = render_verification_email(
         brand="SkillHub",

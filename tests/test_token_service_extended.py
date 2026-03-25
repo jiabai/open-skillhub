@@ -6,12 +6,12 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from skillhub.services.token import TokenService
-from skillhub.repositories.token import TokenRepository
-from skillhub.repositories.user import UserRepository
-from skillhub.models.token import APIToken
-from skillhub.models.user import User
-from skillhub.core.security.token import generate_api_token, hash_token
+from backend.services.token import TokenService
+from backend.repositories.token import TokenRepository
+from backend.repositories.user import UserRepository
+from backend.models.token import APIToken
+from backend.models.user import User
+from backend.core.security.token import generate_api_token, hash_token
 
 
 @pytest.fixture

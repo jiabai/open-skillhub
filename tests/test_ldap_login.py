@@ -5,10 +5,10 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from skillhub.config.settings import settings
-from skillhub.models.user import User
-from skillhub.repositories.user import UserRepository
-from skillhub.services.auth import AuthService, TokenPair
+from backend.config.settings import settings
+from backend.models.user import User
+from backend.repositories.user import UserRepository
+from backend.services.auth import AuthService, TokenPair
 
 
 @pytest.fixture

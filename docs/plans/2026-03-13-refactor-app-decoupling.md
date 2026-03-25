@@ -13,7 +13,7 @@
 ### Task 1: 创建 core/app.py 公共模块
 
 **Files:**
-- Create: `skillhub/core/app.py`
+- Create: `backend/core/app.py`
 
 **Step 1: 创建 core/app.py 文件**
 
@@ -140,10 +140,10 @@ except Exception:
 
 if TYPE_CHECKING:
     from flowllm.core.application import Application
-    from skillhub.config import ConfigParser
+    from backend.config import ConfigParser
 else:
     Application = importlib.import_module("flowllm.core.application").Application
-    ConfigParser = importlib.import_module("skillhub.config.config_parser").ConfigParser
+    ConfigParser = importlib.import_module("backend.config.config_parser").ConfigParser
 
 
 class Open SkillHubMcpApp(Application):
@@ -183,7 +183,7 @@ __all__ = ["Open SkillHubMcpApp"]
 
 **Step 2: 验证文件创建成功**
 
-Run: `ls skillhub/core/app.py`
+Run: `ls backend/core/app.py`
 Expected: 文件存在
 
 ---
@@ -191,19 +191,19 @@ Expected: 文件存在
 ### Task 2: 更新 core/__init__.py 导出
 
 **Files:**
-- Modify: `skillhub/core/__init__.py`
+- Modify: `backend/core/__init__.py`
 
 **Step 1: 添加 Open SkillHubMcpApp 导出**
 
 ```python
-from skillhub.core.app import Open SkillHubMcpApp
+from backend.core.app import Open SkillHubMcpApp
 
 __all__ = ["Open SkillHubMcpApp"]
 ```
 
 **Step 2: 验证导入**
 
-Run: `python -c "from skillhub.core import Open SkillHubMcpApp; print(Open SkillHubMcpApp)"`
+Run: `python -c "from backend.core import Open SkillHubMcpApp; print(Open SkillHubMcpApp)"`
 Expected: 输出类名，无错误
 
 ---
@@ -211,7 +211,7 @@ Expected: 输出类名，无错误
 ### Task 3: 重构 main.py 为纯 CLI 入口
 
 **Files:**
-- Modify: `skillhub/main.py`
+- Modify: `backend/main.py`
 
 **Step 1: 简化 main.py**
 
@@ -223,7 +223,7 @@ Expected: 输出类名，无错误
 
 import sys
 
-from skillhub.core.app import Open SkillHubMcpApp
+from backend.core.app import Open SkillHubMcpApp
 
 
 def main() -> None:
@@ -242,7 +242,7 @@ if __name__ == "__main__":
 
 **Step 2: 验证 CLI 入口**
 
-Run: `python -c "from skillhub.main import main; print('OK')"`
+Run: `python -c "from backend.main import main; print('OK')"`
 Expected: 输出 OK，无错误
 
 ---
@@ -250,23 +250,23 @@ Expected: 输出 OK，无错误
 ### Task 4: 更新 api/mcp/__init__.py 导入路径
 
 **Files:**
-- Modify: `skillhub/api/mcp/__init__.py`
+- Modify: `backend/api/mcp/__init__.py`
 
 **Step 1: 修改导入路径**
 
 找到：
 ```python
-from skillhub.main import Open SkillHubMcpApp
+from backend.main import Open SkillHubMcpApp
 ```
 
 改为：
 ```python
-from skillhub.core.app import Open SkillHubMcpApp
+from backend.core.app import Open SkillHubMcpApp
 ```
 
 **Step 2: 验证导入**
 
-Run: `python -c "from skillhub.api.mcp import ensure_mcp_initialized; print('OK')"`
+Run: `python -c "from backend.api.mcp import ensure_mcp_initialized; print('OK')"`
 Expected: 输出 OK，无错误
 
 ---
@@ -280,7 +280,7 @@ Expected: 所有测试通过
 
 **Step 2: 验证两种模式导入**
 
-Run: `python -c "from skillhub.main import main; from skillhub.core.app import Open SkillHubMcpApp; print('Both modes OK')"`
+Run: `python -c "from backend.main import main; from backend.core.app import Open SkillHubMcpApp; print('Both modes OK')"`
 Expected: 输出 Both modes OK
 
 ---
@@ -324,7 +324,7 @@ Expected: 输出 Both modes OK
 **Step 2: 提交更改**
 
 ```bash
-git add skillhub/core/app.py skillhub/core/__init__.py skillhub/main.py skillhub/api/mcp/__init__.py docs/architecture.md
+git add backend/core/app.py backend/core/__init__.py backend/main.py backend/api/mcp/__init__.py docs/architecture.md
 git commit -m "refactor: extract Open SkillHubMcpApp to core/app.py for better decoupling"
 ```
 

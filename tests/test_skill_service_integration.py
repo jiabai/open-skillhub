@@ -11,16 +11,16 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from skillhub.config.settings import settings
-from skillhub.core.utils.skill_storage import (
+from backend.config.settings import settings
+from backend.core.utils.skill_storage import (
     get_skill_versions_dir,
     get_user_skill_dir,
 )
-from skillhub.models.skill import Skill
-from skillhub.models.skill_version import SkillVersion
-from skillhub.repositories.skill import SkillRepository
-from skillhub.repositories.skill_version import SkillVersionRepository
-from skillhub.services.skill import SkillService
+from backend.models.skill import Skill
+from backend.models.skill_version import SkillVersion
+from backend.repositories.skill import SkillRepository
+from backend.repositories.skill_version import SkillVersionRepository
+from backend.services.skill import SkillService
 
 
 def create_test_zip(
@@ -490,7 +490,7 @@ class TestSkillServiceFileOperations:
         mock_skill_repo.get_by_id = AsyncMock(return_value=test_skill)
         service = SkillService(mock_skill_repo, None)
 
-        from skillhub.core.utils.skill_storage import MAX_FILE_SIZE
+        from backend.core.utils.skill_storage import MAX_FILE_SIZE
 
         large_content = b"x" * (MAX_FILE_SIZE + 1)
 

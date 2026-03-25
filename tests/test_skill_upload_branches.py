@@ -9,12 +9,12 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from skillhub.config.settings import settings
-from skillhub.models.skill import Skill
-from skillhub.repositories.skill import SkillRepository
-from skillhub.repositories.skill_version import SkillVersionRepository
-from skillhub.services.skill import SkillService
-from skillhub.core.utils.skill_storage import MAX_FILE_SIZE, MAX_TOTAL_SIZE, MAX_FILES_PER_SKILL
+from backend.config.settings import settings
+from backend.models.skill import Skill
+from backend.repositories.skill import SkillRepository
+from backend.repositories.skill_version import SkillVersionRepository
+from backend.services.skill import SkillService
+from backend.core.utils.skill_storage import MAX_FILE_SIZE, MAX_TOTAL_SIZE, MAX_FILES_PER_SKILL
 
 
 def create_zip_with_files(files: dict[str, str]) -> bytes:
@@ -154,14 +154,14 @@ class TestSkillServiceUploadZipMetadata:
         })
 
         with patch.object(settings, 'SKILL_STORAGE_PATH', '/tmp'):
-            with patch('skillhub.services.skill.save_archive', new_callable=AsyncMock):
-                with patch('skillhub.services.skill.get_skill_versions_dir') as mock_dir:
+            with patch('backend.services.skill.save_archive', new_callable=AsyncMock):
+                with patch('backend.services.skill.get_skill_versions_dir') as mock_dir:
                     mock_dir.return_value = Path('/tmp/v')
 
                     with patch.object(Path, 'mkdir'):
                         with patch.object(Path, 'write_bytes'):
-                            with patch('skillhub.services.skill.clear_skill_current_dir'):
-                                with patch('skillhub.services.skill.get_user_skill_dir'):
+                            with patch('backend.services.skill.clear_skill_current_dir'):
+                                with patch('backend.services.skill.get_user_skill_dir'):
                                     with patch.object(Path, 'exists', return_value=False):
                                         result = await service.upload_zip(
                                             test_user, "skill-123", "test.zip", zip_content
@@ -195,14 +195,14 @@ class TestSkillServiceUploadZipVersionHandling:
         zip_content = create_zip_with_files({})
 
         with patch.object(settings, 'SKILL_STORAGE_PATH', '/tmp'):
-            with patch('skillhub.services.skill.save_archive', new_callable=AsyncMock):
-                with patch('skillhub.services.skill.get_skill_versions_dir') as mock_dir:
+            with patch('backend.services.skill.save_archive', new_callable=AsyncMock):
+                with patch('backend.services.skill.get_skill_versions_dir') as mock_dir:
                     mock_dir.return_value = Path('/tmp/v')
 
                     with patch.object(Path, 'mkdir'):
                         with patch.object(Path, 'write_bytes'):
-                            with patch('skillhub.services.skill.clear_skill_current_dir'):
-                                with patch('skillhub.services.skill.get_user_skill_dir'):
+                            with patch('backend.services.skill.clear_skill_current_dir'):
+                                with patch('backend.services.skill.get_user_skill_dir'):
                                     with patch.object(Path, 'exists', return_value=False):
                                         result = await service.upload_zip(
                                             test_user, "skill-123", "test.zip", zip_content

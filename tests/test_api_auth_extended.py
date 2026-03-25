@@ -4,7 +4,7 @@
 """
 import pytest
 
-from skillhub.config.settings import settings
+from backend.config.settings import settings
 
 
 class TestAuthAPIVerificationCode:

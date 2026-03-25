@@ -5,8 +5,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from skillhub.config.settings import settings
-from skillhub.services.email_sender import (
+from backend.config.settings import settings
+from backend.services.email_sender import (
     SmtpEmailSender,
     AliyunEmailSender,
     render_verification_email,

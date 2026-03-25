@@ -85,7 +85,7 @@
 
 ```tsx
 // src/lib/api.ts
-const storageKey = "skillhub.tokens"
+const storageKey = "backend.tokens"
 
 export function getStoredTokens(): TokenPair | null {
   if (typeof window === "undefined") return null

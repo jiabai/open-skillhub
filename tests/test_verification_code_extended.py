@@ -6,13 +6,13 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from skillhub.config.settings import settings
-from skillhub.services.verification_code import (
+from backend.config.settings import settings
+from backend.services.verification_code import (
     VerificationCodeService,
     CodeRecord,
     get_verification_service,
 )
-from skillhub.models.verification_code import VerificationCode
+from backend.models.verification_code import VerificationCode
 
 
 @pytest.fixture

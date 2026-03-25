@@ -6,8 +6,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from skillhub.services.deprecation_notification import DeprecationNotifier
-from skillhub.repositories.audit_log import AuditLogRepository
+from backend.services.deprecation_notification import DeprecationNotifier
+from backend.repositories.audit_log import AuditLogRepository
 
 
 @pytest.fixture

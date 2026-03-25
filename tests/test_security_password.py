@@ -1,4 +1,4 @@
-from skillhub.core.security.password import get_password_hash, verify_password
+from backend.core.security.password import get_password_hash, verify_password
 
 
 def test_password_hash_and_verify():

@@ -4,11 +4,11 @@ import pytest
 from sqlalchemy import select
 from starlette.responses import JSONResponse
 
-from skillhub.core.decorators.deprecation import deprecated
-from skillhub.core.middleware.deprecation import DeprecationMiddleware
-from skillhub.models.audit_log import AuditLog
-from skillhub.repositories.audit_log import AuditLogRepository
-from skillhub.services.deprecation_notification import DeprecationNotifier
+from backend.core.decorators.deprecation import deprecated
+from backend.core.middleware.deprecation import DeprecationMiddleware
+from backend.models.audit_log import AuditLog
+from backend.repositories.audit_log import AuditLogRepository
+from backend.services.deprecation_notification import DeprecationNotifier
 
 
 @pytest.mark.asyncio

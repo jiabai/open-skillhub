@@ -18,7 +18,7 @@ import asyncio
 from loguru import logger
 from fastmcp.client.client import CallToolResult
 from flowllm.core.utils.fastmcp_client import FastMcpClient
-from skillhub.core.utils.service_runner import SkillHubMcpServiceRunner
+from backend.core.utils.service_runner import SkillHubMcpServiceRunner
 
 
 async def test_mcp_service(mcp_config) -> None:

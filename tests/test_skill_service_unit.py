@@ -4,7 +4,7 @@ SkillService 核心方法单元测试
 """
 import pytest
 
-from skillhub.services.skill import SkillService
+from backend.services.skill import SkillService
 
 
 class TestSkillServiceStaticMethods:

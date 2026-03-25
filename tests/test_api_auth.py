@@ -2,9 +2,9 @@ import httpx
 import pytest
 from sqlalchemy import select
 
-from skillhub.api_app import create_application
-from skillhub.config.settings import settings
-from skillhub.models.audit_log import AuditLog
+from backend.api_app import create_application
+from backend.config.settings import settings
+from backend.models.audit_log import AuditLog
 
 
 @pytest.mark.asyncio
@@ -158,7 +158,7 @@ async def test_health_returns_minimal_payload(client):
 
 @pytest.mark.asyncio
 async def test_health_ignores_db_failure(monkeypatch):
-    from skillhub import api_app
+    from backend import api_app
 
     class BrokenConnection:
         async def __aenter__(self):
@@ -199,7 +199,7 @@ async def test_unhandled_exception_uses_error_format(app, client):
 
 @pytest.mark.asyncio
 async def test_logging_middleware_records_request(client, monkeypatch):
-    from skillhub.core.middleware import logging as logging_middleware
+    from backend.core.middleware import logging as logging_middleware
 
     captured = []
 

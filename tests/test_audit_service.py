@@ -7,9 +7,9 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from skillhub.services.audit import AuditService
-from skillhub.repositories.audit_log import AuditLogRepository
-from skillhub.models.audit_log import AuditLog
+from backend.services.audit import AuditService
+from backend.repositories.audit_log import AuditLogRepository
+from backend.models.audit_log import AuditLog
 
 
 @pytest.fixture

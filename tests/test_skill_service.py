@@ -1,8 +1,8 @@
 import pytest
 
-from skillhub.repositories.skill import SkillRepository
-from skillhub.repositories.user import UserRepository
-from skillhub.services.skill import SkillService
+from backend.repositories.skill import SkillRepository
+from backend.repositories.user import UserRepository
+from backend.services.skill import SkillService
 
 
 @pytest.mark.asyncio
@@ -22,7 +22,7 @@ async def test_create_update_delete_skill(async_session, tmp_path, monkeypatch):
 
 
 def test_skill_unique_constraint_name():
-    from skillhub.models.skill import Skill
+    from backend.models.skill import Skill
 
     constraint_names = {constraint.name for constraint in Skill.__table__.constraints if constraint.name}
     assert "uix_user_skill_name" in constraint_names
@@ -30,7 +30,7 @@ def test_skill_unique_constraint_name():
 
 @pytest.mark.asyncio
 async def test_rename_skill_updates_directory(async_session, tmp_path):
-    from skillhub.config.settings import settings
+    from backend.config.settings import settings
 
     original_path = settings.SKILL_STORAGE_PATH
     settings.SKILL_STORAGE_PATH = str(tmp_path)
@@ -53,7 +53,7 @@ async def test_rename_skill_updates_directory(async_session, tmp_path):
 
 @pytest.mark.asyncio
 async def test_delete_skill_cascades_to_versions(async_session, tmp_path, monkeypatch):
-    from skillhub.repositories.skill_version import SkillVersionRepository
+    from backend.repositories.skill_version import SkillVersionRepository
 
     monkeypatch.setenv("SKILL_STORAGE_PATH", str(tmp_path))
     user_repo = UserRepository(async_session)

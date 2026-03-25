@@ -3,10 +3,10 @@ from datetime import datetime, timedelta, timezone
 import pytest
 from sqlalchemy import func, select
 
-from skillhub.config.settings import settings
-from skillhub.core.middleware.logging import _should_track_request
-from skillhub.models.request_metric import RequestMetric
-from skillhub.repositories.request_metric import RequestMetricRepository
+from backend.config.settings import settings
+from backend.core.middleware.logging import _should_track_request
+from backend.models.request_metric import RequestMetric
+from backend.repositories.request_metric import RequestMetricRepository
 
 
 def test_should_track_request_filters_auth_and_non_api():

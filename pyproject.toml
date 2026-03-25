@@ -73,16 +73,16 @@ dev = [
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["skillhub*"]
+include = ["backend*"]
 exclude = ["tests*"]
 
 [tool.setuptools.package-data]
-skillhub = [
+backend = [
     "**/*.yaml",
 ]
 
 [tool.setuptools.dynamic]
-version = {attr = "skillhub.__version__"}
+version = {attr = "backend.__version__"}
 
 [project.urls]
 Homepage = "https://github.com/zouyingcao/open-skillhub"
@@ -90,7 +90,7 @@ Documentation = "https://github.com/zouyingcao/open-skillhub/README.md"
 Repository = "https://github.com/zouyingcao/open-skillhub"
 
 [project.scripts]
-skillhub-mcp = "skillhub.main:main"
+skillhub-mcp = "backend.main:main"
 
 [tool.mypy]
 plugins = ["pydantic.mypy"]

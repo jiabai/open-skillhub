@@ -27,7 +27,7 @@
 // src/lib/api.ts
 
 // ========== Token 管理 ==========
-const storageKey = "skillhub.tokens"
+const storageKey = "backend.tokens"
 
 export interface TokenPair {
   access_token: string

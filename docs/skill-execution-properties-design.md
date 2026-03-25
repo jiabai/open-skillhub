@@ -34,7 +34,7 @@ SKILL.md Frontmatter 仅包含：
 ### 已完成项
 
 - **`dependencies` 后端实现**：
-  - 模型：`skillhub/models/skill_version.py` 中的 `dependencies` 字段
+  - 模型：`backend/models/skill_version.py` 中的 `dependencies` 字段
   - Schema：通过 `SkillVersion` 相关 Schema 管理
   - 迁移：`e2f3a4b5c6d7_add_skill_versions.py`
 
@@ -214,7 +214,7 @@ from datetime import datetime
 from sqlalchemy import Boolean, DateTime, ForeignKey, JSON, String, UniqueConstraint, CheckConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from skillhub.models.base import Base, TimestampMixin, UUIDPrimaryKeyMixin
+from backend.models.base import Base, TimestampMixin, UUIDPrimaryKeyMixin
 
 
 class Skill(UUIDPrimaryKeyMixin, TimestampMixin, Base):

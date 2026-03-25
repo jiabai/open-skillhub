@@ -78,7 +78,7 @@ api (uvicorn 启动)
 |--------|--------|------|
 | `LOG_LEVEL` | INFO | 日志级别 |
 | `LOG_FORMAT` | json | 日志格式（json / text） |
-| `LOG_FILE` | /var/log/skillhub/app.log | 日志文件路径（空字符串表示仅输出到 stdout） |
+| `LOG_FILE` | /var/log/backend/app.log | 日志文件路径（空字符串表示仅输出到 stdout） |
 
 ### 2.4 存储配置
 

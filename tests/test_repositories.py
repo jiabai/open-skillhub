@@ -6,10 +6,10 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from skillhub.repositories.team import TeamRepository
-from skillhub.repositories.enterprise import EnterpriseRepository
-from skillhub.models.team import Team
-from skillhub.models.enterprise import Enterprise
+from backend.repositories.team import TeamRepository
+from backend.repositories.enterprise import EnterpriseRepository
+from backend.models.team import Team
+from backend.models.enterprise import Enterprise
 
 
 @pytest.fixture

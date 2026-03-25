@@ -8,17 +8,17 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from skillhub.config.settings import settings
-from skillhub.core.utils.skill_storage import (
+from backend.config.settings import settings
+from backend.core.utils.skill_storage import (
     get_skill_versions_dir,
     get_user_skill_dir,
     create_skill_dir,
 )
-from skillhub.models.skill import Skill
-from skillhub.models.skill_version import SkillVersion
-from skillhub.repositories.skill import SkillRepository
-from skillhub.repositories.skill_version import SkillVersionRepository
-from skillhub.services.skill import SkillService
+from backend.models.skill import Skill
+from backend.models.skill_version import SkillVersion
+from backend.repositories.skill import SkillRepository
+from backend.repositories.skill_version import SkillVersionRepository
+from backend.services.skill import SkillService
 
 
 @pytest.fixture
@@ -273,7 +273,7 @@ class TestSkillServiceGetSkill:
         mock_skill_repo.get_by_id = AsyncMock(return_value=test_skill)
 
         # Mock is_skill_visible to return True
-        with patch('skillhub.services.skill.is_skill_visible', return_value=True):
+        with patch('backend.services.skill.is_skill_visible', return_value=True):
             service = SkillService(mock_skill_repo, None)
             result = await service.get_skill(test_user, "skill-uuid-123")
 

@@ -4,7 +4,7 @@ Users API 端点测试
 """
 import pytest
 
-from skillhub.config.settings import settings
+from backend.config.settings import settings
 
 
 class TestUsersAPIMe:

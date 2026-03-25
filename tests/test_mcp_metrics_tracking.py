@@ -3,16 +3,16 @@ from datetime import datetime, timezone
 import pytest
 from sqlalchemy import func, select
 
-from skillhub.config.settings import settings
-from skillhub.core.metrics.tool_call_metrics import (
+from backend.config.settings import settings
+from backend.core.metrics.tool_call_metrics import (
     record_tool_call,
     reset_session_provider,
     set_session_provider,
 )
-from skillhub.core.utils.skill_storage import tool_error_payload
-from skillhub.core.utils.user_context import set_current_user_id
-from skillhub.models.request_metric import RequestMetric
-from skillhub.repositories.user import UserRepository
+from backend.core.utils.skill_storage import tool_error_payload
+from backend.core.utils.user_context import set_current_user_id
+from backend.models.request_metric import RequestMetric
+from backend.repositories.user import UserRepository
 
 
 @pytest.mark.asyncio

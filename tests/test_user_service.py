@@ -1,10 +1,10 @@
 import pytest
 
-from skillhub.config.settings import settings
-from skillhub.repositories.skill import SkillRepository
-from skillhub.repositories.user import UserRepository
-from skillhub.services.skill import SkillService
-from skillhub.services.user import UserService
+from backend.config.settings import settings
+from backend.repositories.skill import SkillRepository
+from backend.repositories.user import UserRepository
+from backend.services.skill import SkillService
+from backend.services.user import UserService
 
 
 @pytest.mark.asyncio

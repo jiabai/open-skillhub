@@ -3,8 +3,8 @@
 import sys
 import asyncio
 
-from skillhub import SkillHubMcpApp
-from skillhub.core.tools import LoadSkillMetadataOp
+from backend import SkillHubMcpApp
+from backend.core.tools import LoadSkillMetadataOp
 
 
 async def main(skill_dir: str):

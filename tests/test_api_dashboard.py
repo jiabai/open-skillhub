@@ -2,7 +2,7 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 
-from skillhub.models.request_metric import RequestMetric
+from backend.models.request_metric import RequestMetric
 
 @pytest.mark.asyncio
 async def test_dashboard_overview_zero_when_no_metrics(client):

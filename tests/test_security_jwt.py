@@ -2,13 +2,13 @@ from datetime import datetime, timedelta, timezone
 
 import jwt
 
-from skillhub.config.settings import settings
-from skillhub.core.security.jwt_utils import (
+from backend.config.settings import settings
+from backend.core.security.jwt_utils import (
     create_access_token,
     create_refresh_token,
     decode_token,
 )
-from skillhub.core.security.password import get_password_hash, verify_password
+from backend.core.security.password import get_password_hash, verify_password
 
 
 def test_access_token_contains_type_and_subject():

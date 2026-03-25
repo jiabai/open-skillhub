@@ -42,8 +42,8 @@ _set_default_env()
 
 @pytest_asyncio.fixture(scope="session")
 async def async_engine():
-    from skillhub import models as _models
-    from skillhub.models.base import Base
+    from backend import models as _models
+    from backend.models.base import Base
     _ = _models.__all__
 
     engine = create_async_engine(os.environ["DATABASE_URL"], future=True)
@@ -66,8 +66,8 @@ async def async_session(async_engine) -> AsyncGenerator[AsyncSession, None]:
 
 @pytest_asyncio.fixture
 async def app(async_session) -> AsyncGenerator:
-    from skillhub.api_app import create_application
-    from skillhub.db.session import get_async_session
+    from backend.api_app import create_application
+    from backend.db.session import get_async_session
 
     application = create_application()
 

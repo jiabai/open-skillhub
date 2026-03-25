@@ -1,6 +1,6 @@
 import pytest
 
-from skillhub.core.security.rbac import _DEFAULT_ROLE_PERMISSIONS, has_permission
+from backend.core.security.rbac import _DEFAULT_ROLE_PERMISSIONS, has_permission
 
 
 class MockUser:

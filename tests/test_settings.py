@@ -5,7 +5,7 @@ from pathlib import Path
 import pytest
 from pydantic import ValidationError
 
-settings_path = Path(__file__).resolve().parents[1] / "skillhub" / "config" / "settings.py"
+settings_path = Path(__file__).resolve().parents[1] / "backend" / "config" / "settings.py"
 os.environ.setdefault(
     "DATABASE_URL",
     "postgresql+asyncpg://user:pass@localhost:5432/skillhub",
@@ -116,12 +116,12 @@ def test_parse_deprecation_notify_offsets_days_from_string():
 def test_alembic_files_exist():
     root = Path(__file__).resolve().parents[1]
     assert (root / "alembic.ini").exists()
-    assert (root / "skillhub" / "db" / "migrations" / "env.py").exists()
+    assert (root / "backend" / "db" / "migrations" / "env.py").exists()
 
 
 @pytest.mark.asyncio
 async def test_init_db_skips_create_all_for_non_sqlite(monkeypatch):
-    from skillhub.db import session as db_session
+    from backend.db import session as db_session
 
     original_database_url = db_session.settings.DATABASE_URL
     db_session.settings.DATABASE_URL = "postgresql+asyncpg://user:pass@localhost:5432/skillhub"

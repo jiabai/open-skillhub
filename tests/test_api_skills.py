@@ -3,7 +3,7 @@ import zipfile
 
 import pytest
 
-from skillhub.config.settings import settings
+from backend.config.settings import settings
 
 
 @pytest.mark.asyncio

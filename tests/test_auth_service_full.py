@@ -7,10 +7,10 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from skillhub.config.settings import settings
-from skillhub.models.user import User
-from skillhub.repositories.user import UserRepository
-from skillhub.services.auth import AuthService, TokenPair
+from backend.config.settings import settings
+from backend.models.user import User
+from backend.repositories.user import UserRepository
+from backend.services.auth import AuthService, TokenPair
 
 
 @pytest.fixture
@@ -274,7 +274,7 @@ class TestAuthServiceRefreshToken:
 
         service = AuthService(mock_user_repo)
 
-        from skillhub.core.security.jwt_utils import create_refresh_token
+        from backend.core.security.jwt_utils import create_refresh_token
         refresh_token = create_refresh_token(subject=str(test_user.id))
 
         result = await service.refresh_token(refresh_token)
@@ -288,7 +288,7 @@ class TestAuthServiceRefreshToken:
 
         service = AuthService(mock_user_repo)
 
-        from skillhub.core.security.jwt_utils import create_access_token
+        from backend.core.security.jwt_utils import create_access_token
         access_token = create_access_token(subject=str(test_user.id))
 
         with pytest.raises(ValueError, match="Invalid token type"):
@@ -301,7 +301,7 @@ class TestAuthServiceRefreshToken:
 
         service = AuthService(mock_user_repo)
 
-        from skillhub.core.security.jwt_utils import create_refresh_token
+        from backend.core.security.jwt_utils import create_refresh_token
         refresh_token = create_refresh_token(subject="non-existent")
 
         with pytest.raises(ValueError, match="User not found"):
@@ -315,7 +315,7 @@ class TestAuthServiceRefreshToken:
 
         service = AuthService(mock_user_repo)
 
-        from skillhub.core.security.jwt_utils import create_refresh_token
+        from backend.core.security.jwt_utils import create_refresh_token
         refresh_token = create_refresh_token(subject=str(test_user.id))
 
         with pytest.raises(ValueError, match="User not found"):
@@ -365,7 +365,7 @@ class TestAuthServiceIssueToken:
         service = AuthService(mock_user_repo)
         result = service.issue_token(test_user)
 
-        from skillhub.core.security.jwt_utils import decode_token
+        from backend.core.security.jwt_utils import decode_token
         payload = decode_token(result.access_token)
 
         assert payload.get("sub") == str(test_user.id)

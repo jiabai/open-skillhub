@@ -3,9 +3,9 @@
 import sys
 import asyncio
 
-from skillhub import SkillHubMcpApp
-from skillhub.core.tools import LoadSkillMetadataOp, RunShellCommandOp
-from skillhub.core.utils.command_whitelist import validate_command
+from backend import SkillHubMcpApp
+from backend.core.tools import LoadSkillMetadataOp, RunShellCommandOp
+from backend.core.utils.command_whitelist import validate_command
 
 
 def test_command_whitelist_blocks_windows_traversal():
@@ -15,7 +15,7 @@ def test_command_whitelist_blocks_windows_traversal():
 
 
 def test_command_whitelist_blocks_network_egress_when_enabled(monkeypatch):
-    from skillhub.config import settings as settings_module
+    from backend.config import settings as settings_module
 
     monkeypatch.setattr(settings_module.settings, "ENABLE_NETWORK_EGRESS_CONTROL", True, raising=False)
     allowed, message = validate_command(
@@ -26,7 +26,7 @@ def test_command_whitelist_blocks_network_egress_when_enabled(monkeypatch):
 
 
 def test_command_whitelist_allows_network_related_text_when_disabled(monkeypatch):
-    from skillhub.config import settings as settings_module
+    from backend.config import settings as settings_module
 
     monkeypatch.setattr(settings_module.settings, "ENABLE_NETWORK_EGRESS_CONTROL", False, raising=False)
     allowed, _ = validate_command(

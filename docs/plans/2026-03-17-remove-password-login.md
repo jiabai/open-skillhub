@@ -13,12 +13,12 @@
 ## Task 1: 删除 UserPasswordUpdate Schema
 
 **Files:**
-- Modify: `skillhub/schemas/user.py:38-40`
-- Modify: `skillhub/schemas/__init__.py:20,46`
+- Modify: `backend/schemas/user.py:38-40`
+- Modify: `backend/schemas/__init__.py:20,46`
 
 **Step 1: 删除 UserPasswordUpdate 类**
 
-在 `skillhub/schemas/user.py` 中删除：
+在 `backend/schemas/user.py` 中删除：
 
 ```python
 class UserPasswordUpdate(BaseModel):
@@ -28,19 +28,19 @@ class UserPasswordUpdate(BaseModel):
 
 **Step 2: 移除 Schema 导出**
 
-在 `skillhub/schemas/__init__.py` 中删除：
+在 `backend/schemas/__init__.py` 中删除：
 - 第 20 行: `UserPasswordUpdate,`
 - 第 46 行: `"UserPasswordUpdate",`
 
 **Step 3: 验证导入正常**
 
-Run: `python -c "from skillhub.schemas import *; print('OK')"`
+Run: `python -c "from backend.schemas import *; print('OK')"`
 Expected: OK
 
 **Step 4: Commit**
 
 ```bash
-git add skillhub/schemas/user.py skillhub/schemas/__init__.py
+git add backend/schemas/user.py backend/schemas/__init__.py
 git commit -m "refactor: remove UserPasswordUpdate schema"
 ```
 
@@ -49,12 +49,12 @@ git commit -m "refactor: remove UserPasswordUpdate schema"
 ## Task 2: 删除修改密码端点
 
 **Files:**
-- Modify: `skillhub/api/v1/users.py:5,11,53-62`
+- Modify: `backend/api/v1/users.py:5,11,53-62`
 
 **Step 1: 移除导入**
 
-在 `skillhub/api/v1/users.py` 中删除：
-- 第 5 行: `from skillhub.core.security.password import verify_password`
+在 `backend/api/v1/users.py` 中删除：
+- 第 5 行: `from backend.core.security.password import verify_password`
 - 第 11 行: `UserPasswordUpdate` 从导入中移除
 
 **Step 2: 删除修改密码端点**
@@ -77,13 +77,13 @@ async def change_password(
 
 **Step 3: 验证语法正确**
 
-Run: `python -m py_compile skillhub/api/v1/users.py`
+Run: `python -m py_compile backend/api/v1/users.py`
 Expected: 无输出
 
 **Step 4: Commit**
 
 ```bash
-git add skillhub/api/v1/users.py
+git add backend/api/v1/users.py
 git commit -m "refactor: remove PUT /me/password endpoint"
 ```
 
@@ -92,13 +92,13 @@ git commit -m "refactor: remove PUT /me/password endpoint"
 ## Task 3: 删除 UserService.change_password 方法
 
 **Files:**
-- Modify: `skillhub/services/user.py:1,15-17`
+- Modify: `backend/services/user.py:1,15-17`
 
 **Step 1: 移除导入**
 
-在 `skillhub/services/user.py` 中删除第 1 行：
+在 `backend/services/user.py` 中删除第 1 行：
 ```python
-from skillhub.core.security.password import get_password_hash, verify_password
+from backend.core.security.password import get_password_hash, verify_password
 ```
 
 **Step 2: 删除 change_password 方法**
@@ -112,13 +112,13 @@ async def change_password(self, user: User, new_password: str) -> User:
 
 **Step 3: 验证语法正确**
 
-Run: `python -m py_compile skillhub/services/user.py`
+Run: `python -m py_compile backend/services/user.py`
 Expected: 无输出
 
 **Step 4: Commit**
 
 ```bash
-git add skillhub/services/user.py
+git add backend/services/user.py
 git commit -m "refactor: remove UserService.change_password method"
 ```
 
@@ -127,13 +127,13 @@ git commit -m "refactor: remove UserService.change_password method"
 ## Task 4: 删除 AuthService.login 方法
 
 **Files:**
-- Modify: `skillhub/services/auth.py:8,77-83`
+- Modify: `backend/services/auth.py:8,77-83`
 
 **Step 1: 移除导入**
 
-在 `skillhub/services/auth.py` 中删除第 8 行：
+在 `backend/services/auth.py` 中删除第 8 行：
 ```python
-from skillhub.core.security.password import verify_password
+from backend.core.security.password import verify_password
 ```
 
 **Step 2: 删除 login 方法**
@@ -149,13 +149,13 @@ async def login(self, email: str, password: str) -> TokenPair:
 
 **Step 3: 验证语法正确**
 
-Run: `python -m py_compile skillhub/services/auth.py`
+Run: `python -m py_compile backend/services/auth.py`
 Expected: 无输出
 
 **Step 4: Commit**
 
 ```bash
-git add skillhub/services/auth.py
+git add backend/services/auth.py
 git commit -m "refactor: remove AuthService.login method (password login)"
 ```
 
@@ -164,12 +164,12 @@ git commit -m "refactor: remove AuthService.login method (password login)"
 ## Task 5: 新增删除账户请求 Schema
 
 **Files:**
-- Modify: `skillhub/schemas/user.py`
-- Modify: `skillhub/schemas/__init__.py`
+- Modify: `backend/schemas/user.py`
+- Modify: `backend/schemas/__init__.py`
 
 **Step 1: 添加 UserDeleteConfirm Schema**
 
-在 `skillhub/schemas/user.py` 的 `UserDelete` 类之后添加：
+在 `backend/schemas/user.py` 的 `UserDelete` 类之后添加：
 
 ```python
 class UserDeleteConfirm(BaseModel):
@@ -178,19 +178,19 @@ class UserDeleteConfirm(BaseModel):
 
 **Step 2: 导出新 Schema**
 
-在 `skillhub/schemas/__init__.py` 中：
+在 `backend/schemas/__init__.py` 中：
 - 添加 `UserDeleteConfirm,` 到导入列表
 - 添加 `"UserDeleteConfirm",` 到 `__all__` 列表
 
 **Step 3: 验证导入正常**
 
-Run: `python -c "from skillhub.schemas import UserDeleteConfirm; print('OK')"`
+Run: `python -c "from backend.schemas import UserDeleteConfirm; print('OK')"`
 Expected: OK
 
 **Step 4: Commit**
 
 ```bash
-git add skillhub/schemas/user.py skillhub/schemas/__init__.py
+git add backend/schemas/user.py backend/schemas/__init__.py
 git commit -m "feat: add UserDeleteConfirm schema for email verification"
 ```
 
@@ -199,12 +199,12 @@ git commit -m "feat: add UserDeleteConfirm schema for email verification"
 ## Task 6: 重设计删除账户端点
 
 **Files:**
-- Modify: `skillhub/api/v1/users.py:65-78`
-- Modify: `skillhub/services/user.py:19-27`
+- Modify: `backend/api/v1/users.py:65-78`
+- Modify: `backend/services/user.py:19-27`
 
 **Step 1: 新增删除账户请求端点**
 
-在 `skillhub/api/v1/users.py` 中，在 `DELETE /me` 之前添加：
+在 `backend/api/v1/users.py` 中，在 `DELETE /me` 之前添加：
 
 ```python
 @router.post("/me/delete-request", status_code=status.HTTP_204_NO_CONTENT)
@@ -240,20 +240,20 @@ async def delete_me(
 
 **Step 3: 添加必要的导入**
 
-在 `skillhub/api/v1/users.py` 顶部添加：
+在 `backend/api/v1/users.py` 顶部添加：
 ```python
-from skillhub.api.deps import get_verification_service
-from skillhub.schemas.user import UserDeleteConfirm
+from backend.api.deps import get_verification_service
+from backend.schemas.user import UserDeleteConfirm
 ```
 
 移除不再需要的导入：
 ```python
-from skillhub.schemas.user import UserDelete
+from backend.schemas.user import UserDelete
 ```
 
 **Step 4: 修改 UserService.delete_user 方法**
 
-在 `skillhub/services/user.py` 中，将 `delete_user` 方法改为：
+在 `backend/services/user.py` 中，将 `delete_user` 方法改为：
 
 ```python
 async def delete_user(self, user: User) -> bool:
@@ -267,13 +267,13 @@ async def delete_user(self, user: User) -> bool:
 
 **Step 5: 验证语法正确**
 
-Run: `python -m py_compile skillhub/api/v1/users.py skillhub/services/user.py`
+Run: `python -m py_compile backend/api/v1/users.py backend/services/user.py`
 Expected: 无输出
 
 **Step 6: Commit**
 
 ```bash
-git add skillhub/api/v1/users.py skillhub/services/user.py
+git add backend/api/v1/users.py backend/services/user.py
 git commit -m "refactor: redesign DELETE /me with email verification"
 ```
 
@@ -282,7 +282,7 @@ git commit -m "refactor: redesign DELETE /me with email verification"
 ## Task 7: 修改 OAuth2PasswordBearer 配置
 
 **Files:**
-- Modify: `skillhub/core/middleware/auth.py:9`
+- Modify: `backend/core/middleware/auth.py:9`
 
 **Step 1: 修改 tokenUrl**
 
@@ -298,13 +298,13 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/email/login")
 
 **Step 2: 验证语法正确**
 
-Run: `python -m py_compile skillhub/core/middleware/auth.py`
+Run: `python -m py_compile backend/core/middleware/auth.py`
 Expected: 无输出
 
 **Step 3: Commit**
 
 ```bash
-git add skillhub/core/middleware/auth.py
+git add backend/core/middleware/auth.py
 git commit -m "fix: update OAuth2PasswordBearer tokenUrl to email login endpoint"
 ```
 
@@ -313,17 +313,17 @@ git commit -m "fix: update OAuth2PasswordBearer tokenUrl to email login endpoint
 ## Task 8: 清理不再使用的 Schema
 
 **Files:**
-- Modify: `skillhub/schemas/user.py`
-- Modify: `skillhub/schemas/__init__.py`
+- Modify: `backend/schemas/user.py`
+- Modify: `backend/schemas/__init__.py`
 
 **Step 1: 检查 UserDelete 是否仍被使用**
 
-Run: `grep -r "UserDelete" skillhub/ --include="*.py"`
+Run: `grep -r "UserDelete" backend/ --include="*.py"`
 Expected: 仅在 schemas/ 中出现
 
 **Step 2: 删除 UserDelete Schema**
 
-在 `skillhub/schemas/user.py` 中删除：
+在 `backend/schemas/user.py` 中删除：
 ```python
 class UserDelete(BaseModel):
     password: str
@@ -331,17 +331,17 @@ class UserDelete(BaseModel):
 
 **Step 3: 移除导出**
 
-在 `skillhub/schemas/__init__.py` 中移除 `UserDelete` 相关导出
+在 `backend/schemas/__init__.py` 中移除 `UserDelete` 相关导出
 
 **Step 4: 验证导入正常**
 
-Run: `python -c "from skillhub.schemas import *; print('OK')"`
+Run: `python -c "from backend.schemas import *; print('OK')"`
 Expected: OK
 
 **Step 5: Commit**
 
 ```bash
-git add skillhub/schemas/user.py skillhub/schemas/__init__.py
+git add backend/schemas/user.py backend/schemas/__init__.py
 git commit -m "refactor: remove unused UserDelete schema"
 ```
 
@@ -356,7 +356,7 @@ Expected: 所有测试通过
 
 **Step 2: 运行类型检查（如有）**
 
-Run: `mypy skillhub/` 或 `pyright skillhub/`
+Run: `mypy backend/` 或 `pyright backend/`
 Expected: 无错误
 
 **Step 3: 最终 Commit**

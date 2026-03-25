@@ -10,16 +10,16 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from skillhub.config.settings import settings
-from skillhub.core.utils.skill_storage import (
+from backend.config.settings import settings
+from backend.core.utils.skill_storage import (
     get_skill_versions_dir,
     get_user_skill_dir,
 )
-from skillhub.models.skill import Skill
-from skillhub.models.skill_version import SkillVersion
-from skillhub.repositories.skill import SkillRepository
-from skillhub.repositories.skill_version import SkillVersionRepository
-from skillhub.services.skill import SkillService
+from backend.models.skill import Skill
+from backend.models.skill_version import SkillVersion
+from backend.repositories.skill import SkillRepository
+from backend.repositories.skill_version import SkillVersionRepository
+from backend.services.skill import SkillService
 
 
 def create_test_zip(files: dict[str, str], skill_md: str = None) -> bytes:
@@ -99,14 +99,14 @@ class TestSkillServiceUploadZipAdvanced:
         })
 
         with patch.object(settings, 'SKILL_STORAGE_PATH', '/tmp/test-skills'):
-            with patch('skillhub.services.skill.save_archive', new_callable=AsyncMock):
-                with patch('skillhub.services.skill.get_skill_versions_dir') as mock_dir:
+            with patch('backend.services.skill.save_archive', new_callable=AsyncMock):
+                with patch('backend.services.skill.get_skill_versions_dir') as mock_dir:
                     mock_dir.return_value = Path('/tmp/test-skills/versions')
 
                     with patch.object(Path, 'mkdir'):
                         with patch.object(Path, 'write_bytes'):
-                            with patch('skillhub.services.skill.clear_skill_current_dir'):
-                                with patch('skillhub.services.skill.get_user_skill_dir') as mock_user_dir:
+                            with patch('backend.services.skill.clear_skill_current_dir'):
+                                with patch('backend.services.skill.get_user_skill_dir') as mock_user_dir:
                                     mock_user_dir.return_value = Path('/tmp/test-skills/current')
 
                                     result = await service.upload_zip(
@@ -137,14 +137,14 @@ class TestSkillServiceUploadZipAdvanced:
         })
 
         with patch.object(settings, 'SKILL_STORAGE_PATH', '/tmp/test-skills'):
-            with patch('skillhub.services.skill.save_archive', new_callable=AsyncMock):
-                with patch('skillhub.services.skill.get_skill_versions_dir') as mock_dir:
+            with patch('backend.services.skill.save_archive', new_callable=AsyncMock):
+                with patch('backend.services.skill.get_skill_versions_dir') as mock_dir:
                     mock_dir.return_value = Path('/tmp/test-skills/versions')
 
                     with patch.object(Path, 'mkdir'):
                         with patch.object(Path, 'write_bytes'):
-                            with patch('skillhub.services.skill.clear_skill_current_dir'):
-                                with patch('skillhub.services.skill.get_user_skill_dir') as mock_user_dir:
+                            with patch('backend.services.skill.clear_skill_current_dir'):
+                                with patch('backend.services.skill.get_user_skill_dir') as mock_user_dir:
                                     mock_user_dir.return_value = Path('/tmp/test-skills/current')
 
                                     result = await service.upload_zip(
@@ -183,14 +183,14 @@ dependency_spec:
         zip_content = create_test_zip({"main.py": "pass"}, skill_md)
 
         with patch.object(settings, 'SKILL_STORAGE_PATH', '/tmp/test-skills'):
-            with patch('skillhub.services.skill.save_archive', new_callable=AsyncMock):
-                with patch('skillhub.services.skill.get_skill_versions_dir') as mock_dir:
+            with patch('backend.services.skill.save_archive', new_callable=AsyncMock):
+                with patch('backend.services.skill.get_skill_versions_dir') as mock_dir:
                     mock_dir.return_value = Path('/tmp/test-skills/versions')
 
                     with patch.object(Path, 'mkdir'):
                         with patch.object(Path, 'write_bytes'):
-                            with patch('skillhub.services.skill.clear_skill_current_dir'):
-                                with patch('skillhub.services.skill.get_user_skill_dir') as mock_user_dir:
+                            with patch('backend.services.skill.clear_skill_current_dir'):
+                                with patch('backend.services.skill.get_user_skill_dir') as mock_user_dir:
                                     mock_user_dir.return_value = Path('/tmp/test-skills/current')
 
                                     result = await service.upload_zip(
@@ -219,14 +219,14 @@ dependency_spec:
         zip_content = create_test_zip({"main.py": "pass"})
 
         with patch.object(settings, 'SKILL_STORAGE_PATH', '/tmp/test-skills'):
-            with patch('skillhub.services.skill.save_archive', new_callable=AsyncMock):
-                with patch('skillhub.services.skill.get_skill_versions_dir') as mock_dir:
+            with patch('backend.services.skill.save_archive', new_callable=AsyncMock):
+                with patch('backend.services.skill.get_skill_versions_dir') as mock_dir:
                     mock_dir.return_value = Path('/tmp/test-skills/versions')
 
                     with patch.object(Path, 'mkdir'):
                         with patch.object(Path, 'write_bytes'):
-                            with patch('skillhub.services.skill.clear_skill_current_dir'):
-                                with patch('skillhub.services.skill.get_user_skill_dir') as mock_user_dir:
+                            with patch('backend.services.skill.clear_skill_current_dir'):
+                                with patch('backend.services.skill.get_user_skill_dir') as mock_user_dir:
                                     mock_user_dir.return_value = Path('/tmp/test-skills/current')
 
                                     result = await service.upload_zip(
@@ -257,7 +257,7 @@ class TestSkillServiceDownloadAdvanced:
         # Create mock archive
         archive_content = b"test archive content"
 
-        with patch('skillhub.services.skill.load_archive', new_callable=AsyncMock) as mock_load:
+        with patch('backend.services.skill.load_archive', new_callable=AsyncMock) as mock_load:
             mock_load.return_value = archive_content
 
             with patch.object(settings, 'ENABLE_SKILL_DOWNLOAD_ENCRYPTION', True):
@@ -283,7 +283,7 @@ class TestSkillServiceDownloadAdvanced:
 
         archive_content = b"test archive content"
 
-        with patch('skillhub.services.skill.load_archive', new_callable=AsyncMock) as mock_load:
+        with patch('backend.services.skill.load_archive', new_callable=AsyncMock) as mock_load:
             mock_load.return_value = archive_content
 
             with patch.object(settings, 'ENABLE_SKILL_DOWNLOAD_ENCRYPTION', False):
@@ -311,14 +311,14 @@ class TestSkillServiceRollbackAdvanced:
 
         service = SkillService(mock_skill_repo, mock_version_repo)
 
-        with patch('skillhub.services.skill.get_skill_versions_dir') as mock_versions_dir:
+        with patch('backend.services.skill.get_skill_versions_dir') as mock_versions_dir:
             mock_versions_dir.return_value = Path('/tmp/versions')
 
             with patch.object(Path, 'exists', return_value=True):
                 with patch.object(Path, 'is_relative_to', return_value=True):
                     with patch.object(Path, 'rglob', return_value=[]):
-                        with patch('skillhub.services.skill.clear_skill_current_dir'):
-                            with patch('skillhub.services.skill.get_user_skill_dir') as mock_user_dir:
+                        with patch('backend.services.skill.clear_skill_current_dir'):
+                            with patch('backend.services.skill.get_user_skill_dir') as mock_user_dir:
                                 mock_user_dir.return_value = Path('/tmp/current')
 
                                 result = await service.rollback_version(
@@ -339,7 +339,7 @@ class TestSkillServiceDiffAdvanced:
         mock_skill_repo.get_by_id = AsyncMock(return_value=test_skill)
         service = SkillService(mock_skill_repo, None)
 
-        with patch('skillhub.services.skill.get_skill_versions_dir') as mock_versions_dir:
+        with patch('backend.services.skill.get_skill_versions_dir') as mock_versions_dir:
             mock_base = Path('/tmp/versions')
             mock_versions_dir.return_value = mock_base
 

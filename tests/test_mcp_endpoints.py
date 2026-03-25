@@ -1,10 +1,10 @@
 import pytest
 from datetime import datetime, timedelta, timezone
 
-from skillhub.api.mcp import reset_mcp_session_provider, set_mcp_session_provider
-from skillhub.repositories.token import TokenRepository
-from skillhub.repositories.user import UserRepository
-from skillhub.services.token import TokenService
+from backend.api.mcp import reset_mcp_session_provider, set_mcp_session_provider
+from backend.repositories.token import TokenRepository
+from backend.repositories.user import UserRepository
+from backend.services.token import TokenService
 
 
 @pytest.mark.asyncio
@@ -125,7 +125,7 @@ async def test_mcp_initialization_does_not_set_auth(monkeypatch):
     import sys
     import types
 
-    import skillhub.api.mcp as mcp_module
+    import backend.api.mcp as mcp_module
 
     class Context:
         flow_dict = {}
@@ -162,7 +162,7 @@ async def test_mcp_initialization_does_not_set_auth(monkeypatch):
 
     flowllm_mcp_service.MCPService = MCPService
 
-    agentskills_main = types.ModuleType("skillhub.main")
+    agentskills_main = types.ModuleType("backend.main")
 
     class SkillHubMcpApp:
         def __init__(self, *args, **kwargs):
@@ -179,7 +179,7 @@ async def test_mcp_initialization_does_not_set_auth(monkeypatch):
     monkeypatch.setitem(sys.modules, "flowllm.core.context", flowllm_context)
     monkeypatch.setitem(sys.modules, "flowllm.core.flow", flowllm_flow)
     monkeypatch.setitem(sys.modules, "flowllm.core.service.mcp_service", flowllm_mcp_service)
-    monkeypatch.setitem(sys.modules, "skillhub.main", agentskills_main)
+    monkeypatch.setitem(sys.modules, "backend.main", agentskills_main)
 
     await mcp_module.shutdown_mcp()
     await mcp_module.ensure_mcp_initialized()
@@ -192,7 +192,7 @@ async def test_mcp_initialization_does_not_set_auth(monkeypatch):
 async def test_mcp_fallback_error_format():
     import httpx
 
-    import skillhub.api.mcp as mcp_module
+    import backend.api.mcp as mcp_module
 
     app = mcp_module._build_fallback_app()
     transport = httpx.ASGITransport(app=app)

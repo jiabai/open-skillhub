@@ -3,7 +3,7 @@ from pathlib import Path
 
 
 def load_user_context_module():
-    module_path = Path(__file__).resolve().parents[1] / "skillhub" / "core" / "utils" / "user_context.py"
+    module_path = Path(__file__).resolve().parents[1] / "backend" / "core" / "utils" / "user_context.py"
     spec = importlib.util.spec_from_file_location("user_context_module", module_path)
     assert spec is not None
     assert spec.loader is not None

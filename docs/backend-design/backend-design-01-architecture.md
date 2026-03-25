@@ -18,7 +18,7 @@ Open SkillHub 是一个支持 Agent Skills 的后端平台，提供两类核心�
 ## 2. 模块依赖关系
 
 ```
-skillhub/
+backend/
 ├── main.py              # CLI 入口（FlowLLM 独立模式）
 ├── api_app.py           # FastAPI 入口（HTTP/SSE 模式）
 ├── core/

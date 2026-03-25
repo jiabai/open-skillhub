@@ -24,7 +24,7 @@
    - 验证码 5 分钟内有效
    - 同一邮箱 + purpose 组合共用一条记录（UniqueConstraint）
 
-2a. POST /api/v1/auth/email/login
+2a. POST /api/v1/auth/login
    - 传入 email + code
    - 服务端验证：
      - 验证码存在
@@ -97,7 +97,7 @@
   ```json
   { "sub": "<user_id>", "type": "refresh", "exp": <timestamp> }
   ```
-- **刷新端点**：`POST /api/v1/auth/token/refresh`
+- **刷新端点**：`POST /api/v1/auth/refresh`
 
 ### 2.3 API Token
 

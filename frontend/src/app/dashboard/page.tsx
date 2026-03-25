@@ -2,10 +2,10 @@
 
 import { useEffect, useState } from "react"
 import Link from "next/link"
-import { ArrowUpRight, Command, FileText, KeyRound, Sparkles, Trash2 } from "lucide-react"
+import { ArrowUpRight, Command, Database, FileText, KeyRound, Shield, Sparkles, Trash2 } from "lucide-react"
 
 import { api } from "@/lib/api"
-import type { DashboardOverview } from "@/types"
+import type { DashboardOverview, SkillCachePolicyResponse } from "@/types"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -27,6 +27,9 @@ export default function DashboardPage() {
   const [resetStatus, setResetStatus] = useState<"idle" | "loading" | "done" | "error">("idle")
   const [resetMessage, setResetMessage] = useState<string | null>(null)
   const [resetError, setResetError] = useState<string | null>(null)
+
+  // 缓存策略状态
+  const [cachePolicy, setCachePolicy] = useState<SkillCachePolicyResponse | null>(null)
 
   const loadOverview = async () => {
     setStatus("loading")
@@ -50,9 +53,19 @@ export default function DashboardPage() {
     }
   }
 
+  const loadCachePolicy = async () => {
+    try {
+      const policy = await api.getSkillCachePolicy()
+      setCachePolicy(policy)
+    } catch {
+      // 忽略错误，缓存策略不是必须的
+    }
+  }
+
   useEffect(() => {
     loadOverview()
     loadUser()
+    loadCachePolicy()
   }, [])
 
   const handleCleanup = async () => {
@@ -105,7 +118,7 @@ export default function DashboardPage() {
     : "过去 24h"
 
   return (
-    <div className="space-y-8">
+    <div className="flex flex-col gap-8">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="font-display text-3xl">控制台概览</h1>
@@ -145,7 +158,7 @@ export default function DashboardPage() {
                       删除早于 cutoff 的小时桶记录。仅管理员可执行；留空使用服务端默认保留天数。
                     </AlertDialogDescription>
                   </AlertDialogHeader>
-                  <div className="space-y-2">
+                  <div className="flex flex-col gap-2">
                     <Label htmlFor="retention-days">保留最近 N 天</Label>
                     <Input
                       id="retention-days"
@@ -239,7 +252,7 @@ export default function DashboardPage() {
             <CardTitle>快捷入口</CardTitle>
             <CardDescription>快速进入常用管理操作。</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-3">
+          <CardContent className="flex flex-col gap-3">
             {[
               { label: "Skills 列表", href: "/skills", icon: Sparkles },
               { label: "上传参考文件", href: "/skills/new", icon: FileText },
@@ -267,7 +280,7 @@ export default function DashboardPage() {
             <CardTitle>运行提示</CardTitle>
             <CardDescription>保持 MCP 服务稳定运行的建议。</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4 text-sm text-muted-foreground">
+          <CardContent className="flex flex-col gap-4 text-sm text-muted-foreground">
             <div className="flex items-start gap-3 rounded-lg bg-muted/40 p-4">
               <Command className="mt-0.5 h-4 w-4 text-primary" />
               <div>
@@ -282,6 +295,27 @@ export default function DashboardPage() {
                 <p>可帮助 load_skill_metadata 更好地呈现。</p>
               </div>
             </div>
+            {/* 缓存策略信息 */}
+            {cachePolicy && (
+              <div className="flex items-start gap-3 rounded-lg border border-border/50 bg-muted/20 p-4">
+                <Database className="mt-0.5 h-4 w-4 text-muted-foreground" />
+                <div>
+                  <p className="text-foreground flex items-center gap-2">
+                    缓存策略
+                    {cachePolicy.encryption_enabled && (
+                      <Badge variant="outline" className="text-xs">
+                        <Shield className="h-3 w-3 mr-1" />
+                        加密
+                      </Badge>
+                    )}
+                  </p>
+                  <p className="text-xs mt-1">
+                    TTL: {Math.floor(cachePolicy.cache_ttl_seconds / 60)} 分钟
+                    {cachePolicy.download_encryption_enabled && " · 下载加密"}
+                  </p>
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>

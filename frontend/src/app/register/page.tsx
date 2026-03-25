@@ -122,8 +122,8 @@ export default function RegisterPage() {
             <CardDescription>使用邮箱验证码创建账户。</CardDescription>
           </CardHeader>
           <form onSubmit={handleSubmit}>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
+            <CardContent className="flex flex-col gap-4">
+              <div className="flex flex-col gap-2">
                 <Label htmlFor="username">用户名</Label>
                 <Input
                   id="username"
@@ -135,7 +135,7 @@ export default function RegisterPage() {
                 />
                 {usernameField.error && <p className="text-sm text-destructive">{usernameField.error}</p>}
               </div>
-              <div className="space-y-2">
+              <div className="flex flex-col gap-2">
                 <Label htmlFor="email">邮箱</Label>
                 <Input
                   id="email"
@@ -148,7 +148,7 @@ export default function RegisterPage() {
                 />
                 {emailField.error && <p className="text-sm text-destructive">{emailField.error}</p>}
               </div>
-              <div className="space-y-2">
+              <div className="flex flex-col gap-2">
                 <Label htmlFor="code">验证码</Label>
                 <div className="flex gap-2">
                   <Input
@@ -191,7 +191,7 @@ export default function RegisterPage() {
             </CardFooter>
           </form>
         </Card>
-        <div className="space-y-6">
+        <div className="flex flex-col gap-6">
           <div className="flex items-center gap-3">
             <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-secondary text-secondary-foreground">
               <Sparkles className="h-6 w-6" />
@@ -202,7 +202,7 @@ export default function RegisterPage() {
             </div>
           </div>
           <div className="rounded-lg border border-border bg-muted/60 p-6">
-            <ul className="space-y-3 text-sm text-muted-foreground">
+            <ul className="flex flex-col gap-3 text-sm text-muted-foreground">
               <li>独立 Skill 存储目录与授权</li>
               <li>验证码登录 + MCP API Token 双认证</li>
               <li>运行历史与可观测性指标</li>

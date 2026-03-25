@@ -84,7 +84,7 @@ export default function NewSkillPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="font-display text-3xl">创建 Skill</h1>
@@ -101,8 +101,8 @@ export default function NewSkillPage() {
             <CardDescription>名称与描述将用于 MCP 工具的元数据。</CardDescription>
           </CardHeader>
           <CardContent>
-            <form onSubmit={handleCreate} className="space-y-4">
-              <div className="space-y-2">
+            <form onSubmit={handleCreate} className="flex flex-col gap-4">
+              <div className="flex flex-col gap-2">
                 <Label htmlFor="name">Skill 名称</Label>
                 <Input
                   id="name"
@@ -113,7 +113,7 @@ export default function NewSkillPage() {
                 />
                 {nameField.error && <p className="text-sm text-destructive">{nameField.error}</p>}
               </div>
-              <div className="space-y-2">
+              <div className="flex flex-col gap-2">
                 <Label htmlFor="description">描述</Label>
                 <Textarea
                   id="description"
@@ -125,7 +125,7 @@ export default function NewSkillPage() {
                 {descriptionField.error && <p className="text-sm text-destructive">{descriptionField.error}</p>}
               </div>
               {featureFlags.enableSkillVisibility && (
-                <div className="space-y-2">
+                <div className="flex flex-col gap-2">
                   <Label htmlFor="visible">可见性</Label>
                   <Select value={visible} onValueChange={(value) => setVisible(value as SkillVisible)}>
                     <SelectTrigger id="visible">
@@ -154,26 +154,26 @@ export default function NewSkillPage() {
             <CardTitle>上传文件</CardTitle>
             <CardDescription>支持 SKILL.md 与 reference.md 等文件。</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent className="flex flex-col gap-4">
             <div className="flex items-start gap-3 rounded-lg border border-dashed border-border bg-muted/40 p-4">
               <UploadCloud className="mt-0.5 h-5 w-5 text-muted-foreground" />
-              <div className="space-y-1 text-sm text-muted-foreground">
+              <div className="flex flex-col gap-1 text-sm text-muted-foreground">
                 <p>创建 Skill 后即可上传文件。</p>
                 <p>系统将自动存储在你的私有目录。</p>
               </div>
             </div>
-            <div className="space-y-2">
+            <div className="flex flex-col gap-2">
               <Label htmlFor="file">选择文件</Label>
               <Input id="file" type="file" onChange={handleUpload} disabled={!skillUuid || uploading} />
             </div>
             {uploading ? <p className="text-sm text-muted-foreground">正在上传...</p> : null}
             {files.length > 0 ? (
-              <div className="space-y-2 text-sm text-muted-foreground">
+              <div className="flex flex-col gap-2 text-sm text-muted-foreground">
                 <p className="flex items-center gap-2 text-foreground">
                   <FileUp className="h-4 w-4" />
                   已上传文件
                 </p>
-                <ul className="space-y-1">
+                <ul className="flex flex-col gap-1">
                   {files.map((file) => (
                     <li key={file}>{file}</li>
                   ))}

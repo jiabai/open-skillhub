@@ -68,7 +68,7 @@ export default function SkillsPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="font-display text-3xl">Skills</h1>
@@ -136,7 +136,7 @@ export default function SkillsPage() {
           return (
           <Card key={skill.id}>
             <CardHeader className="flex flex-row items-start justify-between gap-4">
-              <div className="space-y-2">
+              <div className="flex flex-col gap-2">
                 <CardTitle>{skill.name}</CardTitle>
                 <CardDescription>{skill.description || "暂无描述"}</CardDescription>
                 <div className="flex flex-wrap gap-2">

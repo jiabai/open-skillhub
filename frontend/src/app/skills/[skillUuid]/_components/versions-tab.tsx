@@ -3,10 +3,10 @@
 import { useCallback, useEffect, useState } from "react"
 import { formatDistanceToNow } from "date-fns"
 import { zhCN } from "date-fns/locale"
-import { GitCompare, Loader2, RotateCcw, Package, FileCode, Clock, ListTree } from "lucide-react"
+import { GitCompare, Loader2, RotateCcw, Package, FileCode, Clock, ListTree, Download, Terminal, Copy, Check } from "lucide-react"
 
 import { api } from "@/lib/api"
-import type { SkillVersion, SkillVersionDiff } from "@/types"
+import type { SkillVersion, SkillVersionDiff, SkillInstallInstructions } from "@/types"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -47,6 +47,16 @@ export function VersionsTab({ skillUuid }: VersionsTabProps) {
   const [versionDetail, setVersionDetail] = useState<SkillVersion | null>(null)
   const [versionDetailLoading, setVersionDetailLoading] = useState(false)
   const [versionDetailError, setVersionDetailError] = useState<string | null>(null)
+
+  // 安装说明状态
+  const [installInstructions, setInstallInstructions] = useState<SkillInstallInstructions | null>(null)
+  const [installLoading, setInstallLoading] = useState(false)
+  const [installError, setInstallError] = useState<string | null>(null)
+  const [showInstall, setShowInstall] = useState(false)
+  const [copied, setCopied] = useState(false)
+
+  // 下载状态
+  const [downloadLoading, setDownloadLoading] = useState(false)
 
   const fetchVersions = useCallback(async () => {
     setLoading(true)
@@ -157,10 +167,57 @@ export function VersionsTab({ skillUuid }: VersionsTabProps) {
     }
   }
 
+  // 获取安装说明
+  const handleGetInstallInstructions = async (version: string) => {
+    setInstallLoading(true)
+    setInstallError(null)
+    setShowInstall(true)
+    try {
+      const result = await api.getInstallInstructions(skillUuid, version)
+      setInstallInstructions(result)
+    } catch (err) {
+      setInstallError(err instanceof Error ? err.message : "获取安装说明失败")
+    } finally {
+      setInstallLoading(false)
+    }
+  }
+
+  // 复制安装命令
+  const handleCopyCommands = async () => {
+    if (!installInstructions?.commands?.length) return
+    const text = installInstructions.commands.join("\n")
+    await navigator.clipboard.writeText(text)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
+
+  // 下载 Skill
+  const handleDownload = async (version?: string) => {
+    setDownloadLoading(true)
+    try {
+      const result = await api.downloadSkill({ skill_uuid: skillUuid, version })
+      // 创建下载内容
+      const content = JSON.stringify(result, null, 2)
+      const blob = new Blob([content], { type: "application/json" })
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement("a")
+      link.href = url
+      link.download = `skill-${skillUuid.slice(0, 8)}-${result.version}.json`
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      URL.revokeObjectURL(url)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "下载失败")
+    } finally {
+      setDownloadLoading(false)
+    }
+  }
+
   const renderVersionList = () => {
     if (loading) {
       return (
-        <div className="space-y-3">
+        <div className="flex flex-col gap-3">
           <Skeleton className="h-16 w-full" />
           <Skeleton className="h-16 w-full" />
           <Skeleton className="h-16 w-full" />
@@ -194,7 +251,7 @@ export function VersionsTab({ skillUuid }: VersionsTabProps) {
     }
 
     return (
-      <div className="space-y-2">
+      <div className="flex flex-col gap-2">
         {versions.map((v) => (
           <Card
             key={v.version}
@@ -243,7 +300,7 @@ export function VersionsTab({ skillUuid }: VersionsTabProps) {
           <CardHeader>
             <Skeleton className="h-6 w-32" />
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent className="flex flex-col gap-4">
             <Skeleton className="h-4 w-full" />
             <Skeleton className="h-4 w-3/4" />
             <Skeleton className="h-20 w-full" />
@@ -283,7 +340,7 @@ export function VersionsTab({ skillUuid }: VersionsTabProps) {
             创建于 {new Date(version.created_at).toLocaleString("zh-CN")}
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="flex flex-col gap-4">
           <div>
             <h4 className="text-sm font-medium mb-2">描述</h4>
             <p className="text-sm text-muted-foreground">
@@ -297,7 +354,7 @@ export function VersionsTab({ skillUuid }: VersionsTabProps) {
             {version.dependencies.length === 0 ? (
               <p className="text-sm text-muted-foreground">无依赖</p>
             ) : (
-              <ul className="space-y-1">
+              <ul className="flex flex-col gap-1">
                 {version.dependencies.map((dep) => (
                   <li key={dep} className="text-sm text-muted-foreground flex items-center gap-2">
                     <span className="h-1.5 w-1.5 rounded-full bg-primary" />
@@ -319,7 +376,7 @@ export function VersionsTab({ skillUuid }: VersionsTabProps) {
                   </div>
                 </AccordionTrigger>
                 <AccordionContent>
-                  <div className="space-y-3 pt-2">
+                  <div className="flex flex-col gap-3 pt-2">
                     {/* Python 依赖 */}
                     {version.dependency_spec.python && (
                       <div className="rounded-lg border bg-muted/50 p-3">
@@ -330,9 +387,9 @@ export function VersionsTab({ skillUuid }: VersionsTabProps) {
                           </span>
                         </div>
                         {version.dependency_spec.python.requirements?.length > 0 && (
-                          <div className="space-y-1">
+                          <div className="flex flex-col gap-1">
                             <p className="text-xs text-muted-foreground">依赖包:</p>
-                            <ul className="text-xs space-y-0.5">
+                            <ul className="text-xs flex flex-col gap-0.5">
                               {version.dependency_spec.python.requirements.map((req: string) => (
                                 <li key={req} className="text-muted-foreground">• {req}</li>
                               ))}
@@ -405,33 +462,151 @@ export function VersionsTab({ skillUuid }: VersionsTabProps) {
             </div>
           )}
 
-          {/* 回滚确认对话框 */}
-          <AlertDialog>
-            <AlertDialogTrigger asChild>
-              <Button variant="outline">
-                <RotateCcw className="mr-2 h-4 w-4" />
-                回滚到此版本
-              </Button>
-            </AlertDialogTrigger>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>确认回滚</AlertDialogTitle>
-                <AlertDialogDescription>
-                  确定要回滚到版本 {version.version} 吗？当前文件将被替换为该版本的文件。
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>取消</AlertDialogCancel>
-                <AlertDialogAction
-                  onClick={() => handleRollback(version.version)}
-                  disabled={rollbackLoading}
-                >
-                  {rollbackLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  确认回滚
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
+          {/* 操作按钮组 */}
+          <div className="flex flex-wrap gap-2">
+            {/* 安装说明按钮 */}
+            <Button
+              variant="outline"
+              onClick={() => handleGetInstallInstructions(version.version)}
+              disabled={installLoading}
+            >
+              <Terminal className="mr-2 h-4 w-4" />
+              安装说明
+            </Button>
+
+            {/* 下载按钮 */}
+            <Button
+              variant="outline"
+              onClick={() => handleDownload(version.version)}
+              disabled={downloadLoading}
+            >
+              {downloadLoading ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Download className="mr-2 h-4 w-4" />
+              )}
+              下载
+            </Button>
+
+            {/* 回滚确认对话框 */}
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="outline">
+                  <RotateCcw className="mr-2 h-4 w-4" />
+                  回滚到此版本
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>确认回滚</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    确定要回滚到版本 {version.version} 吗？当前文件将被替换为该版本的文件。
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>取消</AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={() => handleRollback(version.version)}
+                    disabled={rollbackLoading}
+                  >
+                    {rollbackLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    确认回滚
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </div>
+
+          {/* 安装说明弹窗 */}
+          {showInstall && (
+            <Card className="mt-4">
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <Terminal className="h-4 w-4" />
+                    安装说明
+                  </CardTitle>
+                  <Button variant="ghost" size="sm" onClick={() => setShowInstall(false)}>
+                    关闭
+                  </Button>
+                </div>
+                <CardDescription>版本 {version.version} 的安装指南</CardDescription>
+              </CardHeader>
+              <CardContent className="flex flex-col gap-4">
+                {installLoading ? (
+                  <div className="flex items-center justify-center py-8">
+                    <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                  </div>
+                ) : installError ? (
+                  <p className="text-sm text-destructive">{installError}</p>
+                ) : installInstructions ? (
+                  <>
+                    {/* 策略和生态系统 */}
+                    <div className="flex flex-wrap gap-2">
+                      <Badge variant="secondary">策略: {installInstructions.strategy}</Badge>
+                      {installInstructions.ecosystem && (
+                        <Badge variant="outline">{installInstructions.ecosystem}</Badge>
+                      )}
+                    </div>
+
+                    {/* 依赖列表 */}
+                    {installInstructions.dependencies.length > 0 && (
+                      <div>
+                        <h5 className="text-sm font-medium mb-2">依赖</h5>
+                        <div className="flex flex-wrap gap-1">
+                          {installInstructions.dependencies.map((dep) => (
+                            <Badge key={dep} variant="outline" className="text-xs">
+                              {dep}
+                            </Badge>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* 安装命令 */}
+                    {installInstructions.commands.length > 0 && (
+                      <div>
+                        <div className="flex items-center justify-between mb-2">
+                          <h5 className="text-sm font-medium">安装命令</h5>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={handleCopyCommands}
+                            className="h-7"
+                          >
+                            {copied ? (
+                              <>
+                                <Check className="mr-1 h-3 w-3" />
+                                已复制
+                              </>
+                            ) : (
+                              <>
+                                <Copy className="mr-1 h-3 w-3" />
+                                复制
+                              </>
+                            )}
+                          </Button>
+                        </div>
+                        <pre className="text-xs bg-muted p-3 rounded-lg overflow-auto max-h-48">
+                          {installInstructions.commands.join("\n")}
+                        </pre>
+                      </div>
+                    )}
+
+                    {/* 依赖要求文本 */}
+                    {installInstructions.requirements_text && (
+                      <div>
+                        <h5 className="text-sm font-medium mb-2">依赖要求</h5>
+                        <pre className="text-xs bg-muted p-3 rounded-lg overflow-auto max-h-48">
+                          {installInstructions.requirements_text}
+                        </pre>
+                      </div>
+                    )}
+                  </>
+                ) : null}
+              </CardContent>
+            </Card>
+          )}
         </CardContent>
       </Card>
     )
@@ -451,7 +626,7 @@ export function VersionsTab({ skillUuid }: VersionsTabProps) {
             {diffResult.from_version} → {diffResult.to_version}
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="flex flex-col gap-4">
           {diffLoading ? (
             <div className="flex items-center justify-center py-8">
               <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
@@ -464,7 +639,7 @@ export function VersionsTab({ skillUuid }: VersionsTabProps) {
                   {diffResult.added.length > 0 && (
                     <div className="mb-2">
                       <p className="text-xs text-muted-foreground mb-1">新增:</p>
-                      <ul className="space-y-1">
+                      <ul className="flex flex-col gap-1">
                         {diffResult.added.map((dep) => (
                           <li key={dep} className="text-sm text-green-600">
                             + {dep}
@@ -476,7 +651,7 @@ export function VersionsTab({ skillUuid }: VersionsTabProps) {
                   {diffResult.removed.length > 0 && (
                     <div>
                       <p className="text-xs text-muted-foreground mb-1">移除:</p>
-                      <ul className="space-y-1">
+                      <ul className="flex flex-col gap-1">
                         {diffResult.removed.map((dep) => (
                           <li key={dep} className="text-sm text-red-600">
                             - {dep}
@@ -490,7 +665,7 @@ export function VersionsTab({ skillUuid }: VersionsTabProps) {
               {diffResult.modified.length > 0 && (
                 <div>
                   <h4 className="text-sm font-medium mb-2">文件变更</h4>
-                  <div className="space-y-2">
+                  <div className="flex flex-col gap-2">
                     {diffResult.modified.map((mod) => (
                       <div key={mod.path} className="text-sm">
                         <p className="font-medium">{mod.path}</p>
@@ -545,7 +720,7 @@ export function VersionsTab({ skillUuid }: VersionsTabProps) {
 
   return (
     <div className="grid gap-6 lg:grid-cols-[320px_1fr]">
-      <div className="space-y-4">
+      <div className="flex flex-col gap-4">
         <h3 className="text-sm font-medium">版本列表</h3>
         {renderVersionList()}
       </div>

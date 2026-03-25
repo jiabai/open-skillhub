@@ -153,7 +153,7 @@ export default function UsersAdminPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="flex flex-col gap-6">
       {/* 页面标题 */}
       <div className="flex items-center gap-3">
         <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-secondary text-secondary-foreground">
@@ -188,7 +188,7 @@ export default function UsersAdminPage() {
         </CardHeader>
         <CardContent>
           {loading ? (
-            <div className="space-y-3">
+            <div className="flex flex-col gap-3">
               {[...Array(5)].map((_, i) => (
                 <Skeleton key={i} className="h-12 w-full" />
               ))}
@@ -297,8 +297,8 @@ export default function UsersAdminPage() {
               更新 {editingUser?.username} 的身份信息
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
+          <div className="flex flex-col gap-4 py-4">
+            <div className="flex flex-col gap-2">
               <Label htmlFor="role">角色</Label>
               <Select
                 value={editForm.role || ""}
@@ -316,7 +316,7 @@ export default function UsersAdminPage() {
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-2">
+            <div className="flex flex-col gap-2">
               <Label htmlFor="status">状态</Label>
               <Select
                 value={editForm.status || ""}
@@ -334,7 +334,7 @@ export default function UsersAdminPage() {
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-2">
+            <div className="flex flex-col gap-2">
               <Label htmlFor="enterprise_id">企业 ID</Label>
               <Input
                 id="enterprise_id"
@@ -348,7 +348,7 @@ export default function UsersAdminPage() {
                 placeholder="输入企业 ID（可选）"
               />
             </div>
-            <div className="space-y-2">
+            <div className="flex flex-col gap-2">
               <Label htmlFor="team_id">团队 ID</Label>
               <Input
                 id="team_id"

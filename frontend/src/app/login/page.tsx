@@ -104,7 +104,7 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen bg-background">
       <div className="mx-auto grid min-h-screen max-w-screen-xl items-center gap-10 px-6 py-12 lg:grid-cols-[1.1fr_0.9fr]">
-        <div className="space-y-6">
+        <div className="flex flex-col gap-6">
           <div className="flex items-center gap-3">
             <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary text-primary-foreground">
               <Shield className="h-6 w-6" />
@@ -123,52 +123,75 @@ export default function LoginPage() {
         <Card className="border-border/80 shadow-lg">
           <CardHeader>
             <CardTitle>欢迎回来</CardTitle>
-            <CardDescription>请输入邮箱并验证验证码继续。</CardDescription>
+            <CardDescription>
+              {featureFlags.enableEmailOtpLogin
+                ? "请输入邮箱并验证验证码继续。"
+                : "请选择登录方式。"}
+            </CardDescription>
           </CardHeader>
           <form onSubmit={handleSubmit}>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="email">邮箱</Label>
-                <Input
-                  id="email"
-                  type="text"
-                  placeholder="you@company.com"
-                  value={emailField.value}
-                  onChange={(event) => emailField.setValue(event.target.value)}
-                  onBlur={emailField.handleBlur}
-                />
-                {emailField.error && <p className="text-sm text-destructive">{emailField.error}</p>}
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="code">验证码</Label>
-                <div className="flex gap-2">
+            {featureFlags.enableEmailOtpLogin && (
+              <CardContent className="flex flex-col gap-4">
+                <div className="flex flex-col gap-2">
+                  <Label htmlFor="email">邮箱</Label>
                   <Input
-                    id="code"
-                    inputMode="numeric"
-                    placeholder="6 位验证码"
-                    value={codeField.value}
-                    onChange={(event) => codeField.setValue(event.target.value)}
-                    onBlur={codeField.handleBlur}
-                    maxLength={6}
+                    id="email"
+                    type="text"
+                    placeholder="you@company.com"
+                    value={emailField.value}
+                    onChange={(event) => emailField.setValue(event.target.value)}
+                    onBlur={emailField.handleBlur}
                   />
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    onClick={handleSendCode}
-                    disabled={!emailField.value || isSending || resendSeconds > 0}
-                  >
-                    {resendSeconds > 0 ? `${resendSeconds}s` : isSending ? "发送中..." : "发送验证码"}
-                  </Button>
+                  {emailField.error && <p className="text-sm text-destructive">{emailField.error}</p>}
                 </div>
-                {codeField.error && <p className="text-sm text-destructive">{codeField.error}</p>}
-              </div>
-              {error ? <p className="text-sm text-destructive">{error}</p> : null}
-              {codeMessage ? <p className="text-sm text-muted-foreground">{codeMessage}</p> : null}
-              {success ? <p className="text-sm text-primary">{success}</p> : null}
-            </CardContent>
+                <div className="flex flex-col gap-2">
+                  <Label htmlFor="code">验证码</Label>
+                  <div className="flex gap-2">
+                    <Input
+                      id="code"
+                      inputMode="numeric"
+                      placeholder="6 位验证码"
+                      value={codeField.value}
+                      onChange={(event) => codeField.setValue(event.target.value)}
+                      onBlur={codeField.handleBlur}
+                      maxLength={6}
+                    />
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      onClick={handleSendCode}
+                      disabled={!emailField.value || isSending || resendSeconds > 0}
+                    >
+                      {resendSeconds > 0 ? `${resendSeconds}s` : isSending ? "发送中..." : "发送验证码"}
+                    </Button>
+                  </div>
+                  {codeField.error && <p className="text-sm text-destructive">{codeField.error}</p>}
+                </div>
+                {error ? <p className="text-sm text-destructive">{error}</p> : null}
+                {codeMessage ? <p className="text-sm text-muted-foreground">{codeMessage}</p> : null}
+                {success ? <p className="text-sm text-primary">{success}</p> : null}
+              </CardContent>
+            )}
             <CardFooter className="flex flex-col gap-3">
+              {featureFlags.enableEmailOtpLogin && (
+                <Button type="submit" className="w-full" disabled={isLoading}>
+                  {isLoading ? "正在登录..." : "邮箱验证码登录"}
+                </Button>
+              )}
               {(featureFlags.enableSSO || featureFlags.enableLDAP) && (
                 <>
+                  {featureFlags.enableEmailOtpLogin && (
+                    <div className="relative w-full">
+                      <div className="absolute inset-0 flex items-center">
+                        <Separator className="w-full" />
+                      </div>
+                      <div className="relative flex justify-center text-xs uppercase">
+                        <span className="bg-background px-2 text-muted-foreground">
+                          或
+                        </span>
+                      </div>
+                    </div>
+                  )}
                   <div className="flex w-full gap-2">
                     {featureFlags.enableSSO && (
                       <Button
@@ -193,21 +216,8 @@ export default function LoginPage() {
                       </Button>
                     )}
                   </div>
-                  <div className="relative w-full">
-                    <div className="absolute inset-0 flex items-center">
-                      <Separator className="w-full" />
-                    </div>
-                    <div className="relative flex justify-center text-xs uppercase">
-                      <span className="bg-background px-2 text-muted-foreground">
-                        或
-                      </span>
-                    </div>
-                  </div>
                 </>
               )}
-              <Button type="submit" className="w-full" disabled={isLoading}>
-                {isLoading ? "正在登录..." : "邮箱验证码登录"}
-              </Button>
               <div className="flex w-full items-center justify-between text-sm text-muted-foreground">
                 <span className="flex items-center gap-2">
                   <Mail className="h-4 w-4" />

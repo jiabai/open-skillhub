@@ -6,7 +6,7 @@ from skillhub.db.session import get_async_session
 from skillhub.repositories.user import UserRepository
 
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/email/login")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login")
 
 
 async def get_current_user(token: str = Depends(oauth2_scheme), session=Depends(get_async_session)):

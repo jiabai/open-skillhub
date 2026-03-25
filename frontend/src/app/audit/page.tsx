@@ -6,6 +6,7 @@ import { zhCN } from "date-fns/locale"
 import { Download, FileJson, FileSpreadsheet, Filter, ChevronDown, ChevronUp, User } from "lucide-react"
 
 import { api } from "@/lib/api"
+import { featureFlags } from "@/lib/feature-flags"
 import type { AuditLogItem } from "@/types"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -135,7 +136,7 @@ export default function AuditLogsPage() {
   const renderLogList = () => {
     if (loading) {
       return (
-        <div className="space-y-3">
+        <div className="flex flex-col gap-3">
           <Skeleton className="h-24 w-full" />
           <Skeleton className="h-24 w-full" />
           <Skeleton className="h-24 w-full" />
@@ -169,7 +170,7 @@ export default function AuditLogsPage() {
     }
 
     return (
-      <div className="space-y-3">
+      <div className="flex flex-col gap-3">
         {logs.map((log) => (
           <Collapsible
             key={log.id}
@@ -179,7 +180,7 @@ export default function AuditLogsPage() {
             <Card className="overflow-hidden">
               <CardContent className="p-4">
                 <div className="flex items-start justify-between gap-4">
-                  <div className="flex-1 min-w-0 space-y-1">
+                  <div className="flex-1 min-w-0 flex flex-col gap-1">
                     <div className="flex items-center gap-2">
                       <span className="text-xs text-muted-foreground">
                         {format(new Date(log.timestamp), "yyyy-MM-dd HH:mm:ss", { locale: zhCN })}
@@ -211,7 +212,7 @@ export default function AuditLogsPage() {
                 </div>
 
                 <CollapsibleContent>
-                  <div className="mt-4 pt-4 border-t space-y-3">
+                  <div className="mt-4 pt-4 border-t flex flex-col gap-3">
                     <div className="grid gap-4 sm:grid-cols-2">
                       <div>
                         <Label className="text-xs text-muted-foreground">IP 地址</Label>
@@ -239,7 +240,7 @@ export default function AuditLogsPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="flex flex-col gap-6">
       <div>
         <h1 className="font-display text-3xl">审计日志</h1>
         <p className="text-sm text-muted-foreground">查看系统操作记录</p>
@@ -255,8 +256,8 @@ export default function AuditLogsPage() {
             </CardTitle>
             <CardDescription>设置时间范围和操作类型</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
+          <CardContent className="flex flex-col gap-4">
+            <div className="flex flex-col gap-2">
               <Label htmlFor="start-date">开始日期</Label>
               <Input
                 id="start-date"
@@ -265,7 +266,7 @@ export default function AuditLogsPage() {
                 onChange={(e) => setStartDate(e.target.value)}
               />
             </div>
-            <div className="space-y-2">
+            <div className="flex flex-col gap-2">
               <Label htmlFor="end-date">结束日期</Label>
               <Input
                 id="end-date"
@@ -274,7 +275,7 @@ export default function AuditLogsPage() {
                 onChange={(e) => setEndDate(e.target.value)}
               />
             </div>
-            <div className="space-y-2">
+            <div className="flex flex-col gap-2">
               <Label htmlFor="action">操作类型</Label>
               <Select value={action} onValueChange={setAction}>
                 <SelectTrigger id="action">
@@ -289,7 +290,7 @@ export default function AuditLogsPage() {
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-2">
+            <div className="flex flex-col gap-2">
               <Label htmlFor="actor-id">操作者 ID</Label>
               <Input
                 id="actor-id"
@@ -303,39 +304,42 @@ export default function AuditLogsPage() {
               应用筛选
             </Button>
 
-            <div className="pt-4 border-t space-y-2">
-              <p className="text-sm font-medium">导出日志</p>
-              <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="flex-1"
-                  onClick={() => handleExport("json")}
-                  disabled={exporting}
-                >
-                  <FileJson className="mr-2 h-4 w-4" />
-                  JSON
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="flex-1"
-                  onClick={() => handleExport("csv")}
-                  disabled={exporting}
-                >
-                  <FileSpreadsheet className="mr-2 h-4 w-4" />
-                  CSV
-                </Button>
+            {/* 导出日志 - 条件显示 */}
+            {featureFlags.enableAuditExport && (
+              <div className="pt-4 border-t flex flex-col gap-2">
+                <p className="text-sm font-medium">导出日志</p>
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="flex-1"
+                    onClick={() => handleExport("json")}
+                    disabled={exporting}
+                  >
+                    <FileJson className="mr-2 h-4 w-4" />
+                    JSON
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="flex-1"
+                    onClick={() => handleExport("csv")}
+                    disabled={exporting}
+                  >
+                    <FileSpreadsheet className="mr-2 h-4 w-4" />
+                    CSV
+                  </Button>
+                </div>
+                {exporting && (
+                  <p className="text-xs text-muted-foreground">导出中...</p>
+                )}
               </div>
-              {exporting && (
-                <p className="text-xs text-muted-foreground">导出中...</p>
-              )}
-            </div>
+            )}
           </CardContent>
         </Card>
 
         {/* 右侧日志列表 */}
-        <div className="space-y-4">
+        <div className="flex flex-col gap-4">
           <div className="flex items-center justify-between">
             <p className="text-sm text-muted-foreground">
               共 {logs.length} 条记录

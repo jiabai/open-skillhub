@@ -827,8 +827,8 @@ function EmptyState({ icon, title, description, action }: EmptyStateProps) {
 
 ### 4.3 P2（规范收敛）
 
-1. **shadcn 间距规范收敛**
-   - 渐进替换 `space-y-*` 到 `gap-*`
+1. ~~**shadcn 间距规范收敛**~~
+   - ✅ **已完成**：所有 `space-y-*` 已替换为 `flex flex-col gap-*`
 
-2. **SSO/LDAP 登录支持**
-   - 根据后端配置 `ENABLE_SSO` 和 `ENABLE_LDAP` 决定是否显示入口
+2. ~~**SSO/LDAP 登录支持**~~
+   - ✅ **已完成**：登录页已根据 `ENABLE_SSO` 和 `ENABLE_LDAP` 环境变量动态显示入口

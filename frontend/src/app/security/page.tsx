@@ -43,7 +43,7 @@ export default function SecurityPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="flex flex-col gap-6">
       <div className="flex items-center gap-3">
         <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-secondary text-secondary-foreground">
           <ShieldCheck className="h-5 w-5" />
@@ -58,9 +58,9 @@ export default function SecurityPage() {
           <CardTitle>删除账户</CardTitle>
           <CardDescription>此操作不可恢复，请先申请删除验证码。</CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="flex flex-col gap-4">
           {!codeSent ? (
-            <div className="space-y-4">
+            <div className="flex flex-col gap-4">
               <p className="text-sm text-muted-foreground">
                 删除账户需要验证您的身份。点击下方按钮，我们将向您的注册邮箱发送删除验证码。
               </p>
@@ -80,8 +80,8 @@ export default function SecurityPage() {
               </Button>
             </div>
           ) : (
-            <div className="space-y-4">
-              <div className="space-y-2">
+            <div className="flex flex-col gap-4">
+              <div className="flex flex-col gap-2">
                 <Label htmlFor="delete-code">删除验证码</Label>
                 <Input
                   id="delete-code"

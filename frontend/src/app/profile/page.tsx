@@ -1,9 +1,12 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
-import { Loader2, User2 } from "lucide-react"
+import { Building2, Loader2, Team2, User2 } from "lucide-react"
 
 import { api, getErrorMessage } from "@/lib/api"
+import { featureFlags } from "@/lib/feature-flags"
+import type { User } from "@/types"
+import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -12,6 +15,7 @@ import { useToast } from "@/hooks/use-toast"
 
 export default function ProfilePage() {
   const { success, error: showError } = useToast()
+  const [user, setUser] = useState<User | null>(null)
   const [username, setUsername] = useState("")
   const [email, setEmail] = useState("")
   const [status, setStatus] = useState<"loading" | "ready">("loading")
@@ -32,9 +36,10 @@ export default function ProfilePage() {
 
   useEffect(() => {
     const loadProfile = async () => {
-      const user = await api.getMe()
-      setUsername(user.username)
-      setEmail(user.email)
+      const userData = await api.getMe()
+      setUser(userData)
+      setUsername(userData.username)
+      setEmail(userData.email)
       setStatus("ready")
     }
     loadProfile()
@@ -96,7 +101,7 @@ export default function ProfilePage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="flex flex-col gap-6">
       <div className="flex items-center gap-3">
         <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-secondary text-secondary-foreground">
           <User2 className="h-5 w-5" />
@@ -118,12 +123,12 @@ export default function ProfilePage() {
               加载中
             </div>
           ) : (
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="space-y-2">
+            <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+              <div className="flex flex-col gap-2">
                 <Label htmlFor="username">显示名称</Label>
                 <Input id="username" value={username} onChange={(event) => setUsername(event.target.value)} required />
               </div>
-              <div className="space-y-2">
+              <div className="flex flex-col gap-2">
                 <Label htmlFor="email">邮箱</Label>
                 <Input id="email" type="email" value={email} onChange={(event) => setEmail(event.target.value)} required />
               </div>
@@ -140,8 +145,8 @@ export default function ProfilePage() {
           <CardDescription>绑定新邮箱需要验证。</CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleBindEmail} className="space-y-4">
-            <div className="space-y-2">
+          <form onSubmit={handleBindEmail} className="flex flex-col gap-4">
+            <div className="flex flex-col gap-2">
               <Label htmlFor="new-email">新邮箱</Label>
               <Input
                 id="new-email"
@@ -152,7 +157,7 @@ export default function ProfilePage() {
                 required
               />
             </div>
-            <div className="space-y-2">
+            <div className="flex flex-col gap-2">
               <Label htmlFor="verification-code">验证码</Label>
               <div className="flex gap-2">
                 <Input
@@ -178,6 +183,58 @@ export default function ProfilePage() {
           </form>
         </CardContent>
       </Card>
+
+      {/* 组织信息卡片 - 条件显示 */}
+      {featureFlags.enableOrgModel && user && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Building2 className="h-5 w-5" />
+              组织信息
+            </CardTitle>
+            <CardDescription>您所属的企业与团队信息。</CardDescription>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-4">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="flex flex-col gap-2">
+                <Label className="flex items-center gap-2">
+                  <Building2 className="h-4 w-4 text-muted-foreground" />
+                  企业 ID
+                </Label>
+                {user.enterprise_id ? (
+                  <div className="flex items-center gap-2">
+                    <Badge variant="secondary" className="font-mono">
+                      {user.enterprise_id}
+                    </Badge>
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">暂未关联企业</p>
+                )}
+              </div>
+              <div className="flex flex-col gap-2">
+                <Label className="flex items-center gap-2">
+                  <Team2 className="h-4 w-4 text-muted-foreground" />
+                  团队 ID
+                </Label>
+                {user.team_id ? (
+                  <div className="flex items-center gap-2">
+                    <Badge variant="secondary" className="font-mono">
+                      {user.team_id}
+                    </Badge>
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">暂未关联团队</p>
+                )}
+              </div>
+            </div>
+            {!user.enterprise_id && !user.team_id && (
+              <p className="text-sm text-muted-foreground">
+                如需加入企业或团队，请联系管理员进行配置。
+              </p>
+            )}
+          </CardContent>
+        </Card>
+      )}
     </div>
   )
 }

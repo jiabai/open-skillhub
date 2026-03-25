@@ -85,7 +85,7 @@ export default function TokensPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="font-display text-3xl">API Tokens</h1>
@@ -98,9 +98,9 @@ export default function TokensPage() {
             <CardTitle>创建 Token</CardTitle>
             <CardDescription>为 MCP 访问生成新的凭证。</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <form onSubmit={handleCreate} className="space-y-4">
-              <div className="space-y-2">
+          <CardContent className="flex flex-col gap-4">
+            <form onSubmit={handleCreate} className="flex flex-col gap-4">
+              <div className="flex flex-col gap-2">
                 <Label htmlFor="name">Token 名称</Label>
                 <Input
                   id="name"
@@ -111,7 +111,7 @@ export default function TokensPage() {
                 />
                 {nameField.error && <p className="text-sm text-destructive">{nameField.error}</p>}
               </div>
-              <div className="space-y-2">
+              <div className="flex flex-col gap-2">
                 <Label htmlFor="days">有效天数</Label>
                 <Input
                   id="days"
@@ -147,7 +147,7 @@ export default function TokensPage() {
             <CardTitle>Token 列表</CardTitle>
             <CardDescription>管理已创建的 Token。</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-3">
+          <CardContent className="flex flex-col gap-3">
             {status === "loading" ? (
               <div className="flex items-center gap-3 text-sm text-muted-foreground">
                 <Loader2 className="h-4 w-4 animate-spin" />
@@ -166,7 +166,7 @@ export default function TokensPage() {
 
               return (
                 <div key={token.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border bg-background px-4 py-3">
-                  <div className="space-y-1">
+                  <div className="flex flex-col gap-1">
                     <p className="text-sm font-medium text-foreground">{token.name}</p>
                     <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
                       <Badge variant="muted">id: {token.id.slice(0, 8)}</Badge>

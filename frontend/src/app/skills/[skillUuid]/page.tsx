@@ -2,10 +2,11 @@
 
 import { useCallback, useEffect, useState } from "react"
 import Link from "next/link"
-import { FileText, Loader2, Save, Trash2 } from "lucide-react"
+import { Eye, FileText, Loader2, Save, Trash2 } from "lucide-react"
 
 import { api } from "@/lib/api"
-import type { Skill } from "@/types"
+import { featureFlags } from "@/lib/feature-flags"
+import type { Skill, SkillVisible } from "@/types"
 import { useToast } from "@/hooks/use-toast"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog"
 import { Badge } from "@/components/ui/badge"
@@ -13,6 +14,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Textarea } from "@/components/ui/textarea"
 import { VersionsTab } from "./_components/versions-tab"
@@ -29,6 +31,7 @@ export default function SkillDetailPage({ params }: SkillDetailProps) {
   const [error, setError] = useState<string | null>(null)
   const [name, setName] = useState("")
   const [description, setDescription] = useState("")
+  const [visible, setVisible] = useState<SkillVisible>("private")
   const [saving, setSaving] = useState(false)
   const [previewOpen, setPreviewOpen] = useState(false)
   const [previewFile, setPreviewFile] = useState<string | null>(null)
@@ -44,6 +47,7 @@ export default function SkillDetailPage({ params }: SkillDetailProps) {
       setSkill(data)
       setName(data.name)
       setDescription(data.description || "")
+      setVisible(data.visible || "private")
       const fileList = await api.listSkillFiles(params.skillUuid)
       setFiles(fileList)
       setStatus("ready")
@@ -63,8 +67,16 @@ export default function SkillDetailPage({ params }: SkillDetailProps) {
     }
     setSaving(true)
     try {
-      const updated = await api.updateSkill(skill.id, { name, description })
+      const updated = await api.updateSkill(skill.id, {
+        name,
+        description,
+        visible: featureFlags.enableSkillVisibility ? visible : undefined
+      })
       setSkill(updated)
+      success("Skill 已保存")
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "保存失败"
+      showError("保存失败", { description: message })
     } finally {
       setSaving(false)
     }
@@ -98,7 +110,7 @@ export default function SkillDetailPage({ params }: SkillDetailProps) {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="font-display text-3xl">Skill 详情</h1>
@@ -180,7 +192,13 @@ export default function SkillDetailPage({ params }: SkillDetailProps) {
               </CardHeader>
               <CardContent className="flex flex-wrap gap-2">
                 <Badge variant="muted">id: {skill.id.slice(0, 8)}</Badge>
-                <Badge variant="outline">私有目录</Badge>
+                {/* 可见性徽章 - 条件显示 */}
+                {featureFlags.enableSkillVisibility && skill.visible && (
+                  <Badge variant={skill.visible === "private" ? "outline" : skill.visible === "team" ? "secondary" : "accent"}>
+                    {skill.visible === "private" ? "私有" : skill.visible === "team" ? "团队" : "企业"}
+                  </Badge>
+                )}
+                {!featureFlags.enableSkillVisibility && <Badge variant="outline">私有目录</Badge>}
                 <Badge variant="accent">MCP 可用</Badge>
               </CardContent>
             </Card>
@@ -191,11 +209,11 @@ export default function SkillDetailPage({ params }: SkillDetailProps) {
                 <CardTitle>文件清单</CardTitle>
                 <CardDescription>查看已上传的参考文件。</CardDescription>
               </CardHeader>
-              <CardContent className="space-y-3 text-sm text-muted-foreground">
+              <CardContent className="flex flex-col gap-3 text-sm text-muted-foreground">
                 {files.length === 0 ? (
                   <p>暂无文件，请在创建页上传。</p>
                 ) : (
-                  <ul className="space-y-2">
+                  <ul className="flex flex-col gap-2">
                     {files.map((file) => (
                       <li key={file} className="flex items-center gap-2">
                         <FileText className="h-4 w-4 text-muted-foreground" />
@@ -255,15 +273,37 @@ export default function SkillDetailPage({ params }: SkillDetailProps) {
                 <CardTitle>设置</CardTitle>
                 <CardDescription>更新名称与描述，或删除 Skill。</CardDescription>
               </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-2">
+              <CardContent className="flex flex-col gap-4">
+                <div className="flex flex-col gap-2">
                   <Label htmlFor="name">Skill 名称</Label>
                   <Input id="name" value={name} onChange={(event) => setName(event.target.value)} />
                 </div>
-                <div className="space-y-2">
+                <div className="flex flex-col gap-2">
                   <Label htmlFor="description">描述</Label>
                   <Textarea id="description" value={description} onChange={(event) => setDescription(event.target.value)} />
                 </div>
+                {/* 可见性设置 - 条件显示 */}
+                {featureFlags.enableSkillVisibility && (
+                  <div className="flex flex-col gap-2">
+                    <Label htmlFor="visible" className="flex items-center gap-2">
+                      <Eye className="h-4 w-4 text-muted-foreground" />
+                      可见性
+                    </Label>
+                    <Select value={visible} onValueChange={(value) => setVisible(value as SkillVisible)}>
+                      <SelectTrigger id="visible">
+                        <SelectValue placeholder="选择可见性" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="private">私有</SelectItem>
+                        <SelectItem value="team">团队</SelectItem>
+                        <SelectItem value="enterprise">企业</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-muted-foreground">
+                      私有：仅自己可见；团队：团队成员可见；企业：全企业可见
+                    </p>
+                  </div>
+                )}
                 <div className="flex flex-wrap gap-2">
                   <Button onClick={handleSave} disabled={saving}>
                     <Save className="h-4 w-4" />

@@ -59,7 +59,7 @@ pip install -e ".[dev]"
 
 ### 2. Configure Environment
 
-Copy `.env.example` to `.env` and configure:
+Copy `backend/.env.example` to `backend/.env` and configure:
 
 ```bash
 DATABASE_URL=postgresql+asyncpg://user:pass@localhost:5432/skillhub

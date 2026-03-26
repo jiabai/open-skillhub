@@ -59,7 +59,7 @@ pip install -e ".[dev]"
 
 ### 2. 配置环境变量
 
-复制 `.env.example` 为 `.env` 并配置：
+复制 `backend/.env.example` 为 `backend/.env` 并配置：
 
 ```bash
 DATABASE_URL=postgresql+asyncpg://user:pass@localhost:5432/skillhub

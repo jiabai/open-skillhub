@@ -35,9 +35,9 @@
 
 ## 环境变量配置
 
-复制 `.env.example` 并按需修改：
+复制 `backend/.env.example` 并按需修改：
 
-> 说明：`.env.example` 展示的是代码内建默认值与示例值；私有化部署需显式覆盖相关能力开关。
+> 说明：`backend/.env.example` 展示的是代码内建默认值与示例值；私有化部署需显式覆盖相关能力开关。
 
 ```bash
 DATABASE_URL=postgresql+asyncpg://user:pass@localhost:5432/skillhub
@@ -208,12 +208,12 @@ NEXT_PUBLIC_API_BASE_URL=http://localhost:8000 npm run dev
 ### 1. 准备环境变量
 
 - 生产环境必须设置 `SECRET_KEY`、`CORS_ORIGINS`，且 `DEBUG=false`
-- `.env` 用于存放敏感信息与生产配置
+- `backend/.env` 用于存放敏感信息与生产配置
 
 ### 2. 启动服务（包含迁移）
 
 ```bash
-docker compose --env-file .env up -d --build
+docker compose --env-file backend/.env up -d --build
 ```
 
 `migrate` 服务会在 `db` 就绪后执行迁移并退出，`api` 会在迁移完成后启动。

@@ -115,7 +115,7 @@ def test_parse_deprecation_notify_offsets_days_from_string():
 
 def test_alembic_files_exist():
     root = Path(__file__).resolve().parents[1]
-    assert (root / "alembic.ini").exists()
+    assert (root / "backend" / "alembic.ini").exists()
     assert (root / "backend" / "db" / "migrations" / "env.py").exists()
 
 

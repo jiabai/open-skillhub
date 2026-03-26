@@ -99,14 +99,20 @@ class SmtpEmailSender:
         message["To"] = email
         message.set_content(text)
         message.add_alternative(html, subtype="html")
-        with smtplib.SMTP(self._host, self._port, timeout=self._timeout) as server:
-            server.ehlo()
-            if self._use_tls:
-                server.starttls()
+        if self._port == 465:
+            with smtplib.SMTP_SSL(self._host, self._port, timeout=self._timeout) as server:
+                if self._username:
+                    server.login(self._username, self._password)
+                server.send_message(message)
+        else:
+            with smtplib.SMTP(self._host, self._port, timeout=self._timeout) as server:
                 server.ehlo()
-            if self._username:
-                server.login(self._username, self._password)
-            server.send_message(message)
+                if self._use_tls:
+                    server.starttls()
+                    server.ehlo()
+                if self._username:
+                    server.login(self._username, self._password)
+                server.send_message(message)
 
 
 class AliyunEmailSender:

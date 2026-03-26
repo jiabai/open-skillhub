@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import Link from "next/link"
-import { ArrowUpRight, Command, Database, FileText, KeyRound, Shield, Sparkles, Trash2 } from "lucide-react"
+import { ArrowRight, Database, FileText, KeyRound, Shield, Sparkles, Trash2 } from "lucide-react"
 
 import { api } from "@/lib/api"
 import type { DashboardOverview, SkillCachePolicyResponse } from "@/types"
@@ -119,20 +119,144 @@ export default function DashboardPage() {
 
   return (
     <div className="flex flex-col gap-8">
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h1 className="font-display text-3xl">控制台概览</h1>
-          <p className="text-sm text-muted-foreground">集中管理你的多用户 Skill 能力与访问凭证。</p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <Button asChild>
-            <Link href="/skills/new">创建 Skill</Link>
-          </Button>
-          <Button variant="outline" asChild>
-            <Link href="/tokens">管理 Token</Link>
-          </Button>
-          {isAdmin ? (
-            <>
+      {/* 页面标题 */}
+      <div className="flex flex-col gap-2">
+        <h1 className="font-display text-2xl font-semibold tracking-tight">控制台概览</h1>
+        <p className="text-muted-foreground">集中管理你的多用户 Skill 能力与访问凭证。</p>
+      </div>
+
+      {/* 错误提示 */}
+      {status === "error" ? (
+        <Card className="border-destructive/50">
+          <CardContent className="py-4 text-sm text-destructive">{error}</CardContent>
+        </Card>
+      ) : null}
+
+      {/* 统计卡片 */}
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <Card>
+          <CardHeader className="pb-2">
+            <CardDescription className="text-xs uppercase tracking-wider">活跃 Skills</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="text-3xl font-bold tabular-nums">{overview?.active_skills ?? "—"}</div>
+            <Badge variant="accent" className="mt-2 text-xs">启用中</Badge>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardDescription className="text-xs uppercase tracking-wider">可用 Tokens</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="text-3xl font-bold tabular-nums">{overview?.available_tokens ?? "—"}</div>
+            <Badge variant="accent" className="mt-2 text-xs">未过期</Badge>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardDescription className="text-xs uppercase tracking-wider">工具调用成功率</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="text-3xl font-bold tabular-nums">{successRateText}</div>
+            <p className="mt-1 text-xs text-muted-foreground">{successRateTag}</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* 主内容区 */}
+      <div className="grid gap-6 lg:grid-cols-2">
+        {/* 快捷入口 */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">快捷入口</CardTitle>
+            <CardDescription>快速进入常用管理操作。</CardDescription>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-2">
+            {[
+              { label: "Skills 列表", href: "/skills", icon: Sparkles, description: "管理私有 Skill 目录" },
+              { label: "创建 Skill", href: "/skills/new", icon: FileText, description: "定义新的 Skill" },
+              { label: "API Tokens", href: "/tokens", icon: KeyRound, description: "管理访问凭证" }
+            ].map((item) => {
+              const Icon = item.icon
+              return (
+                <Link
+                  key={item.label}
+                  href={item.href}
+                  className="group flex items-center justify-between rounded-lg border border-border bg-card px-4 py-3 transition-colors hover:bg-muted/50"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-muted">
+                      <Icon className="h-4 w-4 text-muted-foreground" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium">{item.label}</p>
+                      <p className="text-xs text-muted-foreground">{item.description}</p>
+                    </div>
+                  </div>
+                  <ArrowRight className="h-4 w-4 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
+                </Link>
+              )
+            })}
+          </CardContent>
+        </Card>
+
+        {/* 运行提示 */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">运行提示</CardTitle>
+            <CardDescription>保持 MCP 服务稳定运行的建议。</CardDescription>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-3">
+            <div className="flex items-start gap-3 rounded-lg bg-muted/50 p-3">
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded bg-background">
+                <Database className="h-4 w-4 text-primary" />
+              </div>
+              <div>
+                <p className="text-sm font-medium">建议每日检查 /metrics</p>
+                <p className="text-xs text-muted-foreground">关注数据库、磁盘与内存使用率。</p>
+              </div>
+            </div>
+            <div className="flex items-start gap-3 rounded-lg bg-muted/50 p-3">
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded bg-background">
+                <Sparkles className="h-4 w-4 text-primary" />
+              </div>
+              <div>
+                <p className="text-sm font-medium">保持 Skill 描述清晰</p>
+                <p className="text-xs text-muted-foreground">可帮助 load_skill_metadata 更好地呈现。</p>
+              </div>
+            </div>
+            {cachePolicy && (
+              <div className="flex items-start gap-3 rounded-lg border border-border p-3">
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded bg-muted">
+                  <Shield className="h-4 w-4 text-muted-foreground" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <p className="text-sm font-medium">缓存策略</p>
+                    {cachePolicy.encryption_enabled && (
+                      <Badge variant="outline" className="text-xs">加密</Badge>
+                    )}
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    TTL: {Math.floor(cachePolicy.cache_ttl_seconds / 60)} 分钟
+                    {cachePolicy.download_encryption_enabled && " · 下载加密"}
+                  </p>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* 管理员操作 */}
+      {isAdmin && (
+        <Card className="border-border/50">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-lg">管理员操作</CardTitle>
+            <CardDescription>管理统计数据与系统维护。</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-wrap gap-2">
               <AlertDialog
                 open={cleanupOpen}
                 onOpenChange={(open) => {
@@ -146,8 +270,8 @@ export default function DashboardPage() {
                 }}
               >
                 <AlertDialogTrigger asChild>
-                  <Button variant="outline">
-                    <Trash2 className="h-4 w-4" />
+                  <Button variant="outline" size="sm">
+                    <Trash2 className="mr-2 h-4 w-4" />
                     清理历史统计
                   </Button>
                 </AlertDialogTrigger>
@@ -168,7 +292,7 @@ export default function DashboardPage() {
                       onChange={(event) => setRetentionDays(event.target.value)}
                     />
                     <p className="text-xs text-muted-foreground">
-                      此操作通常不影响“过去 24h 调用次数/成功率”。若将 N 设为 1，可能影响窗口边界的小时桶。
+                      此操作通常不影响"过去 24h 调用次数/成功率"。
                     </p>
                   </div>
                   {cleanupStatus === "done" && cleanupMessage ? (
@@ -197,7 +321,7 @@ export default function DashboardPage() {
                 }}
               >
                 <AlertDialogTrigger asChild>
-                  <Button variant="outline">清零过去 24h</Button>
+                  <Button variant="outline" size="sm">清零过去 24h</Button>
                 </AlertDialogTrigger>
                 <AlertDialogContent>
                   <AlertDialogHeader>
@@ -220,105 +344,10 @@ export default function DashboardPage() {
                   </AlertDialogFooter>
                 </AlertDialogContent>
               </AlertDialog>
-            </>
-          ) : null}
-        </div>
-      </div>
-      {status === "error" ? (
-        <Card>
-          <CardContent className="py-6 text-sm text-destructive">{error}</CardContent>
-        </Card>
-      ) : null}
-      <div className="grid gap-4 lg:grid-cols-3">
-        {[
-          { title: "活跃 Skills", value: overview ? String(overview.active_skills) : "—", tag: "启用中" },
-          { title: "可用 Tokens", value: overview ? String(overview.available_tokens) : "—", tag: "未过期" },
-          { title: "工具调用成功率", value: successRateText, tag: successRateTag }
-        ].map((item) => (
-          <Card key={item.title}>
-            <CardHeader>
-              <CardDescription>{item.title}</CardDescription>
-              <CardTitle className="text-3xl">{item.value}</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <Badge variant="accent">{item.tag}</Badge>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-      <div className="grid gap-4 lg:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle>快捷入口</CardTitle>
-            <CardDescription>快速进入常用管理操作。</CardDescription>
-          </CardHeader>
-          <CardContent className="flex flex-col gap-3">
-            {[
-              { label: "Skills 列表", href: "/skills", icon: Sparkles },
-              { label: "上传参考文件", href: "/skills/new", icon: FileText },
-              { label: "创建 Token", href: "/tokens", icon: KeyRound }
-            ].map((item) => {
-              const Icon = item.icon
-              return (
-                <Link
-                  key={item.label}
-                  href={item.href}
-                  className="flex items-center justify-between rounded-lg border border-border bg-muted/40 px-4 py-3 text-sm text-foreground transition hover:bg-muted"
-                >
-                  <span className="flex items-center gap-2">
-                    <Icon className="h-4 w-4 text-muted-foreground" />
-                    {item.label}
-                  </span>
-                  <ArrowUpRight className="h-4 w-4 text-muted-foreground" />
-                </Link>
-              )
-            })}
+            </div>
           </CardContent>
         </Card>
-        <Card>
-          <CardHeader>
-            <CardTitle>运行提示</CardTitle>
-            <CardDescription>保持 MCP 服务稳定运行的建议。</CardDescription>
-          </CardHeader>
-          <CardContent className="flex flex-col gap-4 text-sm text-muted-foreground">
-            <div className="flex items-start gap-3 rounded-lg bg-muted/40 p-4">
-              <Command className="mt-0.5 h-4 w-4 text-primary" />
-              <div>
-                <p className="text-foreground">建议每日检查 /metrics</p>
-                <p>关注数据库、磁盘与内存使用率。</p>
-              </div>
-            </div>
-            <div className="flex items-start gap-3 rounded-lg bg-muted/40 p-4">
-              <Sparkles className="mt-0.5 h-4 w-4 text-primary" />
-              <div>
-                <p className="text-foreground">保持 Skill 描述清晰</p>
-                <p>可帮助 load_skill_metadata 更好地呈现。</p>
-              </div>
-            </div>
-            {/* 缓存策略信息 */}
-            {cachePolicy && (
-              <div className="flex items-start gap-3 rounded-lg border border-border/50 bg-muted/20 p-4">
-                <Database className="mt-0.5 h-4 w-4 text-muted-foreground" />
-                <div>
-                  <p className="text-foreground flex items-center gap-2">
-                    缓存策略
-                    {cachePolicy.encryption_enabled && (
-                      <Badge variant="outline" className="text-xs">
-                        <Shield className="h-3 w-3 mr-1" />
-                        加密
-                      </Badge>
-                    )}
-                  </p>
-                  <p className="text-xs mt-1">
-                    TTL: {Math.floor(cachePolicy.cache_ttl_seconds / 60)} 分钟
-                    {cachePolicy.download_encryption_enabled && " · 下载加密"}
-                  </p>
-                </div>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      </div>
+      )}
     </div>
   )
 }

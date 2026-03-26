@@ -103,24 +103,24 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="mx-auto grid min-h-screen max-w-screen-xl items-center gap-10 px-6 py-12 lg:grid-cols-[1.1fr_0.9fr]">
-        <div className="flex flex-col gap-6">
+      <div className="mx-auto grid min-h-screen max-w-screen-xl items-center gap-6 px-4 py-8 sm:px-6 sm:py-12 lg:grid-cols-[1.1fr_0.9fr] lg:gap-10 3xl:max-w-screen-2xl 3xl:gap-14 4k:max-w-screen-3xl 4k:gap-16">
+        <div className="flex flex-col gap-4 sm:gap-6 3xl:gap-8">
           <div className="flex items-center gap-3">
-            <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-              <Shield className="h-6 w-6" />
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary text-primary-foreground sm:h-12 sm:w-12 3xl:h-14 3xl:w-14">
+              <Shield className="h-5 w-5 sm:h-6 sm:w-6 3xl:h-7 3xl:w-7" />
             </div>
             <div>
-              <p className="font-display text-2xl">欢迎回来</p>
-              <p className="text-sm text-muted-foreground">安全地进入你的 Skill 空间</p>
+              <p className="font-display text-xl sm:text-2xl 3xl:text-3xl">欢迎回来</p>
+              <p className="text-xs sm:text-sm 3xl:text-base text-muted-foreground">安全地进入你的 Skill 空间</p>
             </div>
           </div>
-          <div className="rounded-lg border border-border bg-muted/60 p-6">
+          <div className="rounded-lg border border-border bg-muted/60 p-4 sm:p-6 3xl:p-8">
             <p className="text-sm text-muted-foreground">
               你将访问私有 MCP Skill 目录、API Token 管理与运行记录。所有动作都记录在账户下。
             </p>
           </div>
         </div>
-        <Card className="border-border/80 shadow-lg">
+        <Card className="w-full max-w-md justify-self-center border-border/80 shadow-lg lg:max-w-none lg:justify-self-auto 3xl:max-w-lg 4k:max-w-xl">
           <CardHeader>
             <CardTitle>欢迎回来</CardTitle>
             <CardDescription>
@@ -146,7 +146,7 @@ export default function LoginPage() {
                 </div>
                 <div className="flex flex-col gap-2">
                   <Label htmlFor="code">验证码</Label>
-                  <div className="flex gap-2">
+                  <div className="flex flex-col gap-2 sm:flex-row sm:gap-2">
                     <Input
                       id="code"
                       inputMode="numeric"
@@ -155,12 +155,14 @@ export default function LoginPage() {
                       onChange={(event) => codeField.setValue(event.target.value)}
                       onBlur={codeField.handleBlur}
                       maxLength={6}
+                      className="sm:flex-1"
                     />
                     <Button
                       type="button"
                       variant="secondary"
                       onClick={handleSendCode}
                       disabled={!emailField.value || isSending || resendSeconds > 0}
+                      className="shrink-0"
                     >
                       {resendSeconds > 0 ? `${resendSeconds}s` : isSending ? "发送中..." : "发送验证码"}
                     </Button>
@@ -192,7 +194,7 @@ export default function LoginPage() {
                       </div>
                     </div>
                   )}
-                  <div className="flex w-full gap-2">
+                  <div className="flex w-full flex-col gap-2 sm:flex-row">
                     {featureFlags.enableSSO && (
                       <Button
                         type="button"

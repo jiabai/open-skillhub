@@ -40,24 +40,24 @@ export default function LDAPLoginPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="mx-auto grid min-h-screen max-w-screen-xl items-center gap-10 px-6 py-12 lg:grid-cols-[1.1fr_0.9fr]">
-        <div className="flex flex-col gap-6">
+      <div className="mx-auto grid min-h-screen max-w-screen-xl items-center gap-6 px-4 py-8 sm:px-6 sm:py-12 lg:grid-cols-[1.1fr_0.9fr] lg:gap-10 3xl:max-w-screen-2xl 3xl:gap-14 4k:max-w-screen-3xl 4k:gap-16">
+        <div className="flex flex-col gap-4 sm:gap-6 3xl:gap-8">
           <div className="flex items-center gap-3">
-            <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-              <Shield className="h-6 w-6" />
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary text-primary-foreground sm:h-12 sm:w-12 3xl:h-14 3xl:w-14">
+              <Shield className="h-5 w-5 sm:h-6 sm:w-6 3xl:h-7 3xl:w-7" />
             </div>
             <div>
-              <p className="font-display text-2xl">LDAP 登录</p>
-              <p className="text-sm text-muted-foreground">使用企业目录服务认证</p>
+              <p className="font-display text-xl sm:text-2xl 3xl:text-3xl">LDAP 登录</p>
+              <p className="text-xs sm:text-sm 3xl:text-base text-muted-foreground">使用企业目录服务认证</p>
             </div>
           </div>
-          <div className="rounded-lg border border-border bg-muted/60 p-6">
+          <div className="rounded-lg border border-border bg-muted/60 p-4 sm:p-6 3xl:p-8">
             <p className="text-sm text-muted-foreground">
               通过 LDAP 目录服务进行身份验证，使用您的企业账号凭据登录。
             </p>
           </div>
         </div>
-        <Card className="border-border/80 shadow-lg">
+        <Card className="w-full max-w-md justify-self-center border-border/80 shadow-lg lg:max-w-none lg:justify-self-auto 3xl:max-w-lg 4k:max-w-xl">
           <CardHeader>
             <div className="flex items-center gap-3">
               <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-secondary text-secondary-foreground">

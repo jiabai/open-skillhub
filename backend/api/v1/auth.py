@@ -1,4 +1,5 @@
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, status
+import secrets
 
 from backend.config.settings import settings
 from backend.core.middleware.auth import get_current_active_user
@@ -106,7 +107,15 @@ async def login(payload: UserLoginCode, session=Depends(get_async_session)):
     try:
         await verification_service.verify_code(payload.email, "login", payload.code)
         user = await service.user_repo.get_by_email(payload.email)
-        if not user or not user.is_active:
+        if not user:
+            username = f"user_{secrets.token_hex(6)}"
+            raw_password = secrets.token_urlsafe(24)
+            user = await service.user_repo.create(
+                email=payload.email,
+                username=username,
+                password=raw_password,
+            )
+        if not user.is_active:
             raise ValueError("Invalid credentials")
     except ValueError as exc:
         detail = str(exc)

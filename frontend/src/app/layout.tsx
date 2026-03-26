@@ -1,10 +1,13 @@
 import type { Metadata } from "next"
-import { Fraunces, IBM_Plex_Sans } from "next/font/google"
+import { Fraunces, IBM_Plex_Sans, Inter } from "next/font/google"
 
 import "./globals.css"
 import { ThemeProvider } from "@/components/theme-provider"
 import { AppShell } from "@/components/app/app-shell"
 import { Toaster } from "@/components/ui/sonner"
+import { cn } from "@/lib/utils";
+
+const inter = Inter({subsets:['latin'],variable:'--font-sans'});
 
 const displayFont = Fraunces({
   subsets: ["latin"],
@@ -24,7 +27,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="zh-CN" className={`${displayFont.variable} ${bodyFont.variable}`} suppressHydrationWarning>
+    <html lang="zh-CN" className={cn(displayFont.variable, bodyFont.variable, "font-sans", inter.variable)} suppressHydrationWarning>
       <body className="min-h-screen bg-background text-foreground antialiased">
         <ThemeProvider>
           <AppShell>{children}</AppShell>

@@ -101,14 +101,14 @@ export default function ProfilePage() {
   }
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-6 3xl:gap-8">
       <div className="flex items-center gap-3">
-        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-secondary text-secondary-foreground">
-          <User2 className="h-5 w-5" />
+        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-secondary text-secondary-foreground 3xl:h-12 3xl:w-12">
+          <User2 className="h-5 w-5 3xl:h-6 3xl:w-6" />
         </div>
         <div>
-          <h1 className="font-display text-3xl">个人信息</h1>
-          <p className="text-sm text-muted-foreground">更新账户基础资料。</p>
+          <h1 className="font-display text-3xl 3xl:text-4xl 4k:text-5xl">个人信息</h1>
+          <p className="text-sm 3xl:text-base text-muted-foreground">更新账户基础资料。</p>
         </div>
       </div>
       <Card>
@@ -159,18 +159,20 @@ export default function ProfilePage() {
             </div>
             <div className="flex flex-col gap-2">
               <Label htmlFor="verification-code">验证码</Label>
-              <div className="flex gap-2">
+              <div className="flex flex-col gap-2 sm:flex-row sm:gap-2">
                 <Input
                   id="verification-code"
                   value={verificationCode}
                   onChange={(event) => setVerificationCode(event.target.value)}
                   placeholder="输入验证码"
                   required
+                  className="sm:flex-1"
                 />
                 <Button
                   variant="outline"
                   onClick={handleSendCode}
                   disabled={isSendingCode || countdown > 0}
+                  className="shrink-0"
                 >
                   {countdown > 0 ? `${countdown}s` : "获取验证码"}
                 </Button>

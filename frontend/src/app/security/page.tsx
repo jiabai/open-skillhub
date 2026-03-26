@@ -43,14 +43,14 @@ export default function SecurityPage() {
   }
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-6 3xl:gap-8">
       <div className="flex items-center gap-3">
-        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-secondary text-secondary-foreground">
-          <ShieldCheck className="h-5 w-5" />
+        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-secondary text-secondary-foreground 3xl:h-12 3xl:w-12">
+          <ShieldCheck className="h-5 w-5 3xl:h-6 3xl:w-6" />
         </div>
         <div>
-          <h1 className="font-display text-3xl">安全设置</h1>
-          <p className="text-sm text-muted-foreground">管理账户安全与数据。</p>
+          <h1 className="font-display text-3xl 3xl:text-4xl 4k:text-5xl">安全设置</h1>
+          <p className="text-sm 3xl:text-base text-muted-foreground">管理账户安全与数据。</p>
         </div>
       </div>
       <Card>
@@ -93,11 +93,12 @@ export default function SecurityPage() {
                   required
                 />
               </div>
-              <div className="flex gap-2">
+              <div className="flex flex-col gap-2 sm:flex-row sm:gap-2">
                 <Button
                   variant="outline"
                   onClick={handleRequestDeleteCode}
                   disabled={isRequestingCode}
+                  className="sm:flex-1"
                 >
                   {isRequestingCode ? (
                     <>
@@ -110,7 +111,7 @@ export default function SecurityPage() {
                 </Button>
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
-                    <Button variant="destructive" disabled={!deleteCode}>
+                    <Button variant="destructive" disabled={!deleteCode} className="sm:flex-1">
                       <Trash2 className="mr-2 h-4 w-4" />
                       删除账户
                     </Button>

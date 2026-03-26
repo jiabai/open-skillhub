@@ -110,11 +110,11 @@ export default function SkillDetailPage({ params }: SkillDetailProps) {
   }
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-6 3xl:gap-8">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="font-display text-3xl">Skill 详情</h1>
-          <p className="text-sm text-muted-foreground">查看与维护 Skill 元数据与文件。</p>
+          <h1 className="font-display text-3xl 3xl:text-4xl 4k:text-5xl">Skill 详情</h1>
+          <p className="text-sm 3xl:text-base text-muted-foreground">查看与维护 Skill 元数据与文件。</p>
         </div>
         <Button variant="outline" asChild>
           <Link href="/skills">返回列表</Link>

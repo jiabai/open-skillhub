@@ -144,6 +144,7 @@ async def ensure_mcp_initialized() -> None:
             from flowllm.core.service.mcp_service import MCPService
 
             from backend.core.app import SkillHubMcpApp
+            import backend.core.tools
         except Exception as exc:
             _init_error = exc
             fallback = _build_fallback_app()

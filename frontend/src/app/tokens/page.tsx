@@ -85,14 +85,14 @@ export default function TokensPage() {
   }
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-6 3xl:gap-8">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="font-display text-3xl">API Tokens</h1>
-          <p className="text-sm text-muted-foreground">管理 MCP API Token，仅创建时展示明文。</p>
+          <h1 className="font-display text-3xl 3xl:text-4xl 4k:text-5xl">API Tokens</h1>
+          <p className="text-sm 3xl:text-base text-muted-foreground">管理 MCP API Token，仅创建时展示明文。</p>
         </div>
       </div>
-      <div className="grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
+      <div className="grid gap-4 lg:grid-cols-[1.1fr_0.9fr] 3xl:gap-6 4k:gap-8 4k:grid-cols-2">
         <Card>
           <CardHeader>
             <CardTitle>创建 Token</CardTitle>

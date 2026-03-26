@@ -50,19 +50,19 @@ export default function SSOCallbackPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center px-6">
-        <Card className="w-full max-w-md border-border/80 shadow-lg">
+      <div className="min-h-screen bg-background flex items-center justify-center px-4 sm:px-6">
+        <Card className="w-full max-w-md border-border/80 shadow-lg 3xl:max-w-lg 4k:max-w-xl">
           <CardHeader className="text-center">
             <div className="flex justify-center mb-4">
-              <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-                <Shield className="h-6 w-6" />
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary text-primary-foreground sm:h-12 sm:w-12 3xl:h-14 3xl:w-14">
+                <Shield className="h-5 w-5 sm:h-6 sm:w-6 3xl:h-7 3xl:w-7" />
               </div>
             </div>
-            <CardTitle>SSO 认证中</CardTitle>
+            <CardTitle className="3xl:text-xl">SSO 认证中</CardTitle>
             <CardDescription>正在验证您的身份...</CardDescription>
           </CardHeader>
           <CardContent className="flex justify-center py-6">
-            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            <Loader2 className="h-8 w-8 animate-spin text-primary 3xl:h-10 3xl:w-10" />
           </CardContent>
         </Card>
       </div>
@@ -71,15 +71,15 @@ export default function SSOCallbackPage() {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center px-6">
-        <Card className="w-full max-w-md border-border/80 shadow-lg">
+      <div className="min-h-screen bg-background flex items-center justify-center px-4 sm:px-6">
+        <Card className="w-full max-w-md border-border/80 shadow-lg 3xl:max-w-lg 4k:max-w-xl">
           <CardHeader className="text-center">
             <div className="flex justify-center mb-4">
-              <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-destructive text-destructive-foreground">
-                <AlertCircle className="h-6 w-6" />
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-destructive text-destructive-foreground sm:h-12 sm:w-12 3xl:h-14 3xl:w-14">
+                <AlertCircle className="h-5 w-5 sm:h-6 sm:w-6 3xl:h-7 3xl:w-7" />
               </div>
             </div>
-            <CardTitle>SSO 认证失败</CardTitle>
+            <CardTitle className="3xl:text-xl">SSO 认证失败</CardTitle>
             <CardDescription>{error}</CardDescription>
           </CardHeader>
           <CardContent className="flex flex-col gap-3">

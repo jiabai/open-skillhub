@@ -115,8 +115,8 @@ export default function RegisterPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="mx-auto grid min-h-screen max-w-screen-xl items-center gap-10 px-6 py-12 lg:grid-cols-[0.9fr_1.1fr]">
-        <Card className="border-border/80 shadow-lg">
+      <div className="mx-auto grid min-h-screen max-w-screen-xl items-center gap-6 px-4 py-8 sm:px-6 sm:py-12 lg:grid-cols-[0.9fr_1.1fr] lg:gap-10 3xl:max-w-screen-2xl 3xl:gap-14 4k:max-w-screen-3xl 4k:gap-16">
+        <Card className="w-full max-w-md justify-self-center border-border/80 shadow-lg lg:max-w-none lg:justify-self-auto 3xl:max-w-lg 4k:max-w-xl">
           <CardHeader>
             <CardTitle>创建账户</CardTitle>
             <CardDescription>使用邮箱验证码创建账户。</CardDescription>
@@ -150,7 +150,7 @@ export default function RegisterPage() {
               </div>
               <div className="flex flex-col gap-2">
                 <Label htmlFor="code">验证码</Label>
-                <div className="flex gap-2">
+                <div className="flex flex-col gap-2 sm:flex-row sm:gap-2">
                   <Input
                     id="code"
                     inputMode="numeric"
@@ -160,12 +160,14 @@ export default function RegisterPage() {
                     onBlur={codeField.handleBlur}
                     disabled={isLoading}
                     maxLength={6}
+                    className="sm:flex-1"
                   />
                   <Button
                     type="button"
                     variant="secondary"
                     onClick={handleSendCode}
                     disabled={!emailField.value || isSending || resendSeconds > 0}
+                    className="shrink-0"
                   >
                     {resendSeconds > 0 ? `${resendSeconds}s` : isSending ? "发送中..." : "发送验证码"}
                   </Button>
@@ -191,17 +193,17 @@ export default function RegisterPage() {
             </CardFooter>
           </form>
         </Card>
-        <div className="flex flex-col gap-6">
+        <div className="flex flex-col gap-4 sm:gap-6 3xl:gap-8">
           <div className="flex items-center gap-3">
-            <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-secondary text-secondary-foreground">
-              <Sparkles className="h-6 w-6" />
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-secondary text-secondary-foreground sm:h-12 sm:w-12 3xl:h-14 3xl:w-14">
+              <Sparkles className="h-5 w-5 sm:h-6 sm:w-6 3xl:h-7 3xl:w-7" />
             </div>
             <div>
-              <p className="font-display text-2xl">即刻启动</p>
-              <p className="text-sm text-muted-foreground">多用户隔离、API Token 与 MCP 工具整合</p>
+              <p className="font-display text-xl sm:text-2xl 3xl:text-3xl">即刻启动</p>
+              <p className="text-xs sm:text-sm 3xl:text-base text-muted-foreground">多用户隔离、API Token 与 MCP 工具整合</p>
             </div>
           </div>
-          <div className="rounded-lg border border-border bg-muted/60 p-6">
+          <div className="rounded-lg border border-border bg-muted/60 p-4 sm:p-6 3xl:p-8">
             <ul className="flex flex-col gap-3 text-sm text-muted-foreground">
               <li>独立 Skill 存储目录与授权</li>
               <li>验证码登录 + MCP API Token 双认证</li>

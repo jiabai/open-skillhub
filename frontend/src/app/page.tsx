@@ -5,10 +5,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 
 export default function HomePage() {
   return (
-    <div className="grid gap-6">
+    <div className="grid gap-6 3xl:gap-8">
       <Card className="overflow-hidden">
         <CardHeader>
-          <CardTitle>SkillHub 控制台</CardTitle>
+          <CardTitle className="3xl:text-2xl">SkillHub 控制台</CardTitle>
           <CardDescription>为你的私有 Skills 提供清晰、可追踪的管理体验。</CardDescription>
         </CardHeader>
         <CardContent className="flex flex-wrap items-center gap-3">

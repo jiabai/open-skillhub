@@ -16,32 +16,49 @@ def _get_dialect_name() -> str:
     return bind.dialect.name
 
 
+def _find_fk_name(table_name: str, constrained_cols: list, referent_table: str) -> str | None:
+    inspector = sa.inspect(op.get_bind())
+    fks = inspector.get_foreign_keys(table_name)
+    for fk in fks:
+        if fk["constrained_columns"] == constrained_cols and fk["referred_table"] == referent_table:
+            return fk["name"]
+    return None
+
+
 def upgrade() -> None:
     dialect = _get_dialect_name()
 
     if dialect == "sqlite":
         op.execute("PRAGMA foreign_keys=OFF")
 
+        fk_name = _find_fk_name("skills", ["user_id"], "users")
         with op.batch_alter_table("skills", schema=None) as batch_op:
-            batch_op.drop_constraint("fk_skills_user_id", type_="foreignkey")
+            if fk_name:
+                batch_op.drop_constraint(fk_name, type_="foreignkey")
             batch_op.create_foreign_key(
                 "fk_skills_user_id", "users", ["user_id"], ["id"], ondelete="CASCADE"
             )
 
+        fk_name = _find_fk_name("api_tokens", ["user_id"], "users")
         with op.batch_alter_table("api_tokens", schema=None) as batch_op:
-            batch_op.drop_constraint("fk_api_tokens_user_id", type_="foreignkey")
+            if fk_name:
+                batch_op.drop_constraint(fk_name, type_="foreignkey")
             batch_op.create_foreign_key(
                 "fk_api_tokens_user_id", "users", ["user_id"], ["id"], ondelete="CASCADE"
             )
 
+        fk_name = _find_fk_name("skill_versions", ["skill_id"], "skills")
         with op.batch_alter_table("skill_versions", schema=None) as batch_op:
-            batch_op.drop_constraint("fk_skill_versions_skill_id", type_="foreignkey")
+            if fk_name:
+                batch_op.drop_constraint(fk_name, type_="foreignkey")
             batch_op.create_foreign_key(
                 "fk_skill_versions_skill_id", "skills", ["skill_id"], ["id"], ondelete="CASCADE"
             )
 
+        fk_name = _find_fk_name("request_metrics", ["user_id"], "users")
         with op.batch_alter_table("request_metrics", schema=None) as batch_op:
-            batch_op.drop_constraint("fk_request_metrics_user_id", type_="foreignkey")
+            if fk_name:
+                batch_op.drop_constraint(fk_name, type_="foreignkey")
             batch_op.create_foreign_key(
                 "fk_request_metrics_user_id", "users", ["user_id"], ["id"], ondelete="CASCADE"
             )

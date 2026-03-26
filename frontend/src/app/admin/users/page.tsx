@@ -153,15 +153,15 @@ export default function UsersAdminPage() {
   }
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-6 3xl:gap-8">
       {/* 页面标题 */}
       <div className="flex items-center gap-3">
-        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-secondary text-secondary-foreground">
-          <Users className="h-5 w-5" />
+        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-secondary text-secondary-foreground 3xl:h-12 3xl:w-12">
+          <Users className="h-5 w-5 3xl:h-6 3xl:w-6" />
         </div>
         <div>
-          <h1 className="font-display text-3xl">用户管理</h1>
-          <p className="text-sm text-muted-foreground">
+          <h1 className="font-display text-3xl 3xl:text-4xl 4k:text-5xl">用户管理</h1>
+          <p className="text-sm 3xl:text-base text-muted-foreground">
             管理用户身份信息，共 {total} 个用户
           </p>
         </div>

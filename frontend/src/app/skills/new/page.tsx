@@ -84,17 +84,17 @@ export default function NewSkillPage() {
   }
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-6 3xl:gap-8">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="font-display text-3xl">创建 Skill</h1>
-          <p className="text-sm text-muted-foreground">定义新的 Skill 并上传 SKILL.md 与参考文件。</p>
+          <h1 className="font-display text-3xl 3xl:text-4xl 4k:text-5xl">创建 Skill</h1>
+          <p className="text-sm 3xl:text-base text-muted-foreground">定义新的 Skill 并上传 SKILL.md 与参考文件。</p>
         </div>
         <Button variant="outline" asChild>
           <Link href="/skills">返回列表</Link>
         </Button>
       </div>
-      <div className="grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
+      <div className="grid gap-4 lg:grid-cols-[1.1fr_0.9fr] 3xl:gap-6 4k:gap-8 4k:grid-cols-2">
         <Card>
           <CardHeader>
             <CardTitle>基础信息</CardTitle>

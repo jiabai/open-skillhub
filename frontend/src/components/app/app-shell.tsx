@@ -97,7 +97,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       </a>
 
       <header className="border-b border-border/80 backdrop-blur z-40 sticky top-0">
-        <div className="container mx-auto max-w-screen-xl px-6 py-4">
+        <div className="container mx-auto max-w-screen-xl px-6 py-4 3xl:max-w-screen-2xl 4k:max-w-screen-3xl">
           {/* Top Bar */}
           <div className="flex items-center justify-between">
             {/* Logo */}
@@ -284,7 +284,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </div>
       </header>
 
-      <main id="main-content" className="container mx-auto max-w-screen-xl px-6 py-8" tabIndex={-1}>
+      <main id="main-content" className="container mx-auto max-w-screen-xl px-6 py-8 3xl:max-w-screen-2xl 4k:max-w-screen-3xl" tabIndex={-1}>
         {children}
       </main>
     </div>

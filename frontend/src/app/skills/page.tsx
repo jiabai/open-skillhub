@@ -68,11 +68,11 @@ export default function SkillsPage() {
   }
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-6 3xl:gap-8">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="font-display text-3xl">Skills</h1>
-          <p className="text-sm text-muted-foreground">管理你的私有 Agent Skills 目录。</p>
+          <h1 className="font-display text-3xl 3xl:text-4xl 4k:text-5xl">Skills</h1>
+          <p className="text-sm 3xl:text-base text-muted-foreground">管理你的私有 Agent Skills 目录。</p>
         </div>
         <Button asChild>
           <Link href="/skills/new">创建 Skill</Link>

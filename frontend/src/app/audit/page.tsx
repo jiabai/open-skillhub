@@ -19,7 +19,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 
 // 常见操作类型选项
 const ACTION_OPTIONS = [
-  { value: "", label: "全部操作" },
+  { value: "all", label: "全部操作" },
   { value: "skill.create", label: "创建 Skill" },
   { value: "skill.update", label: "更新 Skill" },
   { value: "skill.delete", label: "删除 Skill" },
@@ -36,7 +36,7 @@ export default function AuditLogsPage() {
   // 筛选状态
   const [startDate, setStartDate] = useState("")
   const [endDate, setEndDate] = useState("")
-  const [action, setAction] = useState("")
+  const [action, setAction] = useState("all")
   const [actorId, setActorId] = useState("")
 
   // 数据状态
@@ -56,7 +56,7 @@ export default function AuditLogsPage() {
       const params: { start?: string; end?: string; action?: string; actor_id?: string } = {}
       if (startDate) params.start = new Date(startDate).toISOString()
       if (endDate) params.end = new Date(endDate).toISOString()
-      if (action) params.action = action
+      if (action && action !== "all") params.action = action
       if (actorId) params.actor_id = actorId
 
       const response = await api.listAuditLogs(params)
@@ -94,7 +94,7 @@ export default function AuditLogsPage() {
         filters: {
           ...(startDate && { start: new Date(startDate).toISOString() }),
           ...(endDate && { end: new Date(endDate).toISOString() }),
-          ...(action && { action }),
+          ...(action && action !== "all" && { action }),
           ...(actorId && { actor_id: actorId }),
         },
       }
@@ -240,13 +240,13 @@ export default function AuditLogsPage() {
   }
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-6 3xl:gap-8">
       <div>
-        <h1 className="font-display text-3xl">审计日志</h1>
-        <p className="text-sm text-muted-foreground">查看系统操作记录</p>
+        <h1 className="font-display text-3xl 3xl:text-4xl 4k:text-5xl">审计日志</h1>
+        <p className="text-sm 3xl:text-base text-muted-foreground">查看系统操作记录</p>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-[320px_1fr]">
+      <div className="grid gap-6 lg:grid-cols-[320px_1fr] 3xl:gap-8 4k:gap-10 4k:grid-cols-[360px_1fr]">
         {/* 左侧筛选面板 */}
         <Card className="h-fit">
           <CardHeader>
@@ -308,7 +308,7 @@ export default function AuditLogsPage() {
             {featureFlags.enableAuditExport && (
               <div className="pt-4 border-t flex flex-col gap-2">
                 <p className="text-sm font-medium">导出日志</p>
-                <div className="flex gap-2">
+                <div className="flex flex-col gap-2 sm:flex-row">
                   <Button
                     variant="outline"
                     size="sm"

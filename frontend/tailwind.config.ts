@@ -12,6 +12,14 @@ const config: Config = {
       }
     },
     extend: {
+      screens: {
+        "3xl": "1920px",
+        "4k": "2560px"
+      },
+      maxWidth: {
+        "screen-2xl": "1536px",
+        "screen-3xl": "1920px"
+      },
       colors: {
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",

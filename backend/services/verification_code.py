@@ -55,8 +55,6 @@ class VerificationCodeService:
         return email.strip().lower()
 
     def _generate_code(self) -> str:
-        if settings.DEBUG:
-            return "123456"
         upper = 10**self._code_length
         return str(secrets.randbelow(upper)).zfill(self._code_length)
 

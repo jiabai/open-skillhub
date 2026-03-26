@@ -307,7 +307,7 @@ export const api = {
   // ========== Skill 文件管理 ==========
   listSkillFiles: (skillUuid: string) => apiFetch<string[]>(`/api/v1/skills/${skillUuid}/files`),
   getSkillFileContent: (skillUuid: string, filePath: string) =>
-    apiFetchText(`/api/v1/skills/${skillUuid}/files/${encodeURIComponent(filePath)}`),
+    apiFetchText(`/api/v1/skills/${skillUuid}/files/${encodeURIComponent(filePath.replace(/\\/g, "/"))}`),
   uploadSkillFile: async (skillUuid: string, file: File) => {
     const tokens = getStoredTokens()
     const formData = new FormData()
@@ -344,6 +344,62 @@ export const api = {
     }
 
     return (await response.json()) as { filename: string }
+  },
+  uploadSkillZip: async (file: File, visibility?: SkillVisible, onProgress?: (progress: number) => void) => {
+    const tokens = getStoredTokens()
+    const formData = new FormData()
+    formData.append("file", file)
+    if (visibility) {
+      formData.append("visibility", visibility)
+    }
+
+    const doUpload = async (accessToken?: string) => {
+      const xhr = new XMLHttpRequest()
+      return new Promise<Response>((resolve, reject) => {
+        xhr.upload.onprogress = (event) => {
+          if (event.lengthComputable && onProgress) {
+            const progress = Math.round((event.loaded / event.total) * 100)
+            onProgress(progress)
+          }
+        }
+        xhr.onload = () => {
+          resolve({
+            ok: xhr.status >= 200 && xhr.status < 300,
+            status: xhr.status,
+            statusText: xhr.statusText,
+            json: async () => JSON.parse(xhr.responseText),
+            text: async () => xhr.responseText,
+          } as Response)
+        }
+        xhr.onerror = () => reject(new Error("Network error"))
+        xhr.open("POST", `${apiBaseUrl}/api/v1/skills/upload`)
+        if (accessToken) {
+          xhr.setRequestHeader("Authorization", `Bearer ${accessToken}`)
+        }
+        xhr.send(formData)
+      })
+    }
+
+    let response = await doUpload(tokens?.access_token)
+
+    if (response.status === 401 && tokens?.refresh_token) {
+      try {
+        const refreshed = await safeRefreshTokens(tokens.refresh_token)
+        storeTokens({ access_token: refreshed.access_token, refresh_token: tokens.refresh_token })
+        response = await doUpload(refreshed.access_token)
+      } catch (error) {
+        clearTokens()
+        throw error
+      }
+    }
+
+    if (!response.ok) {
+      const errorPayload = await response.json().catch(() => ({}))
+      const detail = getDetail(errorPayload, response.statusText)
+      throw new Error(detail)
+    }
+
+    return (await response.json()) as { id: string; name: string; description: string; version: string; current_version: string; dependencies: string[] }
   },
 
   // ========== Skill 版本管理 ==========

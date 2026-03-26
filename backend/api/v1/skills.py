@@ -178,8 +178,9 @@ async def delete_skill(
 @router.post("/upload", status_code=status.HTTP_201_CREATED)
 async def upload_skill_file(
     request: Request,
-    skill_uuid: str = Form(...),
     file: UploadFile = File(...),
+    skill_uuid: str | None = Form(None),
+    visibility: str = Form("private"),
     metadata: str | None = Form(None),
     current_user=Depends(get_current_active_user),
     session=Depends(get_async_session),
@@ -188,21 +189,37 @@ async def upload_skill_file(
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Permission denied")
     service = SkillService(SkillRepository(session), SkillVersionRepository(session))
     content = await file.read()
+    filename = file.filename or ""
     try:
-        filename = file.filename or ""
         if filename.lower().endswith(".zip"):
-            payload = await service.upload_zip(current_user, skill_uuid, filename, content, metadata)
-            if settings.ENABLE_AUDIT_LOG:
-                audit_service = AuditService(AuditLogRepository(session))
-                await audit_service.create_event(
-                    actor_id=current_user.id,
-                    action="skill.upload",
-                    target=skill_uuid,
-                    ip=request.client.host if request and request.client else "",
-                    user_agent=request.headers.get("user-agent", ""),
-                    metadata={"filename": filename, "archive": True, "version": payload.get("version")},
-                )
-            return payload
+            if skill_uuid:
+                payload = await service.upload_zip(current_user, skill_uuid, filename, content, metadata)
+                if settings.ENABLE_AUDIT_LOG:
+                    audit_service = AuditService(AuditLogRepository(session))
+                    await audit_service.create_event(
+                        actor_id=current_user.id,
+                        action="skill.upload",
+                        target=skill_uuid,
+                        ip=request.client.host if request and request.client else "",
+                        user_agent=request.headers.get("user-agent", ""),
+                        metadata={"filename": filename, "archive": True, "version": payload.get("version")},
+                    )
+                return payload
+            else:
+                payload = await service.upload_zip_create_skill(current_user, filename, content, visibility)
+                if settings.ENABLE_AUDIT_LOG:
+                    audit_service = AuditService(AuditLogRepository(session))
+                    await audit_service.create_event(
+                        actor_id=current_user.id,
+                        action="skill.create",
+                        target=payload.get("id", ""),
+                        ip=request.client.host if request and request.client else "",
+                        user_agent=request.headers.get("user-agent", ""),
+                        metadata={"filename": filename, "name": payload.get("name"), "version": payload.get("version")},
+                    )
+                return payload
+        if not skill_uuid:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="skill_uuid is required for non-zip uploads")
         filename = await service.upload_file(current_user, skill_uuid, filename, content)
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc

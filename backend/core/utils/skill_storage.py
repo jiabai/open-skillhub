@@ -5,7 +5,14 @@ from pathlib import Path
 
 from backend.config.settings import settings
 
-ALLOWED_EXTENSIONS = {".md", ".py", ".js", ".sh", ".txt", ".json", ".yaml", ".yml"}
+ALLOWED_EXTENSIONS = {
+    ".md", ".py", ".js", ".ts", ".sh", ".txt", ".json", ".yaml", ".yml",
+    ".example", ".sample", ".template", ".cfg", ".ini", ".toml", ".env",
+    ".xml", ".html", ".css", ".sql", ".csv", ".tsv",
+    ".png", ".jpg", ".jpeg", ".gif", ".svg", ".ico",
+    ".pdf", ".doc", ".docx", ".xls", ".xlsx",
+    ".zip", ".tar", ".gz",
+}
 SAFE_FILENAME_PATTERN = re.compile(r"^[a-zA-Z0-9_\-\.]+$")
 MAX_FILE_SIZE = 10 * 1024 * 1024
 MAX_TOTAL_SIZE = 100 * 1024 * 1024
@@ -99,7 +106,15 @@ def list_files(user_id: str, skill_name: str) -> list[str]:
     path = get_user_skill_dir(user_id, skill_name)
     if not path.exists():
         return []
-    return [str(item.relative_to(path)) for item in path.rglob("*") if item.is_file()]
+    files = []
+    for item in path.rglob("*"):
+        if not item.is_file():
+            continue
+        rel_path = str(item.relative_to(path))
+        if rel_path.startswith(SKILL_VERSIONS_DIRNAME) or f"/{SKILL_VERSIONS_DIRNAME}/" in rel_path.replace("\\", "/"):
+            continue
+        files.append(rel_path)
+    return files
 
 
 def skill_exists(user_id: str, skill_name: str) -> bool:

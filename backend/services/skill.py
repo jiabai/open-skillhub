@@ -687,3 +687,162 @@ class SkillService:
                 "current_version": version,
                 "dependencies": record.dependencies,
             }
+
+    async def upload_zip_create_skill(
+        self,
+        user: User,
+        filename: str,
+        content: bytes,
+        visibility: str = "private",
+    ) -> dict:
+        repo = self._require_version_repo()
+        if not filename.lower().endswith(".zip"):
+            raise ValueError("Invalid zip file")
+        try:
+            archive = zipfile.ZipFile(io.BytesIO(content))
+        except zipfile.BadZipFile as exc:
+            raise ValueError("Invalid zip file") from exc
+        with archive:
+            entries = [info for info in archive.infolist() if not info.is_dir()]
+            if not entries:
+                raise ValueError("Zip is empty")
+            if len(entries) > MAX_FILES_PER_SKILL:
+                raise ValueError("Too many files in skill")
+            total_size = sum(info.file_size for info in entries)
+            if total_size > MAX_TOTAL_SIZE:
+                raise ValueError("Total skill size limit exceeded")
+            for info in entries:
+                if info.file_size > MAX_FILE_SIZE:
+                    raise ValueError("File too large")
+                file_path = info.filename.replace("\\", "/").lstrip("/")
+                valid, error = validate_file_path(file_path)
+                if not valid:
+                    raise ValueError(error)
+            skill_md = next(
+                (info for info in entries if info.filename.replace("\\", "/").lstrip("/") == "SKILL.md"),
+                None,
+            )
+            if not skill_md:
+                raise ValueError("SKILL.md not found in zip")
+            skill_md_content = archive.read(skill_md).decode("utf-8", errors="replace")
+            frontmatter = self._parse_frontmatter(skill_md_content)
+            name = str(frontmatter.get("name") or "").strip()
+            if not name:
+                raise ValueError("Skill name not found in SKILL.md frontmatter")
+            valid, error = validate_skill_name(name)
+            if not valid:
+                raise ValueError(error)
+            if await self.skill_repo.get_by_name(user.id, name):
+                raise ValueError(f"Skill '{name}' already exists")
+            description = str(frontmatter.get("description") or "").strip()
+            visibility_value = (visibility or "private").strip().lower()
+            if visibility_value not in {"private", "team", "enterprise"}:
+                visibility_value = "private"
+            skill = await self.create_skill(user, name, description, visibility=visibility_value)
+            version = str(frontmatter.get("version") or "").strip()
+            if not version:
+                version = "1.0.0"
+            version = self._validate_version(version)
+            existing = await repo.get_by_version(skill.id, version)
+            if existing:
+                version = await self._next_version(skill, repo)
+            dependencies = self._normalize_dependencies(frontmatter.get("dependencies"))
+            explicit_dependency_spec = self._normalize_dependency_spec(frontmatter.get("dependency_spec"))
+            dependency_spec: dict
+            dependency_spec_version: str | None
+            if explicit_dependency_spec is not None:
+                dependency_spec = explicit_dependency_spec
+                dependency_spec_version = str(dependency_spec.get("schema_version") or "1")
+            else:
+                dependency_spec = {"schema_version": 1}
+                dependency_spec_version = "1"
+                entry_names = {info.filename.replace("\\", "/").lstrip("/") for info in entries}
+                python_spec: dict[str, object] = {}
+                node_spec: dict[str, object] = {}
+                requirements: list[str] = []
+                if "requirements.txt" in entry_names:
+                    requirements_text = archive.read("requirements.txt").decode("utf-8", errors="replace")
+                    requirements = self._parse_requirements_text(requirements_text)
+                    if requirements:
+                        dependencies = requirements
+                    python_spec = {
+                        "manager": "pip",
+                        "requirements": requirements,
+                        "files": ["requirements.txt"],
+                    }
+                if "environment.yml" in entry_names:
+                    python_spec = {
+                        "manager": "conda",
+                        "requirements": requirements,
+                        "files": ["environment.yml"],
+                    }
+                if "package.json" in entry_names:
+                    try:
+                        package_json = json.loads(archive.read("package.json").decode("utf-8", errors="replace"))
+                    except json.JSONDecodeError:
+                        package_json = {}
+                    lockfile = ""
+                    if "package-lock.json" in entry_names:
+                        lockfile = "package-lock.json"
+                    node_spec = {
+                        "manager": "npm",
+                        "package_json": package_json,
+                        "lockfile": lockfile or None,
+                    }
+                if not python_spec and dependencies:
+                    python_spec = {
+                        "manager": "pip",
+                        "requirements": dependencies,
+                        "files": [],
+                    }
+                if python_spec:
+                    dependency_spec["python"] = python_spec
+                if node_spec:
+                    dependency_spec["node"] = node_spec
+            base_dir = get_skill_versions_dir(user.id, skill.name)
+            base_resolved = base_dir.resolve()
+            version_dir = (base_dir / version).resolve()
+            if not version_dir.is_relative_to(base_resolved):
+                raise ValueError("Invalid version")
+            if version_dir.exists():
+                raise ValueError("Version already exists")
+            version_dir.mkdir(parents=True, exist_ok=True)
+            for info in entries:
+                file_path = info.filename.replace("\\", "/").lstrip("/")
+                target = version_dir / file_path
+                target.parent.mkdir(parents=True, exist_ok=True)
+                target.write_bytes(archive.read(info))
+            clear_skill_current_dir(user.id, skill.name)
+            root_dir = get_user_skill_dir(user.id, skill.name)
+            for entry_path in version_dir.rglob("*"):
+                if not entry_path.is_file():
+                    continue
+                relative = entry_path.relative_to(version_dir)
+                target = root_dir / relative
+                target.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(entry_path, target)
+            record = await repo.create_version(
+                skill_id=skill.id,
+                version=version,
+                description=description,
+                dependencies=dependencies,
+                dependency_spec=dependency_spec,
+                dependency_spec_version=dependency_spec_version,
+                metadata={
+                    "name": name,
+                    "description": description,
+                    "version": version,
+                    "dependencies": dependencies,
+                    "dependency_spec": dependency_spec,
+                },
+            )
+            await self.skill_repo.update(skill, current_version=version, description=description, is_active=True)
+            await save_archive(user.id, skill.name, version, content)
+            return {
+                "id": skill.id,
+                "name": skill.name,
+                "description": skill.description,
+                "version": record.version,
+                "current_version": version,
+                "dependencies": record.dependencies,
+            }

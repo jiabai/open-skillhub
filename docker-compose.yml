@@ -8,7 +8,8 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-skillhub}
       POSTGRES_DB: ${POSTGRES_DB:-skillhub}
     volumes:
-      - pgdata:/var/lib/postgresql/data
+      - ./data/postgres:/var/lib/postgresql/data
+      - ./data/postgres/conf:/etc/postgresql/conf.d
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-skillhub} -d ${POSTGRES_DB:-skillhub}"]
       interval: 5s
@@ -40,7 +41,9 @@ services:
           memory: 128M
 
   migrate:
-    build: .
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
     command: sh -c "alembic upgrade head"
     env_file:
       - backend/.env
@@ -52,7 +55,9 @@ services:
     restart: "no"
 
   api:
-    build: .
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
     command: sh -c "uvicorn backend.api_app:app --host 0.0.0.0 --port 8001 --workers 1"
     env_file:
       - backend/.env
@@ -64,7 +69,7 @@ services:
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
       SKILL_STORAGE_PATH: /data/skills
     volumes:
-      - skills:/data/skills
+      - ./data/skills:/data/skills
       - ./logs:/app/logs
     expose:
       - "8001"
@@ -88,21 +93,22 @@ services:
       start_period: 40s
 
   frontend:
-    build: ./frontend
+    build:
+      context: ./frontend
+      args:
+        - NEXT_PUBLIC_API_BASE_URL=
+        - API_INTERNAL_URL=http://api:8001
+        - NEXT_PUBLIC_ENABLE_PUBLIC_SIGNUP=true
+        - NEXT_PUBLIC_ENABLE_EMAIL_OTP_LOGIN=true
+        - NEXT_PUBLIC_ENABLE_SSO=false
+        - NEXT_PUBLIC_ENABLE_LDAP=false
+        - NEXT_PUBLIC_ENABLE_AUDIT_LOG=true
+        - NEXT_PUBLIC_ENABLE_AUDIT_EXPORT=true
+        - NEXT_PUBLIC_ENABLE_ORG_MODEL=false
+        - NEXT_PUBLIC_ENABLE_RBAC=false
+        - NEXT_PUBLIC_ENABLE_SKILL_VISIBILITY=false
     ports:
       - "80:3000"
-    environment:
-      NEXT_PUBLIC_API_BASE_URL: ""
-      API_INTERNAL_URL: http://api:8001
-      NEXT_PUBLIC_ENABLE_PUBLIC_SIGNUP: "true"
-      NEXT_PUBLIC_ENABLE_EMAIL_OTP_LOGIN: "true"
-      NEXT_PUBLIC_ENABLE_SSO: "false"
-      NEXT_PUBLIC_ENABLE_LDAP: "false"
-      NEXT_PUBLIC_ENABLE_AUDIT_LOG: "true"
-      NEXT_PUBLIC_ENABLE_AUDIT_EXPORT: "true"
-      NEXT_PUBLIC_ENABLE_ORG_MODEL: "false"
-      NEXT_PUBLIC_ENABLE_RBAC: "false"
-      NEXT_PUBLIC_ENABLE_SKILL_VISIBILITY: "false"
     depends_on:
       api:
         condition: service_healthy
@@ -113,7 +119,3 @@ services:
           memory: 384M
         reservations:
           memory: 192M
-
-volumes:
-  pgdata:
-  skills:

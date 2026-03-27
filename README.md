@@ -77,16 +77,68 @@ alembic upgrade head
 ### 4. Start API Server
 
 ```bash
-uvicorn skillhub.api_app:app --host 0.0.0.0 --port 8000
+uvicorn backend.api_app:app --host 0.0.0.0 --port 8000
 ```
 
-### 5. Start Frontend Console
+## Docker Compose Deployment
+
+### Quick Start (Recommended)
 
 ```bash
-cd frontend
-npm install
-NEXT_PUBLIC_API_BASE_URL=http://localhost:8000 npm run dev
+# Start all services with Docker Compose
+docker compose up -d --build
+
+# View logs
+docker compose logs -f
+
+# Stop services
+docker compose down
 ```
+
+### Services
+
+| Service | Port | Description |
+|---------|------|-------------|
+| Frontend | 80 | Web console (Next.js) |
+| API | 8001 | Backend API (internal only) |
+| PostgreSQL | 5432 | Database (internal only) |
+| Adminer | 18080 | Database admin UI |
+
+### Configuration
+
+1. Copy `backend/.env.example` to `backend/.env` and configure
+2. Environment variables are loaded from `backend/.env` automatically
+3. For production, ensure `SECRET_KEY` is set and `DEBUG=false`
+
+### Architecture
+
+```
+┌─────────────────────────────────────────────────────────┐
+│                      External                           │
+│                                                         │
+│   Browser ───► http://your-domain.com (Port 80)        │
+│                                                         │
+└─────────────────────────────────────────────────────────┘
+                           │
+                           ▼
+┌─────────────────────────────────────────────────────────┐
+│                   Docker Network                         │
+│                                                         │
+│   ┌─────────────┐      ┌─────────────┐                  │
+│   │   Frontend  │◄────►│     API     │                  │
+│   │  (Next.js)  │proxy │  (FastAPI)  │                  │
+│   │   :3000     │      │   :8001     │                  │
+│   └─────────────┘      └──────┬──────┘                  │
+│                              │                          │
+│                              ▼                          │
+│                        ┌─────────────┐                  │
+│                        │ PostgreSQL  │                  │
+│                        │   :5432     │                  │
+│                        └─────────────┘                  │
+└─────────────────────────────────────────────────────────┘
+```
+
+All external traffic enters through the Frontend, which proxies API requests internally.
 
 ## MCP Integration
 

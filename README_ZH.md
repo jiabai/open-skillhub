@@ -77,16 +77,68 @@ alembic upgrade head
 ### 4. 启动后端 API
 
 ```bash
-uvicorn skillhub.api_app:app --host 0.0.0.0 --port 8000
+uvicorn backend.api_app:app --host 0.0.0.0 --port 8000
 ```
 
-### 5. 启动前端控制台
+## Docker Compose 部署
+
+### 快速开始（推荐）
 
 ```bash
-cd frontend
-npm install
-NEXT_PUBLIC_API_BASE_URL=http://localhost:8000 npm run dev
+# 启动所有服务
+docker compose up -d --build
+
+# 查看日志
+docker compose logs -f
+
+# 停止服务
+docker compose down
 ```
+
+### 服务端口
+
+| 服务 | 端口 | 说明 |
+|------|------|------|
+| Frontend | 80 | Web 控制台 (Next.js) |
+| API | 8001 | 后端 API（仅内网） |
+| PostgreSQL | 5432 | 数据库（仅内网） |
+| Adminer | 18080 | 数据库管理界面 |
+
+### 配置说明
+
+1. 复制 `backend/.env.example` 为 `backend/.env` 并配置
+2. 环境变量自动从 `backend/.env` 加载
+3. 生产环境请确保设置了 `SECRET_KEY` 且 `DEBUG=false`
+
+### 架构图
+
+```
+┌─────────────────────────────────────────────────────────┐
+│                      外部网络                            │
+│                                                         │
+│   浏览器 ───► http://your-domain.com (端口 80)         │
+│                                                         │
+└─────────────────────────────────────────────────────────┘
+                           │
+                           ▼
+┌─────────────────────────────────────────────────────────┐
+│                   Docker 网络                            │
+│                                                         │
+│   ┌─────────────┐      ┌─────────────┐                │
+│   │   Frontend  │◄────►│     API      │                │
+│   │  (Next.js)  │代理  │  (FastAPI)   │                │
+│   │   :3000     │      │   :8001      │                │
+│   └─────────────┘      └──────┬───────┘                │
+│                               │                         │
+│                               ▼                         │
+│                        ┌─────────────┐                 │
+│                        │ PostgreSQL  │                 │
+│                        │   :5432     │                 │
+│                        └─────────────┘                 │
+└─────────────────────────────────────────────────────────┘
+```
+
+所有外部流量通过 Frontend 进入，由 Frontend 代理 API 请求。
 
 ## MCP 接入配置
 

@@ -1,19 +1,26 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  output: 'standalone',
 
-  // 图片优化配置
   images: {
     unoptimized: true
   },
 
-  // 开发服务器配置
   devIndicators: {
     appIsrStatus: false
   },
 
-  // 禁用 x-powered-by 头
-  poweredByHeader: false
+  poweredByHeader: false,
+
+  async rewrites() {
+    return [
+      {
+        source: '/api/:path*',
+        destination: `${process.env.API_INTERNAL_URL || 'http://api:8001'}/api/:path*`
+      }
+    ]
+  }
 }
 
 export default nextConfig

@@ -1,139 +1,348 @@
 # 部署指南
 
-本文档提供 Open SkillHub 的本地开发与生产部署说明，涵盖 FastAPI 模式与 FlowLLM 模式。
+本文档提供 Open SkillHub 的完整部署说明，包括开发环境、生产环境（Docker Compose）以及低资源配置优化。
+
+## 目录
+
+- [快速开始](#快速开始)
+- [架构说明](#架构说明)
+- [部署模式](#部署模式)
+- [环境要求](#环境要求)
+- [Docker Compose 部署](#docker-compose-部署)
+- [手动部署](#手动部署)
+- [环境变量配置](#环境变量配置)
+- [功能开关](#功能开关)
+- [备份策略](#备份策略)
+- [监控与告警](#监控与告警)
+- [常见问题](#常见问题)
+
+---
+
+## 快速开始
+
+### Docker Compose 部署（推荐）
+
+```bash
+# 克隆代码
+git clone <repository-url>
+cd open-skillhub
+
+# 配置环境变量
+cp backend/.env.example backend/.env
+# 编辑 backend/.env 设置必要参数
+
+# 启动所有服务
+docker compose up -d --build
+
+# 查看服务状态
+docker compose ps
+
+# 查看日志
+docker compose logs -f
+```
+
+访问 http://your-domain.com 即可使用。
+
+---
+
+## 架构说明
+
+### 前后端分离 + API 代理模式
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                        外部网络                              │
+│                                                             │
+│   用户浏览器 ───► https://your-domain.com (端口 443/80)    │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│                      Docker 网络                             │
+│                                                             │
+│   ┌──────────────┐          ┌──────────────┐                │
+│   │   Frontend   │◄────────►│     API      │                │
+│   │  (Next.js)  │  代理     │  (FastAPI)   │                │
+│   │   :3000      │  /api/*  │   :8001      │                │
+│   └──────┬───────┘          └──────┬───────┘                │
+│          │                        │                         │
+│          │                        │                         │
+│          ▼                        ▼                         │
+│   ┌──────────────┐          ┌──────────────┐                │
+│   │   Adminer    │          │ PostgreSQL   │                │
+│   │   :8080      │          │   :5432      │                │
+│   └──────────────┘          └──────────────┘                │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### 特点
+
+- **API 不暴露到外网**：所有 API 请求通过 Frontend 的 Next.js rewrites 代理
+- **数据库仅内网访问**：Adminer 提供 Web 界面管理数据库
+- **前后端解耦**：前端可独立扩展
+
+---
 
 ## 部署模式
 
+| 模式 | 适用场景 | 入口 |
+|------|---------|------|
+| **Docker Compose** | 生产环境、单服务器部署 | `docker compose up` |
+| **手动部署** | 开发环境、定制化需求 | `uvicorn backend.api_app:app` |
+
 ### FastAPI 模式（HTTP API + MCP）
+
 - 适用：多用户 Web API、MCP HTTP/SSE 访问
-- 入口：`skillhub.api_app:app`
+- 入口：`backend.api_app:app`
 - MCP 端点：`/mcp`、`/sse`
 
 ### FlowLLM 模式（stdio/SSE）
+
 - 适用：本地单用户、CLI 集成
 - 入口：`skillhub.main`
 
-## 部署能力开关建议（企业私有化）
+---
 
-企业私有化部署的能力开关建议以本文与 `project-spec.md` 第 1.5 节为准。
+## 环境要求
 
-## 术语与开关口径
+### 最低配置（2核2G）
 
-- 本文中的部署能力口径与 `project-spec.md` 保持一致
-- 可见性术语统一使用“企业级 / 团队级 / 个人级”，对应配置与接口字段口径 `visible`
-- 可见性示例值统一使用 `enterprise | team | private`
-- 权限术语统一使用 RBAC 权限点（`resource.action`），如 `skill.download`、`audit.read`
-- 功能开关统一使用 `ENABLE_*` 命名，部署时仅通过环境变量控制能力组合，不在代码层分叉实现
-- 示例值模板统一复用 `project-spec.md` 中“术语与状态统一口径”的 JSON/env 示例，避免跨文档漂移
+| 组件 | 内存限制 | 说明 |
+|------|---------|------|
+| PostgreSQL | 512M | 使用 alpine 镜像 |
+| API | 512M | 单 worker 模式 |
+| Frontend | 384M | Next.js standalone |
+| Adminer | 128M | 可选 |
+| **总计** | ~1.5G | 预留 500M 给系统 |
 
-## 前置条件
+### 推荐配置（4核8G+）
 
-- Python 3.10+
-- PostgreSQL 14+（生产环境）
-- Node.js 18+（前端控制台）
-- 可选：Docker / Docker Compose
+| 组件 | 内存限制 | 说明 |
+|------|---------|------|
+| PostgreSQL | 1G | 默认配置 |
+| API | 1G | 多 worker 模式 |
+| Frontend | 512M | Next.js standalone |
+| **总计** | ~2.5G | 可根据负载扩展 |
+
+### 软件要求
+
+- Docker 20.10+
+- Docker Compose 2.0+
+- Git
+
+---
+
+## Docker Compose 部署
+
+### 1. 服务器准备
+
+```bash
+# 更新系统
+apt update && apt upgrade -y
+
+# 安装 Docker（如果没有）
+curl -fsSL https://get.docker.com | sh
+
+# 安装 Docker Compose
+apt install docker-compose -y
+```
+
+### 2. 克隆代码
+
+```bash
+git clone <repository-url>
+cd open-skillhub
+```
+
+### 3. 配置环境变量
+
+```bash
+cp backend/.env.example backend/.env
+nano backend/.env
+```
+
+**必须配置项：**
+
+```bash
+# 数据库（已有默认值）
+POSTGRES_USER=skillhub
+POSTGRES_PASSWORD=your-secure-password
+POSTGRES_DB=skillhub
+
+# 安全密钥（必须设置，32字符以上）
+SECRET_KEY=your-secure-secret-key-at-least-32-chars
+
+# 前端代理模式不需要设置 CORS_ORIGINS
+# 如果需要单独访问 API，设置如下
+CORS_ORIGINS=["https://your-domain.com"]
+
+# 调试模式（生产环境设为 false）
+DEBUG=false
+LOG_LEVEL=INFO
+```
+
+### 4. 启动服务
+
+```bash
+# 构建并启动所有服务
+docker compose up -d --build
+
+# 查看服务状态
+docker compose ps
+
+# 查看日志
+docker compose logs -f api
+docker compose logs -f frontend
+```
+
+### 5. 验证部署
+
+```bash
+# 检查容器健康状态
+docker compose ps
+
+# 测试 API 健康检查
+curl http://localhost:8001/health
+
+# 测试前端访问
+curl http://localhost:80
+```
+
+### 6. 服务管理命令
+
+```bash
+# 停止服务
+docker compose down
+
+# 重启服务
+docker compose restart api
+
+# 重新构建
+docker compose up -d --build --force-recreate
+
+# 查看资源使用
+docker stats
+
+# 进入容器调试
+docker compose exec api sh
+docker compose exec db psql -U skillhub
+```
+
+---
+
+## 手动部署
+
+适用于开发环境或需要定制化配置的场景。
+
+### 1. 安装依赖
+
+```bash
+# Python 环境
+python -m venv .venv
+source .venv/bin/activate  # Linux/macOS
+# .venv\Scripts\activate   # Windows
+pip install -e ".[dev]"
+
+# Node.js 环境
+cd frontend
+npm install
+cd ..
+```
+
+### 2. 配置环境变量
+
+```bash
+cp backend/.env.example backend/.env
+# 编辑 backend/.env
+```
+
+### 3. 初始化数据库
+
+```bash
+# 创建数据库
+createdb skillhub
+
+# 执行迁移
+alembic upgrade head
+```
+
+### 4. 准备 Skill 存储目录
+
+```bash
+mkdir -p /data/skills
+chmod 755 /data/skills
+```
+
+### 5. 启动服务
+
+**后端 API：**
+
+```bash
+uvicorn backend.api_app:app --host 0.0.0.0 --port 8000
+```
+
+**前端控制台：**
+
+```bash
+cd frontend
+NEXT_PUBLIC_API_BASE_URL=http://localhost:8000 npm run dev
+```
+
+---
 
 ## 环境变量配置
 
-复制 `backend/.env.example` 并按需修改：
+### 必填项
 
-> 说明：`backend/.env.example` 展示的是代码内建默认值与示例值；私有化部署需显式覆盖相关能力开关。
+| 变量 | 说明 | 示例 |
+|------|------|------|
+| `SECRET_KEY` | JWT 签名密钥（32+字符） | `your-secret-key-min-32-chars` |
+| `POSTGRES_USER` | PostgreSQL 用户名 | `skillhub` |
+| `POSTGRES_PASSWORD` | PostgreSQL 密码 | `your-secure-password` |
+| `POSTGRES_DB` | PostgreSQL 数据库名 | `skillhub` |
+| `DATABASE_URL` | 数据库连接 URL | `postgresql+asyncpg://user:pass@localhost:5432/skillhub` |
+
+### 可选项（重要）
+
+| 变量 | 默认值 | 说明 |
+|------|--------|------|
+| `DEBUG` | `true` | 生产环境设为 `false` |
+| `LOG_LEVEL` | `INFO` | 日志级别：DEBUG/INFO/WARNING/ERROR |
+| `CORS_ORIGINS` | `["http://localhost"]` | CORS 允许的源列表 |
+| `SKILL_STORAGE_PATH` | `./data/skills` | Skill 文件存储路径 |
+| `LOG_FILE` | 空 | 日志文件路径，设为空则输出到 stdout |
+
+### SMTP 配置（邮件发送）
+
+| 变量 | 说明 |
+|------|------|
+| `SMTP_HOST` | SMTP 服务器地址 |
+| `SMTP_PORT` | SMTP 端口（465/587） |
+| `SMTP_USERNAME` | SMTP 用户名 |
+| `SMTP_PASSWORD` | SMTP 密码 |
+| `SMTP_FROM` | 发件人地址 |
+| `SMTP_USE_TLS` | 是否使用 TLS（true/false） |
+
+---
+
+## 功能开关
+
+### 企业私有化部署建议
+
+**基础模式（公开注册）：**
 
 ```bash
-DATABASE_URL=postgresql+asyncpg://user:pass@localhost:5432/skillhub
-DATABASE_POOL_SIZE=20
-DATABASE_MAX_OVERFLOW=10
-DATABASE_POOL_TIMEOUT=30
-DATABASE_POOL_RECYCLE=1800
-SECRET_KEY=your-secret-key-min-32-chars
-ALGORITHM=HS256
-ACCESS_TOKEN_EXPIRE_MINUTES=30
-REFRESH_TOKEN_EXPIRE_DAYS=7
-DEBUG=false
-CORS_ORIGINS=["https://your-domain.com"]
-LOG_LEVEL=INFO
-LOG_FORMAT=json
-LOG_FILE=/var/log/backend/app.log
-SKILL_STORAGE_PATH=/data/skills
-SKILL_ARCHIVE_BACKEND=local
-SKILL_ARCHIVE_S3_BUCKET=
-SKILL_ARCHIVE_S3_REGION=
-SKILL_ARCHIVE_S3_ENDPOINT=
-SKILL_ARCHIVE_S3_ACCESS_KEY_ID=
-SKILL_ARCHIVE_S3_SECRET_ACCESS_KEY=
-SKILL_ARCHIVE_S3_FORCE_PATH_STYLE=true
-SKILL_DOWNLOAD_TTL_SECONDS=3600
-SKILL_CACHE_TTL_SECONDS=604800
-SKILL_VERSION_BUMP_STRATEGY=patch
-SKILL_EXECUTION_TIMEOUT_SECONDS=300
-SKILL_MAX_CONCURRENT_EXECUTIONS_PER_USER=4
-SKILL_MAX_CONCURRENT_EXECUTIONS_PER_TEAM=16
-SKILL_MAX_WORKDIR_BYTES=1073741824
-SKILL_MAX_OUTPUT_BYTES=1048576
-RATE_LIMIT_REQUESTS=100
-RATE_LIMIT_WINDOW=60
-METRICS_RETENTION_DAYS=90
-FLOW_LLM_API_KEY=your-api-key
-FLOW_LLM_BASE_URL=https://api.openai.com/v1
-POSTGRES_USER=skillhub
-POSTGRES_PASSWORD=skillhub
-POSTGRES_DB=skillhub
-SMTP_HOST=smtp.example.com
-SMTP_PORT=587
-SMTP_USERNAME=your-smtp-user
-SMTP_PASSWORD=your-smtp-password
-SMTP_FROM=your-sender@example.com
-SMTP_USE_TLS=true
-ALIYUN_DM_ACCESS_KEY_ID=your-aliyun-access-key-id
-ALIYUN_DM_ACCESS_KEY_SECRET=your-aliyun-access-key-secret
-ALIYUN_DM_ACCOUNT_NAME=sender@your-domain.com
-ALIYUN_DM_FROM_ALIAS=SkillHub
-ALIYUN_DM_REPLY_TO_ADDRESS=true
-ALIYUN_DM_ENDPOINT=https://dm.aliyuncs.com/
 ENABLE_PUBLIC_SIGNUP=true
 ENABLE_EMAIL_OTP_LOGIN=true
 ENABLE_SSO=false
 ENABLE_LDAP=false
 ENABLE_ORG_MODEL=false
 ENABLE_RBAC=false
-ENABLE_SKILL_VISIBILITY=false
-ENABLE_AUDIT_LOG=false
-ENABLE_AUDIT_EXPORT=false
-ENABLE_SKILL_DOWNLOAD_ENCRYPTION=true
-ENABLE_LOCAL_CACHE_ENCRYPTION=true
-ENABLE_CACHE_OFFLINE_FALLBACK=true
-ENABLE_SANDBOX_EXECUTION=false
-ENABLE_RESOURCE_QUOTA=false
-ENABLE_NETWORK_EGRESS_CONTROL=false
-ENABLE_RATE_LIMIT=true
-ENABLE_METRICS=true
-DEFAULT_SKILL_VISIBILITY=private
-DEFAULT_ROLE=member
-DEFAULT_USER_STATUS=active
-RBAC_ROLE_PERMISSIONS={"admin":["*"],"member":["skill.list","skill.read","skill.create","skill.update","skill.delete","skill.upload","skill.download","skill.execute"],"viewer":["skill.list","skill.read","skill.download"]}
-SSO_JWT_SECRET=
-SSO_JWT_ISSUER=
-SSO_JWT_AUDIENCE=
-SSO_JWT_ALGORITHM=HS256
-SSO_EMAIL_CLAIM=email
-SSO_USERNAME_CLAIM=username
-SSO_ENTERPRISE_CLAIM=enterprise_id
-SSO_TEAM_CLAIM=team_id
-SSO_ROLE_CLAIM=role
-SSO_STATUS_CLAIM=status
-LDAP_URL=
-LDAP_USER_DN_TEMPLATE=
-LDAP_SEARCH_BASE=
-LDAP_SEARCH_FILTER=(uid={username})
-LDAP_EMAIL_ATTR=mail
-LDAP_USERNAME_ATTR=uid
-LDAP_ENTERPRISE_ATTR=enterprise_id
-LDAP_TEAM_ATTR=team_id
-LDAP_ROLE_ATTR=role
-LDAP_STATUS_ATTR=status
 ```
 
-### 企业私有化最小能力开关示例
+**企业模式（最小权限）：**
 
 ```bash
 ENABLE_PUBLIC_SIGNUP=false
@@ -147,171 +356,184 @@ ENABLE_AUDIT_LOG=true
 ENABLE_AUDIT_EXPORT=true
 ```
 
-## 数据库准备
+### 完整开关列表
 
-```bash
-createdb skillhub
-alembic upgrade head
-```
+| 开关 | 说明 | 推荐值 |
+|------|------|--------|
+| `ENABLE_PUBLIC_SIGNUP` | 允许公开注册 | dev: `true`, prod: `false` |
+| `ENABLE_EMAIL_OTP_LOGIN` | 邮箱验证码登录 | `true` |
+| `ENABLE_SSO` | SSO 登录 | `false` |
+| `ENABLE_LDAP` | LDAP 认证 | `false` |
+| `ENABLE_ORG_MODEL` | 组织模型 | `false` |
+| `ENABLE_RBAC` | RBAC 权限控制 | `false` |
+| `ENABLE_SKILL_VISIBILITY` | Skill 可见性控制 | `false` |
+| `ENABLE_AUDIT_LOG` | 审计日志 | `false` |
+| `ENABLE_AUDIT_EXPORT` | 审计日志导出 | `false` |
+| `ENABLE_RATE_LIMIT` | 速率限制 | `true` |
+| `ENABLE_METRICS` | 指标收集 | `true` |
 
-## Skill 存储准备
-
-```bash
-mkdir -p /data/skills
-chmod 755 /data/skills
-```
-
-## 邮件与验证码运行要求
-
-### 发送通道策略
-- DEBUG=true：使用 SMTP 备选方案（自建邮箱/业务邮箱）
-- DEBUG=false：使用阿里云邮件推送服务
-
-### 异步任务与持久化
-- 邮件发送建议通过任务队列或后台任务执行，避免阻塞 API 请求
-- 生产环境验证码存储建议使用 Redis 或数据库，保证多实例与重启一致性
-
-### 模板与内容管理
-- 模板需包含验证码、有效期与重发间隔提示
-- 建议提供中英模板与品牌文案配置
-
-### 监控与审计
-- 监控投递成功率、失败原因分布与重试次数
-- 发送失败需触发告警并写入审计日志
-
-## 本地开发部署
-
-### 1. 安装依赖
-
-```bash
-python -m venv .venv
-source .venv/bin/activate
-pip install -e ".[dev]"
-```
-
-### 2. 启动 FastAPI 服务
-
-```bash
-uvicorn skillhub.api_app:app --host 0.0.0.0 --port 8000
-```
-
-### 3. 启动前端控制台
-
-```bash
-cd frontend
-npm install
-NEXT_PUBLIC_API_BASE_URL=http://localhost:8000 npm run dev
-```
-
-## 生产部署（Docker Compose，Ubuntu）
-
-### 1. 准备环境变量
-
-- 生产环境必须设置 `SECRET_KEY`、`CORS_ORIGINS`，且 `DEBUG=false`
-- `backend/.env` 用于存放敏感信息与生产配置
-
-### 2. 启动服务（包含迁移）
-
-```bash
-docker compose --env-file backend/.env up -d --build
-```
-
-`migrate` 服务会在 `db` 就绪后执行迁移并退出，`api` 会在迁移完成后启动。
-
-### 3. 单独执行迁移（可选）
-
-```bash
-docker compose run --rm migrate
-```
-
-## 运行 FlowLLM 模式（可选）
-
-```bash
-skillhub-mcp
-```
-
-## 健康检查与指标
-
-```bash
-GET /health
-```
-
-返回示例：
-
-```json
-{
-  "status": "healthy",
-  "db_connected": true
-}
-```
-
-```bash
-GET /metrics
-```
-
-返回字段包括数据库连接状态与资源使用率（磁盘、内存、CPU）。
+---
 
 ## 备份策略
 
-### 数据库备份（Linux/macOS）
+### 数据库备份
+
+**自动备份脚本：**
 
 ```bash
-pg_dump skillhub > backup/skillhub_$(date +%Y%m%d).sql
-find /backup -name "skillhub_*.sql" -mtime +7 -delete
+#!/bin/bash
+# backup.sh
+
+BACKUP_DIR=/var/backup/skillhub
+DATE=$(date +%Y%m%d_%H%M%S)
+
+# 创建备份目录
+mkdir -p $BACKUP_DIR
+
+# 备份数据库
+docker compose exec -T db pg_dump -U skillhub > $BACKUP_DIR/db_$DATE.sql
+
+# 备份 Skill 文件
+tar -czf $BACKUP_DIR/skills_$DATE.tar.gz /data/skills
+
+# 保留最近 7 天备份
+find $BACKUP_DIR -name "*.sql" -mtime +7 -delete
+find $BACKUP_DIR -name "*.tar.gz" -mtime +7 -delete
 ```
 
-### 数据库备份（Windows PowerShell）
-
-```powershell
-$backupPath = "C:\backup\skillhub_$(Get-Date -Format 'yyyyMMdd').sql"
-pg_dump skillhub > $backupPath
-Get-ChildItem "C:\backup\skillhub_*.sql" | Where-Object { $_.LastWriteTime -lt (Get-Date).AddDays(-7) } | Remove-Item
-```
-
-### Skill 文件备份（Linux/macOS）
+**crontab 定时任务：**
 
 ```bash
-tar -czf backup/skills_$(date +%Y%m%d).tar.gz /data/skills
-find /backup -name "skills_*.tar.gz" -mtime +7 -delete
+# 每天凌晨 3 点执行备份
+0 3 * * * /opt/backup.sh >> /var/log/backup.log 2>&1
 ```
 
-### Skill 文件备份（Windows PowerShell）
+### Docker 卷备份
 
-```powershell
-$backupPath = "C:\backup\skills_$(Get-Date -Format 'yyyyMMdd').zip"
-Compress-Archive -Path "C:\data\skills" -DestinationPath $backupPath -Force
-Get-ChildItem "C:\backup\skills_*.zip" | Where-Object { $_.LastWriteTime -lt (Get-Date).AddDays(-7) } | Remove-Item
+```bash
+# 备份 PostgreSQL 数据卷
+docker run --rm -v open-skillhub_pgdata:/data -v $(pwd):/backup alpine tar -czf backup/pgdata.tar.gz /data
+
+# 恢复
+docker run --rm -v open-skillhub_pgdata:/data -v $(pwd):/backup alpine tar -xzf backup/pgdata.tar.gz -C /
 ```
 
-## 监控建议
+---
 
-- API 响应时间（P99）
-- 数据库连接状态
-- 磁盘使用率与内存占用
-- HTTP 5xx 错误率
-- Token 调用频率异常峰值
+## 监控与告警
 
-## MCP 接入示例
+### 健康检查端点
 
-```json
-{
-  "mcpServers": {
-    "skillhub-mcp": {
-      "type": "http",
-      "url": "https://your-domain.com/mcp",
-      "headers": {
-        "Authorization": "Bearer ask_live_xxx..."
-      }
-    }
-  }
-}
+```bash
+# API 健康检查
+curl http://localhost:8001/health
+
+# 指标端点
+curl http://localhost:8001/metrics
 ```
+
+### 推荐监控指标
+
+| 指标 | 说明 | 告警阈值 |
+|------|------|----------|
+| API 响应时间 P99 | API 延迟 | > 2s |
+| HTTP 5xx 错误率 | 服务错误 | > 1% |
+| 数据库连接数 | 连接池使用 | > 80% |
+| 磁盘使用率 | 存储空间 | > 80% |
+| 内存使用率 | 内存压力 | > 85% |
+
+### Docker 监控命令
+
+```bash
+# 查看资源使用
+docker stats
+
+# 查看容器日志
+docker compose logs -f --tail=100
+
+# 查看容器详情
+docker inspect <container_name>
+```
+
+---
 
 ## 常见问题
 
-### 1. CORS 报错
-- 生产环境必须显式设置 `CORS_ORIGINS`，且不能包含 `*`
+### 1. 容器启动失败
 
-### 2. MCP 认证失败
-- 确认 `Authorization` 头使用 `Bearer ask_live_xxx...`
-- 确认 Token 未过期或撤销
+```bash
+# 查看详细日志
+docker compose logs -f <service_name>
+
+# 检查端口占用
+lsof -i :80
+lsof -i :8001
+
+# 检查磁盘空间
+df -h
+```
+
+### 2. 数据库连接失败
+
+```bash
+# 检查数据库容器
+docker compose ps db
+
+# 进入数据库容器
+docker compose exec db psql -U skillhub
+
+# 检查连接
+docker compose exec api sh -c "curl -f http://localhost:8001/health"
+```
+
+### 3. CORS 报错
+
+```bash
+# 检查 CORS 配置
+# 环境变量 CORS_ORIGINS 必须设置，不能包含 *
+# 示例：CORS_ORIGINS=["https://your-domain.com"]
+```
+
+### 4. 前端无法访问 API
+
+```bash
+# 检查 Next.js rewrites 配置
+# 确保 API_INTERNAL_URL 正确
+# 检查 frontend 容器日志
+docker compose logs -f frontend
+```
+
+### 5. 内存不足（低配置机器）
+
+```bash
+# 查看内存使用
+free -h
+docker stats
+
+# 降低服务内存限制，编辑 docker-compose.yml
+# 或关闭 Adminer 服务（可选）
+```
+
+---
+
+## 附录
+
+### 服务端口
+
+| 服务 | 内部端口 | 外部端口 | 说明 |
+|------|---------|---------|------|
+| Frontend | 3000 | 80 | Web 控制台 |
+| API | 8001 | - | 后端 API（不暴露） |
+| PostgreSQL | 5432 | - | 数据库（不暴露） |
+| Adminer | 8080 | 18080 | 数据库管理界面（可选） |
+
+### 相关文档
+
+- [README.md](../README.md) - 项目简介与快速开始
+- [docs/tools.md](tools.md) - MCP 工具文档
+- [docs/backend-design/](backend-design/) - 后端架构设计
+- [docs/frontend-design/](frontend-design/) - 前端设计规范
+
+---
+
+*最后更新：2026-03-27*

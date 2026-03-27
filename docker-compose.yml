@@ -1,83 +1,23 @@
 services:
-  db:
-    image: postgres:14-alpine
-    env_file:
-      - backend/.env
-    environment:
-      POSTGRES_USER: ${POSTGRES_USER:-skillhub}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-skillhub}
-      POSTGRES_DB: ${POSTGRES_DB:-skillhub}
-    volumes:
-      - ./data/postgres:/var/lib/postgresql/data
-      - ./data/postgres/conf:/etc/postgresql/conf.d
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-skillhub} -d ${POSTGRES_DB:-skillhub}"]
-      interval: 5s
-      timeout: 5s
-      retries: 10
-    restart: unless-stopped
-    deploy:
-      resources:
-        limits:
-          memory: 512M
-        reservations:
-          memory: 256M
-    command: >
-      postgres
-      -c shared_buffers=128MB
-      -c effective_cache_size=384MB
-      -c max_connections=50
-
-  adminer:
-    image: adminer:latest
-    ports:
-      - "18080:8080"
-    depends_on:
-      - db
-    restart: unless-stopped
-    deploy:
-      resources:
-        limits:
-          memory: 128M
-
-  migrate:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
-    command: sh -c "alembic upgrade head"
-    env_file:
-      - backend/.env
-    environment:
-      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-skillhub}:${POSTGRES_PASSWORD:-skillhub}@db:5432/${POSTGRES_DB:-skillhub}
-    depends_on:
-      db:
-        condition: service_healthy
-    restart: "no"
-
   api:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    command: sh -c "uvicorn backend.api_app:app --host 0.0.0.0 --port 8001 --workers 1"
+    command: sh -c "alembic -c backend/alembic.ini upgrade head && uvicorn backend.api_app:app --host 0.0.0.0 --port 8001 --workers 1"
     env_file:
       - backend/.env
     environment:
-      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-skillhub}:${POSTGRES_PASSWORD:-skillhub}@db:5432/${POSTGRES_DB:-skillhub}
-      DEBUG: "true"
+      DATABASE_URL: sqlite+aiosqlite:///./data/skillhub.db
+      DEBUG: "false"
       CORS_ORIGINS: '["http://localhost","http://localhost:3000","http://39.107.59.41","http://39.107.59.41:80"]'
       LOG_FILE: ""
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
       SKILL_STORAGE_PATH: /data/skills
     volumes:
-      - ./data/skills:/data/skills
+      - ./data:/app/data
       - ./logs:/app/logs
     expose:
       - "8001"
-    depends_on:
-      db:
-        condition: service_healthy
-      migrate:
-        condition: service_completed_successfully
     restart: unless-stopped
     deploy:
       resources:
@@ -90,7 +30,7 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 40s
+      start_period: 20s
 
   frontend:
     build:

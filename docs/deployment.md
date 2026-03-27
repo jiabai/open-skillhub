@@ -260,10 +260,46 @@ cp backend/.env.example backend/.env
 
 ### 3. 初始化数据库
 
-```bash
-# 创建数据库
-createdb skillhub
+#### Docker Compose 部署（自动初始化）
 
+Docker Compose 部署会自动创建数据库并执行迁移，无需手动操作。
+
+#### 手动部署数据库初始化
+
+手动部署时需先创建数据库：
+
+**方式一：使用 SQL 脚本**
+
+```bash
+# 使用提供的初始化脚本
+psql -U postgres -f backend/scripts/init-db.sql
+```
+
+**方式二：命令行执行**
+
+```bash
+# PostgreSQL 命令行
+psql -U postgres -c "CREATE DATABASE skillhub;"
+psql -U postgres -c "CREATE USER skillhub WITH PASSWORD 'your-secure-password';"
+psql -U postgres -c "GRANT ALL PRIVILEGES ON DATABASE skillhub TO skillhub;"
+```
+
+**方式三：SQL 语句**
+
+```sql
+-- PostgreSQL 初始化
+CREATE DATABASE skillhub;
+CREATE USER skillhub WITH PASSWORD 'your-secure-password';
+GRANT ALL PRIVILEGES ON DATABASE skillhub TO skillhub;
+
+-- 如果数据库已存在，只需创建用户
+-- CREATE USER skillhub WITH PASSWORD 'your-secure-password';
+-- GRANT ALL PRIVILEGES ON DATABASE skillhub TO skillhub;
+```
+
+#### 执行数据库迁移
+
+```bash
 # 执行迁移
 alembic upgrade head
 ```

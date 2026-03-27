@@ -32,7 +32,4 @@ async def get_async_session() -> AsyncGenerator[AsyncSession, None]:
 
 
 async def init_db() -> None:
-    if not settings.DATABASE_URL.startswith("sqlite"):
-        return
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
+    pass

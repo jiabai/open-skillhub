@@ -1,4 +1,6 @@
 User-agent: *
-Allow: /
-
-Sitemap: /sitemap.xml
+Disallow: /
+Allow: /login
+Allow: /register
+Allow: /dashboard
+Allow: /skills

@@ -10,8 +10,8 @@ ENV PYTHONUNBUFFERED=1
 COPY pyproject.toml LICENSE README.md README_ZH.md /app/
 COPY backend /app/backend
 
-RUN pip install --no-cache-dir --upgrade pip \
-    && pip install --no-cache-dir .
+RUN pip install --no-cache-dir --upgrade pip -i https://pypi.tuna.tsinghua.edu.cn/simple \
+    && pip install --no-cache-dir . -i https://pypi.tuna.tsinghua.edu.cn/simple
 
 EXPOSE 8001
 

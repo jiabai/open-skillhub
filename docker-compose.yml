@@ -16,7 +16,7 @@ services:
     volumes:
       - ./data:/app/data
       - ./logs:/app/logs
-      - ./skills_data:/data/skills
+      - ./data/skills:/data/skills
     ports:
       - "8001:8001"
     restart: unless-stopped

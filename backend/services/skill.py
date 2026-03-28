@@ -135,7 +135,7 @@ class SkillService:
     async def activate_skill(self, user: User, skill_id: str) -> Skill:
         skill = await self.get_skill(user, skill_id)
         self._ensure_owner(user, skill)
-        return await self.skill_repo.update(skill, is_active=True)
+        return await self.skill_repo.update(skill, is_active=True, cache_revoked_at=None)
 
     async def delete_skill(self, user: User, skill_id: str) -> bool:
         skill = await self.get_skill(user, skill_id)

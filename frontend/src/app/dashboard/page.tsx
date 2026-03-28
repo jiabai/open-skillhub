@@ -292,7 +292,7 @@ export default function DashboardPage() {
                       onChange={(event) => setRetentionDays(event.target.value)}
                     />
                     <p className="text-xs text-muted-foreground">
-                      此操作通常不影响"过去 24h 调用次数/成功率"。
+                      此操作通常不影响「过去 24h 调用次数/成功率」。
                     </p>
                   </div>
                   {cleanupStatus === "done" && cleanupMessage ? (

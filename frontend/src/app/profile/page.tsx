@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
-import { Building2, Loader2, Team2, User2 } from "lucide-react"
+import { Building2, Loader2, Users, User2 } from "lucide-react"
 
 import { api, getErrorMessage } from "@/lib/api"
 import { featureFlags } from "@/lib/feature-flags"
@@ -215,7 +215,7 @@ export default function ProfilePage() {
               </div>
               <div className="flex flex-col gap-2">
                 <Label className="flex items-center gap-2">
-                  <Team2 className="h-4 w-4 text-muted-foreground" />
+                  <Users className="h-4 w-4 text-muted-foreground" />
                   团队 ID
                 </Label>
                 {user.team_id ? (

@@ -20,7 +20,7 @@ export default function TokensPage() {
   const [tokens, setTokens] = useState<Token[]>([])
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading")
   const [error, setError] = useState<string | null>(null)
-  const nameField = useField("", createTokenNameRules())
+  const nameField = useField<string>("", createTokenNameRules())
   const [days, setDays] = useState("30")
   const [newToken, setNewToken] = useState<string | null>(null)
   const [creating, setCreating] = useState(false)

@@ -12,14 +12,14 @@ describe("useField", () => {
   ]
 
   it("returns initial value with no error", () => {
-    const { result } = renderHook(() => useField("test@example.com", emailRules))
+    const { result } = renderHook(() => useField<string>("test@example.com", emailRules))
     expect(result.current.value).toBe("test@example.com")
     expect(result.current.error).toBeNull()
     expect(result.current.isValid).toBe(true)
   })
 
   it("shows error after blur when validation fails", () => {
-    const { result } = renderHook(() => useField("invalid", emailRules))
+    const { result } = renderHook(() => useField<string>("invalid", emailRules))
     expect(result.current.error).toBeNull()
 
     act(() => {
@@ -31,7 +31,7 @@ describe("useField", () => {
   })
 
   it("clears error when value becomes valid", () => {
-    const { result } = renderHook(() => useField("invalid", emailRules))
+    const { result } = renderHook(() => useField<string>("invalid", emailRules))
 
     act(() => {
       result.current.handleBlur()
@@ -46,7 +46,7 @@ describe("useField", () => {
   })
 
   it("validate() triggers validation without blur", () => {
-    const { result } = renderHook(() => useField("invalid", emailRules))
+    const { result } = renderHook(() => useField<string>("invalid", emailRules))
     expect(result.current.error).toBeNull()
 
     act(() => {
@@ -57,7 +57,7 @@ describe("useField", () => {
   })
 
   it("reset() clears value, error, and touched state", () => {
-    const { result } = renderHook(() => useField("invalid", emailRules))
+    const { result } = renderHook(() => useField<string>("invalid", emailRules))
 
     act(() => {
       result.current.handleBlur()
@@ -82,7 +82,7 @@ describe("useField", () => {
       { validate: (v: string) => v.length >= 3, message: "至少3字符" },
       { validate: (v: string) => v.length <= 10, message: "最多10字符" },
     ]
-    const { result } = renderHook(() => useField("ab", multiRules))
+    const { result } = renderHook(() => useField<string>("ab", multiRules))
 
     act(() => {
       result.current.handleBlur()

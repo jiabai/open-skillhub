@@ -16,8 +16,8 @@ import { Separator } from "@/components/ui/separator"
 
 export default function LoginPage() {
   const router = useRouter()
-  const emailField = useField("", createEmailRules())
-  const codeField = useField("", createVerificationCodeRules())
+  const emailField = useField<string>("", createEmailRules())
+  const codeField = useField<string>("", createVerificationCodeRules())
   const [codeMessage, setCodeMessage] = useState<string | null>(null)
   const [resendSeconds, setResendSeconds] = useState(0)
   const resendSecondsRef = useRef(resendSeconds)

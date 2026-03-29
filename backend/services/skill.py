@@ -11,6 +11,7 @@ import shutil
 import zipfile
 
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+from loguru import logger
 import yaml
 
 from backend.config.settings import settings
@@ -548,21 +549,26 @@ class SkillService:
         metadata_text: str | None = None,
     ) -> dict:
         repo = self._require_version_repo()
+        logger.debug(f"[UPLOAD_ZIP] user_id={user.id}, skill_id={skill_id}, filename={filename}, content_size={len(content)} bytes")
         skill = await self.get_skill(user, skill_id)
         self._ensure_owner(user, skill)
+        logger.debug(f"[UPLOAD_ZIP] Found skill: name={skill.name}")
         if not filename.lower().endswith(".zip"):
             raise ValueError("Invalid zip file")
         try:
             archive = zipfile.ZipFile(io.BytesIO(content))
         except zipfile.BadZipFile as exc:
+            logger.error(f"[UPLOAD_ZIP] Invalid zip file: {str(exc)}")
             raise ValueError("Invalid zip file") from exc
         with archive:
             entries = [info for info in archive.infolist() if not info.is_dir()]
+            logger.debug(f"[UPLOAD_ZIP] Found {len(entries)} files in zip")
             if not entries:
                 raise ValueError("Zip is empty")
             if len(entries) > MAX_FILES_PER_SKILL:
                 raise ValueError("Too many files in skill")
             total_size = sum(info.file_size for info in entries)
+            logger.debug(f"[UPLOAD_ZIP] Total file size: {total_size} bytes")
             if total_size > MAX_TOTAL_SIZE:
                 raise ValueError("Total skill size limit exceeded")
             for info in entries:
@@ -577,7 +583,9 @@ class SkillService:
                 None,
             )
             if not skill_md:
+                logger.error(f"[UPLOAD_ZIP] SKILL.md not found in zip")
                 raise ValueError("SKILL.md not found")
+            logger.debug(f"[UPLOAD_ZIP] Found SKILL.md")
             skill_md_content = archive.read(skill_md).decode("utf-8", errors="replace")
             frontmatter = self._parse_frontmatter(skill_md_content)
             metadata: dict = {}
@@ -589,12 +597,15 @@ class SkillService:
                 if isinstance(parsed, dict):
                     metadata = parsed
             version = str(metadata.get("version") or frontmatter.get("version") or "").strip()
+            logger.debug(f"[UPLOAD_ZIP] Parsed version: {version}")
             if not version:
                 version = await self._next_version(skill, repo)
+                logger.debug(f"[UPLOAD_ZIP] Auto-generated version: {version}")
             version = self._validate_version(version)
             existing = await repo.get_by_version(skill.id, version)
             if existing:
                 version = await self._next_version(skill, repo)
+                logger.debug(f"[UPLOAD_ZIP] Version already exists, auto-incremented: {version}")
             description = str(metadata.get("description") or frontmatter.get("description") or skill.description)
             dependencies = self._normalize_dependencies(metadata.get("dependencies") or frontmatter.get("dependencies"))
             explicit_dependency_spec = self._normalize_dependency_spec(
@@ -658,7 +669,9 @@ class SkillService:
                 raise ValueError("Invalid version")
             if version_dir.exists():
                 raise ValueError("Version already exists")
+            logger.debug(f"[UPLOAD_ZIP] Creating version directory: {version_dir}")
             version_dir.mkdir(parents=True, exist_ok=True)
+            logger.debug(f"[UPLOAD_ZIP] Extracting {len(entries)} files to version directory")
             for info in entries:
                 file_path = info.filename.replace("\\", "/").lstrip("/")
                 target = version_dir / file_path
@@ -666,6 +679,7 @@ class SkillService:
                 target.write_bytes(archive.read(info))
             clear_skill_current_dir(user.id, skill.name)
             root_dir = get_user_skill_dir(user.id, skill.name)
+            logger.debug(f"[UPLOAD_ZIP] Copying files to current directory: {root_dir}")
             for entry_path in version_dir.rglob("*"):
                 if not entry_path.is_file():
                     continue
@@ -673,6 +687,7 @@ class SkillService:
                 target = root_dir / relative
                 target.parent.mkdir(parents=True, exist_ok=True)
                 shutil.copy2(entry_path, target)
+            logger.debug(f"[UPLOAD_ZIP] Creating version record, version={version}")
             record = await repo.create_version(
                 skill_id=skill.id,
                 version=version,
@@ -689,7 +704,9 @@ class SkillService:
                 },
             )
             await self.skill_repo.update(skill, current_version=version, description=description, is_active=True)
+            logger.debug(f"[UPLOAD_ZIP] Saving archive, version={version}")
             await save_archive(user.id, skill.name, version, content)
+            logger.debug(f"[UPLOAD_ZIP] Success, skill_id={skill_id}, version={version}")
             return {
                 "version": record.version,
                 "current_version": version,
@@ -704,19 +721,23 @@ class SkillService:
         visibility: str = "private",
     ) -> dict:
         repo = self._require_version_repo()
+        logger.debug(f"[UPLOAD_ZIP_CREATE] user_id={user.id}, filename={filename}, content_size={len(content)} bytes")
         if not filename.lower().endswith(".zip"):
             raise ValueError("Invalid zip file")
         try:
             archive = zipfile.ZipFile(io.BytesIO(content))
         except zipfile.BadZipFile as exc:
+            logger.error(f"[UPLOAD_ZIP_CREATE] Invalid zip file: {str(exc)}")
             raise ValueError("Invalid zip file") from exc
         with archive:
             entries = [info for info in archive.infolist() if not info.is_dir()]
+            logger.debug(f"[UPLOAD_ZIP_CREATE] Found {len(entries)} files in zip")
             if not entries:
                 raise ValueError("Zip is empty")
             if len(entries) > MAX_FILES_PER_SKILL:
                 raise ValueError("Too many files in skill")
             total_size = sum(info.file_size for info in entries)
+            logger.debug(f"[UPLOAD_ZIP_CREATE] Total file size: {total_size} bytes")
             if total_size > MAX_TOTAL_SIZE:
                 raise ValueError("Total skill size limit exceeded")
             for info in entries:
@@ -731,10 +752,13 @@ class SkillService:
                 None,
             )
             if not skill_md:
+                logger.error(f"[UPLOAD_ZIP_CREATE] SKILL.md not found in zip")
                 raise ValueError("SKILL.md not found in zip")
+            logger.debug(f"[UPLOAD_ZIP_CREATE] Found SKILL.md")
             skill_md_content = archive.read(skill_md).decode("utf-8", errors="replace")
             frontmatter = self._parse_frontmatter(skill_md_content)
             name = str(frontmatter.get("name") or "").strip()
+            logger.debug(f"[UPLOAD_ZIP_CREATE] Parsed skill name: {name}")
             if not name:
                 raise ValueError("Skill name not found in SKILL.md frontmatter")
             valid, error = validate_skill_name(name)
@@ -743,11 +767,14 @@ class SkillService:
             if await self.skill_repo.get_by_name(user.id, name):
                 raise ValueError(f"Skill '{name}' already exists")
             orphan_versions = list_archive_versions(user.id, name)
+            logger.debug(f"[UPLOAD_ZIP_CREATE] Found orphan versions: {orphan_versions}")
             if orphan_versions:
                 latest_orphan = max(orphan_versions, key=lambda v: tuple(map(int, v.split("."))) if all(p.isdigit() for p in v.split(".")) else (0, 0, 0))
                 version = str(frontmatter.get("version") or "").strip()
+                logger.debug(f"[UPLOAD_ZIP_CREATE] Frontmatter version: {version}")
                 if not version:
                     version = bump_patch_version(latest_orphan)
+                    logger.debug(f"[UPLOAD_ZIP_CREATE] Auto-generated version from orphan: {version}")
                 else:
                     version = self._validate_version(version)
                     try:
@@ -755,12 +782,16 @@ class SkillService:
                         latest_parts = tuple(map(int, latest_orphan.split(".")))
                         if new_parts <= latest_parts:
                             version = bump_patch_version(latest_orphan)
+                            logger.debug(f"[UPLOAD_ZIP_CREATE] Bumped version: {version}")
                     except ValueError:
                         version = bump_patch_version(latest_orphan)
+                        logger.debug(f"[UPLOAD_ZIP_CREATE] Bumped version (invalid original): {version}")
             else:
                 version = str(frontmatter.get("version") or "").strip()
+                logger.debug(f"[UPLOAD_ZIP_CREATE] Frontmatter version: {version}")
                 if not version:
                     version = "1.0.0"
+                    logger.debug(f"[UPLOAD_ZIP_CREATE] Auto-generated version: {version}")
                 version = self._validate_version(version)
             description = str(frontmatter.get("description") or "").strip()
             visibility_value = (visibility or "private").strip().lower()
@@ -823,6 +854,7 @@ class SkillService:
                     dependency_spec["python"] = python_spec
                 if node_spec:
                     dependency_spec["node"] = node_spec
+            logger.debug(f"[UPLOAD_ZIP_CREATE] Creating skill record, name={name}")
             base_dir = get_skill_versions_dir(user.id, skill.name)
             base_resolved = base_dir.resolve()
             version_dir = (base_dir / version).resolve()
@@ -830,7 +862,9 @@ class SkillService:
                 raise ValueError("Invalid version")
             if version_dir.exists():
                 raise ValueError("Version already exists")
+            logger.debug(f"[UPLOAD_ZIP_CREATE] Creating version directory: {version_dir}")
             version_dir.mkdir(parents=True, exist_ok=True)
+            logger.debug(f"[UPLOAD_ZIP_CREATE] Extracting {len(entries)} files to version directory")
             for info in entries:
                 file_path = info.filename.replace("\\", "/").lstrip("/")
                 target = version_dir / file_path
@@ -838,6 +872,7 @@ class SkillService:
                 target.write_bytes(archive.read(info))
             clear_skill_current_dir(user.id, skill.name)
             root_dir = get_user_skill_dir(user.id, skill.name)
+            logger.debug(f"[UPLOAD_ZIP_CREATE] Copying files to current directory: {root_dir}")
             for entry_path in version_dir.rglob("*"):
                 if not entry_path.is_file():
                     continue
@@ -845,6 +880,7 @@ class SkillService:
                 target = root_dir / relative
                 target.parent.mkdir(parents=True, exist_ok=True)
                 shutil.copy2(entry_path, target)
+            logger.debug(f"[UPLOAD_ZIP_CREATE] Creating version record, version={version}")
             record = await repo.create_version(
                 skill_id=skill.id,
                 version=version,
@@ -861,7 +897,9 @@ class SkillService:
                 },
             )
             await self.skill_repo.update(skill, current_version=version, description=description, is_active=True)
+            logger.debug(f"[UPLOAD_ZIP_CREATE] Saving archive, version={version}")
             await save_archive(user.id, skill.name, version, content)
+            logger.info(f"[UPLOAD_ZIP_CREATE] Success, skill_id={skill.id}, version={version}")
             return {
                 "id": skill.id,
                 "name": skill.name,

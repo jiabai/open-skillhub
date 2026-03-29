@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Request, Response, UploadFile, status
+from loguru import logger
 
 from backend.config.settings import settings
 from backend.core.middleware.auth import get_current_active_user
@@ -192,10 +193,16 @@ async def upload_skill_file(
     service = SkillService(SkillRepository(session), SkillVersionRepository(session))
     content = await file.read()
     filename = file.filename or ""
+    logger.info(
+        f"[UPLOAD START] user_id={current_user.id}, filename={filename}, "
+        f"skill_uuid={skill_uuid}, visibility={visibility}, content_size={len(content)} bytes"
+    )
     try:
         if filename.lower().endswith(".zip"):
             if skill_uuid:
+                logger.debug(f"[UPLOAD ZIP] Updating existing skill, skill_uuid={skill_uuid}")
                 payload = await service.upload_zip(current_user, skill_uuid, filename, content, metadata)
+                logger.info(f"[UPLOAD ZIP SUCCESS] Updated skill, version={payload.get('version')}")
                 if settings.ENABLE_AUDIT_LOG:
                     audit_service = AuditService(AuditLogRepository(session))
                     await audit_service.create_event(
@@ -208,7 +215,12 @@ async def upload_skill_file(
                     )
                 return payload
             else:
+                logger.debug(f"[UPLOAD ZIP] Creating new skill")
                 payload = await service.upload_zip_create_skill(current_user, filename, content, visibility)
+                logger.info(
+                    f"[UPLOAD ZIP SUCCESS] Created new skill, id={payload.get('id')}, "
+                    f"name={payload.get('name')}, version={payload.get('version')}"
+                )
                 if settings.ENABLE_AUDIT_LOG:
                     audit_service = AuditService(AuditLogRepository(session))
                     await audit_service.create_event(
@@ -224,7 +236,11 @@ async def upload_skill_file(
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="skill_uuid is required for non-zip uploads")
         filename = await service.upload_file(current_user, skill_uuid, filename, content)
     except ValueError as exc:
+        logger.error(f"[UPLOAD FAILED] user_id={current_user.id}, filename={filename}, error={str(exc)}", exc_info=True)
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    except Exception as exc:
+        logger.error(f"[UPLOAD FAILED] user_id={current_user.id}, filename={filename}, unexpected_error={str(exc)}", exc_info=True)
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Upload failed") from exc
     if settings.ENABLE_AUDIT_LOG:
         audit_service = AuditService(AuditLogRepository(session))
         await audit_service.create_event(

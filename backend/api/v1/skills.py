@@ -153,6 +153,7 @@ async def update_skill(
 async def delete_skill(
     request: Request,
     skill_uuid: str,
+    delete_archives: bool = Query(False, description="Also delete skill archives"),
     current_user=Depends(get_current_active_user),
     session=Depends(get_async_session),
 ):
@@ -160,7 +161,7 @@ async def delete_skill(
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Permission denied")
     service = SkillService(SkillRepository(session))
     try:
-        await service.delete_skill(current_user, skill_uuid)
+        await service.delete_skill(current_user, skill_uuid, delete_archives=delete_archives)
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
     if settings.ENABLE_AUDIT_LOG:
@@ -171,6 +172,7 @@ async def delete_skill(
             target=skill_uuid,
             ip=request.client.host if request.client else "",
             user_agent=request.headers.get("user-agent", ""),
+            metadata={"delete_archives": delete_archives},
         )
     return None
 

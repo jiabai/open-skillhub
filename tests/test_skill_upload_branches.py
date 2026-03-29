@@ -210,3 +210,140 @@ class TestSkillServiceUploadZipVersionHandling:
 
         # Should use auto-incremented version
         assert mock_version_repo.create_version.called
+
+
+class TestSkillServiceDeleteWithArchives:
+    """测试删除技能时的存档处理"""
+
+    @pytest.mark.asyncio
+    async def test_delete_skill_without_archives(
+        self, mock_skill_repo, mock_version_repo, test_user, test_skill
+    ):
+        """测试删除技能时保留存档"""
+        mock_skill_repo.get_by_id = AsyncMock(return_value=test_skill)
+        mock_skill_repo.delete = AsyncMock(return_value=True)
+        service = SkillService(mock_skill_repo, mock_version_repo)
+
+        with patch('backend.services.skill.delete_skill_dir') as mock_delete_dir:
+            with patch('backend.services.skill.delete_archives_for_skill') as mock_delete_archives:
+                result = await service.delete_skill(test_user, "skill-123", delete_archives=False)
+
+        assert result is True
+        mock_delete_dir.assert_called_once()
+        mock_delete_archives.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_delete_skill_with_archives(
+        self, mock_skill_repo, mock_version_repo, test_user, test_skill
+    ):
+        """测试删除技能时同时删除存档"""
+        mock_skill_repo.get_by_id = AsyncMock(return_value=test_skill)
+        mock_skill_repo.delete = AsyncMock(return_value=True)
+        service = SkillService(mock_skill_repo, mock_version_repo)
+
+        with patch('backend.services.skill.delete_skill_dir') as mock_delete_dir:
+            with patch('backend.services.skill.delete_archives_for_skill') as mock_delete_archives:
+                result = await service.delete_skill(test_user, "skill-123", delete_archives=True)
+
+        assert result is True
+        mock_delete_dir.assert_called_once()
+        mock_delete_archives.assert_called_once_with(test_user.id, test_skill.name)
+
+
+class TestSkillArchiveUtils:
+    """测试存档工具函数"""
+
+    def test_bump_patch_version(self):
+        """测试版本号递增"""
+        from backend.core.utils.skill_archive import bump_patch_version
+
+        assert bump_patch_version("1.0.0") == "1.0.1"
+        assert bump_patch_version("1.2.3") == "1.2.4"
+        assert bump_patch_version("2.10.99") == "2.10.100"
+
+    def test_bump_patch_version_invalid(self):
+        """测试无效版本号保持不变"""
+        from backend.core.utils.skill_archive import bump_patch_version
+
+        assert bump_patch_version("1.0") == "1.0"
+        assert bump_patch_version("invalid") == "invalid"
+
+    def test_list_archive_versions_empty(self, tmp_path):
+        """测试空存档目录"""
+        from backend.core.utils.skill_archive import list_archive_versions
+
+        with patch('backend.core.utils.skill_archive.settings') as mock_settings:
+            mock_settings.SKILL_STORAGE_PATH = str(tmp_path)
+            mock_settings.SKILL_ARCHIVE_BACKEND = "local"
+
+            versions = list_archive_versions("user-123", "test-skill")
+            assert versions == []
+
+    def test_list_archive_versions_with_files(self, tmp_path):
+        """测试有存档文件的情况"""
+        from backend.core.utils.skill_archive import list_archive_versions
+
+        archive_dir = tmp_path / "_archives" / "user-123" / "test-skill"
+        archive_dir.mkdir(parents=True)
+        (archive_dir / "1.0.0.zip").write_bytes(b"fake zip")
+        (archive_dir / "1.0.1.zip").write_bytes(b"fake zip")
+        (archive_dir / "1.1.0.zip").write_bytes(b"fake zip")
+
+        with patch('backend.core.utils.skill_archive.settings') as mock_settings:
+            mock_settings.SKILL_STORAGE_PATH = str(tmp_path)
+            mock_settings.SKILL_ARCHIVE_BACKEND = "local"
+
+            versions = list_archive_versions("user-123", "test-skill")
+            assert set(versions) == {"1.0.0", "1.0.1", "1.1.0"}
+
+    def test_delete_archives_for_skill(self, tmp_path):
+        """测试删除技能存档"""
+        from backend.core.utils.skill_archive import delete_archives_for_skill
+
+        archive_dir = tmp_path / "_archives" / "user-123" / "test-skill"
+        archive_dir.mkdir(parents=True)
+        (archive_dir / "1.0.0.zip").write_bytes(b"fake zip")
+
+        with patch('backend.core.utils.skill_archive.settings') as mock_settings:
+            mock_settings.SKILL_STORAGE_PATH = str(tmp_path)
+            mock_settings.SKILL_ARCHIVE_BACKEND = "local"
+
+            delete_archives_for_skill("user-123", "test-skill")
+            assert not archive_dir.exists()
+
+
+class TestUploadWithOrphanArchives:
+    """测试上传时遇到孤儿存档的处理"""
+
+    @pytest.mark.asyncio
+    async def test_upload_with_orphan_archives_version_bump(
+        self, mock_skill_repo, mock_version_repo, test_user
+    ):
+        """测试孤儿存档存在时自动版本递增"""
+        mock_skill_repo.get_by_name = AsyncMock(return_value=None)
+        mock_skill_repo.create = AsyncMock(return_value=MagicMock(id="skill-new", name="test-skill"))
+        mock_version_repo.get_by_version = AsyncMock(return_value=None)
+        mock_version_repo.list_by_skill = AsyncMock(return_value=[])
+        mock_version_repo.create_version = AsyncMock(return_value=MagicMock(version="1.0.2"))
+
+        service = SkillService(mock_skill_repo, mock_version_repo)
+
+        zip_content = create_zip_with_files({})
+
+        with patch('backend.services.skill.list_archive_versions') as mock_list_versions:
+            mock_list_versions.return_value = ["1.0.0", "1.0.1"]
+            with patch('backend.services.skill.save_archive', new_callable=AsyncMock):
+                with patch('backend.services.skill.get_skill_versions_dir') as mock_dir:
+                    mock_dir.return_value = Path('/tmp/v')
+                    with patch.object(Path, 'mkdir'):
+                        with patch.object(Path, 'write_bytes'):
+                            with patch('backend.services.skill.clear_skill_current_dir'):
+                                with patch('backend.services.skill.get_user_skill_dir'):
+                                    with patch.object(Path, 'exists', return_value=False):
+                                        result = await service.upload_zip_create_skill(
+                                            test_user, "test.zip", zip_content, "private"
+                                        )
+
+        mock_version_repo.create_version.assert_called_once()
+        call_args = mock_version_repo.create_version.call_args
+        assert call_args[1]["version"] == "1.0.2"

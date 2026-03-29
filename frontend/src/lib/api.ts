@@ -296,7 +296,12 @@ export const api = {
   getSkill: (skillUuid: string) => apiFetch<Skill>(`/api/v1/skills/${skillUuid}`),
   updateSkill: (skillUuid: string, payload: { name?: string; description?: string | null; tags?: string[]; visible?: "private" | "team" | "enterprise" }) =>
     apiFetch<Skill>(`/api/v1/skills/${skillUuid}`, { method: "PUT", body: JSON.stringify(payload) }),
-  deleteSkill: (skillUuid: string) => apiFetch(`/api/v1/skills/${skillUuid}`, { method: "DELETE" }),
+  deleteSkill: (skillUuid: string, deleteArchives?: boolean) => {
+    const params = new URLSearchParams()
+    if (deleteArchives) params.set("delete_archives", "true")
+    const queryString = params.toString()
+    return apiFetch(`/api/v1/skills/${skillUuid}${queryString ? `?${queryString}` : ""}`, { method: "DELETE" })
+  },
   activateSkill: (skillUuid: string) =>
     apiFetch<Skill>(`/api/v1/skills/${skillUuid}/activate`, { method: "POST" }),
   deactivateSkill: (skillUuid: string) =>

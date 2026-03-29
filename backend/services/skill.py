@@ -30,7 +30,13 @@ from backend.core.utils.skill_storage import (
     validate_skill_name,
     validate_filename,
 )
-from backend.core.utils.skill_archive import load_archive, save_archive
+from backend.core.utils.skill_archive import (
+    bump_patch_version,
+    delete_archives_for_skill,
+    list_archive_versions,
+    load_archive,
+    save_archive,
+)
 from backend.models.skill import Skill
 from backend.models.user import User
 from backend.repositories.skill import SkillRepository
@@ -137,11 +143,13 @@ class SkillService:
         self._ensure_owner(user, skill)
         return await self.skill_repo.update(skill, is_active=True, cache_revoked_at=None)
 
-    async def delete_skill(self, user: User, skill_id: str) -> bool:
+    async def delete_skill(self, user: User, skill_id: str, delete_archives: bool = False) -> bool:
         skill = await self.get_skill(user, skill_id)
         self._ensure_owner(user, skill)
         await self.skill_repo.delete(skill)
         delete_skill_dir(user.id, skill.name)
+        if delete_archives:
+            delete_archives_for_skill(user.id, skill.name)
         return True
 
     async def list_skill_files(self, user: User, skill_id: str) -> list[str]:
@@ -734,15 +742,31 @@ class SkillService:
                 raise ValueError(error)
             if await self.skill_repo.get_by_name(user.id, name):
                 raise ValueError(f"Skill '{name}' already exists")
+            orphan_versions = list_archive_versions(user.id, name)
+            if orphan_versions:
+                latest_orphan = max(orphan_versions, key=lambda v: tuple(map(int, v.split("."))) if all(p.isdigit() for p in v.split(".")) else (0, 0, 0))
+                version = str(frontmatter.get("version") or "").strip()
+                if not version:
+                    version = bump_patch_version(latest_orphan)
+                else:
+                    version = self._validate_version(version)
+                    try:
+                        new_parts = tuple(map(int, version.split(".")))
+                        latest_parts = tuple(map(int, latest_orphan.split(".")))
+                        if new_parts <= latest_parts:
+                            version = bump_patch_version(latest_orphan)
+                    except ValueError:
+                        version = bump_patch_version(latest_orphan)
+            else:
+                version = str(frontmatter.get("version") or "").strip()
+                if not version:
+                    version = "1.0.0"
+                version = self._validate_version(version)
             description = str(frontmatter.get("description") or "").strip()
             visibility_value = (visibility or "private").strip().lower()
             if visibility_value not in {"private", "team", "enterprise"}:
                 visibility_value = "private"
             skill = await self.create_skill(user, name, description, visibility=visibility_value)
-            version = str(frontmatter.get("version") or "").strip()
-            if not version:
-                version = "1.0.0"
-            version = self._validate_version(version)
             existing = await repo.get_by_version(skill.id, version)
             if existing:
                 version = await self._next_version(skill, repo)

@@ -82,11 +82,11 @@ export default function SkillDetailPage({ params }: SkillDetailProps) {
     }
   }
 
-  const handleDelete = async () => {
+  const handleDelete = async (deleteArchives: boolean) => {
     if (!skill) {
       return
     }
-    await api.deleteSkill(skill.id)
+    await api.deleteSkill(skill.id, deleteArchives)
     window.location.href = "/skills"
   }
 
@@ -319,11 +319,27 @@ export default function SkillDetailPage({ params }: SkillDetailProps) {
                     <AlertDialogContent>
                       <AlertDialogHeader>
                         <AlertDialogTitle>确认删除 Skill？</AlertDialogTitle>
-                        <AlertDialogDescription>该操作不可撤销。</AlertDialogDescription>
+                        <AlertDialogDescription>请选择删除方式：</AlertDialogDescription>
                       </AlertDialogHeader>
-                      <AlertDialogFooter>
+                      <div className="flex flex-col gap-2 py-4 text-sm">
+                        <p className="text-muted-foreground">
+                          <strong>仅删除技能</strong>：保留存档，后续可重新上传同名技能（版本号将自动递增）
+                        </p>
+                        <p className="text-muted-foreground">
+                          <strong>彻底删除</strong>：同时删除存档，无法恢复
+                        </p>
+                      </div>
+                      <AlertDialogFooter className="flex-col gap-2 sm:flex-row">
                         <AlertDialogCancel>取消</AlertDialogCancel>
-                        <AlertDialogAction onClick={handleDelete}>确认删除</AlertDialogAction>
+                        <AlertDialogAction onClick={() => handleDelete(false)}>
+                          仅删除技能
+                        </AlertDialogAction>
+                        <AlertDialogAction
+                          onClick={() => handleDelete(true)}
+                          className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                        >
+                          彻底删除
+                        </AlertDialogAction>
                       </AlertDialogFooter>
                     </AlertDialogContent>
                   </AlertDialog>

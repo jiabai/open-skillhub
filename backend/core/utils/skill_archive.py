@@ -1,6 +1,7 @@
 import base64
 import hashlib
 import os
+import shutil
 from pathlib import Path
 
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
@@ -148,3 +149,58 @@ async def load_archive(user_id: str, skill_name: str, version: str) -> bytes | N
         return payload
     path = _archive_path(user_id, skill_name, version)
     return _read_plain_archive(path)
+
+
+def delete_archives_for_skill(user_id: str, skill_name: str) -> None:
+    """Delete all archives for a specific skill."""
+    backend = (settings.SKILL_ARCHIVE_BACKEND or "local").lower()
+    if backend == "s3":
+        client = _get_s3_client()
+        prefix = f"{user_id}/{skill_name}/"
+        try:
+            paginator = client.get_paginator("list_objects_v2")
+            for page in paginator.paginate(Bucket=settings.SKILL_ARCHIVE_S3_BUCKET, Prefix=prefix):
+                for obj in page.get("Contents", []):
+                    client.delete_object(Bucket=settings.SKILL_ARCHIVE_S3_BUCKET, Key=obj["Key"])
+        except Exception:
+            pass
+        local_cache_dir = Path(settings.SKILL_STORAGE_PATH) / "_local_cache" / user_id / skill_name
+        if local_cache_dir.exists():
+            shutil.rmtree(local_cache_dir)
+        return
+    archive_dir = Path(settings.SKILL_STORAGE_PATH) / "_archives" / user_id / skill_name
+    if archive_dir.exists():
+        shutil.rmtree(archive_dir)
+
+
+def list_archive_versions(user_id: str, skill_name: str) -> list[str]:
+    """List all archive versions for a specific skill."""
+    backend = (settings.SKILL_ARCHIVE_BACKEND or "local").lower()
+    if backend == "s3":
+        client = _get_s3_client()
+        prefix = f"{user_id}/{skill_name}/"
+        versions = []
+        try:
+            paginator = client.get_paginator("list_objects_v2")
+            for page in paginator.paginate(Bucket=settings.SKILL_ARCHIVE_S3_BUCKET, Prefix=prefix):
+                for obj in page.get("Contents", []):
+                    key = obj["Key"]
+                    if key.endswith(".zip"):
+                        version = key.split("/")[-1].replace(".zip", "")
+                        versions.append(version)
+        except Exception:
+            pass
+        return versions
+    archive_dir = Path(settings.SKILL_STORAGE_PATH) / "_archives" / user_id / skill_name
+    if not archive_dir.exists():
+        return []
+    return [p.stem for p in archive_dir.glob("*.zip")]
+
+
+def bump_patch_version(version: str) -> str:
+    """Bump the patch version: 1.0.0 -> 1.0.1"""
+    parts = version.split(".")
+    if len(parts) == 3 and all(p.isdigit() for p in parts):
+        parts[2] = str(int(parts[2]) + 1)
+        return ".".join(parts)
+    return version

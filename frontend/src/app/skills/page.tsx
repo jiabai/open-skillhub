@@ -45,8 +45,8 @@ export default function SkillsPage() {
     loadSkills(query, includeInactive)
   }
 
-  const handleDelete = async (skillUuid: string) => {
-    await api.deleteSkill(skillUuid)
+  const handleDelete = async (skillUuid: string, deleteArchives: boolean) => {
+    await api.deleteSkill(skillUuid, deleteArchives)
     await loadSkills(query)
   }
 
@@ -167,11 +167,27 @@ export default function SkillsPage() {
                   <AlertDialogContent>
                     <AlertDialogHeader>
                       <AlertDialogTitle>确认删除 Skill？</AlertDialogTitle>
-                      <AlertDialogDescription>删除后将无法恢复该 Skill 及其文件。</AlertDialogDescription>
+                      <AlertDialogDescription>请选择删除方式：</AlertDialogDescription>
                     </AlertDialogHeader>
-                    <AlertDialogFooter>
+                    <div className="flex flex-col gap-2 py-4 text-sm">
+                      <p className="text-muted-foreground">
+                        <strong>仅删除技能</strong>：保留存档，后续可重新上传同名技能
+                      </p>
+                      <p className="text-muted-foreground">
+                        <strong>彻底删除</strong>：同时删除存档，无法恢复
+                      </p>
+                    </div>
+                    <AlertDialogFooter className="flex-col gap-2 sm:flex-row">
                       <AlertDialogCancel>取消</AlertDialogCancel>
-                      <AlertDialogAction onClick={() => handleDelete(skillUuid)}>确认删除</AlertDialogAction>
+                      <AlertDialogAction onClick={() => handleDelete(skillUuid, false)}>
+                        仅删除技能
+                      </AlertDialogAction>
+                      <AlertDialogAction
+                        onClick={() => handleDelete(skillUuid, true)}
+                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                      >
+                        彻底删除
+                      </AlertDialogAction>
                     </AlertDialogFooter>
                   </AlertDialogContent>
                 </AlertDialog>

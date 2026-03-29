@@ -1,6 +1,8 @@
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, status
 import secrets
 
+from loguru import logger
+
 from backend.config.settings import settings
 from backend.core.middleware.auth import get_current_active_user
 from backend.core.security.jwt_utils import decode_token

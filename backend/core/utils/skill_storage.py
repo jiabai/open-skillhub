@@ -3,6 +3,8 @@ import re
 from datetime import datetime, timezone
 from pathlib import Path
 
+from loguru import logger
+
 from backend.config.settings import settings
 
 ALLOWED_EXTENSIONS = {
@@ -58,7 +60,9 @@ def get_skill_versions_dir(user_id: str, skill_name: str) -> Path:
 
 def clear_skill_current_dir(user_id: str, skill_name: str) -> None:
     path = get_user_skill_dir(user_id, skill_name)
+    logger.debug(f"[STORAGE_CLEAR] user_id={user_id}, skill_name={skill_name}, path={path}")
     if not path.exists():
+        logger.debug(f"[STORAGE_CLEAR] Directory does not exist")
         return
     versions_dir = path / SKILL_VERSIONS_DIRNAME
     for child in list(path.iterdir()):
@@ -74,17 +78,21 @@ def clear_skill_current_dir(user_id: str, skill_name: str) -> None:
             if sub.is_dir():
                 sub.rmdir()
         child.rmdir()
+    logger.debug(f"[STORAGE_CLEAR] Completed")
 
 
 def create_skill_dir(user_id: str, skill_name: str) -> Path:
     path = get_user_skill_dir(user_id, skill_name)
+    logger.debug(f"[STORAGE_CREATE_DIR] user_id={user_id}, skill_name={skill_name}, path={path}")
     path.mkdir(parents=True, exist_ok=True)
     return path
 
 
 def delete_skill_dir(user_id: str, skill_name: str) -> None:
     path = get_user_skill_dir(user_id, skill_name)
+    logger.debug(f"[STORAGE_DELETE_DIR] user_id={user_id}, skill_name={skill_name}, path={path}")
     if not path.exists():
+        logger.debug(f"[STORAGE_DELETE_DIR] Directory does not exist")
         return
     for child in path.rglob("*"):
         if child.is_file():
@@ -93,11 +101,13 @@ def delete_skill_dir(user_id: str, skill_name: str) -> None:
         if child.is_dir():
             child.rmdir()
     path.rmdir()
+    logger.debug(f"[STORAGE_DELETE_DIR] Completed")
 
 
 def save_file(user_id: str, skill_name: str, filename: str, content: bytes) -> Path:
     path = create_skill_dir(user_id, skill_name)
     file_path = path / filename
+    logger.debug(f"[STORAGE_SAVE_FILE] user_id={user_id}, skill_name={skill_name}, filename={filename}, content_size={len(content)} bytes")
     file_path.write_bytes(content)
     return file_path
 

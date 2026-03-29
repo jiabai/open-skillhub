@@ -145,12 +145,15 @@ class SkillService:
         return await self.skill_repo.update(skill, is_active=True, cache_revoked_at=None)
 
     async def delete_skill(self, user: User, skill_id: str, delete_archives: bool = False) -> bool:
+        logger.info(f"[DELETE_SKILL] user_id={user.id}, skill_id={skill_id}, delete_archives={delete_archives}")
         skill = await self.get_skill(user, skill_id)
+        logger.debug(f"[DELETE_SKILL] Found skill: name={skill.name}, id={skill.id}")
         self._ensure_owner(user, skill)
         await self.skill_repo.delete(skill)
         delete_skill_dir(user.id, skill.name)
         if delete_archives:
             delete_archives_for_skill(user.id, skill.name)
+        logger.info(f"[DELETE_SKILL] Success, skill_name={skill.name}")
         return True
 
     async def list_skill_files(self, user: User, skill_id: str) -> list[str]:

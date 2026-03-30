@@ -1,3 +1,4 @@
+import json
 from datetime import datetime, timedelta, timezone
 import sys
 from pathlib import Path
@@ -32,18 +33,76 @@ async def get_success_rate(user_id: str, window_seconds: int = _REQUEST_WINDOW_S
     return 0, 0
 
 
+def _parse_timezone(tz_str: str) -> timezone:
+    if tz_str.upper() == "UTC":
+        return timezone.utc
+    if tz_str.upper().startswith("UTC+") or tz_str.upper().startswith("UTC-"):
+        offset = int(tz_str[3:])
+        return timezone(timedelta(hours=offset))
+    if "+" in tz_str or tz_str.startswith("-"):
+        sign = 1 if tz_str[0] != "-" else -1
+        parts = tz_str.lstrip("-").split(":")
+        hours = int(parts[0])
+        minutes = int(parts[1]) if len(parts) > 1 else 0
+        return timezone(timedelta(hours=sign * hours, minutes=sign * minutes))
+    try:
+        hours = int(tz_str)
+        return timezone(timedelta(hours=hours))
+    except ValueError:
+        return timezone.utc
+
+
 def configure_loguru() -> None:
     serialize = str(settings.LOG_FORMAT).lower() == "json"
     logger.remove()
-    logger.add(sys.stderr, level=settings.LOG_LEVEL, serialize=serialize)
+    tz = _parse_timezone(settings.TIMEZONE)
+    
+    def create_sink(sink_dest):
+        def sink(message):
+            record = message.record
+            dt = record["time"].astimezone(tz)
+            time_str = dt.strftime("%Y-%m-%d %H:%M:%S")
+            
+            if not serialize:
+                line = f"{time_str} | {record['level'].name: <8} | {record['name']}:{record['function']}:{record['line']} - {record['message']}\n"
+            else:
+                result = {
+                    "text": f"{time_str} | {record['level'].name: <8} | {record['name']}:{record['function']}:{record['line']} - {record['message']}\n",
+                    "record": {
+                        "elapsed": record["elapsed"],
+                        "exception": record["exception"],
+                        "extra": record["extra"],
+                        "file": record["file"],
+                        "function": record["function"],
+                        "level": record["level"],
+                        "line": record["line"],
+                        "message": record["message"],
+                        "module": record["module"],
+                        "name": record["name"],
+                        "process": record["process"],
+                        "thread": record["thread"],
+                        "time": dt
+                    }
+                }
+                line = json.dumps(result, default=str, ensure_ascii=False) + "\n"
+            
+            if hasattr(sink_dest, "write"):
+                sink_dest.write(line)
+                sink_dest.flush()
+            else:
+                with open(sink_dest, "a", encoding="utf-8") as f:
+                    f.write(line)
+        
+        return sink
+    
+    logger.add(create_sink(sys.stderr), level=settings.LOG_LEVEL)
     log_file = str(settings.LOG_FILE).strip()
-    if not log_file:
-        return
-    try:
-        Path(log_file).expanduser().resolve().parent.mkdir(parents=True, exist_ok=True)
-        logger.add(log_file, level=settings.LOG_LEVEL, serialize=serialize)
-    except Exception:
-        return
+    if log_file:
+        try:
+            Path(log_file).expanduser().resolve().parent.mkdir(parents=True, exist_ok=True)
+            logger.add(create_sink(log_file), level=settings.LOG_LEVEL)
+        except Exception:
+            pass
 
 
 class RequestLoggingMiddleware(BaseHTTPMiddleware):

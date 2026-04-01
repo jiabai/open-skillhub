@@ -31,7 +31,9 @@ def parse_requirement(req_str: str) -> tuple[str, str]:
     req_str = req_str.strip()
 
     # 匹配包名和版本规范
-    match = re.match(r'^([a-zA-Z0-9_-]+)\s*(.*)$', req_str)
+    # PyPI 包名允许字母、数字、下划线、连字符和点号
+    # 例如：google-api-python-client, beautifulsoup4
+    match = re.match(r'^([a-zA-Z0-9_.-]+)\s*(.*)$', req_str)
     if not match:
         raise ValueError(f"Invalid requirement: {req_str}")
 
@@ -226,9 +228,17 @@ async def delete_user_account(
     # 1. 删除所有 Skill 文件
     # 注意：必须先获取 skills 列表和路径，再执行删除
     skills = await skill_repo.list_by_user(user.id)
-    skill_storage_path = Path(user.skill_storage_path)
-    if skill_storage_path.exists():
-        shutil.rmtree(skill_storage_path)
+    disk_freed_mb = 0
+
+    # 安全检查：skill_storage_path 可能为 None（用户从未上传过 Skill）
+    if user.skill_storage_path:
+        skill_storage_path = Path(user.skill_storage_path)
+        if skill_storage_path.exists():
+            # 计算磁盘空间
+            disk_freed_mb += sum(
+                f.stat().st_size for f in skill_storage_path.rglob("*") if f.is_file()
+            ) / (1024 * 1024)
+            shutil.rmtree(skill_storage_path)
 
     # 删除 Skill 记录
     for skill in skills:
@@ -236,18 +246,16 @@ async def delete_user_account(
         await skill_repo.delete(skill.id)
 
     # 2. 级联清理运行时环境
-    # 注意：必须在删除用户记录前获取 venv_path
-    venv_path = Path(user.venv_path) if user.venv_path else None
-    disk_freed_mb = 0
-
-    if venv_path and venv_path.exists():
-        # 计算磁盘空间
-        disk_freed_mb = sum(
-            f.stat().st_size for f in venv_path.rglob("*") if f.is_file()
-        ) / (1024 * 1024)
-
-        # 删除虚拟环境目录
-        shutil.rmtree(venv_path)
+    # 安全检查：venv_path 可能为 None（用户从未创建过环境）
+    if user.venv_path:
+        venv_path = Path(user.venv_path)
+        if venv_path.exists():
+            # 计算磁盘空间
+            disk_freed_mb += sum(
+                f.stat().st_size for f in venv_path.rglob("*") if f.is_file()
+            ) / (1024 * 1024)
+            # 删除虚拟环境目录
+            shutil.rmtree(venv_path)
 
     # 3. 删除用户记录（最后执行）
     await user_repo.delete(user.id)
@@ -349,6 +357,13 @@ def check_dependency_compatibility(
     检查依赖兼容性（用于提供警告）
 
     与冲突检测类似，但只是警告，不阻止操作
+
+    Args:
+        installed: 已安装依赖 {"package": "version"}
+        required: 需要的依赖声明 ["package>=version", ...]
+
+    Returns:
+        警告列表
     """
     warnings = []
 

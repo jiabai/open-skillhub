@@ -17,8 +17,8 @@ Skill 脚本需要在服务端执行，需要选择合适的隔离层级以平�
 
 | 方案 | 安全性 | 实现复杂度 | 性能开销 |
 |------|--------|-----------|----------|
-| subprocess + venv（当前） | 弱 | 低 | 无 |
-| subprocess + 环境清理 | 中 | 低 | 无 |
+| subprocess + venv | 弱 | 低 | 无 |
+| subprocess + 环境清理 + 脚本扫描（当前） | 中低 | 低 | 无 |
 | Docker 容器 | 强 | 中 | 中 |
 | Docker + 网络隔离 | 很强 | 中高 | 中高 |
 
@@ -219,6 +219,7 @@ RISK_PATTERNS: list[RiskPattern] = [
     RiskPattern(r"exec\s*\(", "动态代码执行", RiskLevel.HIGH),
     RiskPattern(r"__import__\s*\(", "动态模块加载", RiskLevel.HIGH),
     RiskPattern(r"compile\s*\(", "动态代码编译", RiskLevel.HIGH),
+    RiskPattern(r"pickle\.loads", "Pickle 反序列化（可导致任意代码执行）", RiskLevel.HIGH),
 
     # HIGH: 敏感文件访问
     RiskPattern(r"open\s*\(\s*[\'\"]\/etc\/", "读取系统配置文件", RiskLevel.HIGH),
@@ -228,15 +229,20 @@ RISK_PATTERNS: list[RiskPattern] = [
     RiskPattern(r"os\.path\.join\s*\([^)]*['\"]\/data\/skills['\"]\s*,\s*[^f]", "访问其他用户 Skill 目录", RiskLevel.HIGH),
     RiskPattern(r"\/proc\/", "读取进程信息", RiskLevel.HIGH),
 
+    # HIGH: 高风险导入
+    RiskPattern(r"from\s+os\s+import\s+system", "导入系统命令函数", RiskLevel.HIGH),
+
     # MEDIUM: 需要确认
     RiskPattern(r"subprocess\.(call|run|Popen)\s*\(", "子进程调用", RiskLevel.MEDIUM),
     RiskPattern(r"socket\.", "网络 Socket 操作", RiskLevel.MEDIUM),
     RiskPattern(r"requests\.(get|post|put|delete)\s*\([^)]*https?://", "HTTP 网络请求", RiskLevel.MEDIUM),
     RiskPattern(r"ftplib|smtplib|telnetlib", "网络协议库使用", RiskLevel.MEDIUM),
+    RiskPattern(r"marshal\.loads", "Marshal 反序列化风险", RiskLevel.MEDIUM),
 
-    # LOW: 提示
-    RiskPattern(r"pickle\.loads", "Pickle 反序列化风险", RiskLevel.LOW),
-    RiskPattern(r"marshal\.loads", "Marshal 反序列化风险", RiskLevel.LOW),
+    # MEDIUM: 高风险模块导入
+    RiskPattern(r"import\s+ctypes", "导入 ctypes（可调用系统库）", RiskLevel.MEDIUM),
+    RiskPattern(r"from\s+subprocess\s+import", "导入子进程模块", RiskLevel.MEDIUM),
+    RiskPattern(r"importlib\.import_module", "动态模块加载", RiskLevel.MEDIUM),
 ]
 ```
 
@@ -394,6 +400,31 @@ async def upload_skill_zip(user: User, content: bytes, metadata: dict):
 │ [返回修改]                                       │
 │                                                  │
 └─────────────────────────────────────────────────┘
+```
+
+#### 敏感域名检测（可选配置）
+
+```python
+# 敏感域名列表（可在配置文件中定义）
+SENSITIVE_DOMAINS = [
+    "internal.company.com",
+    "admin.local",
+    # 可扩展
+]
+
+# 生成检测正则
+def build_sensitive_domain_pattern(domains: list[str]) -> str:
+    """构建敏感域名检测正则"""
+    escaped = [re.escape(d) for d in domains]
+    # 使用非捕获组 (?:...) 进行域名匹配，而非字符类 [...]
+    return r"(?:https?://)?(?:" + "|".join(escaped) + r")"
+
+# 使用示例
+if SENSITIVE_DOMAINS:
+    pattern = build_sensitive_domain_pattern(SENSITIVE_DOMAINS)
+    RISK_PATTERNS.append(
+        RiskPattern(pattern, "访问敏感域名", RiskLevel.HIGH)
+    )
 ```
 
 ### 4. 资源隔离

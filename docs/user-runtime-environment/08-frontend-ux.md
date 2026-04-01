@@ -7,13 +7,16 @@ parent: user-runtime-environment
 
 ## 前端交互体验设计
 
-### 1. 依赖列表预览
+### 1. 依赖列表预览（无冲突场景）
 
-用户上传 Skill ZIP 后，在安装依赖前先展示解析出的依赖列表，让用户确认后再继续。
+用户上传 Skill ZIP 后，后端解析依赖并检测冲突。**无冲突时**，展示依赖预览对话框让用户确认后再安装。
 
-> **注意**：此处的依赖确认（`confirm-dependencies`）与安全审查确认（`resolve-security`，见核心流程）是两个独立的确认步骤。
+> **注意**：依赖确认分为两种场景：
+> - **冲突场景**：检测到版本冲突，显示冲突对话框，用户决策是否允许升级（调用 `/resolve-conflict`）
+> - **预览场景**：无冲突，显示依赖预览对话框，用户确认是否安装（调用 `/confirm-dependencies`）
+>
+> 这与安全审查确认（`resolve-security`）是独立的确认步骤：
 > - **安全审查确认**：针对脚本扫描发现的风险操作，用户确认是否继续上传
-> - **依赖确认**：针对解析出的依赖列表，用户确认是否安装
 
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
@@ -77,97 +80,10 @@ ZIP 文件解析完成，检测到以下依赖声明：
 }
 ```
 
-**新增接口**：`POST /api/v1/skills/upload/confirm-dependencies`
-
-> **接口说明**：此接口用于**确认依赖预览**。当系统解析出 Skill 的依赖列表后（无冲突时），展示给用户预览，用户确认后调用此接口开始安装。
->
-> 与 `/resolve-conflict` 的区别：
-> - `/confirm-dependencies`：确认依赖预览（无冲突时），决定是否安装
-> - `/resolve-conflict`：解决版本冲突（有冲突时），决定是否允许升级
-
-用户确认依赖后继续安装：
-
-```json
-// Request
-{
-  "skill_uuid": "xxx-xxx-xxx",
-  "action": "proceed"  // 或 "cancel"
-}
-
-// Response (action=proceed)
-{
-  "status": "installing",
-  "message": "Dependency installation started",
-  "skill_uuid": "xxx-xxx-xxx"
-}
-
-// Response (action=cancel)
-{
-  "status": "cancelled",
-  "message": "Upload cancelled by user"
-}
-```
-
-**新增接口**：`POST /api/v1/skills/upload/resolve-conflict`
-
-> **接口说明**：此接口用于**解决依赖版本冲突**。当上传的新 Skill 依赖与环境中已安装的依赖版本不兼容时，调用此接口确认是否允许升级/替换依赖。
->
-> **超时机制**：冲突等待超时时间为 5 分钟，超时后系统自动取消上传并解锁。
-
-```json
-// Request
-{
-  "skill_uuid": "xxx-xxx-xxx",
-  "version": "1.2.0",
-  "action": "proceed"  // 或 "cancel"
-}
-
-// Response (action=proceed)
-{
-  "status": "success",
-  "version": "1.2.0",
-  "installed": ["requests==2.31.0", "new-package==1.0.0"],
-  "uninstalled": ["requests==2.28.0"]
-}
-
-// Response (action=cancel)
-{
-  "status": "cancelled",
-  "message": "Upload cancelled by user"
-}
-```
-
-**新增接口**：`POST /api/v1/skills/upload/resolve-security`
-
-> **接口说明**：此接口用于**解决安全审查确认**。当脚本扫描检测到 MEDIUM 级别风险时，调用此接口确认是否继续上传。
->
-> **超时机制**：安全审查等待超时时间为 5 分钟，超时后系统自动取消上传并解锁。
-
-```json
-// Request
-{
-  "skill_uuid": "xxx-xxx-xxx",
-  "action": "proceed"  // 或 "cancel"
-}
-
-// Response (action=proceed)
-{
-  "status": "success",
-  "message": "Security review passed, continuing upload",
-  "acknowledged_risks": [
-    {
-      "pattern": "requests.get",
-      "description": "HTTP 网络请求"
-    }
-  ]
-}
-
-// Response (action=cancel)
-{
-  "status": "cancelled",
-  "message": "Upload cancelled due to security concerns"
-}
-```
+> **API 定义**：依赖确认相关接口的完整定义请参考 [API 设计 - 上传接口扩展](./06-api-design.md#1-上传接口扩展)。
+> - `/confirm-dependencies`：确认依赖预览（无冲突时）
+> - `/resolve-conflict`：解决版本冲突（有冲突时）
+> - `/resolve-security`：解决安全审查确认
 
 ### 2. 安装进度反馈
 
@@ -358,23 +274,36 @@ ws.onmessage = (event) => {
   ┌─────────────────────────────────────────────────┐
   │ 2. 脚本安全扫描                                  │
   │    显示: "正在扫描脚本安全性..."                  │
-  │    结果: 无风险 / 风险提示对话框                  │
+  │    结果:                                         │
+  │    - 无风险: 继续下一步                          │
+  │    - HIGH 级别: 显示拒绝对话框，流程终止          │
+  │    - MEDIUM 级别: 显示安全审查确认对话框          │
+  │      用户确认后继续下一步                         │
+  └────────┬────────────────────────────────────────┘
+           │ 无风险或用户确认 MEDIUM 风险
+           ▼
+  ┌─────────────────────────────────────────────────┐
+  │ 3. 依赖解析与冲突检测                            │
+  │    显示: "正在解析依赖..."                       │
+  │    后端完成解析后检测冲突                        │
   └────────┬────────────────────────────────────────┘
            │
            ▼
   ┌─────────────────────────────────────────────────┐
-  │ 3. 依赖解析与预览                                │
-  │    显示: 依赖预览对话框                          │
-  │    用户: 确认或取消                              │
+  │ 4. 显示依赖确认对话框                            │
+  │    根据检测结果显示不同内容：                    │
+  │                                                  │
+  │    有冲突 (status="conflict"):                   │
+  │    → 显示冲突对话框                              │
+  │    → 高亮显示冲突项                              │
+  │    → 用户选择"允许安装"或"取消上传"              │
+  │                                                  │
+  │    无冲突 (status="dependency_preview"):          │
+  │    → 显示依赖预览对话框                          │
+  │    → 展示待安装和已安装依赖列表                  │
+  │    → 用户选择"确认并安装"或"取消上传"            │
   └────────┬────────────────────────────────────────┘
-           │ 用户确认
-           ▼
-  ┌─────────────────────────────────────────────────┐
-  │ 4. 依赖冲突检测                                  │
-  │    无冲突: 直接进入安装                          │
-  │    有冲突: 显示冲突对话框                        │
-  └────────┬────────────────────────────────────────┘
-           │
+           │ 用户确认（允许安装 或 确认并安装）
            ▼
   ┌─────────────────────────────────────────────────┐
   │ 5. 依赖安装                                      │
@@ -399,6 +328,12 @@ ws.onmessage = (event) => {
   │    操作: [查看 Skill] [立即执行]                 │
   └─────────────────────────────────────────────────┘
 ```
+
+**流程说明**：
+- 步骤 3-4 合并为"依赖解析与确认"阶段，后端先完成解析和冲突检测，再根据结果返回不同状态
+- `status="conflict"` 时显示冲突对话框，用户需决策是否允许升级依赖
+- `status="dependency_preview"` 时显示依赖预览对话框，用户确认后开始安装
+- 用户取消（无论冲突还是预览场景）都会触发回滚并解锁
 
 ### 5. 前端组件设计建议
 

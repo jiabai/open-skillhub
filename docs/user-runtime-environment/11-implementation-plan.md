@@ -27,6 +27,7 @@ parent: user-runtime-environment
 - [ ] SKILL.md metadata 解析：提取 `script_entry` 设置 `script_file` 字段
 - [ ] 首次上传时设置 `skill_storage_path`：确保级联删除可用
 - [ ] 环境已存在时更新 `venv_last_used_at`：避免空闲误判
+- [ ] 临时文件清理：上传完成/失败后清理临时目录
 - [ ] 新增冲突检测 API
 - [ ] 新增冲突解决 API
 - [ ] 新增依赖预览 API：返回 `dependency_preview` 状态

@@ -27,8 +27,10 @@ parent: user-runtime-environment
 | 上传开始 | 加锁 | 设置 `runtime_locked = True` |
 | 安装成功 | 解锁 | 设置 `runtime_locked = False` |
 | 安装失败 | 解锁 | 异常路径也要解锁 |
-| 用户取消上传 | 解锁 | 冲突解决时用户取消 |
+| 用户取消上传（依赖冲突阶段） | 解锁 | 冲突解决时用户取消 |
+| 用户取消上传（安全审查阶段） | 无需解锁 | 此时尚未加锁 |
 | 冲突等待超时 | 解锁 | 5分钟无响应自动取消 |
+| 安全审查等待超时 | 无需解锁 | 此时尚未加锁 |
 | 执行前检查 | 检锁 | 已锁定则返回错误 |
 
 #### 锁超时配置
@@ -53,6 +55,11 @@ runtime:
   # 适用于 pip install 过程，防止网络问题导致无限等待
   # 单个包的安装通常不超过 2 分钟，复杂包（如 ML 库）可能需要更长时间
   # 超过此时间将中断安装并触发回滚
+  #
+  # 注意：对于大型 ML 库（如 PyTorch、TensorFlow），
+  # 首次安装可能超过 5 分钟。如有此类需求，建议：
+  # 1. 适当调大此配置（如 600 秒）
+  # 2. 或预装常用 ML 库到系统 Python 环境
   install_timeout_seconds: 300  # 5分钟
 
   # 虚拟环境创建超时时间（秒）
@@ -102,8 +109,8 @@ async def install_dependency_with_timeout(
 |------|---------------|------|
 | 等待用户确认冲突 | ✅ 受限制 | 用户无响应 5 分钟后自动取消 |
 | 等待用户确认安全审查 | ✅ 受限制 | 用户无响应 5 分钟后自动取消 |
-| 正在安装依赖 | ❌ 不受限制 | 安装过程通常快速完成，不应被打断 |
-| 环境正在创建 | ❌ 不受限制 | 创建过程通常快速完成 |
+| 正在安装依赖 | 有独立超时 | 使用 `install_timeout_seconds`（5分钟）而非 `lock_wait_timeout_seconds` |
+| 环境正在创建 | 有独立超时 | 使用 `venv_creation_timeout_seconds`（60秒）而非 `lock_wait_timeout_seconds` |
 
 #### 锁字段设计
 
@@ -114,16 +121,58 @@ runtime_lock_reason: str | None   # 锁定原因，用于前端提示
 runtime_locked_at: datetime | None  # 锁定时间，用于超时检测和估算等待时长
 ```
 
+#### runtime_lock_reason 值定义
+
+| lock_reason 值 | 含义 | 超时配置 |
+|----------------|------|----------|
+| `Installing dependencies` | 正在安装依赖 | `install_timeout_seconds` |
+| `Creating virtual environment` | 正在创建虚拟环境 | `venv_creation_timeout_seconds` |
+| `Waiting for conflict resolution` | 等待用户确认依赖冲突 | `lock_wait_timeout_seconds` |
+| `Waiting for dependency preview confirmation` | 等待用户确认依赖预览 | `lock_wait_timeout_seconds` |
+| 其他值 | 其他操作 | `lock_wait_timeout_seconds` |
+
 #### 锁超时检测逻辑
 
 ```python
-async def check_lock_timeout(user: User, timeout_seconds: int = 300) -> bool:
+# 超时配置（应从配置文件读取）
+LOCK_WAIT_TIMEOUT_SECONDS = 300  # 等待用户确认超时
+INSTALL_TIMEOUT_SECONDS = 300    # 依赖安装超时
+VENV_CREATION_TIMEOUT_SECONDS = 60  # 虚拟环境创建超时
+
+
+def get_timeout_for_reason(lock_reason: str | None) -> int:
+    """
+    根据锁定原因获取对应的超时时间
+
+    Args:
+        lock_reason: 锁定原因
+
+    Returns:
+        对应的超时时间（秒）
+    """
+    if lock_reason == "Installing dependencies":
+        return INSTALL_TIMEOUT_SECONDS
+    elif lock_reason == "Creating virtual environment":
+        return VENV_CREATION_TIMEOUT_SECONDS
+    elif lock_reason in (
+        "Waiting for conflict resolution",
+        "Waiting for dependency preview confirmation",
+    ):
+        return LOCK_WAIT_TIMEOUT_SECONDS
+    else:
+        return LOCK_WAIT_TIMEOUT_SECONDS
+
+
+async def check_lock_timeout(
+    user: User,
+    timeout_seconds: int | None = None
+) -> bool:
     """
     检查运行时锁是否超时
 
     Args:
         user: 用户对象
-        timeout_seconds: 超时时间（秒），默认5分钟
+        timeout_seconds: 超时时间（秒），为 None 时根据 lock_reason 自动选择
 
     Returns:
         是否已超时
@@ -137,6 +186,10 @@ async def check_lock_timeout(user: User, timeout_seconds: int = 300) -> bool:
     if not user.runtime_locked or not user.runtime_locked_at:
         return False
 
+    # 根据 lock_reason 选择超时时间
+    if timeout_seconds is None:
+        timeout_seconds = get_timeout_for_reason(user.runtime_lock_reason)
+
     elapsed = (
         datetime.now(timezone.utc) - user.runtime_locked_at
     ).total_seconds()
@@ -146,7 +199,8 @@ async def check_lock_timeout(user: User, timeout_seconds: int = 300) -> bool:
 
 async def cleanup_expired_locks(
     user_repo: UserRepository,
-    timeout_seconds: int = 300,
+    lock_wait_timeout_seconds: int = 300,
+    install_timeout_seconds: int = 300,
     skip_installing: bool = True,
 ) -> list[str]:
     """
@@ -154,7 +208,8 @@ async def cleanup_expired_locks(
 
     Args:
         user_repo: 用户仓库
-        timeout_seconds: 超时时间（秒）
+        lock_wait_timeout_seconds: 等待确认超时时间（秒）
+        install_timeout_seconds: 安装超时时间（秒）
         skip_installing: 是否跳过正在安装的用户（默认 True）
 
     Returns:
@@ -168,12 +223,18 @@ async def cleanup_expired_locks(
 
     cleaned = []
     for user in locked_users:
-        # 可选：跳过正在安装的用户
+        # 可选：跳过正在安装的用户（但检查安装超时）
         if skip_installing and user.runtime_lock_reason == "Installing dependencies":
-            logger.debug(f"Skipping installing user {user.id}")
-            continue
+            # 使用安装超时时间判断
+            if await check_lock_timeout(user, install_timeout_seconds):
+                logger.warning(f"Install timeout for user {user.id}, will cleanup")
+                # 继续清理流程
+            else:
+                logger.debug(f"Skipping installing user {user.id}")
+                continue
 
-        if await check_lock_timeout(user, timeout_seconds):
+        # 其他用户使用等待确认超时
+        if await check_lock_timeout(user, lock_wait_timeout_seconds):
             # 超时解锁
             user.runtime_locked = False
             user.runtime_lock_reason = None
@@ -194,6 +255,10 @@ async def cleanup_expired_locks(
 #### 执行前检查逻辑
 
 ```python
+# 配置值（应从配置文件读取）
+LOCK_WAIT_TIMEOUT_SECONDS = 300  # 等待用户确认超时
+
+
 async def check_runtime_lock(user: User) -> None:
     """
     执行前检查运行时锁状态
@@ -201,20 +266,33 @@ async def check_runtime_lock(user: User) -> None:
     Raises:
         RuntimeErrorLocked: 环境正在更新
     """
-    if user.runtime_locked:
-        # 计算建议等待时间（基于锁定时长估算）
-        elapsed_seconds = (
-            datetime.now(timezone.utc) - user.runtime_locked_at
-        ).total_seconds()
+    if not user.runtime_locked:
+        return
 
-        # 依赖安装通常 10-60 秒，建议等待 30 秒
-        retry_after = max(10, min(60, 30 - elapsed_seconds))
+    elapsed_seconds = (
+        datetime.now(timezone.utc) - user.runtime_locked_at
+    ).total_seconds()
 
-        raise RuntimeErrorLockedError(
-            reason=user.runtime_lock_reason,
-            locked_at=user.runtime_locked_at,
-            retry_after=int(retry_after)
-        )
+    # 分段处理（使用配置值）
+    if elapsed_seconds > LOCK_WAIT_TIMEOUT_SECONDS:  # 超过超时阈值
+        # 锁应该已经被清理，建议稍后重试或联系管理员
+        retry_after = 30
+        suggest_admin = True
+    elif elapsed_seconds > 60:  # 超过预期安装时间
+        # 可能有问题，建议较长等待
+        retry_after = 60
+        suggest_admin = True
+    else:
+        # 正常范围内，按剩余时间估算
+        retry_after = max(10, 30 - elapsed_seconds)
+        suggest_admin = False
+
+    raise RuntimeErrorLockedError(
+        reason=user.runtime_lock_reason,
+        locked_at=user.runtime_locked_at,
+        retry_after=int(retry_after),
+        suggest_admin=suggest_admin
+    )
 ```
 
 #### 前端处理建议

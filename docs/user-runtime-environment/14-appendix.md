@@ -1,0 +1,388 @@
+---
+status: draft
+ai_read: true
+last_updated: 2026-03-31
+parent: user-runtime-environment
+---
+
+## 附录
+
+### A. 依赖解析工具函数
+
+```python
+import re
+from packaging import version, requirements
+
+# 日志记录器（代码示例使用）
+import logging
+logger = logging.getLogger(__name__)
+
+
+def parse_requirement(req_str: str) -> tuple[str, str]:
+    """
+    解析依赖字符串
+
+    Args:
+        req_str: 如 "requests>=2.28.0" 或 "numpy"
+
+    Returns:
+        (package_name, version_spec)
+    """
+    req_str = req_str.strip()
+
+    # 匹配包名和版本规范
+    match = re.match(r'^([a-zA-Z0-9_-]+)\s*(.*)$', req_str)
+    if not match:
+        raise ValueError(f"Invalid requirement: {req_str}")
+
+    pkg_name = match.group(1).lower()
+    version_spec = match.group(2).strip()
+
+    return pkg_name, version_spec
+
+
+def version_satisfies(installed: str, spec: str) -> bool:
+    """
+    检查已安装版本是否满足版本规范
+
+    Args:
+        installed: 已安装版本，如 "2.28.0"
+        spec: 版本规范，如 ">=2.30.0" 或 ""
+
+    Returns:
+        是否满足
+    """
+    if not spec:
+        return True
+
+    try:
+        installed_ver = version.parse(installed)
+        req = requirements.Requirement(f"package{spec}")
+        return installed_ver in req.specifier
+    except Exception:
+        return True  # 解析失败时默认通过
+```
+
+### B. 虚拟环境管理工具函数
+
+```python
+import asyncio
+import platform
+import shutil
+from pathlib import Path
+
+# 日志记录器（代码示例使用）
+import logging
+logger = logging.getLogger(__name__)
+
+
+async def create_virtualenv(
+    venv_path: Path,
+    python_version: str = "3.11"
+) -> bool:
+    """
+    创建虚拟环境
+
+    Args:
+        venv_path: 虚拟环境路径
+        python_version: Python 版本
+
+    Returns:
+        是否成功
+    """
+    if venv_path.exists():
+        shutil.rmtree(venv_path)
+
+    venv_path.parent.mkdir(parents=True, exist_ok=True)
+
+    proc = await asyncio.create_subprocess_exec(
+        "python", "-m", "venv", str(venv_path),
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.PIPE,
+    )
+
+    stdout, stderr = await proc.communicate()
+
+    if proc.returncode != 0:
+        logger.error(f"Failed to create venv: {stderr.decode()}")
+        return False
+
+    return True
+
+
+async def get_pip_path(venv_path: Path) -> Path:
+    """
+    获取虚拟环境中的 pip 路径
+    """
+    if platform.system() == "Windows":
+        return venv_path / "Scripts" / "pip.exe"
+    else:
+        # Linux/Mac
+        return venv_path / "bin" / "pip"
+
+
+async def get_python_path(venv_path: Path) -> Path:
+    """
+    获取虚拟环境中的 Python 路径
+    """
+    if platform.system() == "Windows":
+        return venv_path / "Scripts" / "python.exe"
+    else:
+        # Linux/Mac
+        return venv_path / "bin" / "python"
+```
+
+### C. Skill 删除与账户级联清理
+
+```python
+import shutil
+from pathlib import Path
+from datetime import datetime, timezone
+from typing import Protocol
+
+# 审计日志记录器接口（示例）
+class AuditLogger(Protocol):
+    """审计日志记录器接口"""
+
+    def log_account_deletion(
+        self,
+        user_id: str,
+        skills_deleted: int,
+        disk_freed_mb: float,
+        duration_ms: float
+    ) -> None:
+        ...
+
+
+async def delete_skill(
+    user: User,
+    skill: Skill,
+    skill_repo: SkillRepository,
+) -> dict:
+    """
+    删除单个 Skill
+
+    注意：不卸载依赖，保持环境不变
+    """
+    # 1. 删除 Skill 文件
+    skill_path = Path(skill.storage_path)
+    if skill_path.exists():
+        shutil.rmtree(skill_path)
+
+    # 2. 删除版本记录
+    await skill_repo.delete_versions(skill.id)
+
+    # 3. 删除 Skill 记录
+    await skill_repo.delete(skill.id)
+
+    # 4. 依赖不卸载，环境保持不变
+    # 其他 Skill 可能使用相同依赖
+
+    return {
+        "status": "success",
+        "skill_id": skill.id,
+        "dependencies_preserved": True,
+    }
+
+
+async def on_last_skill_deleted(
+    user: User,
+    user_repo: UserRepository,
+) -> dict:
+    """
+    用户删除最后一个 Skill 时的处理
+
+    环境保留，venv_last_used_at 保持不变（反映最后一次实际使用时间）
+    空闲清理策略：当用户无剩余 Skill AND 空闲天数超过阈值时清理
+    """
+    # venv_last_used_at 保持不变，不更新为当前时间
+    # 因为用户删除 Skill 并非"使用"环境，而是不再需要环境
+    # 空闲清理策略会检查：无剩余 Skill + 空闲超时 = 清理
+
+    return {
+        "status": "success",
+        "message": "Environment preserved for potential future use",
+        "cleanup_policy": "Will be cleaned when idle days exceed threshold AND user has no remaining Skills",
+        "venv_last_used_at": user.venv_last_used_at.isoformat() if user.venv_last_used_at else None,
+    }
+
+
+async def delete_user_account(
+    user: User,
+    skill_repo: SkillRepository,
+    user_repo: UserRepository,
+    audit_logger: AuditLogger,
+) -> dict:
+    """
+    删除用户账户（级联清理）
+
+    清理顺序：Skill 文件 → 环境 → 用户记录
+
+    ⚠️ **重要**：必须先获取路径信息再删除用户记录，
+    否则删除用户后将无法获取 skill_storage_path 和 venv_path。
+    """
+    start_time = datetime.now(timezone.utc)
+
+    # 1. 删除所有 Skill 文件
+    # 注意：必须先获取 skills 列表和路径，再执行删除
+    skills = await skill_repo.list_by_user(user.id)
+    skill_storage_path = Path(user.skill_storage_path)
+    if skill_storage_path.exists():
+        shutil.rmtree(skill_storage_path)
+
+    # 删除 Skill 记录
+    for skill in skills:
+        await skill_repo.delete_versions(skill.id)
+        await skill_repo.delete(skill.id)
+
+    # 2. 级联清理运行时环境
+    # 注意：必须在删除用户记录前获取 venv_path
+    venv_path = Path(user.venv_path) if user.venv_path else None
+    disk_freed_mb = 0
+
+    if venv_path and venv_path.exists():
+        # 计算磁盘空间
+        disk_freed_mb = sum(
+            f.stat().st_size for f in venv_path.rglob("*") if f.is_file()
+        ) / (1024 * 1024)
+
+        # 删除虚拟环境目录
+        shutil.rmtree(venv_path)
+
+    # 3. 删除用户记录（最后执行）
+    await user_repo.delete(user.id)
+
+    # 4. 记录审计日志
+    duration_ms = (datetime.now(timezone.utc) - start_time).total_seconds() * 1000
+    audit_logger.log_account_deletion(
+        user_id=user.id,
+        skills_deleted=len(skills),
+        disk_freed_mb=disk_freed_mb,
+        duration_ms=duration_ms,
+    )
+
+    return {
+        "status": "success",
+        "user_id": user.id,
+        "skills_deleted": len(skills),
+        "disk_freed_mb": round(disk_freed_mb, 2),
+        "duration_ms": round(duration_ms, 2),
+    }
+```
+
+### D. Skill 版本回滚
+
+```python
+from datetime import datetime, timezone
+from pathlib import Path
+
+
+async def rollback_skill_version(
+    user: User,
+    skill: Skill,
+    target_version: str,
+    skill_repo: SkillRepository,
+    user_repo: UserRepository,
+) -> dict:
+    """
+    回滚 Skill 到指定版本
+
+    注意：依赖不回滚，使用当前环境
+    """
+    # 1. 检查运行时锁状态
+    if user.runtime_locked:
+        raise RuntimeErrorLockedError(
+            reason=user.runtime_lock_reason,
+            locked_at=user.runtime_locked_at,
+            retry_after=30
+        )
+
+    # 2. 检查用户环境是否存在
+    if not user.venv_path:
+        raise RuntimeErrorNotInitializedError(
+            "User runtime environment not initialized"
+        )
+
+    # 3. 检查目标版本是否存在
+    target_version_record = await skill_repo.get_version(
+        skill.id, target_version
+    )
+    if not target_version_record:
+        raise ValueError(f"Version {target_version} not found")
+
+    # 4. 获取目标版本的依赖声明（用于兼容性检查）
+    target_dependencies = target_version_record.dependencies or []
+
+    # 5. 检查依赖兼容性（强制检查，仅警告不阻止）
+    compatibility_issues = check_dependency_compatibility(
+        user.installed_dependencies,
+        target_dependencies,
+    )
+
+    # 6. 依赖不回滚，不卸载，不安装
+    # 当前环境的依赖可能满足旧版本需求
+    # 即使不满足，也仅提供警告，不阻止回滚
+
+    # 7. 更新版本指针
+    skill.current_version = target_version
+    skill.updated_at = datetime.now(timezone.utc)
+    await skill_repo.update(skill)
+
+    # 8. 更新用户最后使用时间
+    user.venv_last_used_at = datetime.now(timezone.utc)
+    await user_repo.update(user)
+
+    return {
+        "status": "success",
+        "skill_id": skill.id,
+        "rolled_back_to": target_version,
+        "dependencies_preserved": True,
+        "compatibility_issues": compatibility_issues,
+    }
+
+
+def check_dependency_compatibility(
+    installed: dict[str, str],
+    required: list[str],
+) -> list[dict]:
+    """
+    检查依赖兼容性（用于提供警告）
+
+    与冲突检测类似，但只是警告，不阻止操作
+    """
+    warnings = []
+
+    # 构建小写化的已安装依赖映射，确保大小写不敏感匹配
+    installed_lower = {k.lower(): v for k, v in installed.items()}
+
+    for req in required:
+        pkg_name, version_spec = parse_requirement(req)
+        pkg_name_lower = pkg_name.lower()
+
+        if pkg_name_lower in installed_lower:
+            installed_version = installed_lower[pkg_name_lower]
+
+            if not version_satisfies(installed_version, version_spec):
+                warnings.append({
+                    "package": pkg_name,
+                    "installed_version": installed_version,
+                    "required_version": version_spec,
+                    "warning_type": "version_mismatch",
+                    "message": f"Installed {pkg_name}={installed_version} "
+                               f"may not satisfy {version_spec}",
+                })
+        else:
+            warnings.append({
+                "package": pkg_name,
+                "installed_version": None,
+                "required_version": version_spec,
+                "warning_type": "missing",
+                "message": f"Package {pkg_name} is not installed",
+            })
+
+    return warnings
+```
+
+---
+
+**导航**： [← 监控指标](./13-monitoring.md) | [返回目录](./00-index.md)

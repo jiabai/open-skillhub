@@ -64,10 +64,9 @@ parent: user-runtime-environment
 
 // Response (action=proceed)
 {
-  "status": "success",
-  "version": "1.2.0",
-  "installed": ["requests==2.31.0", "new-package==1.0.0"],
-  "uninstalled": ["requests==2.28.0"]
+  "status": "installing",
+  "message": "Dependency installation started",
+  "skill_uuid": "xxx-xxx-xxx"
 }
 
 // Response (action=cancel)
@@ -83,7 +82,8 @@ parent: user-runtime-environment
 >
 > **超时机制**：
 > - 安全审查等待超时时间：5 分钟（`lock_wait_timeout_seconds` 配置）
-> - 超过此时间未确认，系统自动取消上传并解锁
+> - 超过此时间未确认，系统自动取消上传
+> - 注意：此时尚未加锁，无需解锁
 >
 用户确认安全审查后调用：
 
@@ -113,7 +113,183 @@ parent: user-runtime-environment
 }
 ```
 
-### 2. 管理接口
+**新增接口**：`POST /api/v1/skills/upload/confirm-dependencies`
+
+> **接口说明**：此接口用于**确认依赖预览**。当后端解析依赖并检测无冲突后，展示依赖预览对话框给用户，用户确认后调用此接口开始安装。
+>
+> **超时机制**：
+> - 依赖预览等待超时时间：5 分钟（`lock_wait_timeout_seconds` 配置）
+> - 超过此时间未确认，系统自动取消上传并解锁
+> - 前端应在超时前提示用户尽快决策
+>
+> 与 `/resolve-conflict` 的区别：
+> - `/confirm-dependencies`：确认依赖预览（无冲突时），决定是否安装
+> - `/resolve-conflict`：解决版本冲突（有冲突时），决定是否允许升级
+
+用户确认依赖预览后调用：
+
+```json
+// Request
+{
+  "skill_uuid": "xxx-xxx-xxx",
+  "action": "proceed"  // 或 "cancel"
+}
+
+// Response (action=proceed)
+{
+  "status": "installing",
+  "message": "Dependency installation started",
+  "skill_uuid": "xxx-xxx-xxx"
+}
+
+// Response (action=cancel)
+{
+  "status": "cancelled",
+  "message": "Upload cancelled by user"
+}
+```
+
+### 1.1 上传接口响应状态汇总
+
+上传流程中，`POST /api/v1/skills/upload` 接口可能返回以下状态：
+
+| 状态 | 说明 | 后续操作 | 对应流程步骤 |
+|------|------|----------|--------------|
+| `security_review` | 检测到 MEDIUM 级别安全风险（HTTP 409） | 调用 `/resolve-security` 确认继续 | 步骤 2（安全扫描），尚未加锁 |
+| `conflict` | 检测到依赖版本冲突 | 调用 `/resolve-conflict` 解决冲突 | 步骤 9（冲突检测），已加锁 |
+| `dependency_preview` | 无冲突，展示依赖预览 | 调用 `/confirm-dependencies` 确认安装 | 步骤 10c（依赖预览），已加锁 |
+| `installing` | 依赖正在安装中 | 轮询 `/upload/{uuid}/progress` 查看进度 | 步骤 11（安装依赖），已加锁 |
+| `success` | 上传成功，所有依赖已安装 | 无需额外操作 | 步骤 16（返回成功） |
+| `cancelled` | 用户取消上传 | 无需额外操作 | 流程终止 |
+
+**状态流转图**：
+
+```
+POST /api/v1/skills/upload
+       │
+       │  步骤 1-2: ZIP验证、安全扫描（未加锁）
+       ▼
+       ├───────── security_review ──────────▶ POST /resolve-security
+       │    (检测到 MEDIUM 级别安全风险)              │
+       │                                            │ proceed: 用户确认继续
+       │                                            │ cancel: 用户取消上传
+       │                                            │
+       │                              ┌─────────────┴─────────────┐
+       │                              │                           │
+       │                        proceed                       cancel
+       │                              │                           │
+       │                              ▼                           ▼
+       │                    继续依赖检测流程              cancelled
+       │                    （见下方流程）
+       │
+       │  步骤 3: 加锁运行时环境
+       │  步骤 4: 解析依赖声明
+       │  步骤 9: 依赖冲突检测
+       ▼
+       ├───────── conflict ─────────────────▶ POST /resolve-conflict
+       │    (检测到依赖版本冲突)                        │
+       │                                            │ proceed: 允许升级依赖
+       │                                            │ cancel: 用户取消上传
+       │                                            │
+       │                              ┌─────────────┴─────────────┐
+       │                              │                           │
+       │                        proceed                       cancel
+       │                              │                           │
+       │                              ▼                           ▼
+       │                    步骤 10b: 卸载冲突包        cancelled
+       │                    安装新版本
+       │                    │
+       ▼                    │
+       ├───────── dependency_preview ─────────▶ POST /confirm-dependencies
+       │    (无冲突，展示依赖预览)                      │
+       │                                            │ proceed: 确认并安装
+       │                                            │ cancel: 用户取消上传
+       │                                            │
+       │                              ┌─────────────┴─────────────┐
+       │                              │                           │
+       │                        proceed                       cancel
+       │                              │                           │
+       │                              ▼                           ▼
+       │                    步骤 11: 安装依赖            cancelled
+       │                              │
+       ▼                              │
+       └───────── installing ────────────────────▶ 轮询进度
+            (依赖安装中)                             │
+                                                   │ 安装完成
+                                                   ▼
+                                            success (或安装失败触发回滚)
+```
+
+> **流程说明**：
+> - **安全审查阶段**（步骤 1-2）：ZIP 验证和脚本扫描在加锁前执行，此时用户取消无需解锁
+> - **依赖安装阶段**（步骤 3-15）：加锁后执行依赖解析、冲突检测和安装，任何失败都会触发回滚并解锁
+> - `security_review` 确认后进入加锁和依赖检测流程，`conflict` 和 `dependency_preview` 确认后进入安装流程
+
+### 2. 版本回滚接口
+
+**回滚 Skill 版本**：`POST /api/v1/skills/{skill_id}/versions/rollback`
+
+```json
+// Request
+{
+  "target_version": "1.0.0"
+}
+
+// Response - 无兼容性问题
+{
+  "status": "success",
+  "skill_id": "xxx-xxx-xxx",
+  "rolled_back_to": "1.0.0",
+  "dependencies_preserved": true,
+  "compatibility_issues": []
+}
+
+// Response - 存在兼容性警告（需用户确认）
+{
+  "status": "compatibility_warning",
+  "skill_id": "xxx-xxx-xxx",
+  "target_version": "1.0.0",
+  "compatibility_issues": [
+    {
+      "package": "requests",
+      "installed_version": "2.28.0",
+      "required_version": ">=2.30.0",
+      "warning_type": "version_mismatch",
+      "message": "Installed requests=2.28.0 may not satisfy >=2.30.0"
+    }
+  ],
+  "require_confirmation": true
+}
+```
+
+**确认兼容性警告并继续回滚**：`POST /api/v1/skills/{skill_id}/versions/rollback/confirm`
+
+> **接口说明**：当版本回滚检测到依赖兼容性问题时，用户确认后调用此接口继续执行回滚。
+
+```json
+// Request
+{
+  "target_version": "1.0.0",
+  "action": "proceed"  // 或 "cancel"
+}
+
+// Response (action=proceed)
+{
+  "status": "success",
+  "skill_id": "xxx-xxx-xxx",
+  "rolled_back_to": "1.0.0",
+  "dependencies_preserved": true,
+  "compatibility_issues": [...]  // 保留警告信息供参考
+}
+
+// Response (action=cancel)
+{
+  "status": "cancelled",
+  "message": "Rollback cancelled by user"
+}
+```
+
+### 3. 管理接口
 
 **查询用户环境状态**：`GET /api/v1/admin/users/{user_id}/runtime`
 

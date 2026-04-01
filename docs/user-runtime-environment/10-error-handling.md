@@ -14,11 +14,16 @@ parent: user-runtime-environment
 | `RUNTIME_LOCKED` | 423 | 运行时环境正在更新（安装依赖），请等待 |
 | `RUNTIME_NOT_INITIALIZED` | 400 | 用户运行时环境未初始化 |
 | `DEPENDENCY_CONFLICT` | 409 | 依赖版本冲突，需要用户确认 |
-| `DEPENDENCY_INSTALL_FAILED` | 500 | 依赖安装失败 |
+| `DEPENDENCY_INSTALL_FAILED` | 500 | 依赖安装失败（通用错误） |
+| `DEPENDENCY_NETWORK_ERROR` | 502 | 网络错误，无法连接 PyPI |
+| `DEPENDENCY_PACKAGE_NOT_FOUND` | 404 | 包不存在或版本不存在 |
+| `DEPENDENCY_VERSION_CONFLICT` | 409 | 版本冲突无法解决 |
+| `DEPENDENCY_BUILD_ERROR` | 500 | 编译错误 |
+| `DEPENDENCY_DISK_SPACE_ERROR` | 507 | 磁盘空间不足 |
 | `VENV_CREATION_FAILED` | 500 | 虚拟环境创建失败 |
 | `RUNTIME_DISK_QUOTA_EXCEEDED` | 507 | 运行时磁盘配额超限 |
 | `SCRIPT_SECURITY_HIGH_RISK` | 403 | 脚本包含高风险操作，禁止上传 |
-| `SCRIPT_SECURITY_REVIEW` | 202 | 脚本包含中等风险操作，需要用户确认 |
+| `SCRIPT_SECURITY_REVIEW` | 409 | 脚本包含中等风险操作，需要用户确认 |
 
 #### RUNTIME_LOCKED 错误响应格式
 
@@ -54,7 +59,7 @@ parent: user-runtime-environment
 
 ```json
 {
-  "status": "security_review",
+  "error": "SCRIPT_SECURITY_REVIEW",
   "message": "Script contains medium-risk patterns, please review",
   "risks": [
     {
@@ -84,8 +89,34 @@ async def upload_with_rollback(
 ) -> dict:
     """
     带回滚机制的上传流程
+
+    此函数执行流程图（04-core-flows.md）中的以下步骤：
+    - 步骤 3：加锁运行时环境
+    - 步骤 5-7：检查/创建虚拟环境、更新使用时间
+    - 步骤 8：解析 SKILL.md metadata，设置 script_file 字段
+    - 步骤 11：安装新依赖
+    - 步骤 14：创建 Skill 版本（解锁前执行，确保原子性）
+    - 步骤 15：解锁运行时环境
+
+    以下步骤由上层调用方处理（参见 04-core-flows.md）：
+    - 步骤 1-2：ZIP 文件验证和脚本安全扫描
+    - 步骤 4：解析依赖声明
+    - 步骤 9-10：依赖冲突检测、依赖预览和用户交互确认
+
+    Args:
+        user: 用户对象
+        skill: Skill 对象
+        filename: 文件名
+        content: ZIP 文件内容
+        metadata: SKILL.md 解析的元数据（包含 script_entry 等配置）
+        skill_repo: Skill 仓库
+        user_repo: 用户仓库
+
+    Returns:
+        上传结果 {"status": "success", "skill_id": str}
     """
-    # 1. 加锁运行时环境
+    # 1. 加锁运行时环境（对应流程图步骤 3）
+    # 注意：安全扫描和依赖解析由上层调用方处理，此函数在确认无冲突后调用
     user.runtime_locked = True
     user.runtime_lock_reason = "Installing dependencies"
     user.runtime_locked_at = datetime.now(timezone.utc)
@@ -98,23 +129,26 @@ async def upload_with_rollback(
     newly_installed_packages = []
 
     try:
-        # 3. 解析 SKILL.md metadata
-        script_entry = metadata.get("script_entry", "main.py") if metadata else "main.py"
-        skill.script_file = script_entry
-
-        # 4. 检查/创建虚拟环境
+        # 3. 检查/创建虚拟环境（对应流程图步骤 5-7）
         if not user.venv_path:
             # 首次上传：创建环境
-            venv_path = await create_virtualenv(user.id)
+            venv_path = Path(VENV_STORAGE_PATH) / user.id
+            await create_virtualenv(venv_path)
             user.venv_path = str(venv_path)
             user.venv_created_at = datetime.now(timezone.utc)
+            user.venv_last_used_at = datetime.now(timezone.utc)
             # 设置 skill_storage_path（用于级联删除）
             user.skill_storage_path = str(SKILL_STORAGE_PATH / user.id)
         else:
             # 环境已存在：更新使用时间
             user.venv_last_used_at = datetime.now(timezone.utc)
 
-        # 5. 安装依赖（逐个安装，记录新安装的包）
+        # 4. 解析 SKILL.md metadata，设置 script_file 字段（对应流程图步骤 8）
+        script_entry = metadata.get("script_entry", "main.py") if metadata else "main.py"
+        skill.script_file = script_entry
+
+        # 5. 安装依赖（对应流程图步骤 11）
+        # 注意：冲突检测由上层调用方处理，此函数假定依赖已确认
         for dep in skill.dependencies:
             pkg_name, version_spec = parse_requirement(dep)
 
@@ -136,10 +170,18 @@ async def upload_with_rollback(
                     newly_installed_packages=newly_installed_packages
                 )
 
-        # 6. 创建版本记录
-        await skill_repo.create_version(skill)
+        # 6. 创建版本记录（对应流程图步骤 14）
+        # 注意：版本创建在解锁之前执行，确保原子性
+        try:
+            await skill_repo.create_version(skill)
+        except Exception as e:
+            # 版本创建失败，触发回滚
+            raise VersionCreationError(
+                error=str(e),
+                newly_installed_packages=newly_installed_packages
+            )
 
-        # 7. 更新用户记录（解锁）
+        # 7. 更新用户记录并解锁（对应流程图步骤 15）
         user.runtime_locked = False
         user.runtime_lock_reason = None
         user.runtime_locked_at = None
@@ -167,6 +209,22 @@ async def upload_with_rollback(
         await user_repo.update(user)
 
         raise ValueError(f"Dependency install failed: {e}")
+
+    except VersionCreationError as e:
+        # 版本创建失败，回滚依赖并解锁（对应流程图步骤 13）
+        logger.error(f"Version creation failed: {e}")
+
+        # 回滚依赖
+        await _rollback_new_packages(user, e.newly_installed_packages, backup_dependencies)
+        user.installed_dependencies = backup_dependencies
+
+        # 解锁
+        user.runtime_locked = False
+        user.runtime_lock_reason = None
+        user.runtime_locked_at = None
+        await user_repo.update(user)
+
+        raise ValueError(f"Version creation failed: {e}")
 
     except Exception as e:
         # 其他异常，确保解锁

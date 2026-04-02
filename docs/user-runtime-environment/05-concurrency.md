@@ -210,8 +210,6 @@ async def check_lock_timeout(
 
 async def cleanup_expired_locks(
     user_repo: UserRepository,
-    lock_wait_timeout_seconds: int = 300,
-    install_timeout_seconds: int = 300,
     skip_installing: bool = True,
 ) -> list[str]:
     """
@@ -219,8 +217,6 @@ async def cleanup_expired_locks(
 
     Args:
         user_repo: 用户仓库
-        lock_wait_timeout_seconds: 等待确认超时时间（秒）
-        install_timeout_seconds: 安装超时时间（秒）
         skip_installing: 是否跳过正在安装的用户（默认 True）
 
     Returns:
@@ -229,23 +225,28 @@ async def cleanup_expired_locks(
     Note:
         默认跳过正在安装依赖的用户，仅清理等待确认超时的锁。
         若 skip_installing=False，将清理所有超时的锁（慎用）。
+
+        超时时间由 check_lock_timeout 内部根据 lock_reason 自动选择，
+        使用 get_timeout_for_reason 函数，无需外部传入。
     """
     locked_users = await user_repo.find_locked_users()
 
     cleaned = []
     for user in locked_users:
-        # 可选：跳过正在安装的用户（但检查安装超时）
+        # 可选：跳过正在安装的用户
         if skip_installing and user.runtime_lock_reason == "Installing dependencies":
-            # 使用安装超时时间判断
-            if await check_lock_timeout(user, install_timeout_seconds):
+            # 不传 timeout_seconds，让 check_lock_timeout 内部根据 lock_reason 自动选择
+            if await check_lock_timeout(user):  # 内部使用 install_timeout_seconds
                 logger.warning(f"Install timeout for user {user.id}, will cleanup")
                 # 继续清理流程
             else:
                 logger.debug(f"Skipping installing user {user.id}")
                 continue
 
-        # 其他用户使用等待确认超时
-        if await check_lock_timeout(user, lock_wait_timeout_seconds):
+        # 其他用户：不传 timeout_seconds，让 check_lock_timeout 根据 lock_reason 自动选择
+        # 例如 "Creating virtual environment" 使用 venv_creation_timeout_seconds
+        # "Waiting for conflict resolution" 使用 lock_wait_timeout_seconds
+        if await check_lock_timeout(user):  # 内部调用 get_timeout_for_reason
             # 超时解锁
             user.runtime_locked = False
             user.runtime_lock_reason = None
@@ -273,6 +274,7 @@ async def cleanup_expired_locks(
 ```python
 # 配置值（应从配置文件读取）
 LOCK_WAIT_TIMEOUT_SECONDS = 300  # 等待用户确认超时
+MIN_RETRY_AFTER_SECONDS = 5  # 最小重试间隔，防止频繁重试
 
 
 async def check_runtime_lock(user: User) -> None:
@@ -297,8 +299,6 @@ async def check_runtime_lock(user: User) -> None:
 
     # 分段处理
     # 使用 timeout_seconds 的比例来动态计算分段阈值，避免硬编码
-    # 设置最小重试间隔（MIN_RETRY_AFTER_SECONDS），避免接近超时时产生过小的 retry_after
-    MIN_RETRY_AFTER_SECONDS = 5  # 最小重试间隔，防止频繁重试
 
     if elapsed_seconds > timeout_seconds:  # 超过对应操作的超时阈值
         # 锁应该已经被清理，建议稍后重试或联系管理员

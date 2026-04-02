@@ -1867,6 +1867,7 @@ Skill 脚本需要在服务端执行，需要选择合适的隔离层级以平�
 ```python
 # backend/services/skill_executor.py
 
+import os
 import platform
 
 def build_safe_environment(
@@ -1874,34 +1875,40 @@ def build_safe_environment(
     skill_path: Path,
     venv_path: Path,
     params: dict,
-) -> dict[str, str]:
+) -> tuple[dict[str, str], Path]:
     """
     构建安全的执行环境变量
 
     清理所有继承的环境变量，仅保留必要变量
 
     注意：此函数创建临时目录，执行完成后应由调用方清理。
-    推荐使用固定的临时目录名，避免多次执行积累垃圾文件。
+    使用唯一标识确保每次执行有独立的临时空间，避免并发冲突。
+
+    Returns:
+        tuple[dict[str, str], Path]: (环境变量字典, 临时目录路径)
+        - 环境变量字典: 包含 PATH、SKILL_PARAMS、PYTHONPATH 等清理后的环境变量
+        - 临时目录路径: 执行期间使用的临时工作目录，调用方需负责清理
     """
+    import uuid
+
     # 获取 venv 的 bin 目录（根据平台判断）
     if platform.system() == "Windows":
         venv_bin = venv_path / "Scripts"
     else:
         venv_bin = venv_path / "bin"
 
-    # 创建临时工作目录
+    # 创建临时工作目录（使用唯一标识避免并发冲突）
     # 使用 tempfile.gettempdir() 确保跨平台兼容
     # Windows: %TEMP% 或 %TMP% (如 C:\Users\xxx\AppData\Local\Temp)
     # Linux/Mac: /tmp
     import tempfile
-    temp_dir = Path(tempfile.gettempdir()) / f"skill_{user.id}"
+    temp_dir = Path(tempfile.gettempdir()) / f"skill_{user.id}_{uuid.uuid4().hex[:8]}"
 
-    # 每次执行前清空临时目录，确保干净状态
-    if temp_dir.exists():
-        shutil.rmtree(temp_dir)
+    # 创建临时目录
     temp_dir.mkdir(parents=True, exist_ok=True)
 
-    return {
+    # 基础环境变量字典
+    safe_env = {
         # PATH: 仅用户 venv 的 bin 目录
         # 注意：此设计限制脚本无法调用系统工具（如 git, curl, ffmpeg 等）
         # 如需使用系统工具，可通过以下方式解决：
@@ -1926,10 +1933,20 @@ def build_safe_environment(
         # 基础环境
         "LANG": "en_US.UTF-8",
         "LC_ALL": "en_US.UTF-8",
-
-        # 不继承任何服务器环境变量
-        # 特别是：DATABASE_URL、SECRET_KEY、API_KEY 等
     }
+
+    # Windows 平台必需的系统变量
+    # SystemRoot: Python subprocess 和系统 API 调用需要此变量
+    # Windows DLL 加载、路径解析等功能依赖 SystemRoot
+    if platform.system() == "Windows":
+        system_root = os.environ.get("SystemRoot", "C:\\Windows")
+        safe_env["SystemRoot"] = system_root
+        # Windows 特定的临时目录变量已在上方设置（TEMP/TMP）
+
+    # 不继承任何服务器敏感环境变量
+    # 特别是：DATABASE_URL、SECRET_KEY、API_KEY 等
+
+    return safe_env, temp_dir
 ```
 
 #### PATH 限制说明
@@ -1967,6 +1984,8 @@ def build_relaxed_environment(venv_bin: Path, system_path: str) -> dict[str, str
 #### 执行时应用
 
 ```python
+import shutil
+
 async def execute_skill(user: User, skill: Skill, params: dict):
     # 获取路径
     venv_path = Path(user.venv_path)
@@ -1976,20 +1995,25 @@ async def execute_skill(user: User, skill: Skill, params: dict):
     # 获取脚本入口文件（字段已在 Skill 模型中定义）
     script_file = skill.script_file
 
-    # 构建安全环境变量
-    safe_env = build_safe_environment(user, skill_path, venv_path, params)
+    # 构建安全环境变量（返回元组：环境变量字典, 临时目录路径）
+    safe_env, temp_dir = build_safe_environment(user, skill_path, venv_path, params)
 
-    # 执行脚本
-    proc = await asyncio.create_subprocess_exec(
-        str(python_path),
-        str(skill_path / "scripts" / script_file),
-        env=safe_env,  # 使用清理后的环境
-        stdout=asyncio.subprocess.PIPE,
-        stderr=asyncio.subprocess.PIPE,
-    )
+    try:
+        # 执行脚本
+        proc = await asyncio.create_subprocess_exec(
+            str(python_path),
+            str(skill_path / "scripts" / script_file),
+            env=safe_env,  # 使用清理后的环境
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        )
 
-    stdout, stderr = await proc.communicate()
-    # ...
+        stdout, stderr = await proc.communicate()
+        # ... 处理结果
+    finally:
+        # 清理临时目录
+        if temp_dir.exists():
+            shutil.rmtree(temp_dir)
 ```
 
 ### 3. 脚本安全扫描
@@ -2270,7 +2294,8 @@ def parse_requirement(req_str: str) -> tuple[str, str]:
     req_str = req_str.strip()
     
     # 匹配包名和版本规范
-    match = re.match(r'^([a-zA-Z0-9_-]+)\s*(.*)$', req_str)
+    # PyPI 包名允许字母、数字、下划线、连字符和点号
+    match = re.match(r'^([a-zA-Z0-9_.-]+)\s*(.*)$', req_str)
     if not match:
         raise ValueError(f"Invalid requirement: {req_str}")
     

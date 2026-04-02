@@ -8,8 +8,6 @@ last_updated: 2026-03-31
 
 本文档描述了 Open SkillHub 的用户级运行时环境设计方案。由于 skill 的 scripts 脚本会在服务端运行，需要为每个用户的私有 skill 空间搭建独立的运行时环境。
 
-> **文档说明**：本目录包含详细的设计文档。如需快速了解，可阅读主文档 [`user-runtime-environment-design.md`](../user-runtime-environment-design.md)，但本目录的子文档包含最新、最完整的设计细节。
-
 ## 文档目录
 
 | 序号 | 文档 | 说明 |

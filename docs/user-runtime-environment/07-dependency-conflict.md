@@ -55,13 +55,68 @@ def detect_dependency_conflicts(
 在用户确认「允许安装」之前，系统应模拟升级后的依赖状态，检查该用户所有其他 Skill 的依赖声明是否仍然满足。这样可以提前告知用户升级可能带来的影响，避免盲目决策。
 
 ```python
+from packaging.requirements import InvalidRequirement, Requirement
+from packaging.version import Version
+from packaging.specifiers import SpecifierSet
+
+
+def _pick_simulated_version(
+    spec_set: SpecifierSet,
+    current: Version | None,
+) -> Version | None:
+    """
+    根据版本约束集合，选择一个模拟安装版本。
+
+    策略：
+    1. 当前版本已满足 → 保留
+    2. 未安装或不满足 → 遍历所有约束，取最高的下限版本
+
+    注意：pip 实际行为是安装满足约束的最新版本（需查询 PyPI），
+    这里采用保守策略，选择下限版本，宁可多报潜在冲突也不漏报。
+    对于 > 约束，取 min_version + 1 patch 作为近似，仍可能产生少量误报。
+    """
+    if current is not None and spec_set.contains(current, prereleases=True):
+        return current
+
+    # 遍历所有约束，找到最高的下限版本
+    floor: Version | None = None
+    for spec in spec_set:
+        if spec.operator == ">=":
+            v = Version(spec.version)
+        elif spec.operator == ">":
+            # 严格大于：取下一个版本作为近似
+            # >1.0.0 → 1.0.1，>1.0 → 1.1.0
+            parts = spec.version.split(".")
+            if len(parts) >= 3:
+                v = Version(f"{parts[0]}.{parts[1]}.{int(parts[2]) + 1}")
+            else:
+                # 2 段版本如 >1.0 → 近似为 1.1.0
+                v = Version(f"{parts[0]}.{int(parts[1]) + 1}.0")
+        elif spec.operator == "==":
+            v = Version(spec.version)
+        elif spec.operator == "~=":
+            # ~=X.Y.Z 等价于 >=X.Y.Z, ==X.Y.*，下限即为 X.Y.Z
+            v = Version(spec.version)
+        else:
+            # !=, <, <= 均不影响下限
+            continue
+
+        if floor is None or v > floor:
+            floor = v
+
+    return floor
+
+
 def detect_upgrade_impact(
     installed: dict[str, str],
     new_skill_deps: list[str],
     all_other_skills: list[dict],
 ) -> list[dict]:
     """
-    模拟依赖升级，检查对其他 Skill 的影响
+    模拟依赖升级，检查对其他 Skill 的影响。
+
+    使用 packaging 库进行精确的版本解析与比较，
+    正确处理复合约束（如 >=1.0,<2.0）和兼容版本（~=1.4.2）。
 
     Args:
         installed: 当前已安装依赖 {"package": "version"}
@@ -72,125 +127,50 @@ def detect_upgrade_impact(
     Returns:
         受影响的 Skill 列表
         [{"skill_name": str, "breaks": [{"package": str, ...}]}]
-
-    Note:
-        模拟策略说明：
-        - 对于 == 约束：模拟安装指定版本
-        - 对于 >= 约束：如果当前版本已满足则保留，否则模拟安装最低要求版本
-        - 对于 > 约束：如果当前版本已满足则保留，否则模拟安装最低要求版本+1
-          ⚠️ 已知局限：可能产生误报，详见代码注释
-        - 对于 ~= 约束：模拟安装兼容范围内的最新版本（简化为最低版本）
-        - 对于无版本约束：保留当前版本
-        - 对于复合约束（如 >=1.0,<2.0）：仅提取首个版本号
-          ⚠️ 已知局限：可能无法准确表示版本范围，详见代码注释
-
-        ⚠️ 整体局限性说明：
-        此函数采用保守模拟策略，可能产生以下误报情况：
-        1. 严格大于约束（>）模拟版本偏低，与其他 Skill 的 >= 约束冲突
-        2. 复合约束仅取下限，忽略上限约束，可能产生范围外误判
-        3. 未考虑预发布版本（alpha/beta/rc）的特殊处理
-
-        如需精确检测，建议使用 packaging 库进行完整版本范围模拟：
-            from packaging.version import Version
-            from packaging.specifiers import SpecifierSet
     """
     # 1. 构建模拟升级后的依赖状态
-    simulated = {k.lower(): v for k, v in installed.items()}
+    simulated: dict[str, Version] = {
+        k.lower(): Version(v) for k, v in installed.items()
+    }
 
-    for req in new_skill_deps:
-        pkg_name, version_spec = parse_requirement(req)
-        pkg_name_lower = pkg_name.lower()
-        current_version = simulated.get(pkg_name_lower)
+    for dep_str in new_skill_deps:
+        try:
+            req = Requirement(dep_str)
+        except InvalidRequirement:
+            continue  # 跳过无效依赖声明
+        pkg_lower = req.name.lower()
+        current = simulated.get(pkg_lower)
 
-        if not version_spec:
-            # 无版本约束，保留当前版本或无需处理
-            continue
+        if not req.specifier:
+            continue  # 无版本约束，保留当前版本
 
-        if version_spec.startswith("=="):
-            # 精确版本：模拟安装指定版本
-            simulated[pkg_name_lower] = version_spec[2:]
-
-        elif version_spec.startswith(">="):
-            # 大于等于：如果当前版本已满足则保留，否则模拟升级到最低要求版本
-            required_min = version_spec[2:]
-            if current_version is None or not version_satisfies(current_version, version_spec):
-                simulated[pkg_name_lower] = required_min
-            # else: 当前版本已满足 >= 要求，保留不变
-
-        elif version_spec.startswith(">") and not version_spec.startswith(">="):
-            # 严格大于：需要版本 > min_version
-            # 注意：此处依赖 parse_requirement() 已对 version_spec 做 strip 处理，
-            # 因此不会出现 "> 1.0.0"（含空格）导致误判为非 ">=" 的情况。
-            #
-            # ⚠️ 已知局限性（简化处理）：
-            # pip 实际行为：安装满足 >min_version 的最新可用版本
-            # 模拟策略：使用 min_version + 1 patch 作为保守近似
-            # 可能产生误报：若其他 Skill 要求 >=higher_version，模拟版本偏低会触发警告
-            # 例如：>1.0.0 → 模拟 1.0.1，但其他 Skill 要求 >=1.1.0 会误报冲突
-            #
-            # 更精确的实现建议：
-            # 1. 使用 packaging 库的 Version 和 SpecifierSet 进行完整模拟
-            # 2. 或查询 PyPI 获取最新版本信息（增加网络依赖）
-            required_min = version_spec[1:]
-            if current_version is None or not version_satisfies(current_version, version_spec):
-                # 构建 min_version 的下一个补丁版本（如 1.0.0 → 1.0.1）
-                import re as _re
-                ver_match = _re.match(r'^(\d+\.\d+\.\d+)$', required_min)
-                if ver_match:
-                    parts = required_min.split('.')
-                    simulated[pkg_name_lower] = f"{parts[0]}.{parts[1]}.{int(parts[2]) + 1}"
-                else:
-                    # 非标准版本号，使用原始值作为降级近似
-                    simulated[pkg_name_lower] = required_min
-
-        elif version_spec.startswith("~="):
-            # 兼容版本 ~=：允许同一 minor 版本内的升级
-            # 简化处理：模拟为指定版本
-            simulated[pkg_name_lower] = version_spec[2:]
-
-        elif version_spec.startswith("<=") or version_spec.startswith("<"):
-            # 上限约束：保留当前版本（前提是满足约束）
-            pass
-
-        else:
-            # ⚠️ 已知局限性：复合约束处理（如 >=1.0,<2.0）
-            # 当前实现仅提取首个版本号，可能无法准确表示版本范围：
-            # - >=1.0,<2.0 → 模拟为 1.0，但实际有效范围是 [1.0, 2.0)
-            # - >=1.5,<2.0 → 模拟为 1.5，可能与其他 Skill 的 ~=1.6 约束产生误判
-            #
-            # 更精确的实现建议：
-            # 使用 packaging 库的 SpecifierSet 进行范围检测：
-            #   from packaging.specifiers import SpecifierSet
-            #   spec = SpecifierSet(version_spec)
-            #   # 选择范围内的代表性版本（如接近上限但不超过）
-            #
-            # 当前保守策略：保留当前版本或使用提取的最低版本
-            if current_version is None:
-                # 尝试提取版本号
-                import re
-                match = re.match(r'^([\d.]+)', version_spec)
-                if match:
-                    simulated[pkg_name_lower] = match.group(1)
+        new_version = _pick_simulated_version(req.specifier, current)
+        if new_version is not None:
+            simulated[pkg_lower] = new_version
 
     # 2. 遍历其他 Skill，检查其依赖是否仍满足
     affected = []
     for skill in all_other_skills:
         warnings = []
-        for req in skill["dependencies"]:
-            pkg_name, version_spec = parse_requirement(req)
-            pkg_name_lower = pkg_name.lower()
+        for dep_str in skill.get("dependencies", []):
+            try:
+                req = Requirement(dep_str)
+            except InvalidRequirement:
+                continue
+            pkg_lower = req.name.lower()
 
-            if pkg_name_lower in simulated:
-                if not version_satisfies(simulated[pkg_name_lower], version_spec):
+            sim_version = simulated.get(pkg_lower)
+            if sim_version is not None and req.specifier:
+                if not req.specifier.contains(sim_version, prereleases=True):
                     warnings.append({
-                        "package": pkg_name,
-                        "installed_version": simulated[pkg_name_lower],
-                        "required_version": version_spec,
+                        "package": req.name,
+                        "installed_version": str(sim_version),
+                        "required_version": str(req.specifier),
                     })
 
         if warnings:
             affected.append({
-                "skill_name": skill["name"],
+                "skill_name": skill.get("name", "unknown"),
                 "breaks": warnings,
             })
 

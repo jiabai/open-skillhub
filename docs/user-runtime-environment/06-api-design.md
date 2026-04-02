@@ -167,7 +167,7 @@ parent: user-runtime-environment
 // Request
 {
   "skill_uuid": "xxx-xxx-xxx",
-  "version": "1.0.0",   // 待上传的版本号（与其他确认接口保持一致）
+  "version": "1.2.0",   // 待上传的版本号（与其他确认接口保持一致）
   "action": "proceed"   // 或 "cancel"
 }
 

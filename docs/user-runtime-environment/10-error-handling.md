@@ -179,6 +179,7 @@ async def upload_with_rollback(
     user.runtime_locked = True
     user.runtime_lock_reason = "Creating virtual environment"  # 初始阶段，后续根据实际操作更新
     user.runtime_locked_at = datetime.now(timezone.utc)
+    user.runtime_temp_path = str(Path(UPLOAD_TEMP_STORAGE_PATH) / user.id)  # 记录临时目录路径，用于超时清理
     await user_repo.update(user)
 
     # 2. 备份当前状态
@@ -251,7 +252,9 @@ async def upload_with_rollback(
         user.runtime_locked = False
         user.runtime_lock_reason = None
         user.runtime_locked_at = None
+        user.runtime_temp_path = None
         user.installed_dependencies = await get_installed_packages(user.venv_path)
+        # 注意：若 get_installed_packages 因 venv 异常而失败，会落入下方通用 Exception 分支
         await user_repo.update(user)
 
         return {"status": "success", "skill_id": skill.id}
@@ -263,15 +266,25 @@ async def upload_with_rollback(
         # 回滚策略：
         # 1. 卸载本次新安装的包
         # 2. 对于升级的包，恢复到备份版本（如果备份中有）
-        await _rollback_new_packages(user, e.newly_installed_packages, backup_dependencies)
+        # 3. 单包回滚失败不中断流程，记录失败包列表
+        failed_rollback = await _rollback_new_packages(user, e.newly_installed_packages, backup_dependencies)
 
-        # 恢复依赖记录
-        user.installed_dependencies = backup_dependencies
+        # 恢复依赖记录：
+        # - 回滚成功的包：使用 backup 中的版本
+        # - 回滚失败的包：查询 venv 实际版本，确保数据库与 venv 状态一致
+        if failed_rollback:
+            logger.warning(f"Rollback partially failed for packages: {failed_rollback}")
+            # 查询 venv 中所有包的实际版本，回滚失败的包会保留新版本
+            actual_packages = await get_installed_packages(user.venv_path)
+            user.installed_dependencies = actual_packages
+        else:
+            user.installed_dependencies = backup_dependencies
 
         # 最后解锁
         user.runtime_locked = False
         user.runtime_lock_reason = None
         user.runtime_locked_at = None
+        user.runtime_temp_path = None
         await user_repo.update(user)
 
         raise ValueError(f"Dependency install failed: {e}")
@@ -280,43 +293,57 @@ async def upload_with_rollback(
         # 版本创建失败，回滚依赖并解锁（对应流程图步骤 13）
         logger.error(f"Version creation failed: {e}")
 
-        # 回滚依赖
-        await _rollback_new_packages(user, e.newly_installed_packages, backup_dependencies)
-        user.installed_dependencies = backup_dependencies
+        # 回滚依赖（策略同上）
+        failed_rollback = await _rollback_new_packages(user, e.newly_installed_packages, backup_dependencies)
+
+        if failed_rollback:
+            logger.warning(f"Rollback partially failed for packages: {failed_rollback}")
+            actual_packages = await get_installed_packages(user.venv_path)
+            user.installed_dependencies = actual_packages
+        else:
+            user.installed_dependencies = backup_dependencies
 
         # 解锁
         user.runtime_locked = False
         user.runtime_lock_reason = None
         user.runtime_locked_at = None
+        user.runtime_temp_path = None
         await user_repo.update(user)
 
         raise ValueError(f"Version creation failed: {e}")
 
     except Exception as e:
-        # 其他异常，确保解锁
+        # 其他异常（如 venv 创建失败），此时依赖尚未修改，无需恢复 installed_dependencies
+        # 确保解锁，防止锁泄漏
         user.runtime_locked = False
         user.runtime_lock_reason = None
         user.runtime_locked_at = None
+        user.runtime_temp_path = None
         await user_repo.update(user)
         raise
 
 
 async def _rollback_new_packages(
     user: User,
-    newly_installed: list[str],
+    newly_installed_packages: list[str],
     backup_dependencies: dict[str, str]
-) -> None:
+) -> list[str]:
     """
     回滚新安装的依赖
 
     策略：
     1. 卸载本次新安装的包
     2. 对于已存在但被升级的包，降级回备份版本
+    3. 单包回滚失败不中断流程，记录失败包名并继续处理其他包
 
     Args:
         user: 用户对象
-        newly_installed: 本次新安装的包名列表
+        newly_installed_packages: 本次新安装的包名列表
         backup_dependencies: 安装前的依赖状态备份
+
+    Returns:
+        回滚失败的包名列表（调用方可据此调整 installed_dependencies，
+        查询 venv 实际版本以确保数据库记录与 venv 状态一致）
     """
     venv_path = Path(user.venv_path)
     pip_path = await get_pip_path(venv_path)
@@ -324,7 +351,10 @@ async def _rollback_new_packages(
     # 回滚操作超时时间（秒），避免网络问题导致回滚卡住
     ROLLBACK_TIMEOUT = 120
 
-    for pkg_name in newly_installed:
+    # 记录回滚失败的包
+    failed_packages: list[str] = []
+
+    for pkg_name in newly_installed_packages:
         pkg_name_lower = pkg_name.lower()
 
         if pkg_name_lower in backup_dependencies:
@@ -332,12 +362,12 @@ async def _rollback_new_packages(
             target_version = backup_dependencies[pkg_name_lower]
             logger.info(f"Rolling back {pkg_name} to version {target_version}")
 
-            proc = await asyncio.create_subprocess_exec(
-                str(pip_path), "install", f"{pkg_name}=={target_version}",
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE,
-            )
             try:
+                proc = await asyncio.create_subprocess_exec(
+                    str(pip_path), "install", f"{pkg_name}=={target_version}",
+                    stdout=asyncio.subprocess.PIPE,
+                    stderr=asyncio.subprocess.PIPE,
+                )
                 stdout, stderr = await asyncio.wait_for(
                     proc.communicate(), timeout=ROLLBACK_TIMEOUT
                 )
@@ -345,17 +375,26 @@ async def _rollback_new_packages(
                 logger.error(f"Rollback timeout for {pkg_name}=={target_version}, killing process")
                 proc.kill()
                 await proc.wait()  # 进程已被 kill，使用 wait() 等待退出
-                raise RuntimeError(f"Rollback timed out for {pkg_name}=={target_version}")
+                failed_packages.append(pkg_name_lower)
+                continue
+            except Exception as e:
+                # 单个包降级失败（版本不存在、网络错误等），记录后继续处理其他包
+                logger.error(
+                    f"Failed to rollback {pkg_name} to version {target_version}: {e}. "
+                    f"Continuing with remaining packages."
+                )
+                failed_packages.append(pkg_name_lower)
+                continue
         else:
             # 全新安装的包，直接卸载
             logger.info(f"Uninstalling newly installed package: {pkg_name}")
 
-            proc = await asyncio.create_subprocess_exec(
-                str(pip_path), "uninstall", "-y", pkg_name,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE,
-            )
             try:
+                proc = await asyncio.create_subprocess_exec(
+                    str(pip_path), "uninstall", "-y", pkg_name,
+                    stdout=asyncio.subprocess.PIPE,
+                    stderr=asyncio.subprocess.PIPE,
+                )
                 stdout, stderr = await asyncio.wait_for(
                     proc.communicate(), timeout=ROLLBACK_TIMEOUT
                 )
@@ -363,7 +402,18 @@ async def _rollback_new_packages(
                 logger.error(f"Rollback timeout for uninstalling {pkg_name}, killing process")
                 proc.kill()
                 await proc.wait()  # 进程已被 kill，使用 wait() 等待退出
-                raise RuntimeError(f"Rollback timed out for uninstalling {pkg_name}")
+                failed_packages.append(pkg_name_lower)
+                continue
+            except Exception as e:
+                # 单个包卸载失败，记录后继续处理其他包
+                logger.error(
+                    f"Failed to uninstall {pkg_name}: {e}. "
+                    f"Continuing with remaining packages."
+                )
+                failed_packages.append(pkg_name_lower)
+                continue
+
+    return failed_packages
 ```
 
 

@@ -21,12 +21,9 @@ class User(UUIDPrimaryKeyMixin, TimestampMixin, Base):
 
     # 新增字段 - 运行时环境
     venv_path: Mapped[str | None] = mapped_column(String(500), nullable=True)
-    installed_dependencies: Mapped[dict] = mapped_column(JSON, default=dict)
+    installed_dependencies: Mapped[dict[str, str]] = mapped_column(JSON, default=dict)
     venv_created_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     venv_last_used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
-
-    # 新增字段 - 存储路径（用于账户删除时的级联清理）
-    skill_storage_path: Mapped[str | None] = mapped_column(String(500), nullable=True)
 
     # 新增字段 - 运行时操作锁（并发安全）
     runtime_locked: Mapped[bool] = mapped_column(Boolean, default=False)
@@ -45,7 +42,6 @@ class User(UUIDPrimaryKeyMixin, TimestampMixin, Base):
 | `runtime_locked` | `bool` | 运行时操作锁，`True` 表示正在安装/更新依赖 |
 | `runtime_lock_reason` | `str \| None` | 锁定原因，如 "Installing dependencies" |
 | `runtime_locked_at` | `datetime \| None` | 锁定开始时间，用于估算等待时长 |
-| `skill_storage_path` | `str \| None` | Skill 文件存储路径，用于账户删除时的级联清理 |
 
 ### installed_dependencies 格式示例
 
@@ -75,7 +71,7 @@ class Skill(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     # name: Mapped[str]                         # Skill 名称
     # created_at: Mapped[datetime]              # 创建时间（继承自 TimestampMixin）
     # updated_at: Mapped[datetime]              # 更新时间（继承自 TimestampMixin）
-    # skill_dir: Mapped[str]                    # Skill 目录路径（迁移后更名为 storage_path）
+    # skill_dir: Mapped[str]                    # Skill 目录路径（现有字段）
 
     # 新增字段 - 脚本执行相关
     script_file: Mapped[str] = mapped_column(String(100), default="main.py")
@@ -84,12 +80,6 @@ class Skill(UUIDPrimaryKeyMixin, TimestampMixin, Base):
 
     # 新增字段 - 版本管理
     # current_version: Mapped[str | None]       # 现有字段，无需新增
-
-    # 新增字段 - 存储路径
-    # 注意：现有代码中已有 skill_dir 字段，语义为 Skill 目录路径。
-    # 此处新增 storage_path 用于统一路径管理，替代现有 skill_dir。
-    # 迁移时需将 skill_dir 数据迁移至 storage_path，并废弃 skill_dir 字段。
-    storage_path: Mapped[str | None] = mapped_column(String(500), nullable=True)
 ```
 
 #### Skill 新增字段说明
@@ -100,7 +90,7 @@ class Skill(UUIDPrimaryKeyMixin, TimestampMixin, Base):
 | `dependencies` | `list` | 当前激活版本的依赖声明列表，格式：`["requests>=2.28.0", "playwright>=1.40.0"]` |
 | `metadata` | `dict` | SKILL.md 解析的元数据，可包含 `script_entry` 等自定义配置 |
 | `current_version` | `str` | 当前激活的版本号，默认 `1.0.0` |
-| `storage_path` | `str \| None` | Skill 文件存储路径，格式：`{SKILL_STORAGE_PATH}/{user_id}/{skill_name}` |
+| `skill_dir` | `str` | Skill 文件存储路径（现有字段），格式：`{SKILL_STORAGE_PATH}/{user_id}/{skill_name}` |
 
 > **设计说明**：
 > - `Skill.dependencies`：当前激活版本的依赖声明（冗余字段，方便查询）
@@ -108,8 +98,8 @@ class Skill(UUIDPrimaryKeyMixin, TimestampMixin, Base):
 > - 版本切换时，`Skill.dependencies` 同步更新为对应版本的依赖声明
 >
 > **路径层级关系**：
-> - `User.skill_storage_path` = `{SKILL_STORAGE_PATH}/{user_id}` （用户 Skill 根目录）
-> - `Skill.storage_path` = `{SKILL_STORAGE_PATH}/{user_id}/{skill_name}` （具体 Skill 目录）
+> - 用户 Skill 根目录 = `{SKILL_STORAGE_PATH}/{user_id}` （通过配置 + user_id 拼接，无需持久化）
+> - `Skill.skill_dir` = `{SKILL_STORAGE_PATH}/{user_id}/{skill_name}` （具体 Skill 目录）
 > - `SkillVersion.storage_path` = `{SKILL_STORAGE_PATH}/{user_id}/{skill_name}/_versions/{version}` （版本目录）
 
 ### SkillVersion 模型
@@ -137,7 +127,7 @@ class SkillVersion(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     script_file: Mapped[str] = mapped_column(String(100), default="main.py")
 
     # 新增字段 - 存储路径
-    storage_path: Mapped[str] = mapped_column(String(500))
+    storage_path: Mapped[str | None] = mapped_column(String(500), nullable=True)
 
     # 唯一约束（与现有代码保持一致）
     # __table_args__ = (UniqueConstraint("skill_id", "version", name="uix_skill_versions"),)
@@ -156,7 +146,7 @@ class SkillVersion(UUIDPrimaryKeyMixin, TimestampMixin, Base):
 | `description` | `str` | 版本描述（已有） |
 | `metadata_json` | `dict` | SKILL.md 解析的元数据（已有，列名 `metadata`） |
 | `script_file` | `str` | **新增** - 该版本的脚本入口文件名，默认 `main.py` |
-| `storage_path` | `str` | **新增** - 该版本文件的存储路径 |
+| `storage_path` | `str \| None` | **新增** - 该版本文件的存储路径；新版本创建时必填，历史版本迁移后填充 |
 
 ### DependencySnapshot 模型
 

@@ -78,8 +78,21 @@ def detect_upgrade_impact(
         - 对于 == 约束：模拟安装指定版本
         - 对于 >= 约束：如果当前版本已满足则保留，否则模拟安装最低要求版本
         - 对于 > 约束：如果当前版本已满足则保留，否则模拟安装最低要求版本+1
+          ⚠️ 已知局限：可能产生误报，详见代码注释
         - 对于 ~= 约束：模拟安装兼容范围内的最新版本（简化为最低版本）
         - 对于无版本约束：保留当前版本
+        - 对于复合约束（如 >=1.0,<2.0）：仅提取首个版本号
+          ⚠️ 已知局限：可能无法准确表示版本范围，详见代码注释
+
+        ⚠️ 整体局限性说明：
+        此函数采用保守模拟策略，可能产生以下误报情况：
+        1. 严格大于约束（>）模拟版本偏低，与其他 Skill 的 >= 约束冲突
+        2. 复合约束仅取下限，忽略上限约束，可能产生范围外误判
+        3. 未考虑预发布版本（alpha/beta/rc）的特殊处理
+
+        如需精确检测，建议使用 packaging 库进行完整版本范围模拟：
+            from packaging.version import Version
+            from packaging.specifiers import SpecifierSet
     """
     # 1. 构建模拟升级后的依赖状态
     simulated = {k.lower(): v for k, v in installed.items()}
@@ -108,7 +121,16 @@ def detect_upgrade_impact(
             # 严格大于：需要版本 > min_version
             # 注意：此处依赖 parse_requirement() 已对 version_spec 做 strip 处理，
             # 因此不会出现 "> 1.0.0"（含空格）导致误判为非 ">=" 的情况。
-            # 简化处理：使用 min_version 的下一个补丁版本作为近似
+            #
+            # ⚠️ 已知局限性（简化处理）：
+            # pip 实际行为：安装满足 >min_version 的最新可用版本
+            # 模拟策略：使用 min_version + 1 patch 作为保守近似
+            # 可能产生误报：若其他 Skill 要求 >=higher_version，模拟版本偏低会触发警告
+            # 例如：>1.0.0 → 模拟 1.0.1，但其他 Skill 要求 >=1.1.0 会误报冲突
+            #
+            # 更精确的实现建议：
+            # 1. 使用 packaging 库的 Version 和 SpecifierSet 进行完整模拟
+            # 2. 或查询 PyPI 获取最新版本信息（增加网络依赖）
             required_min = version_spec[1:]
             if current_version is None or not version_satisfies(current_version, version_spec):
                 # 构建 min_version 的下一个补丁版本（如 1.0.0 → 1.0.1）
@@ -131,7 +153,18 @@ def detect_upgrade_impact(
             pass
 
         else:
-            # 其他情况（如复合约束）：保留当前版本或使用指定值
+            # ⚠️ 已知局限性：复合约束处理（如 >=1.0,<2.0）
+            # 当前实现仅提取首个版本号，可能无法准确表示版本范围：
+            # - >=1.0,<2.0 → 模拟为 1.0，但实际有效范围是 [1.0, 2.0)
+            # - >=1.5,<2.0 → 模拟为 1.5，可能与其他 Skill 的 ~=1.6 约束产生误判
+            #
+            # 更精确的实现建议：
+            # 使用 packaging 库的 SpecifierSet 进行范围检测：
+            #   from packaging.specifiers import SpecifierSet
+            #   spec = SpecifierSet(version_spec)
+            #   # 选择范围内的代表性版本（如接近上限但不超过）
+            #
+            # 当前保守策略：保留当前版本或使用提取的最低版本
             if current_version is None:
                 # 尝试提取版本号
                 import re

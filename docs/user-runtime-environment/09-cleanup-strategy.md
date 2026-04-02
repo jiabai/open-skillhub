@@ -46,12 +46,63 @@ runtime:
 
 | 快照类型 | 保留数量 | 清理时机 | 说明 |
 |----------|----------|----------|------|
-| 自动快照（`is_auto=true`） | 最多 20 条 | 每次创建新自动快照时 | 超出限制后删除最早的自动快照 |
-| 手动快照（`is_auto=false`） | 最多 5 条 | 创建新手动快照时 | 超出限制后提示用户需先删除旧快照 |
+| 自动快照（`is_auto=true`） | 最多 20 条 | 创建新自动快照时**立即执行** | 超出限制后删除最早的自动快照（内联清理） |
+| 手动快照（`is_auto=false`） | 最多 5 条 | 创建新手动快照时**检查并拒绝** | 超出限制时返回错误，提示用户需先删除旧快照 |
+
+> **触发时机说明**：
+> - **自动快照清理**：在 `save_dependency_snapshot()` 函数内部，创建新快照后**立即调用** `cleanup_dependency_snapshots()`，确保自动快照数量始终 ≤ 20
+> - **手动快照限制**：在 `create_manual_snapshot()` API 中，创建前**先检查数量**，若已达上限（5 条）则拒绝创建并返回错误，由用户决定删除哪些旧快照
+> - **定时任务不涉及快照清理**：快照清理与 `cleanup_cron` 定时任务无关，定时任务仅清理空闲环境
 
 **清理逻辑**：
 
 ```python
+async def save_dependency_snapshot(
+    user_id: str,
+    reason: str,
+    dependencies: dict[str, str],
+    snapshot_repo: SnapshotRepository,
+    is_auto: bool = True,
+    auto_max: int = 20,
+) -> Snapshot:
+    """
+    保存依赖快照（自动快照）
+
+    在上传流程步骤 10b/10d 中调用，用于保存安装前的依赖状态。
+
+    Args:
+        user_id: 用户 ID
+        reason: 快照原因（如 "pre_upload:skill-name:v1.0.0"）
+        dependencies: 当前依赖状态 {"package": "version"}
+        snapshot_repo: 快照仓库
+        is_auto: 是否为自动快照（默认 True）
+        auto_max: 自动快照最大数量（默认 20）
+
+    Returns:
+        创建的快照对象
+
+    Note:
+        自动快照创建后会立即执行清理，删除超出限制的最早快照。
+    """
+    # 1. 创建新快照
+    snapshot = await snapshot_repo.create(
+        user_id=user_id,
+        reason=reason,
+        dependencies=dependencies,
+        is_auto=is_auto,
+    )
+
+    # 2. 立即清理超出限制的自动快照（内联执行）
+    await cleanup_dependency_snapshots(
+        user_id=user_id,
+        snapshot_repo=snapshot_repo,
+        auto_max=auto_max,
+        manual_max=5,  # 手动快照不自动删除，仅记录警告
+    )
+
+    return snapshot
+
+
 async def cleanup_dependency_snapshots(
     user_id: str,
     snapshot_repo: SnapshotRepository,
@@ -60,6 +111,8 @@ async def cleanup_dependency_snapshots(
 ) -> None:
     """
     清理超出限制的依赖快照
+
+    此函数在 save_dependency_snapshot() 内部调用，不需要外部手动触发。
     """
     # 清理自动快照
     auto_snapshots = await snapshot_repo.list_by_user(

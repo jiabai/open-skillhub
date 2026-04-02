@@ -51,6 +51,7 @@ Skill 脚本需要在服务端执行，需要选择合适的隔离层级以平�
 ```python
 # backend/services/skill_executor.py
 
+import os
 import platform
 
 def build_safe_environment(
@@ -90,7 +91,8 @@ def build_safe_environment(
     # 创建临时目录
     temp_dir.mkdir(parents=True, exist_ok=True)
 
-    return {
+    # 基础环境变量字典
+    safe_env = {
         # PATH: 仅用户 venv 的 bin 目录
         # 注意：此设计限制脚本无法调用系统工具（如 git, curl, ffmpeg 等）
         # 如需使用系统工具，可通过以下方式解决：
@@ -115,10 +117,20 @@ def build_safe_environment(
         # 基础环境
         "LANG": "en_US.UTF-8",
         "LC_ALL": "en_US.UTF-8",
+    }
 
-        # 不继承任何服务器环境变量
-        # 特别是：DATABASE_URL、SECRET_KEY、API_KEY 等
-    }, temp_dir
+    # Windows 平台必需的系统变量
+    # SystemRoot: Python subprocess 和系统 API 调用需要此变量
+    # Windows DLL 加载、路径解析等功能依赖 SystemRoot
+    if platform.system() == "Windows":
+        system_root = os.environ.get("SystemRoot", "C:\\Windows")
+        safe_env["SystemRoot"] = system_root
+        # Windows 特定的临时目录变量已在上方设置（TEMP/TMP）
+
+    # 不继承任何服务器敏感环境变量
+    # 特别是：DATABASE_URL、SECRET_KEY、API_KEY 等
+
+    return safe_env, temp_dir
 ```
 
 #### PATH 限制说明
@@ -251,7 +263,13 @@ RISK_PATTERNS: list[RiskPattern] = [
     # MEDIUM: 需要确认
     RiskPattern(r"subprocess\.(call|run|Popen)\s*\(", "子进程调用", RiskLevel.MEDIUM),
     RiskPattern(r"socket\.", "网络 Socket 操作", RiskLevel.MEDIUM),
-    RiskPattern(r"requests\.(get|post|put|delete)\s*\([^)]*https?://", "HTTP 网络请求", RiskLevel.MEDIUM),
+    # HTTP 请求检测：仅标记 requests 模块的使用，无法检测 URL 来源
+    # 正则无法捕获变量传递的 URL（如 requests.get(url)），因此简化为检测方法调用本身
+    # 实际安全审查需人工确认脚本中的 URL 来源和目标
+    RiskPattern(r"requests\.(get|post|put|delete|patch|head|options)\s*\(", "HTTP 请求库调用（需人工确认 URL 来源）", RiskLevel.MEDIUM),
+    RiskPattern(r"aiohttp\.(get|post|put|delete|patch)\s*\(", "异步 HTTP 请求库调用", RiskLevel.MEDIUM),
+    RiskPattern(r"httpx\.(get|post|put|delete|patch)\s*\(", "HTTPX 请求库调用", RiskLevel.MEDIUM),
+    RiskPattern(r"urllib\.request\.urlopen\s*\(", "urllib HTTP 请求", RiskLevel.MEDIUM),
     RiskPattern(r"ftplib|smtplib|telnetlib", "网络协议库使用", RiskLevel.MEDIUM),
     RiskPattern(r"marshal\.loads", "Marshal 反序列化风险", RiskLevel.MEDIUM),
 
@@ -278,7 +296,7 @@ RISK_PATTERNS: list[RiskPattern] = [
 
 | 局限性 | 说明 | 影响 | 缓解措施 |
 |--------|------|------|----------|
-| 变量传递无法检测 | 如 `url = "https://evil.com"; requests.get(url)` | URL 通过变量传递时无法被正则捕获 | 属于残余风险，接受 |
+| URL 目标无法检测 | 如 `url = "https://evil.com"; requests.get(url)` | 仅检测方法调用，无法确认实际请求目标 | 人工审查代码中 URL 变量来源 |
 | 字典参数无法检测 | 如 `subprocess.run(**{"shell": True})` | shell=True 通过字典解包传递时无法捕获 | 属于残余风险，接受 |
 | 动态路径无法检测 | 如 `os.listdir(base_path + "/proc")` | 路径通过拼接/变量传递时无法捕获 | 属于残余风险，接受 |
 | 混淆代码无法检测 | 如 `eval("os.system")` 通过字符串拼接 | 动态构造的调用无法捕获 | 属于残余风险，接受 |

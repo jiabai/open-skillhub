@@ -29,6 +29,7 @@ class User(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     runtime_locked: Mapped[bool] = mapped_column(Boolean, default=False)
     runtime_lock_reason: Mapped[str | None] = mapped_column(String(100), nullable=True)
     runtime_locked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    runtime_temp_path: Mapped[str | None] = mapped_column(String(500), nullable=True)  # 上传临时目录路径，用于超时清理
 ```
 
 ### 字段说明
@@ -42,6 +43,7 @@ class User(UUIDPrimaryKeyMixin, TimestampMixin, Base):
 | `runtime_locked` | `bool` | 运行时操作锁，`True` 表示正在安装/更新依赖 |
 | `runtime_lock_reason` | `str \| None` | 锁定原因，如 "Installing dependencies" |
 | `runtime_locked_at` | `datetime \| None` | 锁定开始时间，用于估算等待时长 |
+| `runtime_temp_path` | `str \| None` | 上传临时目录路径，用于超时清理时定位临时文件 |
 
 ### installed_dependencies 格式示例
 

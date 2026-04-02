@@ -120,7 +120,11 @@ ZIP 文件解析完成，检测到以下依赖声明：
 
 ```javascript
 // 前端 WebSocket 连接
-const ws = new WebSocket('/api/v1/skills/upload/xxx-xxx-xxx/progress');
+// WebSocket URL 需要使用 ws:// 或 wss:// 协议，不能使用 HTTP 相对路径
+// 推荐做法：根据当前页面协议动态选择 ws/wss
+const wsProtocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+const wsUrl = `${wsProtocol}//${location.host}/api/v1/skills/upload/${skillUuid}/progress`;
+const ws = new WebSocket(wsUrl);
 
 ws.onmessage = (event) => {
   const progress = JSON.parse(event.data);

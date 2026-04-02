@@ -22,16 +22,20 @@ parent: user-runtime-environment
 
 ### Phase 3: 上传流程改造（P0）
 
+> **依赖说明**：Phase 3 的步骤 10b/10d 需要"保存依赖快照"功能，依赖 Phase 8 中的
+> 快照服务实现。建议将 Phase 8 置于 Phase 3 之前执行，或至少确保 Phase 8 的
+> "依赖快照服务实现"（第 91-92 行）任务完成后，再执行本阶段的快照集成任务。
+
 - [ ] 修改 `SkillService.upload_zip`：集成环境创建和依赖安装
 - [ ] 集成运行时锁机制：加锁/解锁逻辑
 - [ ] SKILL.md metadata 解析：提取 `script_entry` 设置 `script_file` 字段
-- [ ] 首次上传时设置 `skill_storage_path`：确保级联删除可用
 - [ ] 环境已存在时更新 `venv_last_used_at`：避免空闲误判
 - [ ] 临时文件清理：上传完成/失败后清理临时目录
 - [ ] 新增冲突检测 API
 - [ ] 新增冲突解决 API
 - [ ] 新增依赖预览 API：返回 `dependency_preview` 状态
 - [ ] 新增依赖确认 API：`POST /skills/upload/confirm-dependencies`
+- [ ] 集成依赖快照保存：调用快照服务在安装前保存当前依赖状态（步骤 10b/10d）
 - [ ] 新增安装进度查询 API：`GET /skills/upload/{skill_uuid}/progress`
 - [ ] 前端依赖预览对话框组件
 - [ ] 前端安装进度组件（轮询方式）
@@ -84,15 +88,19 @@ parent: user-runtime-environment
 
 ### Phase 8: 依赖升级安全（P0）— 提升优先级说明
 
-> **优先级提升原因**：Phase 3 的上传流程在步骤 10b/10d 引用了"保存依赖快照"功能，
-> 依赖 `dependency_snapshots` 表。若 Phase 8 推迟到 P1，Phase 3 的快照功能将无法实现，
-> 形成 P0 内部的循环依赖。因此将 Phase 8 提升为 P0，确保 P0 阶段可独立完成。
+> **优先级提升原因**：Phase 3 的上传流程步骤 10b/10d 需要调用"保存依赖快照"功能。
+> 若 Phase 8 推迟到 P1，Phase 3 将无法在依赖安装前保存快照，导致安装失败时无法回滚。
+> 因此将 Phase 8 提升为 P0，确保快照服务基础设施与上传流程同步完成。
+>
+> **执行顺序建议**：
+> - **方案 A**：Phase 8 → Phase 3（推荐）- 先完成快照基础设施，再实现上传流程
+> - **方案 B**：并行执行，但 Phase 3 的"集成依赖快照保存"任务需等待 Phase 8 的
+>   "实现依赖快照服务"任务完成后才能进行
 
 - [ ] 数据库迁移：添加 `dependency_snapshots` 表（含外键级联删除）
-- [ ] 实现依赖快照服务：自动保存（上传前）、手动保存、按用户查询
+- [ ] 实现依赖快照服务：自动保存、手动保存、按用户查询（核心服务，Phase 3 依赖此任务）
 - [ ] 实现升级影响预检函数：`detect_upgrade_impact()`
 - [ ] 上传流程集成影响预检：冲突检测后调用，结果附带返回前端
-- [ ] 上传流程集成快照保存：依赖安装前自动保存当前依赖状态
 - [ ] 实现依赖恢复服务：计算差异、执行 pip 操作、失败回滚
 - [ ] 新增 API：`GET /runtime/dependency-snapshots`（快照列表）
 - [ ] 新增 API：`POST /runtime/dependency-snapshots`（创建手动快照）

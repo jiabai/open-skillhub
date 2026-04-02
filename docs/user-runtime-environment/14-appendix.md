@@ -43,20 +43,26 @@ def parse_requirement(req_str: str) -> tuple[str, str]:
     return pkg_name, version_spec
 
 
-def version_satisfies(installed: str, spec: str) -> bool:
+def version_satisfies(installed: str, spec: str, strict_mode: bool = True) -> bool:
     """
     检查已安装版本是否满足版本规范
 
     Args:
         installed: 已安装版本，如 "2.28.0"
         spec: 版本规范，如 ">=2.30.0" 或 ""
+        strict_mode: 是否启用严格模式（默认 True）
+            - True: 解析失败时返回 False（安全默认，拒绝潜在不兼容依赖）
+            - False: 解析失败时返回 True（宽松模式，允许通过）
 
     Returns:
         是否满足
 
-    Note:
-        解析失败时默认返回 True，但会记录警告日志。
-        这可能导致不兼容的依赖被错误地认为兼容，调用方应考虑此风险。
+    Security Note:
+        默认采用"安全拒绝"策略（strict_mode=True）。
+        解析失败时返回 False，防止恶意构造的版本规范字符串绕过冲突检测。
+        例如：攻击者构造 ">=!malicious" 可能导致解析异常，
+        严格模式下返回 False，确保冲突检测不会被绕过。
+        仅在明确配置宽松模式时才返回 True。
     """
     if not spec:
         return True
@@ -66,9 +72,14 @@ def version_satisfies(installed: str, spec: str) -> bool:
         req = requirements.Requirement(f"package{spec}")
         return installed_ver in req.specifier
     except Exception as e:
-        # 解析失败时记录警告，默认通过
+        # 解析失败时根据模式决定默认行为
         logger.warning(f"Failed to parse version spec '{spec}' or version '{installed}': {e}")
-        return True
+        if strict_mode:
+            logger.info("Strict mode enabled: returning False (safe rejection)")
+            return False
+        else:
+            logger.info("Strict mode disabled: returning True (lenient pass)")
+            return True
 ```
 
 ### B. 虚拟环境管理工具函数
@@ -178,6 +189,9 @@ from pathlib import Path
 from datetime import datetime, timezone
 from typing import Protocol
 
+# 配置常量（从配置文件或环境变量获取）
+SKILL_STORAGE_PATH = Path("/data/skills")  # 示例路径，实际从配置读取
+
 # 审计日志记录器接口（示例）
 class AuditLogger(Protocol):
     """审计日志记录器接口"""
@@ -265,7 +279,7 @@ async def delete_user_account(
     清理顺序：Skill 文件 → 环境 → 用户记录
 
     ⚠️ **重要**：必须先获取路径信息再删除用户记录，
-    否则删除用户后将无法获取 skill_storage_path 和 venv_path。
+    否则删除用户后将无法获取 venv_path。
     """
     start_time = datetime.now(timezone.utc)
 
@@ -274,15 +288,14 @@ async def delete_user_account(
     skills = await skill_repo.list_by_user(user.id)
     disk_freed_mb = 0
 
-    # 安全检查：skill_storage_path 可能为 None（用户从未上传过 Skill）
-    if user.skill_storage_path:
-        skill_storage_path = Path(user.skill_storage_path)
-        if skill_storage_path.exists():
-            # 计算磁盘空间
-            disk_freed_mb += sum(
-                f.stat().st_size for f in skill_storage_path.rglob("*") if f.is_file()
-            ) / (1024 * 1024)
-            shutil.rmtree(skill_storage_path)
+    # 用户 Skill 根目录通过配置常量动态拼接
+    skill_storage_path = SKILL_STORAGE_PATH / user.id
+    if skill_storage_path.exists():
+        # 计算磁盘空间
+        disk_freed_mb += sum(
+            f.stat().st_size for f in skill_storage_path.rglob("*") if f.is_file()
+        ) / (1024 * 1024)
+        shutil.rmtree(skill_storage_path)
 
     # 删除 Skill 记录
     for skill in skills:
@@ -451,8 +464,12 @@ def check_dependency_compatibility(
 ### E. 依赖快照保存与恢复
 
 ```python
+import asyncio
 from pathlib import Path
 from datetime import datetime, timezone
+
+# 配置常量（从配置文件获取）
+DEPENDENCY_OPERATION_TIMEOUT = 300  # 单个 pip 操作超时（秒），默认 5 分钟
 
 
 async def save_dependency_snapshot(
@@ -487,6 +504,7 @@ async def restore_dependencies_from_snapshot(
     snapshot: DependencySnapshot,
     snapshot_repo: SnapshotRepository,
     user_repo: UserRepository,
+    timeout: int = DEPENDENCY_OPERATION_TIMEOUT,
 ) -> dict:
     """
     从快照恢复依赖环境
@@ -498,9 +516,14 @@ async def restore_dependencies_from_snapshot(
         snapshot: 目标快照对象
         snapshot_repo: 快照仓库
         user_repo: 用户仓库
+        timeout: 单个 pip 操作超时时间（秒），默认 300 秒
 
     Returns:
         恢复结果
+
+    Raises:
+        TimeoutError: pip 操作超时
+        RuntimeError: pip 操作失败
     """
     # 1. 保存当前状态作为安全备份（恢复失败时可回退）
     backup_snapshot_id = await save_dependency_snapshot(
@@ -533,7 +556,11 @@ async def restore_dependencies_from_snapshot(
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
             )
-            stdout, stderr = await proc.communicate()
+            # 使用 asyncio.wait_for 设置超时，防止网络问题导致无限等待
+            stdout, stderr = await asyncio.wait_for(
+                proc.communicate(),
+                timeout=timeout
+            )
             if proc.returncode != 0:
                 logger.warning(
                     f"Failed to uninstall {pkg_name}: {stderr.decode()}"
@@ -549,7 +576,11 @@ async def restore_dependencies_from_snapshot(
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
             )
-            stdout, stderr = await proc.communicate()
+            # 使用 asyncio.wait_for 设置超时
+            stdout, stderr = await asyncio.wait_for(
+                proc.communicate(),
+                timeout=timeout
+            )
             if proc.returncode != 0:
                 raise RuntimeError(
                     f"Failed to install {pkg_name}=={version}: {stderr.decode()}"
@@ -563,7 +594,11 @@ async def restore_dependencies_from_snapshot(
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
             )
-            stdout, stderr = await proc.communicate()
+            # 使用 asyncio.wait_for 设置超时
+            stdout, stderr = await asyncio.wait_for(
+                proc.communicate(),
+                timeout=timeout
+            )
             if proc.returncode != 0:
                 raise RuntimeError(
                     f"Failed to install {pkg_name}=={target_version}: {stderr.decode()}"
@@ -583,6 +618,17 @@ async def restore_dependencies_from_snapshot(
             "to_downgrade": to_downgrade,
             "uninstall_failures": uninstall_failures,
         }
+
+    except asyncio.TimeoutError as e:
+        # pip 操作超时
+        logger.error(
+            f"Dependency restore timeout after {timeout}s: {e}, "
+            f"backup snapshot: {backup_snapshot_id}"
+        )
+        raise TimeoutError(
+            f"Dependency operation timed out after {timeout} seconds. "
+            f"Backup snapshot {backup_snapshot_id} is available for manual recovery."
+        )
 
     except Exception as e:
         # 恢复失败：不自动回退（已有 backup_snapshot_id 供手动恢复）

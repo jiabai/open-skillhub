@@ -167,7 +167,8 @@ parent: user-runtime-environment
 // Request
 {
   "skill_uuid": "xxx-xxx-xxx",
-  "action": "proceed"  // 或 "cancel"
+  "version": "1.0.0",   // 待上传的版本号（与其他确认接口保持一致）
+  "action": "proceed"   // 或 "cancel"
 }
 
 // Response (action=proceed)
@@ -195,7 +196,7 @@ parent: user-runtime-environment
 | `security_review` | 检测到 MEDIUM 级别安全风险（HTTP 409） | 调用 `/resolve-security` 确认继续 | 步骤 2（安全扫描），尚未加锁 |
 | `conflict` | 检测到依赖版本冲突（HTTP 409） | 调用 `/resolve-conflict` 解决冲突 | 步骤 10a（冲突检测），已加锁 |
 | `dependency_preview` | 无冲突，展示依赖预览（HTTP 200） | 调用 `/confirm-dependencies` 确认安装 | 步骤 10c（依赖预览），已加锁 |
-| `installing` | 依赖正在安装中（HTTP 200） | 轮询 `/upload/{uuid}/progress` 查看进度 | 步骤 11（安装依赖），已加锁 |
+| `installing` | 依赖正在安装中（HTTP 200） | 轮询 `/api/v1/skills/upload/{skill_uuid}/progress` 查看进度 | 步骤 11（安装依赖），已加锁 |
 | `success` | 上传成功，所有依赖已安装（HTTP 200） | 无需额外操作 | 步骤 16（返回成功） |
 | `cancelled` | 用户取消上传（HTTP 200） | 无需额外操作 | 流程终止 |
 

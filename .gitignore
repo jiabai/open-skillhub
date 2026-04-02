@@ -1,6 +1,7 @@
 .vscode
 .trae
 .claude/
+.codebuddy/
 .worktrees/
 .env*
 !.env.example

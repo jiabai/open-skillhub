@@ -124,6 +124,7 @@ async def install_dependency_with_timeout(
 runtime_locked: bool              # 是否锁定
 runtime_lock_reason: str | None   # 锁定原因，用于前端提示
 runtime_locked_at: datetime | None  # 锁定时间，用于超时检测和估算等待时长
+runtime_temp_path: str | None     # 上传临时目录路径，用于超时清理时定位临时文件
 ```
 
 #### runtime_lock_reason 值定义
@@ -249,14 +250,17 @@ async def cleanup_expired_locks(
             user.runtime_locked = False
             user.runtime_lock_reason = None
             user.runtime_locked_at = None
-            await user_repo.update(user)
 
-            # 清理临时文件（如果有）
-            # 临时文件路径格式需与上传流程一致（上传解压时的临时目录）
-            import tempfile
-            temp_upload_path = Path(tempfile.gettempdir()) / f"skill_upload_{user.id}"
-            if temp_upload_path.exists():
-                shutil.rmtree(temp_upload_path)
+            # 清理临时文件（使用存储的临时目录路径）
+            # 临时目录路径在上传加锁时保存到 user.runtime_temp_path
+            # 避免路径不一致导致的清理失败（参见 12-security.md 中的临时目录创建逻辑）
+            if user.runtime_temp_path:
+                temp_upload_path = Path(user.runtime_temp_path)
+                if temp_upload_path.exists():
+                    shutil.rmtree(temp_upload_path)
+                user.runtime_temp_path = None  # 清理后重置
+
+            await user_repo.update(user)
 
             cleaned.append(user.id)
             logger.info(f"Cleaned expired runtime lock for user {user.id}")
@@ -293,17 +297,21 @@ async def check_runtime_lock(user: User) -> None:
 
     # 分段处理
     # 使用 timeout_seconds 的比例来动态计算分段阈值，避免硬编码
+    # 设置最小重试间隔（MIN_RETRY_AFTER_SECONDS），避免接近超时时产生过小的 retry_after
+    MIN_RETRY_AFTER_SECONDS = 5  # 最小重试间隔，防止频繁重试
+
     if elapsed_seconds > timeout_seconds:  # 超过对应操作的超时阈值
         # 锁应该已经被清理，建议稍后重试或联系管理员
         retry_after = 30
         suggest_admin = True
     elif elapsed_seconds > timeout_seconds * 0.5:  # 超过超时时间的一半
         # 接近超时，建议较长等待
-        retry_after = int(timeout_seconds - elapsed_seconds)
+        # 使用 max() 确保最小重试间隔，避免 elapsed 接近 timeout 时 retry_after 过小
+        retry_after = max(MIN_RETRY_AFTER_SECONDS, int(timeout_seconds - elapsed_seconds))
         suggest_admin = True
     else:
         # 正常范围内，按剩余时间估算
-        retry_after = max(10, int(timeout_seconds * 0.1))
+        retry_after = max(MIN_RETRY_AFTER_SECONDS, int(timeout_seconds * 0.1))
         suggest_admin = False
 
     raise RuntimeErrorLockedError(

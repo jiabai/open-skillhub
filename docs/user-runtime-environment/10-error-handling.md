@@ -155,9 +155,15 @@ async def upload_with_rollback(
     - metadata 参数来源于上层调用方在步骤 2（安全扫描）阶段解析的 SKILL.md 内容
     - 函数不负责用户交互（冲突确认、预览确认），仅负责加锁后的实际安装和版本创建
 
+    ⚠️ **调用前置条件**：
+    - skill 参数必须是一个已持久化的 Skill 对象（已有 id）
+    - 对于新 Skill：调用方应在调用前创建 Skill 记录（步骤 1-2 之间）
+    - 对于更新 Skill：调用方应已查询到现有 Skill 记录
+    - skill.dependencies 字段应已填充（由上层调用方在步骤 4 解析）
+
     Args:
         user: 用户对象
-        skill: Skill 对象
+        skill: Skill 对象（必须已持久化，包含 id 和 dependencies）
         filename: 文件名
         content: ZIP 文件内容
         metadata: SKILL.md 解析的元数据（来源：上层调用方在步骤 2 解析，
@@ -179,7 +185,8 @@ async def upload_with_rollback(
     backup_dependencies = dict(user.installed_dependencies or {})
     backup_venv_path = user.venv_path
     # 记录本次安装新增的依赖（用于回滚时卸载）
-    newly_installed_packages = []
+    # 使用 set 避免重试场景下的重复记录，确保每个包名唯一
+    newly_installed_packages: set[str] = set()
 
     try:
         # 3. 检查/创建虚拟环境（对应流程图步骤 5-7）
@@ -190,8 +197,6 @@ async def upload_with_rollback(
             user.venv_path = str(venv_path)
             user.venv_created_at = datetime.now(timezone.utc)
             user.venv_last_used_at = datetime.now(timezone.utc)
-            # 设置 skill_storage_path（用于级联删除）
-            user.skill_storage_path = str(SKILL_STORAGE_PATH / user.id)
         else:
             # 环境已存在：更新使用时间
             user.venv_last_used_at = datetime.now(timezone.utc)
@@ -223,23 +228,23 @@ async def upload_with_rollback(
             # 安装依赖
             try:
                 await install_single_dependency(user.venv_path, dep)
-                newly_installed_packages.append(pkg_name)
+                newly_installed_packages.add(pkg_name.lower())  # 使用小写格式，确保一致性
             except Exception as e:
                 raise DependencyInstallError(
                     package=pkg_name,
                     error=str(e),
-                    newly_installed_packages=newly_installed_packages
+                    newly_installed_packages=list(newly_installed_packages)
                 )
 
         # 6. 创建版本记录（对应流程图步骤 14）
-        # 注意：版本创建在解锁之前执行，确保数据一致性
+        # 注意：版本创建在解锁之前执行，确保最终一致性
         try:
             await skill_repo.create_version(skill)
         except Exception as e:
             # 版本创建失败，触发回滚
             raise VersionCreationError(
                 error=str(e),
-                newly_installed_packages=newly_installed_packages
+                newly_installed_packages=list(newly_installed_packages)
             )
 
         # 7. 更新用户记录并解锁（对应流程图步骤 15）
@@ -339,7 +344,7 @@ async def _rollback_new_packages(
             except asyncio.TimeoutError:
                 logger.error(f"Rollback timeout for {pkg_name}=={target_version}, killing process")
                 proc.kill()
-                await proc.communicate()
+                await proc.wait()  # 进程已被 kill，使用 wait() 等待退出
                 raise RuntimeError(f"Rollback timed out for {pkg_name}=={target_version}")
         else:
             # 全新安装的包，直接卸载
@@ -357,7 +362,7 @@ async def _rollback_new_packages(
             except asyncio.TimeoutError:
                 logger.error(f"Rollback timeout for uninstalling {pkg_name}, killing process")
                 proc.kill()
-                await proc.communicate()
+                await proc.wait()  # 进程已被 kill，使用 wait() 等待退出
                 raise RuntimeError(f"Rollback timed out for uninstalling {pkg_name}")
 ```
 

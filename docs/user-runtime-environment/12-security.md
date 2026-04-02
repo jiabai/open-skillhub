@@ -68,7 +68,9 @@ def build_safe_environment(
     使用唯一标识确保每次执行有独立的临时空间，避免并发冲突。
 
     Returns:
-        (环境变量字典, 临时目录路径)
+        tuple[dict[str, str], Path]: (环境变量字典, 临时目录路径)
+        - 环境变量字典: 包含 PATH、SKILL_PARAMS、PYTHONPATH 等清理后的环境变量
+        - 临时目录路径: 执行期间使用的临时工作目录，调用方需负责清理
     """
     import uuid
 
@@ -143,13 +145,17 @@ runtime:
 **relaxed 模式的 PATH 构建**：
 
 ```python
+import os
+
 def build_relaxed_environment(venv_bin: Path, system_path: str) -> dict[str, str]:
     """宽松模式：venv 优先，但不排除系统 PATH"""
     return {
-        "PATH": f"{venv_bin}:{system_path}",  # venv 优先
+        "PATH": f"{venv_bin}{os.pathsep}{system_path}",  # venv 优先，使用系统正确的分隔符
         # ... 其他环境变量
     }
 ```
+
+> **跨平台注意**：使用 `os.pathsep` 而非硬编码分隔符。Windows 使用 `;`，Linux/macOS 使用 `:`。
 
 #### 执行时应用
 
@@ -221,13 +227,23 @@ RISK_PATTERNS: list[RiskPattern] = [
     RiskPattern(r"compile\s*\(", "动态代码编译", RiskLevel.HIGH),
     RiskPattern(r"pickle\.loads", "Pickle 反序列化（可导致任意代码执行）", RiskLevel.HIGH),
 
-    # HIGH: 敏感文件访问
+    # HIGH: 敏感文件访问（Unix）
     RiskPattern(r"open\s*\(\s*[\'\"]\/etc\/", "读取系统配置文件", RiskLevel.HIGH),
     RiskPattern(r"open\s*\(\s*[\'\"]\/var\/log\/", "读取系统日志", RiskLevel.HIGH),
     RiskPattern(r"open\s*\(\s*[\'\"]\/app\/config\/", "读取应用配置", RiskLevel.HIGH),
     # 注意：此正则检测访问非当前用户的 Skill 目录
     RiskPattern(r"os\.path\.join\s*\([^)]*['\"]\/data\/skills['\"]\s*,\s*[^f]", "访问其他用户 Skill 目录", RiskLevel.HIGH),
     RiskPattern(r"\/proc\/", "读取进程信息", RiskLevel.HIGH),
+
+    # HIGH: 敏感文件访问（Windows）
+    RiskPattern(r"open\s*\(\s*[\'\"]([A-Za-z]:\\|\\\\)", "读取 Windows 绝对路径文件", RiskLevel.HIGH),
+    RiskPattern(r"os\.environ\s*\[", "读取环境变量", RiskLevel.HIGH),
+    RiskPattern(r"winreg\.", "Windows 注册表操作", RiskLevel.HIGH),
+
+    # HIGH: 敏感配置文件读取
+    RiskPattern(r"yaml\.load\s*\([^)]*,\s*Loader\s*=\s*None", "不安全的 YAML 加载（可导致任意代码执行）", RiskLevel.HIGH),
+    RiskPattern(r"yaml\.load\s*\((?:(?!Loader)[^)])*\)", "未指定 Loader 的 YAML 加载（潜在风险）", RiskLevel.HIGH),
+    RiskPattern(r"\.env['\"]", "访问 .env 文件", RiskLevel.HIGH),
 
     # HIGH: 高风险导入
     RiskPattern(r"from\s+os\s+import\s+system", "导入系统命令函数", RiskLevel.HIGH),

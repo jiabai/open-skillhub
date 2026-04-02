@@ -31,8 +31,20 @@ parent: user-runtime-environment
       "breaks": [
         {
           "package": "requests",
-          "installed_version": "2.30.0",
-          "required_version": ">=2.28.0"
+          "simulated_version": "2.30.0",
+          "required_version": "==2.28.0",
+          "reason": "精确版本要求，升级后将不兼容"
+        }
+      ]
+    },
+    {
+      "skill_name": "skill-c",
+      "breaks": [
+        {
+          "package": "requests",
+          "simulated_version": "2.30.0",
+          "required_version": ">=2.28.0,<2.30.0",
+          "reason": "版本范围限制，升级后超出上限"
         }
       ]
     }
@@ -84,9 +96,19 @@ parent: user-runtime-environment
 // Response (action=cancel)
 {
   "status": "cancelled",
+  "reason": "user_cancelled",
   "message": "Upload cancelled by user"
 }
 ```
+
+> **超时取消响应**：当用户超过 5 分钟未确认时，系统自动取消上传并返回：
+> ```json
+> {
+>   "status": "cancelled",
+>   "reason": "timeout",
+>   "message": "Upload cancelled due to confirmation timeout (5 minutes)"
+> }
+> ```
 
 **新增接口**：`POST /api/v1/skills/upload/resolve-security`
 
@@ -103,6 +125,7 @@ parent: user-runtime-environment
 // Request
 {
   "skill_uuid": "xxx-xxx-xxx",
+  "version": "1.2.0",  // 待上传的版本号（与后续接口保持一致）
   "action": "proceed"  // 或 "cancel"
 }
 
@@ -211,35 +234,48 @@ POST /api/v1/skills/upload
        │  步骤 4: 解析依赖声明
        │  步骤 9: 依赖冲突检测
        ▼
-       ├───────── conflict ─────────────────▶ POST /resolve-conflict
-       │    (检测到依赖版本冲突)                        │
-       │                                            │ proceed: 允许升级依赖
-       │                                            │ cancel: 用户取消上传
-       │                                            │
-       │                              ┌─────────────┴─────────────┐
-       │                              │                           │
-       │                        proceed                       cancel
-       │                              │                           │
-       │                              ▼                           ▼
-       │                    步骤 10b: 卸载冲突包        cancelled
-       │                    安装新版本
-       │                    │
-       │                    │ (直接进入安装)
-       │                    │
-       │                    ▼
-       ├───────── dependency_preview ─────────▶ POST /confirm-dependencies
-       │    (无冲突，展示依赖预览)                      │
-       │                                            │ proceed: 确认并安装
-       │                                            │ cancel: 用户取消上传
-       │                                            │
-       │                              ┌─────────────┴─────────────┐
-       │                              │                           │
-       │                        proceed                       cancel
-       │                              │                           │
-       │                              ▼                           ▼
-       │                    步骤 11: 安装依赖            cancelled
-       │                              │
-       ▼                              │
+       ├───────────── 有冲突 ──────────────────┐
+       │                                        │
+       │                                        ▼
+       │                          ┌───────── conflict ─────────▶ POST /resolve-conflict
+       │                          │  (检测到依赖版本冲突)                  │
+       │                          │                                       │ proceed: 允许升级依赖
+       │                          │                                       │ cancel: 用户取消上传
+       │                          │                                       │
+       │                          │                         ┌─────────────┴─────────────┐
+       │                          │                         │                           │
+       │                          │                   proceed                       cancel
+       │                          │                         │                           │
+       │                          │                         ▼                           ▼
+       │                          │               步骤 10b: 保存依赖快照      cancelled
+       │                          │               步骤 11: 安装依赖
+       │                          │                         │
+       │                          │                         │ 安装完成
+       │                          │                         ▼
+       │                          │                  success (或安装失败触发回滚)
+       │                          │
+       │                          │
+       │  ──────── 无冲突 ────────┤
+       │                          │
+       │                          ▼
+       │              ┌───────── dependency_preview ─────────▶ POST /confirm-dependencies
+       │              │  (无冲突，展示依赖预览)                          │
+       │              │                                               │ proceed: 确认并安装
+       │              │                                               │ cancel: 用户取消上传
+       │              │                                               │
+       │              │                                 ┌─────────────┴─────────────┐
+       │              │                                 │                           │
+       │              │                           proceed                       cancel
+       │              │                                 │                           │
+       │              │                                 ▼                           ▼
+       │              │                       步骤 10d: 保存依赖快照    cancelled
+       │              │                       步骤 11: 安装依赖
+       │              │                                 │
+       │              │                                 │ 安装完成
+       │              │                                 ▼
+       │              │                          success (或安装失败触发回滚)
+       │              │
+       ▼              ▼
        └───────── installing ────────────────────▶ 轮询进度
             (依赖安装中)                             │
                                                    │ 安装完成
@@ -250,7 +286,10 @@ POST /api/v1/skills/upload
 > **流程说明**：
 > - **安全审查阶段**（步骤 1-2）：ZIP 验证和脚本扫描在加锁前执行，此时用户取消无需解锁
 > - **依赖安装阶段**（步骤 3-15）：加锁后执行依赖解析、冲突检测和安装，任何失败都会触发回滚并解锁
-> - `security_review` 确认后进入加锁和依赖检测流程，`conflict` 和 `dependency_preview` 确认后进入安装流程
+> - `security_review` 确认后进入加锁和依赖检测流程
+> - **两条独立路径**：
+>   - **有冲突路径**：conflict → 用户确认 → 步骤 10b（保存快照）→ 步骤 11（安装）
+>   - **无冲突路径**：dependency_preview → 用户确认 → 步骤 10d（保存快照）→ 步骤 11（安装）
 
 ### 2. 版本回滚接口
 
@@ -320,6 +359,8 @@ POST /api/v1/skills/upload
 
 **查询用户环境状态**：`GET /api/v1/admin/users/{user_id}/runtime`
 
+> **局限性说明**：返回结果中的 `unused_dependencies` 字段仅为粗略估计（仅检查包名是否在任何 Skill 依赖声明中出现，不检查版本是否兼容），仅供参考。管理员在清理未使用依赖前应确认这些依赖确实不再被需要。
+
 ```json
 {
   "user_id": "xxx-xxx-xxx",
@@ -336,7 +377,8 @@ POST /api/v1/skills/upload
   "skill_count": 3,
   "unused_dependencies": [
     {"name": "old-package", "version": "1.0.0", "used_by_skills": []}
-  ]
+  ],
+  "unused_dependencies_note": "Rough estimate: only checks package name presence, not version compatibility"
 }
 ```
 
@@ -457,15 +499,78 @@ async def detect_unused_dependencies(
     {
       "snapshot_id": "yyy-yyy-yyy",
       "created_at": "2026-03-28T10:00:00Z",
-      "reason": "pre_upload:skill-c:v1.0.0",
-      "is_auto": true,
+      "reason": "manual:Before major update",
+      "is_auto": false,
       "dependencies": {
         "requests": "2.28.0",
         "pydantic": "2.5.0"
       }
     }
   ],
-  "total": 2
+  "total": 2,
+  "auto_count": 1,
+  "manual_count": 1,
+  "auto_max": 20,
+  "manual_max": 5
+}
+```
+
+**创建手动快照**：`POST /api/v1/runtime/dependency-snapshots`
+
+> **接口说明**：手动创建当前依赖状态的快照。用户可在进行重大变更前手动备份依赖状态。
+>
+> **限制**：手动快照最多 5 条，超出时返回错误提示用户先删除旧快照。
+
+```json
+// Request
+{
+  "reason": "Before major update"  // 可选，快照原因描述
+}
+
+// Response - 成功
+{
+  "status": "success",
+  "message": "Dependency snapshot created",
+  "snapshot": {
+    "snapshot_id": "zzz-zzz-zzz",
+    "created_at": "2026-04-02T17:00:00Z",
+    "reason": "manual:Before major update",
+    "is_auto": false,
+    "dependencies": {
+      "requests": "2.28.0",
+      "playwright": "1.40.0"
+    }
+  }
+}
+
+// Response - 达到上限
+{
+  "error": "SNAPSHOT_LIMIT_EXCEEDED",
+  "message": "Manual snapshot limit reached (5)",
+  "details": {
+    "current_count": 5,
+    "max_count": 5,
+    "suggestion": "Please delete an existing manual snapshot before creating a new one"
+  }
+}
+```
+
+**删除快照**：`DELETE /api/v1/runtime/dependency-snapshots/{snapshot_id}`
+
+> **接口说明**：删除指定的手动快照。自动快照不可手动删除，由系统按保留策略自动清理。
+
+```json
+// Response
+{
+  "status": "success",
+  "message": "Snapshot deleted",
+  "deleted_snapshot_id": "zzz-zzz-zzz"
+}
+
+// Response - 自动快照不可删除
+{
+  "error": "CANNOT_DELETE_AUTO_SNAPSHOT",
+  "message": "Auto snapshots cannot be manually deleted"
 }
 ```
 

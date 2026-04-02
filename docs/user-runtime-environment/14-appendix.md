@@ -77,6 +77,7 @@ def version_satisfies(installed: str, spec: str) -> bool:
 import asyncio
 import platform
 import shutil
+import sys
 from pathlib import Path
 
 # 日志记录器（代码示例使用）
@@ -93,28 +94,57 @@ async def create_virtualenv(
 
     Args:
         venv_path: 虚拟环境路径
-        python_version: Python 版本
+        python_version: Python 版本（如 "3.11"），用于查找对应的 Python 解释器
 
     Returns:
         是否成功
+
+    Note:
+        Python 版本解析策略：
+        1. 尝试使用 `python{version}` 命令（如 python3.11）
+        2. 如果不存在，回退到系统默认 `python` 命令并记录警告
+        3. Windows 下尝试 `python.exe` 和 `py -{version}` 命令
     """
     if venv_path.exists():
         shutil.rmtree(venv_path)
 
     venv_path.parent.mkdir(parents=True, exist_ok=True)
 
+    # 根据 Python 版本确定解释器命令
+    if platform.system() == "Windows":
+        # Windows: 尝试 py 启动器或直接使用 python
+        python_cmd = f"py -{python_version}"
+    else:
+        # Linux/Mac: 使用 python3.x 命令
+        python_cmd = f"python{python_version}"
+
+    # 尝试使用指定版本
     proc = await asyncio.create_subprocess_exec(
-        "python", "-m", "venv", str(venv_path),
+        python_cmd, "-m", "venv", str(venv_path),
         stdout=asyncio.subprocess.PIPE,
         stderr=asyncio.subprocess.PIPE,
     )
 
     stdout, stderr = await proc.communicate()
 
+    # 如果指定版本不存在，回退到系统默认 python
+    if proc.returncode != 0:
+        logger.warning(
+            f"Python {python_version} not found ({python_cmd}), "
+            f"falling back to system default"
+        )
+        proc = await asyncio.create_subprocess_exec(
+            sys.executable, "-m", "venv", str(venv_path),
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        )
+        stdout, stderr = await proc.communicate()
+
     if proc.returncode != 0:
         logger.error(f"Failed to create venv: {stderr.decode()}")
         return False
 
+    logger.info(f"Created virtual environment at {venv_path}")
     return True
 
 
@@ -495,13 +525,21 @@ async def restore_dependencies_from_snapshot(
 
     try:
         # 3. 卸载快照中没有的包
+        # 收集卸载失败的包名，在最终结果中返回供用户知晓
+        uninstall_failures = []
         for pkg_name in to_uninstall:
             proc = await asyncio.create_subprocess_exec(
                 str(pip_path), "uninstall", "-y", pkg_name,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
             )
-            await proc.communicate()
+            stdout, stderr = await proc.communicate()
+            if proc.returncode != 0:
+                logger.warning(
+                    f"Failed to uninstall {pkg_name}: {stderr.decode()}"
+                )
+                uninstall_failures.append(pkg_name)
+                # 卸载失败不中断流程，pip 卸载非关键包失败通常不影响环境完整性
 
         # 4. 安装快照中有但当前没有的包
         for pkg_name in to_install:
@@ -543,6 +581,7 @@ async def restore_dependencies_from_snapshot(
             "to_uninstall": to_uninstall,
             "to_install": to_install,
             "to_downgrade": to_downgrade,
+            "uninstall_failures": uninstall_failures,
         }
 
     except Exception as e:

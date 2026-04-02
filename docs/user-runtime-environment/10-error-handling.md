@@ -139,8 +139,9 @@ async def upload_with_rollback(
     - 步骤 3：加锁运行时环境
     - 步骤 5-7：检查/创建虚拟环境、更新使用时间
     - 步骤 8：解析 SKILL.md metadata，设置 script_file 字段
+    - 步骤 10b/10d：保存依赖快照（如有冲突解决或预览确认后）
     - 步骤 11：安装新依赖
-    - 步骤 14：创建 Skill 版本（解锁前执行，确保原子性）
+    - 步骤 14：创建 Skill 版本（解锁前执行，确保一致性）
     - 步骤 15：解锁运行时环境
 
     以下步骤由上层调用方处理（参见 04-core-flows.md）：
@@ -149,12 +150,18 @@ async def upload_with_rollback(
     - 步骤 9-10：依赖冲突检测、依赖预览和用户交互确认
     - 步骤 13 中的临时文件清理：上传失败时，上层调用方负责删除临时解压目录和临时 Skill 目录
 
+    函数职责边界：
+    - 此函数是"确认后执行"阶段的核心，假定安全扫描已通过、冲突已解决/预览已确认
+    - metadata 参数来源于上层调用方在步骤 2（安全扫描）阶段解析的 SKILL.md 内容
+    - 函数不负责用户交互（冲突确认、预览确认），仅负责加锁后的实际安装和版本创建
+
     Args:
         user: 用户对象
         skill: Skill 对象
         filename: 文件名
         content: ZIP 文件内容
-        metadata: SKILL.md 解析的元数据（包含 script_entry 等配置）
+        metadata: SKILL.md 解析的元数据（来源：上层调用方在步骤 2 解析，
+                  包含 script_entry 等配置；若未解析则为 None，使用默认值）
         skill_repo: Skill 仓库
         user_repo: 用户仓库
 
@@ -164,7 +171,7 @@ async def upload_with_rollback(
     # 1. 加锁运行时环境（对应流程图步骤 3）
     # 注意：安全扫描和依赖解析由上层调用方处理，此函数在确认无冲突后调用
     user.runtime_locked = True
-    user.runtime_lock_reason = "Installing dependencies"
+    user.runtime_lock_reason = "Creating virtual environment"  # 初始阶段，后续根据实际操作更新
     user.runtime_locked_at = datetime.now(timezone.utc)
     await user_repo.update(user)
 
@@ -189,9 +196,17 @@ async def upload_with_rollback(
             # 环境已存在：更新使用时间
             user.venv_last_used_at = datetime.now(timezone.utc)
 
+        # 更新 lock_reason 为当前阶段（对应流程图步骤 8）
+        user.runtime_lock_reason = "Parsing skill metadata"
+        await user_repo.update(user)
+
         # 4. 解析 SKILL.md metadata，设置 script_file 字段（对应流程图步骤 8）
         script_entry = metadata.get("script_entry", "main.py") if metadata else "main.py"
         skill.script_file = script_entry
+
+        # 更新 lock_reason 为安装阶段（对应流程图步骤 10b/10d）
+        user.runtime_lock_reason = "Installing dependencies"
+        await user_repo.update(user)
 
         # 5. 安装依赖（对应流程图步骤 11）
         # 注意：冲突检测由上层调用方处理，此函数假定依赖已确认
@@ -217,7 +232,7 @@ async def upload_with_rollback(
                 )
 
         # 6. 创建版本记录（对应流程图步骤 14）
-        # 注意：版本创建在解锁之前执行，确保原子性
+        # 注意：版本创建在解锁之前执行，确保数据一致性
         try:
             await skill_repo.create_version(skill)
         except Exception as e:
@@ -301,6 +316,9 @@ async def _rollback_new_packages(
     venv_path = Path(user.venv_path)
     pip_path = await get_pip_path(venv_path)
 
+    # 回滚操作超时时间（秒），避免网络问题导致回滚卡住
+    ROLLBACK_TIMEOUT = 120
+
     for pkg_name in newly_installed:
         pkg_name_lower = pkg_name.lower()
 
@@ -314,7 +332,15 @@ async def _rollback_new_packages(
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
             )
-            await proc.communicate()
+            try:
+                stdout, stderr = await asyncio.wait_for(
+                    proc.communicate(), timeout=ROLLBACK_TIMEOUT
+                )
+            except asyncio.TimeoutError:
+                logger.error(f"Rollback timeout for {pkg_name}=={target_version}, killing process")
+                proc.kill()
+                await proc.communicate()
+                raise RuntimeError(f"Rollback timed out for {pkg_name}=={target_version}")
         else:
             # 全新安装的包，直接卸载
             logger.info(f"Uninstalling newly installed package: {pkg_name}")
@@ -324,7 +350,15 @@ async def _rollback_new_packages(
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
             )
-            await proc.communicate()
+            try:
+                stdout, stderr = await asyncio.wait_for(
+                    proc.communicate(), timeout=ROLLBACK_TIMEOUT
+                )
+            except asyncio.TimeoutError:
+                logger.error(f"Rollback timeout for uninstalling {pkg_name}, killing process")
+                proc.kill()
+                await proc.communicate()
+                raise RuntimeError(f"Rollback timed out for uninstalling {pkg_name}")
 ```
 
 

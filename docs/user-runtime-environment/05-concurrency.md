@@ -64,6 +64,11 @@ runtime:
 
   # 虚拟环境创建超时时间（秒）
   venv_creation_timeout_seconds: 60  # 1分钟
+
+  # 依赖恢复超时时间（秒）
+  # 依赖恢复可能涉及多个包的卸载和安装，耗时较长
+  # 超过此时间将中断恢复并触发回滚（使用备份快照恢复）
+  restore_timeout_seconds: 600  # 10分钟
 ```
 
 **安装过程卡住的处理机制**：
@@ -127,8 +132,10 @@ runtime_locked_at: datetime | None  # 锁定时间，用于超时检测和估算
 |----------------|------|----------|
 | `Installing dependencies` | 正在安装依赖 | `install_timeout_seconds` |
 | `Creating virtual environment` | 正在创建虚拟环境 | `venv_creation_timeout_seconds` |
+| `Parsing skill metadata` | 正在解析 Skill 元数据 | `lock_wait_timeout_seconds` |
 | `Waiting for conflict resolution` | 等待用户确认依赖冲突 | `lock_wait_timeout_seconds` |
 | `Waiting for dependency preview confirmation` | 等待用户确认依赖预览 | `lock_wait_timeout_seconds` |
+| `Restoring dependencies` | 正在恢复依赖快照 | `restore_timeout_seconds`（独立配置，默认 600 秒） |
 | 其他值 | 其他操作 | `lock_wait_timeout_seconds` |
 
 #### 锁超时检测逻辑
@@ -138,6 +145,7 @@ runtime_locked_at: datetime | None  # 锁定时间，用于超时检测和估算
 LOCK_WAIT_TIMEOUT_SECONDS = 300  # 等待用户确认超时
 INSTALL_TIMEOUT_SECONDS = 300    # 依赖安装超时
 VENV_CREATION_TIMEOUT_SECONDS = 60  # 虚拟环境创建超时
+RESTORE_TIMEOUT_SECONDS = 600    # 依赖恢复超时
 
 
 def get_timeout_for_reason(lock_reason: str | None) -> int:
@@ -154,6 +162,8 @@ def get_timeout_for_reason(lock_reason: str | None) -> int:
         return INSTALL_TIMEOUT_SECONDS
     elif lock_reason == "Creating virtual environment":
         return VENV_CREATION_TIMEOUT_SECONDS
+    elif lock_reason == "Restoring dependencies":
+        return RESTORE_TIMEOUT_SECONDS
     elif lock_reason in (
         "Waiting for conflict resolution",
         "Waiting for dependency preview confirmation",
@@ -242,9 +252,11 @@ async def cleanup_expired_locks(
             await user_repo.update(user)
 
             # 清理临时文件（如果有）
-            temp_path = Path(f"/tmp/skill_upload_{user.id}")
-            if temp_path.exists():
-                shutil.rmtree(temp_path)
+            # 临时文件路径格式需与上传流程一致（上传解压时的临时目录）
+            import tempfile
+            temp_upload_path = Path(tempfile.gettempdir()) / f"skill_upload_{user.id}"
+            if temp_upload_path.exists():
+                shutil.rmtree(temp_upload_path)
 
             cleaned.append(user.id)
             logger.info(f"Cleaned expired runtime lock for user {user.id}")
@@ -263,6 +275,9 @@ async def check_runtime_lock(user: User) -> None:
     """
     执行前检查运行时锁状态
 
+    根据 lock_reason 选择对应的超时时间进行判断，
+    与 get_timeout_for_reason 保持一致。
+
     Raises:
         RuntimeErrorLocked: 环境正在更新
     """
@@ -273,18 +288,22 @@ async def check_runtime_lock(user: User) -> None:
         datetime.now(timezone.utc) - user.runtime_locked_at
     ).total_seconds()
 
-    # 分段处理（使用配置值）
-    if elapsed_seconds > LOCK_WAIT_TIMEOUT_SECONDS:  # 超过超时阈值
+    # 根据 lock_reason 选择对应的超时时间
+    timeout_seconds = get_timeout_for_reason(user.runtime_lock_reason)
+
+    # 分段处理
+    # 使用 timeout_seconds 的比例来动态计算分段阈值，避免硬编码
+    if elapsed_seconds > timeout_seconds:  # 超过对应操作的超时阈值
         # 锁应该已经被清理，建议稍后重试或联系管理员
         retry_after = 30
         suggest_admin = True
-    elif elapsed_seconds > 60:  # 超过预期安装时间
-        # 可能有问题，建议较长等待
-        retry_after = 60
+    elif elapsed_seconds > timeout_seconds * 0.5:  # 超过超时时间的一半
+        # 接近超时，建议较长等待
+        retry_after = int(timeout_seconds - elapsed_seconds)
         suggest_admin = True
     else:
         # 正常范围内，按剩余时间估算
-        retry_after = max(10, 30 - elapsed_seconds)
+        retry_after = max(10, int(timeout_seconds * 0.1))
         suggest_admin = False
 
     raise RuntimeErrorLockedError(

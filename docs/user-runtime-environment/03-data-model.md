@@ -69,22 +69,26 @@ class User(UUIDPrimaryKeyMixin, TimestampMixin, Base):
 class Skill(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     __tablename__ = "skills"
 
-    # 现有字段（补充说明）
+    # 现有字段（已在代码中实现）
     # id: Mapped[str]                           # UUID，主键（继承自 UUIDPrimaryKeyMixin）
     # user_id: Mapped[str]                      # 外键关联用户
     # name: Mapped[str]                         # Skill 名称
     # created_at: Mapped[datetime]              # 创建时间（继承自 TimestampMixin）
     # updated_at: Mapped[datetime]              # 更新时间（继承自 TimestampMixin）
+    # skill_dir: Mapped[str]                    # Skill 目录路径（迁移后更名为 storage_path）
 
     # 新增字段 - 脚本执行相关
     script_file: Mapped[str] = mapped_column(String(100), default="main.py")
-    dependencies: Mapped[list] = mapped_column(JSON, default=list)  # 依赖声明列表
-    metadata: Mapped[dict] = mapped_column(JSON, default=dict)
+    dependencies: Mapped[list] = mapped_column(JSON, default=list)  # 依赖声明列表（冗余字段，方便查询）
+    metadata_json: Mapped[dict] = mapped_column("metadata", JSON, default=dict)
 
     # 新增字段 - 版本管理
-    current_version: Mapped[str] = mapped_column(String(50), default="1.0.0")
+    # current_version: Mapped[str | None]       # 现有字段，无需新增
 
     # 新增字段 - 存储路径
+    # 注意：现有代码中已有 skill_dir 字段，语义为 Skill 目录路径。
+    # 此处新增 storage_path 用于统一路径管理，替代现有 skill_dir。
+    # 迁移时需将 skill_dir 数据迁移至 storage_path，并废弃 skill_dir 字段。
     storage_path: Mapped[str | None] = mapped_column(String(500), nullable=True)
 ```
 
@@ -110,7 +114,9 @@ class Skill(UUIDPrimaryKeyMixin, TimestampMixin, Base):
 
 ### SkillVersion 模型
 
-在 `skill_versions` 表添加以下字段：
+在现有 `skill_versions` 表基础上**新增**以下字段：
+
+> **注意**：以下仅列出需要新增或修改的字段，现有字段保持不变。现有字段包括 `dependencies`（JSON，依赖声明列表）、`dependency_spec`（JSON，依赖解析结果）、`dependency_spec_version`（str，解析器版本）、`description`（str）、`metadata_json`（JSON，列名 `metadata`）。
 
 ```python
 # backend/models/skill_version.py
@@ -118,25 +124,23 @@ class Skill(UUIDPrimaryKeyMixin, TimestampMixin, Base):
 class SkillVersion(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     __tablename__ = "skill_versions"
 
-    # 外键关联
-    skill_id: Mapped[str] = mapped_column(
-        ForeignKey("skills.id"), index=True
-    )
+    # 现有字段（保持不变）
+    # skill_id: Mapped[str]                    # 外键关联（已有）
+    # version: Mapped[str]                     # 版本号（已有）
+    # description: Mapped[str]                 # 版本描述（已有）
+    # dependencies: Mapped[list[str]]          # 依赖声明列表（已有）
+    # dependency_spec: Mapped[dict]            # 依赖解析结果（已有）
+    # dependency_spec_version: Mapped[str | None]  # 解析器版本（已有）
+    # metadata_json: Mapped[dict]              # SKILL.md 元数据（已有，列名 metadata）
 
-    # 版本信息
-    version: Mapped[str] = mapped_column(String(50))
-
-    # 脚本配置
+    # 新增字段 - 脚本配置
     script_file: Mapped[str] = mapped_column(String(100), default="main.py")
 
-    # 依赖声明（每个版本可能有不同依赖）
-    dependencies: Mapped[list[str]] = mapped_column(JSON, default=list)
-
-    # 存储路径
+    # 新增字段 - 存储路径
     storage_path: Mapped[str] = mapped_column(String(500))
 
-    # 元数据
-    metadata: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+    # 唯一约束（与现有代码保持一致）
+    # __table_args__ = (UniqueConstraint("skill_id", "version", name="uix_skill_versions"),)
 ```
 
 > **版本号格式规范**：版本号采用语义版本号（SemVer），格式为 `major.minor.patch`，如 `1.0.0`、`2.1.3`。正则表达式：`^\d+\.\d+\.\d+$`。
@@ -145,12 +149,14 @@ class SkillVersion(UUIDPrimaryKeyMixin, TimestampMixin, Base):
 
 | 字段 | 类型 | 说明 |
 |------|------|------|
-| `skill_id` | `str` | 关联的 Skill ID |
-| `version` | `str` | 版本号，如 "1.0.0" |
-| `script_file` | `str` | 该版本的脚本入口文件名，默认 `main.py` |
-| `dependencies` | `list` | 该版本的依赖声明列表 |
-| `storage_path` | `str` | 该版本文件的存储路径 |
-| `metadata` | `dict` | SKILL.md 解析的元数据 |
+| `skill_id` | `str` | 关联的 Skill ID（已有） |
+| `version` | `str` | 版本号，如 "1.0.0"（已有） |
+| `dependencies` | `list` | 该版本的依赖声明列表（已有） |
+| `dependency_spec` | `dict` | 依赖解析结果（已有） |
+| `description` | `str` | 版本描述（已有） |
+| `metadata_json` | `dict` | SKILL.md 解析的元数据（已有，列名 `metadata`） |
+| `script_file` | `str` | **新增** - 该版本的脚本入口文件名，默认 `main.py` |
+| `storage_path` | `str` | **新增** - 该版本文件的存储路径 |
 
 ### DependencySnapshot 模型
 
@@ -162,9 +168,9 @@ class SkillVersion(UUIDPrimaryKeyMixin, TimestampMixin, Base):
 class DependencySnapshot(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     __tablename__ = "dependency_snapshots"
 
-    # 外键关联
+    # 外键关联（级联删除：用户删除时自动删除其所有快照）
     user_id: Mapped[str] = mapped_column(
-        ForeignKey("users.id"), index=True
+        ForeignKey("users.id", ondelete="CASCADE"), index=True
     )
 
     # 快照内容：依赖字典的完整拷贝
@@ -176,6 +182,8 @@ class DependencySnapshot(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     # 是否为自动快照（上传/回滚前自动保存）
     is_auto: Mapped[bool] = mapped_column(Boolean, default=True)
 ```
+
+> **级联删除说明**：当用户账户被删除时，其所有依赖快照记录将自动被数据库级联删除，无需应用层手动清理。这确保了数据完整性，避免孤儿数据。
 
 #### DependencySnapshot 字段说明
 
@@ -205,6 +213,20 @@ Index('ix_skill_versions_version', version)  # 按版本号查询
 # DependencySnapshot 模型索引
 Index('ix_dependency_snapshots_user_id', user_id)  # 按用户查询快照（外键自动创建）
 ```
+
+### 唯一约束设计
+
+```python
+# SkillVersion 模型：同一 Skill 不能有重复版本号（与现有代码保持一致）
+UniqueConstraint('skill_id', 'version', name='uix_skill_versions')
+
+# User 模型：用户名/邮箱唯一（根据现有设计）
+# 注意：具体唯一约束需根据现有 User 模型定义调整
+```
+
+> **唯一约束说明**：
+> - `SkillVersion(skill_id, version)`：确保同一 Skill 的版本号唯一，防止重复版本
+> - 其他唯一约束（如用户名、邮箱）应在现有 User 模型中已有定义
 
 
 ---

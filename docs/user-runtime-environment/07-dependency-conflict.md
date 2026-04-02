@@ -72,20 +72,72 @@ def detect_upgrade_impact(
     Returns:
         受影响的 Skill 列表
         [{"skill_name": str, "breaks": [{"package": str, ...}]}]
+
+    Note:
+        模拟策略说明：
+        - 对于 == 约束：模拟安装指定版本
+        - 对于 >= 约束：如果当前版本已满足则保留，否则模拟安装最低要求版本
+        - 对于 > 约束：如果当前版本已满足则保留，否则模拟安装最低要求版本+1
+        - 对于 ~= 约束：模拟安装兼容范围内的最新版本（简化为最低版本）
+        - 对于无版本约束：保留当前版本
     """
     # 1. 构建模拟升级后的依赖状态
-    simulated = dict(installed)
+    simulated = {k.lower(): v for k, v in installed.items()}
+
     for req in new_skill_deps:
         pkg_name, version_spec = parse_requirement(req)
         pkg_name_lower = pkg_name.lower()
+        current_version = simulated.get(pkg_name_lower)
+
+        if not version_spec:
+            # 无版本约束，保留当前版本或无需处理
+            continue
 
         if version_spec.startswith("=="):
+            # 精确版本：模拟安装指定版本
             simulated[pkg_name_lower] = version_spec[2:]
+
         elif version_spec.startswith(">="):
-            simulated[pkg_name_lower] = version_spec[2:]
+            # 大于等于：如果当前版本已满足则保留，否则模拟升级到最低要求版本
+            required_min = version_spec[2:]
+            if current_version is None or not version_satisfies(current_version, version_spec):
+                simulated[pkg_name_lower] = required_min
+            # else: 当前版本已满足 >= 要求，保留不变
+
         elif version_spec.startswith(">") and not version_spec.startswith(">="):
-            # 粗略模拟：用已安装版本或忽略
+            # 严格大于：需要版本 > min_version
+            # 注意：此处依赖 parse_requirement() 已对 version_spec 做 strip 处理，
+            # 因此不会出现 "> 1.0.0"（含空格）导致误判为非 ">=" 的情况。
+            # 简化处理：使用 min_version 的下一个补丁版本作为近似
+            required_min = version_spec[1:]
+            if current_version is None or not version_satisfies(current_version, version_spec):
+                # 构建 min_version 的下一个补丁版本（如 1.0.0 → 1.0.1）
+                import re as _re
+                ver_match = _re.match(r'^(\d+\.\d+\.\d+)$', required_min)
+                if ver_match:
+                    parts = required_min.split('.')
+                    simulated[pkg_name_lower] = f"{parts[0]}.{parts[1]}.{int(parts[2]) + 1}"
+                else:
+                    # 非标准版本号，使用原始值作为降级近似
+                    simulated[pkg_name_lower] = required_min
+
+        elif version_spec.startswith("~="):
+            # 兼容版本 ~=：允许同一 minor 版本内的升级
+            # 简化处理：模拟为指定版本
+            simulated[pkg_name_lower] = version_spec[2:]
+
+        elif version_spec.startswith("<=") or version_spec.startswith("<"):
+            # 上限约束：保留当前版本（前提是满足约束）
             pass
+
+        else:
+            # 其他情况（如复合约束）：保留当前版本或使用指定值
+            if current_version is None:
+                # 尝试提取版本号
+                import re
+                match = re.match(r'^([\d.]+)', version_spec)
+                if match:
+                    simulated[pkg_name_lower] = match.group(1)
 
     # 2. 遍历其他 Skill，检查其依赖是否仍满足
     affected = []

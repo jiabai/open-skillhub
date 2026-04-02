@@ -258,9 +258,12 @@ ws.onmessage = (event) => {
 整合以上交互，形成完整的上传流程体验。以下展示前端视角的主要步骤，后端执行的加锁、解锁等操作对用户透明：
 
 > **后端透明步骤**（用户无感知）：
-> - 加锁运行时环境（流程图步骤 3）
-> - 创建 Skill 版本（流程图步骤 14，解锁前执行确保原子性）
-> - 解锁运行时环境（流程图步骤 15）
+> - 加锁运行时环境（后端步骤 3）
+> - 检查/创建虚拟环境（后端步骤 5-7）
+> - 解析 SKILL.md metadata（后端步骤 8）
+> - 保存依赖快照（后端步骤 10b/10d，如有冲突或预览确认后）
+> - 创建 Skill 版本（后端步骤 14，解锁前执行确保一致性）
+> - 解锁运行时环境（后端步骤 15）
 
 ```
 用户选择 ZIP 文件
@@ -508,11 +511,11 @@ const useInstallProgress = (skillUuid: string) => {
 ```typescript
 interface InstallErrorDialogProps {
   error: {
-    errorType: string;
-    failedPackage: PackageErrorInfo;
-    completedPackages: PackageStatus[];
+    error_type: string;              // 使用 snake_case 与 API 响应一致
+    failed_package: PackageErrorInfo;
+    completed_packages: PackageStatus[];
     suggestions: string[];
-    logUrl: string;
+    log_url: string;
   };
   onRetry: () => void;
   onCancel: () => void;
@@ -522,8 +525,8 @@ interface InstallErrorDialogProps {
 interface PackageErrorInfo {
   name: string;
   version: string;
-  errorType: 'NETWORK_ERROR' | 'PACKAGE_NOT_FOUND' | 'VERSION_CONFLICT' | ...;
-  errorMessage: string;
+  error_type: 'NETWORK_ERROR' | 'PACKAGE_NOT_FOUND' | 'VERSION_CONFLICT' | ...;
+  error_message: string;
   mirror?: string;
 }
 ```

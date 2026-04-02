@@ -72,29 +72,38 @@ parent: user-runtime-environment
 
 ### Phase 7: 删除与版本管理场景（P1）
 
+> **依赖说明**：Phase 7 中的"Skill 版本回滚流程"依赖于 Phase 3 中改造的上传流程
+> （特别是版本管理和运行时锁机制），建议在 Phase 3 完成后再启动 Phase 7。
+
 - [ ] Skill 删除流程：不卸载依赖的实现
 - [ ] 用户删除所有 Skill 检测：保留 `venv_last_used_at` 不变（等待空闲清理）
-- [ ] 用户账户删除流程：级联清理环境和 Skill
+- [ ] 用户账户删除流程：级联清理环境、Skill 和依赖快照
 - [ ] Skill 版本回滚流程：依赖不回滚的实现
 - [ ] 版本回滚兼容性检查：提供警告提示
 - [ ] 审计日志：记录删除、清理和回滚操作
 
-### Phase 7.5: 依赖升级安全（P1）
+### Phase 8: 依赖升级安全（P0）— 提升优先级说明
 
-- [ ] 数据库迁移：添加 `dependency_snapshots` 表
+> **优先级提升原因**：Phase 3 的上传流程在步骤 10b/10d 引用了"保存依赖快照"功能，
+> 依赖 `dependency_snapshots` 表。若 Phase 8 推迟到 P1，Phase 3 的快照功能将无法实现，
+> 形成 P0 内部的循环依赖。因此将 Phase 8 提升为 P0，确保 P0 阶段可独立完成。
+
+- [ ] 数据库迁移：添加 `dependency_snapshots` 表（含外键级联删除）
 - [ ] 实现依赖快照服务：自动保存（上传前）、手动保存、按用户查询
 - [ ] 实现升级影响预检函数：`detect_upgrade_impact()`
 - [ ] 上传流程集成影响预检：冲突检测后调用，结果附带返回前端
 - [ ] 上传流程集成快照保存：依赖安装前自动保存当前依赖状态
 - [ ] 实现依赖恢复服务：计算差异、执行 pip 操作、失败回滚
 - [ ] 新增 API：`GET /runtime/dependency-snapshots`（快照列表）
+- [ ] 新增 API：`POST /runtime/dependency-snapshots`（创建手动快照）
+- [ ] 新增 API：`DELETE /runtime/dependency-snapshots/{id}`（删除快照）
 - [ ] 新增 API：`POST /runtime/dependency-snapshots/{id}/restore`（恢复快照）
 - [ ] 前端冲突对话框增加受影响 Skill 列表展示
 - [ ] 前端环境管理页面增加依赖快照历史和恢复入口
 - [ ] 快照保留策略实现：自动快照数量限制、手动快照提示
 - [ ] 监控指标：`dependency_snapshot_count`、`dependency_restore_count` 等
 
-### Phase 8: 测试和文档（P1）
+### Phase 9: 测试和文档（P1）
 
 - [ ] 单元测试：虚拟环境管理
 - [ ] 单元测试：依赖冲突检测

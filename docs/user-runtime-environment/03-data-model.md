@@ -152,6 +152,40 @@ class SkillVersion(UUIDPrimaryKeyMixin, TimestampMixin, Base):
 | `storage_path` | `str` | 该版本文件的存储路径 |
 | `metadata` | `dict` | SKILL.md 解析的元数据 |
 
+### DependencySnapshot 模型
+
+用于保存依赖变更前的快照，支持依赖恢复功能。每次依赖安装前自动保存快照，出问题时用户可一键恢复。
+
+```python
+# backend/models/dependency_snapshot.py
+
+class DependencySnapshot(UUIDPrimaryKeyMixin, TimestampMixin, Base):
+    __tablename__ = "dependency_snapshots"
+
+    # 外键关联
+    user_id: Mapped[str] = mapped_column(
+        ForeignKey("users.id"), index=True
+    )
+
+    # 快照内容：依赖字典的完整拷贝
+    dependencies: Mapped[dict] = mapped_column(JSON)
+
+    # 变更原因，如 "pre_upload:my-skill:v2.0.0"
+    reason: Mapped[str] = mapped_column(String(200))
+
+    # 是否为自动快照（上传/回滚前自动保存）
+    is_auto: Mapped[bool] = mapped_column(Boolean, default=True)
+```
+
+#### DependencySnapshot 字段说明
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `user_id` | `str` | 关联的用户 ID |
+| `dependencies` | `dict` | 快照时的依赖清单完整拷贝，格式与 `User.installed_dependencies` 一致 |
+| `reason` | `str` | 快照原因，格式：`pre_upload:{skill_name}:v{version}` 或 `manual:{description}` |
+| `is_auto` | `bool` | 是否为自动快照，自动快照受保留数量限制，手动快照单独计费 |
+
 ### 索引设计
 
 为支持核心流程查询，需要为以下字段创建索引：
@@ -167,6 +201,9 @@ Index('ix_skills_user_id', user_id)  # 按用户查询 Skill（外键自动创�
 # SkillVersion 模型索引
 Index('ix_skill_versions_skill_id', skill_id)  # 按 Skill 查询版本（外键自动创建）
 Index('ix_skill_versions_version', version)  # 按版本号查询
+
+# DependencySnapshot 模型索引
+Index('ix_dependency_snapshots_user_id', user_id)  # 按用户查询快照（外键自动创建）
 ```
 
 

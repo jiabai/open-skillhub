@@ -29,6 +29,8 @@ parent: user-runtime-environment
 | `VERSION_NOT_FOUND` | 404 | 版本不存在 |
 | `EXECUTION_TIMEOUT` | 504 | Skill 执行超时 |
 | `PERMISSION_DENIED` | 403 | 权限不足（非 Skill 所有者） |
+| `SNAPSHOT_NOT_FOUND` | 404 | 依赖快照不存在 |
+| `DEPENDENCY_RESTORE_FAILED` | 500 | 依赖恢复失败 |
 
 #### RUNTIME_LOCKED 错误响应格式
 

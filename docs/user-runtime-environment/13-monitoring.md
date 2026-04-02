@@ -35,6 +35,12 @@ parent: user-runtime-environment
 | `unused_dependency_count` | 未被 Skill 使用但已安装的依赖数 | - |
 | `unused_dependency_cleanup_count` | 手动清理未使用依赖次数 | - |
 | `unused_dependency_disk_freed_kb` | 清理未使用依赖释放的磁盘空间 | - |
+| `dependency_snapshot_count` | 依赖快照总数 | - |
+| `dependency_snapshot_auto_count` | 自动依赖快照数量 | - |
+| `dependency_restore_count` | 依赖恢复操作次数 | > 0 时审计 |
+| `dependency_restore_failure_rate` | 依赖恢复失败率 | > 5% |
+| `dependency_restore_duration_seconds` | 依赖恢复耗时 | P95 > 60s |
+| `upgrade_impact_warning_rate` | 升级影响预检发现受影响 Skill 的比率 | - |
 
 
 ---

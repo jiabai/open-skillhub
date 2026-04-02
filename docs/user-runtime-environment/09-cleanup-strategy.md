@@ -29,6 +29,58 @@ runtime:
   python_version: "3.11"
 ```
 
+### 快照保留策略
+
+依赖快照采用分类保留策略，避免无限增长：
+
+```yaml
+# config/default.yaml
+
+runtime:
+  # 自动快照（上传前保存）最大保留数量
+  snapshot_auto_max_count: 20
+
+  # 手动快照最大保留数量
+  snapshot_manual_max_count: 5
+```
+
+| 快照类型 | 保留数量 | 清理时机 | 说明 |
+|----------|----------|----------|------|
+| 自动快照（`is_auto=true`） | 最多 20 条 | 每次创建新自动快照时 | 超出限制后删除最早的自动快照 |
+| 手动快照（`is_auto=false`） | 最多 5 条 | 创建新手动快照时 | 超出限制后提示用户需先删除旧快照 |
+
+**清理逻辑**：
+
+```python
+async def cleanup_dependency_snapshots(
+    user_id: str,
+    snapshot_repo: SnapshotRepository,
+    auto_max: int = 20,
+    manual_max: int = 5,
+) -> None:
+    """
+    清理超出限制的依赖快照
+    """
+    # 清理自动快照
+    auto_snapshots = await snapshot_repo.list_by_user(
+        user_id, is_auto=True, order_by_desc="created_at"
+    )
+    if len(auto_snapshots) > auto_max:
+        to_delete = auto_snapshots[auto_max:]
+        for snapshot in to_delete:
+            await snapshot_repo.delete(snapshot.id)
+
+    # 检查手动快照数量（不自动删除，需用户手动管理）
+    manual_count = await snapshot_repo.count_by_user(user_id, is_auto=False)
+    if manual_count > manual_max:
+        logger.warning(
+            f"User {user_id} has {manual_count} manual snapshots, "
+            f"exceeds limit {manual_max}"
+        )
+```
+
+> **注意**：手动快照不自动清理，前端应在创建新快照时提示用户已达上限。
+
 ### 清理条件
 
 | 条件 | 触发方式 | 清理范围 | 说明 |

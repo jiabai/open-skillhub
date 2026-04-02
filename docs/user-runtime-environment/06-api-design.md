@@ -25,6 +25,18 @@ parent: user-runtime-environment
       "conflict_type": "version_mismatch"
     }
   ],
+  "affected_skills": [
+    {
+      "skill_name": "skill-b",
+      "breaks": [
+        {
+          "package": "requests",
+          "installed_version": "2.30.0",
+          "required_version": ">=2.28.0"
+        }
+      ]
+    }
+  ],
   "skill_uuid": "xxx-xxx-xxx",
   "pending_version": "1.2.0",
   "dependencies": {
@@ -421,6 +433,72 @@ async def detect_unused_dependencies(
 ```
 
 **注意**：此检测仅作为参考，管理员在清理未使用依赖前应确认这些依赖确实不再被需要。
+
+### 4. 依赖恢复接口
+
+**查询依赖快照列表**：`GET /api/v1/runtime/dependency-snapshots`
+
+> **接口说明**：获取当前用户的依赖快照历史列表，按时间倒序排列。
+
+```json
+// Response
+{
+  "snapshots": [
+    {
+      "snapshot_id": "xxx-xxx-xxx",
+      "created_at": "2026-04-02T15:00:00Z",
+      "reason": "pre_upload:skill-a:v2.0.0",
+      "is_auto": true,
+      "dependencies": {
+        "requests": "2.28.0",
+        "playwright": "1.40.0"
+      }
+    },
+    {
+      "snapshot_id": "yyy-yyy-yyy",
+      "created_at": "2026-03-28T10:00:00Z",
+      "reason": "pre_upload:skill-c:v1.0.0",
+      "is_auto": true,
+      "dependencies": {
+        "requests": "2.28.0",
+        "pydantic": "2.5.0"
+      }
+    }
+  ],
+  "total": 2
+}
+```
+
+**恢复到指定快照**：`POST /api/v1/runtime/dependency-snapshots/{snapshot_id}/restore`
+
+> **接口说明**：将用户的依赖环境恢复到指定快照的状态。恢复前会自动创建当前状态的新快照作为安全备份。
+>
+> **超时机制**：恢复操作使用运行时锁，与上传、执行等操作互斥。
+
+```json
+// Response - 成功
+{
+  "status": "success",
+  "message": "Dependencies restored successfully",
+  "restored_dependencies": {
+    "requests": "2.28.0",
+    "playwright": "1.40.0"
+  },
+  "backup_snapshot_id": "zzz-zzz-zzz",
+  "restored_at": "2026-04-02T16:00:00Z"
+}
+
+// Response - 失败
+{
+  "error": "DEPENDENCY_RESTORE_FAILED",
+  "message": "Failed to restore package requests to version 2.28.0",
+  "details": {
+    "failed_package": "requests",
+    "target_version": "2.28.0",
+    "error_message": "Could not install requests==2.28.0\nReason: Build error"
+  }
+}
+```
 
 
 ---

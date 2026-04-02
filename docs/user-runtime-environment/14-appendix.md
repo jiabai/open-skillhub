@@ -418,6 +418,143 @@ def check_dependency_compatibility(
     return warnings
 ```
 
----
+### E. 依赖快照保存与恢复
+
+```python
+from pathlib import Path
+from datetime import datetime, timezone
+
+
+async def save_dependency_snapshot(
+    user: User,
+    snapshot_repo: SnapshotRepository,
+    reason: str,
+    is_auto: bool = True,
+) -> str:
+    """
+    保存当前依赖状态快照
+
+    Args:
+        user: 用户对象
+        snapshot_repo: 快照仓库
+        reason: 快照原因，如 "pre_upload:skill-a:v2.0.0"
+        is_auto: 是否为自动快照
+
+    Returns:
+        快照 ID
+    """
+    snapshot = await snapshot_repo.create(
+        user_id=user.id,
+        dependencies=dict(user.installed_dependencies or {}),
+        reason=reason,
+        is_auto=is_auto,
+    )
+    return snapshot.id
+
+
+async def restore_dependencies_from_snapshot(
+    user: User,
+    snapshot: DependencySnapshot,
+    snapshot_repo: SnapshotRepository,
+    user_repo: UserRepository,
+) -> dict:
+    """
+    从快照恢复依赖环境
+
+    注意：调用前应已加锁
+
+    Args:
+        user: 用户对象
+        snapshot: 目标快照对象
+        snapshot_repo: 快照仓库
+        user_repo: 用户仓库
+
+    Returns:
+        恢复结果
+    """
+    # 1. 保存当前状态作为安全备份（恢复失败时可回退）
+    backup_snapshot_id = await save_dependency_snapshot(
+        user, snapshot_repo,
+        reason=f"pre_restore:{snapshot.reason}",
+        is_auto=True,
+    )
+
+    # 2. 计算依赖差异
+    current_deps = {k.lower(): v for k, v in (user.installed_dependencies or {}).items()}
+    target_deps = {k.lower(): v for k, v in snapshot.dependencies.items()}
+
+    to_uninstall = [pkg for pkg in current_deps if pkg not in target_deps]
+    to_install = [pkg for pkg in target_deps if pkg not in current_deps]
+    to_downgrade = [
+        pkg for pkg in target_deps
+        if pkg in current_deps and current_deps[pkg] != target_deps[pkg]
+    ]
+
+    venv_path = Path(user.venv_path)
+    pip_path = await get_pip_path(venv_path)
+
+    try:
+        # 3. 卸载快照中没有的包
+        for pkg_name in to_uninstall:
+            proc = await asyncio.create_subprocess_exec(
+                str(pip_path), "uninstall", "-y", pkg_name,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+            )
+            await proc.communicate()
+
+        # 4. 安装快照中有但当前没有的包
+        for pkg_name in to_install:
+            version = target_deps[pkg_name]
+            proc = await asyncio.create_subprocess_exec(
+                str(pip_path), "install", f"{pkg_name}=={version}",
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+            )
+            stdout, stderr = await proc.communicate()
+            if proc.returncode != 0:
+                raise RuntimeError(
+                    f"Failed to install {pkg_name}=={version}: {stderr.decode()}"
+                )
+
+        # 5. 降级版本不同的包
+        for pkg_name in to_downgrade:
+            target_version = target_deps[pkg_name]
+            proc = await asyncio.create_subprocess_exec(
+                str(pip_path), "install", f"{pkg_name}=={target_version}",
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+            )
+            stdout, stderr = await proc.communicate()
+            if proc.returncode != 0:
+                raise RuntimeError(
+                    f"Failed to install {pkg_name}=={target_version}: {stderr.decode()}"
+                )
+
+        # 6. 更新用户依赖记录
+        user.installed_dependencies = dict(snapshot.dependencies)
+        user.venv_last_used_at = datetime.now(timezone.utc)
+        await user_repo.update(user)
+
+        return {
+            "status": "success",
+            "restored_dependencies": snapshot.dependencies,
+            "backup_snapshot_id": backup_snapshot_id,
+            "to_uninstall": to_uninstall,
+            "to_install": to_install,
+            "to_downgrade": to_downgrade,
+        }
+
+    except Exception as e:
+        # 恢复失败：不自动回退（已有 backup_snapshot_id 供手动恢复）
+        logger.error(
+            f"Dependency restore failed: {e}, "
+            f"backup snapshot: {backup_snapshot_id}"
+        )
+        raise ValueError(
+            f"Dependency restore failed: {e}. "
+            f"Backup snapshot {backup_snapshot_id} is available for manual recovery."
+        )
+```
 
 **导航**： [← 监控指标](./13-monitoring.md) | [返回目录](./00-index.md)

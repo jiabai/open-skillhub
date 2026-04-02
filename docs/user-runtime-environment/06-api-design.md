@@ -199,7 +199,9 @@ POST /api/v1/skills/upload
        │                    步骤 10b: 卸载冲突包        cancelled
        │                    安装新版本
        │                    │
-       ▼                    │
+       │                    │ (直接进入安装)
+       │                    │
+       │                    ▼
        ├───────── dependency_preview ─────────▶ POST /confirm-dependencies
        │    (无冲突，展示依赖预览)                      │
        │                                            │ proceed: 确认并安装

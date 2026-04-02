@@ -83,9 +83,9 @@ async def upload_with_rollback(
     skill: Skill,
     filename: str,
     content: bytes,
-    metadata: dict | None = None,
     skill_repo: SkillRepository,
     user_repo: UserRepository,
+    metadata: dict | None = None,
 ) -> dict:
     """
     带回滚机制的上传流程

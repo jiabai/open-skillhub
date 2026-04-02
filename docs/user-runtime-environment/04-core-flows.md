@@ -66,10 +66,10 @@ parent: user-runtime-environment
   ┌─────────────────┐     否      ┌─────────────────────────────────────────────┐
   │ 5. 检查用户环境  │───────────▶│ 6. 创建虚拟环境                              │
   │    是否存在？    │             │    - venv 创建                               │
-  └────────┬────────┘             │    - 记录路径                                │
-           │ 是                    │    - 设置 venv_created_at = 当前时间         │
-           │                       │    - 设置 venv_last_used_at = 当前时间       │
-           ▼                       │    - 设置 skill_storage_path                │
+  └────────┬────────┘             │    - 设置 runtime_lock_reason =              │
+           │ 是                    │      "Creating virtual environment"          │
+           │                       │    - 记录路径 (venv_path)                    │
+           ▼                       │    - 设置 venv_created_at = 当前时间         │
   ┌─────────────────────────────────────────────────┐     │
   │ 7. 环境已存在时更新使用时间                      │     │
   │    - 更新 venv_last_used_at 为当前时间           │     │
@@ -175,6 +175,7 @@ parent: user-runtime-environment
   │     - 写入版本目录                               │
   │     - 创建版本记录                               │
   │     - 设置 skill.script_file（从 metadata）      │
+  │     - 设置 user.skill_storage_path（首次上传时） │
   │     - 注意：版本创建在解锁之前，确保原子性        │
   │       若创建失败，依赖也会回滚                   │
   └────────┬────────────────────────────────────────┘
@@ -526,8 +527,14 @@ MCP Client 调用 execute_skill
        ▼
   ┌─────────────────────────────────────────────────┐
   │ 1. 查询符合条件的用户                            │
-  │    - skill_count = 0                            │
-  │    - AND venv_last_used_at < now - IDLE_DAYS    │
+  │    - Skill 数量为 0（查询结果）                  │
+  │      *参见 09-cleanup-strategy.md:              │
+  │       skill_count = await skill_repo            │
+  │       .count_by_user(user.id);                  │
+  │       if skill_count == 0                       │
+  │    - AND venv_last_used_at < now -              │
+  │      idle_cleanup_days（默认 90 天）            │
+  │      *配置项定义见 09-cleanup-strategy.md       │
   │    - 或管理员指定的用户                          │
   └────────┬────────────────────────────────────────┘
            │

@@ -24,7 +24,7 @@ parent: user-runtime-environment
 
 | 操作 | 锁行为 | 说明 |
 |------|--------|------|
-| 上传开始 | 加锁 | 设置 `runtime_locked = True` |
+| 安全扫描通过后 | 加锁 | 设置 `runtime_locked = True`（步骤1-2安全扫描时尚未加锁） |
 | 安装成功 | 解锁 | 设置 `runtime_locked = False` |
 | 安装失败 | 解锁 | 异常路径也要解锁 |
 | 用户取消上传（依赖冲突阶段） | 解锁 | 冲突解决时用户取消 |

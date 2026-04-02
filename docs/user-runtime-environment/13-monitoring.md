@@ -20,7 +20,12 @@ parent: user-runtime-environment
 | `runtime_lock_timeout_count` | 锁超时自动取消次数 | > 10/天 |
 | `script_scan_high_risk_count` | 高风险脚本检测次数 | > 0 时审计 |
 | `script_scan_medium_risk_count` | 中风险脚本检测次数 | - |
+| `script_scan_low_risk_count` | 低风险脚本检测次数 | - |
 | `script_scan_rejection_rate` | 因安全风险拒绝上传率 | > 1% |
+| `skill_execution_duration_seconds` | Skill 执行耗时 | P95 > 30s |
+| `skill_execution_success_rate` | Skill 执行成功率 | < 95% |
+| `skill_execution_error_count` | Skill 执行错误次数 | - |
+| `skill_execution_timeout_count` | Skill 执行超时次数 | > 5/天 |
 | `skill_delete_count` | Skill 删除次数 | - |
 | `skill_delete_all_users_count` | 删除所有 Skill 的用户数 | - |
 | `user_account_delete_count` | 用户账户删除次数 | > 0 时审计 |

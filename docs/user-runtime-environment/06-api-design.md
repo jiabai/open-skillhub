@@ -153,14 +153,27 @@ parent: user-runtime-environment
 
 上传流程中，`POST /api/v1/skills/upload` 接口可能返回以下状态：
 
+**流程状态**（需要用户确认或等待）：
+
 | 状态 | 说明 | 后续操作 | 对应流程步骤 |
 |------|------|----------|--------------|
 | `security_review` | 检测到 MEDIUM 级别安全风险（HTTP 409） | 调用 `/resolve-security` 确认继续 | 步骤 2（安全扫描），尚未加锁 |
-| `conflict` | 检测到依赖版本冲突 | 调用 `/resolve-conflict` 解决冲突 | 步骤 9（冲突检测），已加锁 |
-| `dependency_preview` | 无冲突，展示依赖预览 | 调用 `/confirm-dependencies` 确认安装 | 步骤 10c（依赖预览），已加锁 |
-| `installing` | 依赖正在安装中 | 轮询 `/upload/{uuid}/progress` 查看进度 | 步骤 11（安装依赖），已加锁 |
-| `success` | 上传成功，所有依赖已安装 | 无需额外操作 | 步骤 16（返回成功） |
-| `cancelled` | 用户取消上传 | 无需额外操作 | 流程终止 |
+| `conflict` | 检测到依赖版本冲突（HTTP 409） | 调用 `/resolve-conflict` 解决冲突 | 步骤 10a（冲突检测），已加锁 |
+| `dependency_preview` | 无冲突，展示依赖预览（HTTP 200） | 调用 `/confirm-dependencies` 确认安装 | 步骤 10c（依赖预览），已加锁 |
+| `installing` | 依赖正在安装中（HTTP 200） | 轮询 `/upload/{uuid}/progress` 查看进度 | 步骤 11（安装依赖），已加锁 |
+| `success` | 上传成功，所有依赖已安装（HTTP 200） | 无需额外操作 | 步骤 16（返回成功） |
+| `cancelled` | 用户取消上传（HTTP 200） | 无需额外操作 | 流程终止 |
+
+**错误状态**（直接返回错误，流程终止）：
+
+| 错误码 | HTTP 状态 | 说明 | 对应流程步骤 |
+|--------|----------|------|--------------|
+| `SCRIPT_SECURITY_HIGH_RISK` | 403 | 检测到 HIGH 级别安全风险，禁止上传 | 步骤 2（安全扫描） |
+| `VENV_CREATION_FAILED` | 500 | 虚拟环境创建失败 | 步骤 6（创建虚拟环境） |
+| `DEPENDENCY_INSTALL_FAILED` | 500 | 依赖安装失败（详见错误详情） | 步骤 11-12（安装依赖） |
+| `RUNTIME_LOCKED` | 423 | 运行时环境被锁定（其他操作进行中） | 任意需要环境的操作 |
+
+> **注意**：检测到 HIGH 级别安全风险时，直接返回 `SCRIPT_SECURITY_HIGH_RISK` 错误（HTTP 403），无需用户确认。
 
 **状态流转图**：
 
@@ -229,7 +242,7 @@ POST /api/v1/skills/upload
 
 ### 2. 版本回滚接口
 
-**回滚 Skill 版本**：`POST /api/v1/skills/{skill_id}/versions/rollback`
+**回滚 Skill 版本**：`POST /api/v1/skills/{skill_uuid}/versions/rollback`
 
 ```json
 // Request
@@ -240,7 +253,7 @@ POST /api/v1/skills/upload
 // Response - 无兼容性问题
 {
   "status": "success",
-  "skill_id": "xxx-xxx-xxx",
+  "skill_uuid": "xxx-xxx-xxx",
   "rolled_back_to": "1.0.0",
   "dependencies_preserved": true,
   "compatibility_issues": []
@@ -249,7 +262,7 @@ POST /api/v1/skills/upload
 // Response - 存在兼容性警告（需用户确认）
 {
   "status": "compatibility_warning",
-  "skill_id": "xxx-xxx-xxx",
+  "skill_uuid": "xxx-xxx-xxx",
   "target_version": "1.0.0",
   "compatibility_issues": [
     {
@@ -264,7 +277,7 @@ POST /api/v1/skills/upload
 }
 ```
 
-**确认兼容性警告并继续回滚**：`POST /api/v1/skills/{skill_id}/versions/rollback/confirm`
+**确认兼容性警告并继续回滚**：`POST /api/v1/skills/{skill_uuid}/versions/rollback/confirm`
 
 > **接口说明**：当版本回滚检测到依赖兼容性问题时，用户确认后调用此接口继续执行回滚。
 
@@ -278,7 +291,7 @@ POST /api/v1/skills/upload
 // Response (action=proceed)
 {
   "status": "success",
-  "skill_id": "xxx-xxx-xxx",
+  "skill_uuid": "xxx-xxx-xxx",
   "rolled_back_to": "1.0.0",
   "dependencies_preserved": true,
   "compatibility_issues": [...]  // 保留警告信息供参考

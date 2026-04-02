@@ -32,7 +32,7 @@ parent: user-runtime-environment
 - [ ] 新增冲突解决 API
 - [ ] 新增依赖预览 API：返回 `dependency_preview` 状态
 - [ ] 新增依赖确认 API：`POST /skills/upload/confirm-dependencies`
-- [ ] 新增安装进度查询 API：`GET /skills/upload/{uuid}/progress`
+- [ ] 新增安装进度查询 API：`GET /skills/upload/{skill_uuid}/progress`
 - [ ] 前端依赖预览对话框组件
 - [ ] 前端安装进度组件（轮询方式）
 - [ ] 前端错误详情组件
@@ -55,7 +55,7 @@ parent: user-runtime-environment
 - [ ] 定时任务：清理超时的运行时锁（区分等待确认和安装中状态）
 - [ ] 前端：依赖管理页面（显示未使用依赖）
 
-### Phase 5.5: 监控指标（P1）
+### Phase 6: 监控指标（P1）
 
 - [ ] 实现 `venv_total_count` 指标采集
 - [ ] 实现 `venv_disk_usage_bytes` 指标采集
@@ -67,9 +67,10 @@ parent: user-runtime-environment
 - [ ] 实现 `script_scan_high_risk_count` 指标采集
 - [ ] 实现 `skill_rollback_count` 和 `rollback_compatibility_warning_rate` 指标采集
 - [ ] 实现 `cascade_cleanup_duration_seconds` 指标采集
+- [ ] 实现 `skill_execution_duration_seconds` 和 `skill_execution_success_rate` 指标采集
 - [ ] 配置监控告警规则（磁盘占用、安装失败率、锁超时等）
 
-### Phase 6: 删除与版本管理场景（P1）
+### Phase 7: 删除与版本管理场景（P1）
 
 - [ ] Skill 删除流程：不卸载依赖的实现
 - [ ] 用户删除所有 Skill 检测：保留 `venv_last_used_at` 不变（等待空闲清理）
@@ -78,7 +79,7 @@ parent: user-runtime-environment
 - [ ] 版本回滚兼容性检查：提供警告提示
 - [ ] 审计日志：记录删除、清理和回滚操作
 
-### Phase 7: 测试和文档（P1）
+### Phase 8: 测试和文档（P1）
 
 - [ ] 单元测试：虚拟环境管理
 - [ ] 单元测试：依赖冲突检测

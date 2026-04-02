@@ -243,6 +243,14 @@ RISK_PATTERNS: list[RiskPattern] = [
     RiskPattern(r"import\s+ctypes", "导入 ctypes（可调用系统库）", RiskLevel.MEDIUM),
     RiskPattern(r"from\s+subprocess\s+import", "导入子进程模块", RiskLevel.MEDIUM),
     RiskPattern(r"importlib\.import_module", "动态模块加载", RiskLevel.MEDIUM),
+
+    # LOW: 提示但允许
+    RiskPattern(r"open\s*\(", "文件操作", RiskLevel.LOW),
+    RiskPattern(r"os\.path\.", "路径操作", RiskLevel.LOW),
+    RiskPattern(r"shutil\.", "文件系统操作", RiskLevel.LOW),
+    RiskPattern(r"tempfile\.", "临时文件操作", RiskLevel.LOW),
+    RiskPattern(r"warnings\.", "警告模块使用", RiskLevel.LOW),
+    RiskPattern(r"logging\.", "日志模块使用", RiskLevel.LOW),
 ]
 ```
 

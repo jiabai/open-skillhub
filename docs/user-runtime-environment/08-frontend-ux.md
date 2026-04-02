@@ -212,12 +212,14 @@ ws.onmessage = (event) => {
 
 | 错误类型 | 错误码 | 说明 | 用户建议 |
 |----------|--------|------|----------|
-| 网络错误 | `NETWORK_ERROR` | 无法连接 PyPI 或下载超时 | 检查网络，稍后重试 |
-| 包不存在 | `PACKAGE_NOT_FOUND` | PyPI 上不存在该包或版本 | 检查包名/版本是否正确 |
-| 版本冲突 | `VERSION_CONFLICT` | 与其他已安装包版本冲突 | 查看冲突详情，调整依赖 |
-| 权限错误 | `PERMISSION_ERROR` | 无权限安装到环境 | 联系管理员 |
-| 磁盘空间 | `DISK_SPACE_ERROR` | 环境磁盘空间不足 | 清理环境或联系管理员 |
-| 编译错误 | `BUILD_ERROR` | 包需要编译但环境不支持 | 使用预编译版本或联系管理员 |
+| 网络错误 | `DEPENDENCY_NETWORK_ERROR` | 无法连接 PyPI 或下载超时 | 检查网络，稍后重试 |
+| 包不存在 | `DEPENDENCY_PACKAGE_NOT_FOUND` | PyPI 上不存在该包或版本 | 检查包名/版本是否正确 |
+| 版本冲突 | `DEPENDENCY_VERSION_CONFLICT` | 与其他已安装包版本冲突 | 查看冲突详情，调整依赖 |
+| 权限错误 | `DEPENDENCY_PERMISSION_ERROR` | 无权限安装到环境 | 联系管理员 |
+| 磁盘空间 | `DEPENDENCY_DISK_SPACE_ERROR` | 环境磁盘空间不足 | 清理环境或联系管理员 |
+| 编译错误 | `DEPENDENCY_BUILD_ERROR` | 包需要编译但环境不支持 | 使用预编译版本或联系管理员 |
+
+> **注意**：前端错误类型应与 `10-error-handling.md` 中定义的错误码保持一致，统一使用 `DEPENDENCY_` 前缀。
 
 #### API 错误响应格式
 
@@ -275,12 +277,18 @@ ws.onmessage = (event) => {
   │ 2. 脚本安全扫描                                  │
   │    显示: "正在扫描脚本安全性..."                  │
   │    结果:                                         │
-  │    - 无风险: 继续下一步                          │
+  │    - 无风险/LOW: 继续下一步                      │
   │    - HIGH 级别: 显示拒绝对话框，流程终止          │
   │    - MEDIUM 级别: 显示安全审查确认对话框          │
   │      用户确认后继续下一步                         │
+  │                                                  │
+  │    MEDIUM 风险确认流程:                          │
+  │    - 显示风险详情对话框                          │
+  │    - 用户点击"了解风险并继续上传"                │
+  │    - 调用 POST /resolve-security                 │
+  │    - 继续步骤 3                                  │
   └────────┬────────────────────────────────────────┘
-           │ 无风险或用户确认 MEDIUM 风险
+           │ 无风险/LOW 或用户确认 MEDIUM 风险
            ▼
   ┌─────────────────────────────────────────────────┐
   │ 3. 依赖解析与冲突检测                            │
@@ -345,8 +353,8 @@ interface DependencyPreviewDialogProps {
   skillName: string;
   pendingVersion: string;
   dependencies: {
-    toInstall: PackageInfo[];
-    alreadyInstalled: PackageInfo[];
+    to_install: PackageInfo[];      // 与 API 响应一致（snake_case）
+    already_installed: PackageInfo[];
   };
   estimatedDurationSeconds: number;
   onConfirm: () => void;
@@ -356,8 +364,12 @@ interface DependencyPreviewDialogProps {
 interface PackageInfo {
   name: string;
   version: string;
+  reason?: string;  // "new_dependency" | "upgrade_required"
   description?: string;
 }
+```
+
+> **注意**：字段命名使用 snake_case 以与后端 API 响应保持一致。前端可在组件内部转换为 camelCase 用于内部状态管理。
 ```
 
 #### 安装进度组件 (InstallProgressDialog)
@@ -366,13 +378,13 @@ interface PackageInfo {
 interface InstallProgressDialogProps {
   skillUuid: string;
   progress: {
-    currentPackage: string;
-    currentVersion: string;
-    completedPackages: string[];
-    totalPackages: number;
-    progressPercent: number;
-    elapsedSeconds: number;
-    estimatedRemainingSeconds: number;
+    current_package: string;        // 与 API 响应一致（snake_case）
+    current_version: string;
+    completed_packages: string[];
+    total_packages: number;
+    progress_percent: number;
+    elapsed_seconds: number;
+    estimated_remaining_seconds: number;
   };
   onCancel: () => void;
 }

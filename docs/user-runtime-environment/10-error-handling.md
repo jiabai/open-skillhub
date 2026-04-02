@@ -20,10 +20,15 @@ parent: user-runtime-environment
 | `DEPENDENCY_VERSION_CONFLICT` | 409 | 版本冲突无法解决 |
 | `DEPENDENCY_BUILD_ERROR` | 500 | 编译错误 |
 | `DEPENDENCY_DISK_SPACE_ERROR` | 507 | 磁盘空间不足 |
+| `DEPENDENCY_PERMISSION_ERROR` | 403 | 无权限安装依赖 |
 | `VENV_CREATION_FAILED` | 500 | 虚拟环境创建失败 |
 | `RUNTIME_DISK_QUOTA_EXCEEDED` | 507 | 运行时磁盘配额超限 |
 | `SCRIPT_SECURITY_HIGH_RISK` | 403 | 脚本包含高风险操作，禁止上传 |
 | `SCRIPT_SECURITY_REVIEW` | 409 | 脚本包含中等风险操作，需要用户确认 |
+| `SKILL_NOT_FOUND` | 404 | Skill 不存在 |
+| `VERSION_NOT_FOUND` | 404 | 版本不存在 |
+| `EXECUTION_TIMEOUT` | 504 | Skill 执行超时 |
+| `PERMISSION_DENIED` | 403 | 权限不足（非 Skill 所有者） |
 
 #### RUNTIME_LOCKED 错误响应格式
 
@@ -31,8 +36,8 @@ parent: user-runtime-environment
 {
   "error": "RUNTIME_LOCKED",
   "message": "Runtime environment is being updated, please wait",
-  "lock_reason": "Installing dependencies",
-  "locked_at": "2026-03-30T15:30:00Z",
+  "runtime_lock_reason": "Installing dependencies",
+  "runtime_locked_at": "2026-03-30T15:30:00Z",
   "retry_after": 30
 }
 ```
@@ -57,9 +62,11 @@ parent: user-runtime-environment
 
 #### SCRIPT_SECURITY_REVIEW 响应格式（需要确认）
 
+当检测到 MEDIUM 级别风险时，返回 HTTP 409 状态码，响应格式如下：
+
 ```json
 {
-  "error": "SCRIPT_SECURITY_REVIEW",
+  "status": "security_review",
   "message": "Script contains medium-risk patterns, please review",
   "risks": [
     {
@@ -72,6 +79,42 @@ parent: user-runtime-environment
   ],
   "skill_uuid": "xxx-xxx-xxx",
   "require_confirmation": true
+}
+```
+
+> **说明**：此响应与 `06-api-design.md` 中的 `security_review` 状态一致。用户确认后调用 `POST /api/v1/skills/upload/resolve-security` 继续上传。
+
+#### DEPENDENCY_INSTALL_FAILED 错误响应格式
+
+当依赖安装失败时，返回详细错误信息：
+
+```json
+{
+  "error": "DEPENDENCY_INSTALL_FAILED",
+  "message": "Failed to install package playwright",
+  "details": {
+    "failed_package": {
+      "name": "playwright",
+      "version": "1.40.0",
+      "error_type": "DEPENDENCY_NETWORK_ERROR",
+      "error_message": "Could not fetch package playwright-1.40.0\nReason: Network timeout after 30s",
+      "mirror": "https://pypi.org/simple"
+    },
+    "completed_packages": [
+      {"name": "requests", "version": "2.31.0", "status": "success"},
+      {"name": "pydantic", "version": "2.5.0", "status": "success"}
+    ],
+    "rollback_status": {
+      "will_uninstall": ["requests", "pydantic"],
+      "message": "Successfully installed packages will be rolled back"
+    },
+    "suggestions": [
+      "检查网络连接是否正常",
+      "稍后重新尝试上传",
+      "如持续失败，请联系管理员"
+    ]
+  },
+  "log_url": "/api/v1/skills/upload/xxx-xxx-xxx/logs"
 }
 ```
 
@@ -102,6 +145,7 @@ async def upload_with_rollback(
     - 步骤 1-2：ZIP 文件验证和脚本安全扫描
     - 步骤 4：解析依赖声明
     - 步骤 9-10：依赖冲突检测、依赖预览和用户交互确认
+    - 步骤 13 中的临时文件清理：上传失败时，上层调用方负责删除临时解压目录和临时 Skill 目录
 
     Args:
         user: 用户对象

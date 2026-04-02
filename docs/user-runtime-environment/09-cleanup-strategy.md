@@ -37,9 +37,61 @@ runtime:
 | 用户有剩余 Skill | 不清理 | - | 用户有 Skill 时环境必须保留（不受空闲超时限制） |
 | 管理员触发 | 管理接口 | 仅环境 | 通过 `DELETE /api/v1/admin/users/{user_id}/runtime` 手动清理 |
 | 用户删除所有 Skill | Skill 删除流程 | 仅环境（等待空闲清理） | 保留环境，`venv_last_used_at` 保持不变，等待空闲超时自动清理 |
-| 用户删除账户 | 账户删除流程 | Skill + 环境 + 用户记录 | 级联清理，彻底删除所有资源 |
+| 用户删除账户 | 账户删除流程 | Skill + 环境 + 用户记录 | 级联清理，彻底删除所有资源（详见 `04-core-flows.md` 用户删除账户流程） |
 
 ### 清理逻辑代码示例
+
+#### Repository 接口定义
+
+```python
+class UserRepository(Protocol):
+    """用户仓库接口"""
+
+    async def find_by_last_used_before(
+        self, cutoff_time: datetime
+    ) -> list[User]:
+        """
+        查询 venv_last_used_at 早于指定时间的用户
+
+        Args:
+            cutoff_time: 截止时间
+
+        Returns:
+            符合条件的用户列表
+        """
+        ...
+
+    async def find_locked_users(self) -> list[User]:
+        """
+        查询 runtime_locked = True 的用户
+
+        Returns:
+            被锁定的用户列表
+        """
+        ...
+
+    async def update(self, user: User) -> None:
+        """更新用户记录"""
+        ...
+
+
+class SkillRepository(Protocol):
+    """Skill 仓库接口"""
+
+    async def count_by_user(self, user_id: str) -> int:
+        """
+        统计用户的 Skill 数量
+
+        Args:
+            user_id: 用户 ID
+
+        Returns:
+            Skill 数量
+        """
+        ...
+```
+
+#### 清理候选查询
 
 ```python
 async def get_cleanup_candidates(

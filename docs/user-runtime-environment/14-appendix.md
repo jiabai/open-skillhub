@@ -53,6 +53,10 @@ def version_satisfies(installed: str, spec: str) -> bool:
 
     Returns:
         是否满足
+
+    Note:
+        解析失败时默认返回 True，但会记录警告日志。
+        这可能导致不兼容的依赖被错误地认为兼容，调用方应考虑此风险。
     """
     if not spec:
         return True
@@ -61,8 +65,10 @@ def version_satisfies(installed: str, spec: str) -> bool:
         installed_ver = version.parse(installed)
         req = requirements.Requirement(f"package{spec}")
         return installed_ver in req.specifier
-    except Exception:
-        return True  # 解析失败时默认通过
+    except Exception as e:
+        # 解析失败时记录警告，默认通过
+        logger.warning(f"Failed to parse version spec '{spec}' or version '{installed}': {e}")
+        return True
 ```
 
 ### B. 虚拟环境管理工具函数
@@ -166,18 +172,26 @@ async def delete_skill(
 
     注意：不卸载依赖，保持环境不变
     """
-    # 1. 删除 Skill 文件
+    # 1. 检查运行时锁状态
+    if user.runtime_locked:
+        raise RuntimeLockedError(  # 错误码: RUNTIME_LOCKED
+            reason=user.runtime_lock_reason,
+            locked_at=user.runtime_locked_at,
+            retry_after=30
+        )
+
+    # 2. 删除 Skill 文件
     skill_path = Path(skill.storage_path)
     if skill_path.exists():
         shutil.rmtree(skill_path)
 
-    # 2. 删除版本记录
+    # 3. 删除版本记录
     await skill_repo.delete_versions(skill.id)
 
-    # 3. 删除 Skill 记录
+    # 4. 删除 Skill 记录
     await skill_repo.delete(skill.id)
 
-    # 4. 依赖不卸载，环境保持不变
+    # 5. 依赖不卸载，环境保持不变
     # 其他 Skill 可能使用相同依赖
 
     return {
@@ -299,7 +313,7 @@ async def rollback_skill_version(
     """
     # 1. 检查运行时锁状态
     if user.runtime_locked:
-        raise RuntimeErrorLockedError(
+        raise RuntimeLockedError(
             reason=user.runtime_lock_reason,
             locked_at=user.runtime_locked_at,
             retry_after=30
@@ -307,7 +321,7 @@ async def rollback_skill_version(
 
     # 2. 检查用户环境是否存在
     if not user.venv_path:
-        raise RuntimeErrorNotInitializedError(
+        raise RuntimeNotInitializedError(  # 错误码: RUNTIME_NOT_INITIALIZED
             "User runtime environment not initialized"
         )
 
@@ -327,11 +341,17 @@ async def rollback_skill_version(
         target_dependencies,
     )
 
-    # 6. 依赖不回滚，不卸载，不安装
-    # 当前环境的依赖可能满足旧版本需求
-    # 即使不满足，也仅提供警告，不阻止回滚
+    # 6. 如果存在兼容性问题，返回警告状态（需用户确认）
+    if compatibility_issues:
+        return {
+            "status": "compatibility_warning",
+            "skill_id": skill.id,
+            "target_version": target_version,
+            "compatibility_issues": compatibility_issues,
+            "require_confirmation": True,
+        }
 
-    # 7. 更新版本指针
+    # 7. 无兼容性问题，更新版本指针
     skill.current_version = target_version
     skill.updated_at = datetime.now(timezone.utc)
     await skill_repo.update(skill)
@@ -345,7 +365,7 @@ async def rollback_skill_version(
         "skill_id": skill.id,
         "rolled_back_to": target_version,
         "dependencies_preserved": True,
-        "compatibility_issues": compatibility_issues,
+        "compatibility_issues": [],
     }
 
 

@@ -1,10 +1,16 @@
 ---
-status: draft
+status: deprecated
+deprecated_reason: "本文档为早期设计版本，内容已过时。最新、最完整的设计请参考子文档目录 docs/user-runtime-environment/ 下的各子文档。"
+superseded_by: docs/user-runtime-environment/
 ai_read: true
 last_updated: 2026-03-31
 ---
 
-# 用户级运行时环境设计文档
+> ⚠️ **本文档已废弃**。请参阅最新子文档：[`docs/user-runtime-environment/`](./user-runtime-environment/00-index.md)
+>
+> 主要差异：子文档新增了依赖快照机制（DependencySnapshot）、安全扫描增强、安装超时独立配置、依赖预览确认流程、`runtime_temp_path` 字段等，且移除了已废弃的 `skill_storage_path` 字段（改为动态拼接）。
+
+# 用户级运行时环境设计文档（已废弃）
 
 ## 概述
 

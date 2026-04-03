@@ -1,7 +1,7 @@
 ---
 status: draft
 ai_read: true
-last_updated: 2026-03-31
+last_updated: 2026-04-03
 parent: user-runtime-environment
 ---
 
@@ -9,9 +9,28 @@ parent: user-runtime-environment
 
 ### 错误码定义
 
+#### 通用错误
+
 | 错误码 | HTTP 状态 | 说明 |
 |--------|----------|------|
-| `RUNTIME_LOCKED` | 423 | 运行时环境正在更新（安装依赖），请等待 |
+| `SKILL_NOT_FOUND` | 404 | Skill 不存在 |
+| `VERSION_NOT_FOUND` | 404 | 版本不存在 |
+| `PERMISSION_DENIED` | 403 | 权限不足（非 Skill 所有者） |
+
+#### 上传阶段错误
+
+| 错误码 | HTTP 状态 | 说明 |
+|--------|----------|------|
+| `SCRIPT_SECURITY_HIGH_RISK` | 403 | 脚本包含高风险操作，禁止上传 |
+| `SCRIPT_SECURITY_REVIEW` | 409 | 脚本包含中等风险操作，需要用户确认 |
+
+#### 部署阶段错误（新增）
+
+| 错误码 | HTTP 状态 | 说明 |
+|--------|----------|------|
+| `RUNTIME_NOT_READY` | 400 | Skill 运行环境未部署（install_status != ready） |
+| `DEPLOY_NOT_NEEDED` | 400 | Skill 已部署，无需重复部署 |
+| `RUNTIME_LOCKED` | 423 | 运行时环境正在被其他操作占用 |
 | `RUNTIME_NOT_INITIALIZED` | 400 | 用户运行时环境未初始化 |
 | `DEPENDENCY_CONFLICT` | 409 | 依赖版本冲突，需要用户确认 |
 | `DEPENDENCY_INSTALL_FAILED` | 500 | 依赖安装失败（通用错误） |
@@ -23,72 +42,64 @@ parent: user-runtime-environment
 | `DEPENDENCY_PERMISSION_ERROR` | 403 | 无权限安装依赖 |
 | `VENV_CREATION_FAILED` | 500 | 虚拟环境创建失败 |
 | `RUNTIME_DISK_QUOTA_EXCEEDED` | 507 | 运行时磁盘配额超限 |
-| `SCRIPT_SECURITY_HIGH_RISK` | 403 | 脚本包含高风险操作，禁止上传 |
-| `SCRIPT_SECURITY_REVIEW` | 409 | 脚本包含中等风险操作，需要用户确认 |
-| `SKILL_NOT_FOUND` | 404 | Skill 不存在 |
-| `VERSION_NOT_FOUND` | 404 | 版本不存在 |
+
+#### 执行阶段错误
+
+| 错误码 | HTTP 状态 | 说明 |
+|--------|----------|------|
+| `RUNTIME_LOCKED` | 423 | 运行时环境正在部署中，请等待 |
+| `RUNTIME_NOT_READY` | 400 | Skill 运行环境未部署 |
 | `EXECUTION_TIMEOUT` | 504 | Skill 执行超时 |
-| `PERMISSION_DENIED` | 403 | 权限不足（非 Skill 所有者） |
+
+#### 其他错误
+
+| 错误码 | HTTP 状态 | 说明 |
+|--------|----------|------|
 | `SNAPSHOT_NOT_FOUND` | 404 | 依赖快照不存在 |
 | `DEPENDENCY_RESTORE_FAILED` | 500 | 依赖恢复失败 |
 
-#### RUNTIME_LOCKED 错误响应格式
+### 错误响应格式
+
+#### RUNTIME_NOT_READY 错误响应（新增）
+
+```json
+{
+  "error": "RUNTIME_NOT_READY",
+  "message": "Skill runtime environment is not ready",
+  "details": {
+    "skill_uuid": "xxx-xxx-xxx",
+    "install_status": "pending",
+    "install_error": null,
+    "suggestion": "Please deploy the runtime environment first"
+  }
+}
+```
+
+#### RUNTIME_LOCKED 错误响应
 
 ```json
 {
   "error": "RUNTIME_LOCKED",
   "message": "Runtime environment is being updated, please wait",
-  "runtime_lock_reason": "Installing dependencies",
+  "runtime_lock_reason": "Deploying dependencies",
   "runtime_locked_at": "2026-03-30T15:30:00Z",
   "retry_after": 30
 }
 ```
 
-#### SCRIPT_SECURITY_HIGH_RISK 错误响应格式
+#### DEPLOY_NOT_NEEDED 错误响应（新增）
 
 ```json
 {
-  "error": "SCRIPT_SECURITY_HIGH_RISK",
-  "message": "Script contains high-risk patterns and cannot be uploaded",
-  "risks": [
-    {
-      "pattern": "os.system\\s*\\(",
-      "description": "执行系统命令",
-      "level": "high",
-      "file": "scripts/main.py",
-      "positions": [23, 45]
-    }
-  ]
+  "error": "DEPLOY_NOT_NEEDED",
+  "message": "Skill runtime is already deployed and ready",
+  "details": {
+    "install_status": "ready"
+  }
 }
 ```
 
-#### SCRIPT_SECURITY_REVIEW 响应格式（需要确认）
-
-当检测到 MEDIUM 级别风险时，返回 HTTP 409 状态码，响应格式如下：
-
-```json
-{
-  "status": "security_review",
-  "message": "Script contains medium-risk patterns, please review",
-  "risks": [
-    {
-      "pattern": "requests\\.get\\s*\\(",
-      "description": "HTTP 网络请求",
-      "level": "medium",
-      "file": "scripts/helper.py",
-      "positions": [8]
-    }
-  ],
-  "skill_uuid": "xxx-xxx-xxx",
-  "require_confirmation": true
-}
-```
-
-> **说明**：此响应与 `06-api-design.md` 中的 `security_review` 状态一致。用户确认后调用 `POST /api/v1/skills/upload/resolve-security` 继续上传。
-
-#### DEPENDENCY_INSTALL_FAILED 错误响应格式
-
-当依赖安装失败时，返回详细错误信息：
+#### DEPENDENCY_INSTALL_FAILED 错误响应
 
 ```json
 {
@@ -99,322 +110,154 @@ parent: user-runtime-environment
       "name": "playwright",
       "version": "1.40.0",
       "error_type": "DEPENDENCY_NETWORK_ERROR",
-      "error_message": "Could not fetch package playwright-1.40.0\nReason: Network timeout after 30s",
-      "mirror": "https://pypi.org/simple"
+      "error_message": "Could not fetch package playwright-1.40.0\nReason: Network timeout after 30s"
     },
     "completed_packages": [
-      {"name": "requests", "version": "2.31.0", "status": "success"},
-      {"name": "pydantic", "version": "2.5.0", "status": "success"}
+      {"name": "requests", "version": "2.31.0", "status": "success"}
     ],
     "rollback_status": {
-      "will_uninstall": ["requests", "pydantic"],
+      "will_uninstall": ["requests"],
       "message": "Successfully installed packages will be rolled back"
     },
+    "retryable": true,
     "suggestions": [
       "检查网络连接是否正常",
-      "稍后重新尝试上传",
-      "如持续失败，请联系管理员"
+      "稍后重新尝试部署"
     ]
-  },
-  "log_url": "/api/v1/skills/upload/xxx-xxx-xxx/logs"
+  }
 }
 ```
 
-### 安装失败回滚
+### 部署失败回滚
+
+部署失败时，回滚已安装的依赖包，但不删除 Skill 记录。
 
 ```python
-async def upload_with_rollback(
+async def deploy_with_rollback(
     user: User,
     skill: Skill,
-    filename: str,
-    content: bytes,
     skill_repo: SkillRepository,
     user_repo: UserRepository,
-    metadata: dict | None = None,
+    snapshot_repo: SnapshotRepository,
 ) -> dict:
     """
-    带回滚机制的上传流程
+    带回滚机制的部署流程
 
-    此函数执行流程图（04-core-flows.md）中的以下步骤：
-    - 步骤 3：加锁运行时环境
-    - 步骤 5-7：检查/创建虚拟环境、更新使用时间
-    - 步骤 8：解析 SKILL.md metadata，设置 script_file 字段
-    - 步骤 10b/10d：保存依赖快照（如有冲突解决或预览确认后）
-    - 步骤 11：安装新依赖
-    - 步骤 14：创建 Skill 版本（解锁前执行，确保一致性）
-    - 步骤 15：解锁运行时环境
+    调用时机：用户在部署确认接口（deploy/confirm 或 deploy/resolve-conflict）
+    中确认后调用。冲突检测、依赖预览等前置步骤由 deploy 触发接口处理，
+    此函数仅负责确认后的实际安装过程。
 
-    以下步骤由上层调用方处理（参见 04-core-flows.md）：
-    - 步骤 1-2：ZIP 文件验证和脚本安全扫描
-    - 步骤 4：解析依赖声明
-    - 步骤 9-10：依赖冲突检测、依赖预览和用户交互确认
-    - 步骤 13 中的临时文件清理：上传失败时，上层调用方负责删除临时解压目录和临时 Skill 目录
+    流程：
+    1. 加锁运行时环境
+    2. 检查/创建虚拟环境
+    3. 保存依赖快照
+    4. 安装依赖
+    5. 更新 install_status = ready
+    6. 解锁
 
-    函数职责边界：
-    - 此函数是"确认后执行"阶段的核心，假定安全扫描已通过、冲突已解决/预览已确认
-    - metadata 参数来源于上层调用方在步骤 2（安全扫描）阶段解析的 SKILL.md 内容
-    - 函数不负责用户交互（冲突确认、预览确认），仅负责加锁后的实际安装和版本创建
-
-    ⚠️ **调用前置条件**：
-    - skill 参数必须是一个已持久化的 Skill 对象（已有 id）
-    - 对于新 Skill：调用方应在调用前创建 Skill 记录（步骤 1-2 之间）
-    - 对于更新 Skill：调用方应已查询到现有 Skill 记录
-    - skill.dependencies 字段应已填充（由上层调用方在步骤 4 解析）
-
-    Args:
-        user: 用户对象
-        skill: Skill 对象（必须已持久化，包含 id 和 dependencies）
-        filename: 文件名
-        content: ZIP 文件内容
-        metadata: SKILL.md 解析的元数据（来源：上层调用方在步骤 2 解析，
-                  包含 script_entry 等配置；若未解析则为 None，使用默认值）
-        skill_repo: Skill 仓库
-        user_repo: 用户仓库
-
-    Returns:
-        上传结果 {"status": "success", "skill_id": str}
+    失败时：
+    1. 回滚已安装的依赖
+    2. 更新 install_status = failed
+    3. 记录 install_error
+    4. 解锁
     """
-    # 1. 加锁运行时环境（对应流程图步骤 3）
-    # 注意：安全扫描和依赖解析由上层调用方处理，此函数在确认无冲突后调用
-    user.runtime_locked = True
-    user.runtime_lock_reason = "Creating virtual environment"  # 初始阶段，后续根据实际操作更新
-    user.runtime_locked_at = datetime.now(timezone.utc)
-    user.runtime_temp_path = str(Path(UPLOAD_TEMP_STORAGE_PATH) / user.id)  # 记录临时目录路径，用于超时清理
-    await user_repo.update(user)
-
-    # 2. 备份当前状态
     backup_dependencies = dict(user.installed_dependencies or {})
-    backup_venv_path = user.venv_path
-    # 记录本次安装新增的依赖（用于回滚时卸载）
-    # 使用 set 避免重试场景下的重复记录，确保每个包名唯一
     newly_installed_packages: set[str] = set()
 
     try:
-        # 3. 检查/创建虚拟环境（对应流程图步骤 5-7）
+        # 加锁
+        user.runtime_locked = True
+        user.runtime_lock_reason = "Deploying dependencies"
+        user.runtime_locked_at = datetime.now(timezone.utc)
+        await user_repo.update(user)
+
+        # 检查/创建 venv
         if not user.venv_path:
-            # 首次上传：创建环境
+            user.runtime_lock_reason = "Creating virtual environment"
+            await user_repo.update(user)
             venv_path = Path(VENV_STORAGE_PATH) / user.id
             await create_virtualenv(venv_path)
             user.venv_path = str(venv_path)
             user.venv_created_at = datetime.now(timezone.utc)
-            user.venv_last_used_at = datetime.now(timezone.utc)
-        else:
-            # 环境已存在：更新使用时间
-            user.venv_last_used_at = datetime.now(timezone.utc)
 
-        # 更新 lock_reason 为当前阶段（对应流程图步骤 8）
-        user.runtime_lock_reason = "Parsing skill metadata"
+        user.venv_last_used_at = datetime.now(timezone.utc)
+
+        # 保存依赖快照
+        await save_dependency_snapshot(
+            user_id=user.id,
+            reason=f"pre_deploy:{skill.name}:v{skill.current_version}",
+            dependencies=backup_dependencies,
+            snapshot_repo=snapshot_repo,
+            is_auto=True,
+        )
+
+        # 安装依赖
+        user.runtime_lock_reason = "Deploying dependencies"
         await user_repo.update(user)
 
-        # 4. 解析 SKILL.md metadata，设置 script_file 字段（对应流程图步骤 8）
-        script_entry = metadata.get("script_entry", "main.py") if metadata else "main.py"
-        skill.script_file = script_entry
-
-        # 更新 lock_reason 为安装阶段（对应流程图步骤 10b/10d）
-        user.runtime_lock_reason = "Installing dependencies"
-        await user_repo.update(user)
-
-        # 5. 安装依赖（对应流程图步骤 11）
-        # 注意：冲突检测由上层调用方处理，此函数假定依赖已确认
         for dep in skill.dependencies:
             pkg_name, version_spec = parse_requirement(dep)
-
-            # 检查是否已安装
             if pkg_name.lower() in (user.installed_dependencies or {}):
-                installed_ver = user.installed_dependencies[pkg_name.lower()]
-                if version_satisfies(installed_ver, version_spec):
-                    # 已满足要求，跳过
+                if version_satisfies(user.installed_dependencies[pkg_name.lower()], version_spec):
                     continue
-
-            # 安装依赖
             try:
                 await install_single_dependency(user.venv_path, dep)
-                newly_installed_packages.add(pkg_name.lower())  # 使用小写格式，确保一致性
+                newly_installed_packages.add(pkg_name.lower())
             except Exception as e:
-                raise DependencyInstallError(
-                    package=pkg_name,
-                    error=str(e),
-                    newly_installed_packages=list(newly_installed_packages)
-                )
+                raise DependencyInstallError(package=pkg_name, error=str(e))
 
-        # 6. 创建版本记录（对应流程图步骤 14）
-        # 注意：版本创建在解锁之前执行，确保最终一致性
-        try:
-            await skill_repo.create_version(skill)
-        except Exception as e:
-            # 版本创建失败，触发回滚
-            raise VersionCreationError(
-                error=str(e),
-                newly_installed_packages=list(newly_installed_packages)
-            )
+        # 部署成功
+        skill.install_status = "ready"
+        skill.install_error = None
+        await skill_repo.update(skill)
 
-        # 7. 更新用户记录并解锁（对应流程图步骤 15）
+        user.installed_dependencies = await get_installed_packages(user.venv_path)
         user.runtime_locked = False
         user.runtime_lock_reason = None
         user.runtime_locked_at = None
-        user.runtime_temp_path = None
-        user.installed_dependencies = await get_installed_packages(user.venv_path)
-        # 注意：若 get_installed_packages 因 venv 异常而失败，会落入下方通用 Exception 分支
         await user_repo.update(user)
 
-        return {"status": "success", "skill_id": skill.id}
+        return {"status": "success", "install_status": "ready"}
 
     except DependencyInstallError as e:
-        # 安装失败，回滚依赖（先回滚再解锁）
-        logger.error(f"Dependency install failed: {e}")
+        # 回滚依赖
+        await _rollback_new_packages(user, list(newly_installed_packages), backup_dependencies)
 
-        # 回滚策略：
-        # 1. 卸载本次新安装的包
-        # 2. 对于升级的包，恢复到备份版本（如果备份中有）
-        # 3. 单包回滚失败不中断流程，记录失败包列表
-        failed_rollback = await _rollback_new_packages(user, e.newly_installed_packages, backup_dependencies)
+        # 回滚后同步 DB 状态，确保 installed_dependencies 与 venv 实际状态一致
+        # 避免下次部署时的冲突检测基于过期的 DB 数据
+        user.installed_dependencies = await get_installed_packages(user.venv_path)
 
-        # 恢复依赖记录：
-        # - 回滚成功的包：使用 backup 中的版本
-        # - 回滚失败的包：查询 venv 实际版本，确保数据库与 venv 状态一致
-        if failed_rollback:
-            logger.warning(f"Rollback partially failed for packages: {failed_rollback}")
-            # 查询 venv 中所有包的实际版本，回滚失败的包会保留新版本
-            actual_packages = await get_installed_packages(user.venv_path)
-            user.installed_dependencies = actual_packages
-        else:
-            user.installed_dependencies = backup_dependencies
+        skill.install_status = "failed"
+        skill.install_error = str(e)
+        await skill_repo.update(skill)
 
-        # 最后解锁
         user.runtime_locked = False
         user.runtime_lock_reason = None
         user.runtime_locked_at = None
-        user.runtime_temp_path = None
         await user_repo.update(user)
 
-        raise ValueError(f"Dependency install failed: {e}")
-
-    except VersionCreationError as e:
-        # 版本创建失败，回滚依赖并解锁（对应流程图步骤 13）
-        logger.error(f"Version creation failed: {e}")
-
-        # 回滚依赖（策略同上）
-        failed_rollback = await _rollback_new_packages(user, e.newly_installed_packages, backup_dependencies)
-
-        if failed_rollback:
-            logger.warning(f"Rollback partially failed for packages: {failed_rollback}")
-            actual_packages = await get_installed_packages(user.venv_path)
-            user.installed_dependencies = actual_packages
-        else:
-            user.installed_dependencies = backup_dependencies
-
-        # 解锁
-        user.runtime_locked = False
-        user.runtime_lock_reason = None
-        user.runtime_locked_at = None
-        user.runtime_temp_path = None
-        await user_repo.update(user)
-
-        raise ValueError(f"Version creation failed: {e}")
+        return {"status": "failed", "error": str(e), "retryable": True}
 
     except Exception as e:
-        # 其他异常（如 venv 创建失败），此时依赖尚未修改，无需恢复 installed_dependencies
-        # 确保解锁，防止锁泄漏
+        # 未预期的异常，回滚已安装的包并同步 DB 状态
+        await _rollback_new_packages(user, list(newly_installed_packages), backup_dependencies)
+        try:
+            user.installed_dependencies = await get_installed_packages(user.venv_path)
+        except Exception:
+            logger.warning("Failed to sync installed_dependencies after unexpected error")
+
+        skill.install_status = "failed"
+        skill.install_error = str(e)
+        await skill_repo.update(skill)
+
         user.runtime_locked = False
         user.runtime_lock_reason = None
         user.runtime_locked_at = None
-        user.runtime_temp_path = None
         await user_repo.update(user)
         raise
-
-
-async def _rollback_new_packages(
-    user: User,
-    newly_installed_packages: list[str],
-    backup_dependencies: dict[str, str]
-) -> list[str]:
-    """
-    回滚新安装的依赖
-
-    策略：
-    1. 卸载本次新安装的包
-    2. 对于已存在但被升级的包，降级回备份版本
-    3. 单包回滚失败不中断流程，记录失败包名并继续处理其他包
-
-    Args:
-        user: 用户对象
-        newly_installed_packages: 本次新安装的包名列表
-        backup_dependencies: 安装前的依赖状态备份
-
-    Returns:
-        回滚失败的包名列表（调用方可据此调整 installed_dependencies，
-        查询 venv 实际版本以确保数据库记录与 venv 状态一致）
-    """
-    venv_path = Path(user.venv_path)
-    pip_path = await get_pip_path(venv_path)
-
-    # 回滚操作超时时间（秒），避免网络问题导致回滚卡住
-    ROLLBACK_TIMEOUT = 120
-
-    # 记录回滚失败的包
-    failed_packages: list[str] = []
-
-    for pkg_name in newly_installed_packages:
-        pkg_name_lower = pkg_name.lower()
-
-        if pkg_name_lower in backup_dependencies:
-            # 包已存在，需要降级到备份版本
-            target_version = backup_dependencies[pkg_name_lower]
-            logger.info(f"Rolling back {pkg_name} to version {target_version}")
-
-            try:
-                proc = await asyncio.create_subprocess_exec(
-                    str(pip_path), "install", f"{pkg_name}=={target_version}",
-                    stdout=asyncio.subprocess.PIPE,
-                    stderr=asyncio.subprocess.PIPE,
-                )
-                stdout, stderr = await asyncio.wait_for(
-                    proc.communicate(), timeout=ROLLBACK_TIMEOUT
-                )
-            except asyncio.TimeoutError:
-                logger.error(f"Rollback timeout for {pkg_name}=={target_version}, killing process")
-                proc.kill()
-                await proc.wait()  # 进程已被 kill，使用 wait() 等待退出
-                failed_packages.append(pkg_name_lower)
-                continue
-            except Exception as e:
-                # 单个包降级失败（版本不存在、网络错误等），记录后继续处理其他包
-                logger.error(
-                    f"Failed to rollback {pkg_name} to version {target_version}: {e}. "
-                    f"Continuing with remaining packages."
-                )
-                failed_packages.append(pkg_name_lower)
-                continue
-        else:
-            # 全新安装的包，直接卸载
-            logger.info(f"Uninstalling newly installed package: {pkg_name}")
-
-            try:
-                proc = await asyncio.create_subprocess_exec(
-                    str(pip_path), "uninstall", "-y", pkg_name,
-                    stdout=asyncio.subprocess.PIPE,
-                    stderr=asyncio.subprocess.PIPE,
-                )
-                stdout, stderr = await asyncio.wait_for(
-                    proc.communicate(), timeout=ROLLBACK_TIMEOUT
-                )
-            except asyncio.TimeoutError:
-                logger.error(f"Rollback timeout for uninstalling {pkg_name}, killing process")
-                proc.kill()
-                await proc.wait()  # 进程已被 kill，使用 wait() 等待退出
-                failed_packages.append(pkg_name_lower)
-                continue
-            except Exception as e:
-                # 单个包卸载失败，记录后继续处理其他包
-                logger.error(
-                    f"Failed to uninstall {pkg_name}: {e}. "
-                    f"Continuing with remaining packages."
-                )
-                failed_packages.append(pkg_name_lower)
-                continue
-
-    return failed_packages
 ```
+
+> **说明**：部署失败不删除 Skill 记录，将 `install_status` 设为 `failed`，用户可以重新触发部署。
 
 
 ---

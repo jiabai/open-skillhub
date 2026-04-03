@@ -1,11 +1,15 @@
 ---
 status: draft
 ai_read: true
-last_updated: 2026-03-31
+last_updated: 2026-04-03
 parent: user-runtime-environment
 ---
 
 ## 依赖冲突处理
+
+### 冲突检测时机
+
+依赖冲突检测在**部署阶段**执行。上传阶段仅解析依赖声明（不安装），部署阶段才执行实际安装，因此冲突检测在此时进行。
 
 ### 冲突检测逻辑
 
@@ -19,7 +23,6 @@ def detect_dependency_conflicts(
 
     Args:
         installed: 已安装依赖 {"package": "version"}
-                   注意：包名建议统一使用小写格式存储
         required: 需要安装的依赖 ["package>=version", ...]
 
     Returns:
@@ -28,7 +31,6 @@ def detect_dependency_conflicts(
     """
     conflicts = []
 
-    # 构建小写化的已安装依赖映射，确保大小写不敏感匹配
     installed_lower = {k.lower(): v for k, v in installed.items()}
 
     for req in required:
@@ -38,7 +40,6 @@ def detect_dependency_conflicts(
         if pkg_name_lower in installed_lower:
             installed_version = installed_lower[pkg_name_lower]
 
-            # 检查版本是否满足要求
             if not version_satisfies(installed_version, version_spec):
                 conflicts.append({
                     "package": pkg_name,
@@ -52,61 +53,9 @@ def detect_dependency_conflicts(
 
 ### 升级影响预检
 
-在用户确认「允许安装」之前，系统应模拟升级后的依赖状态，检查该用户所有其他 Skill 的依赖声明是否仍然满足。这样可以提前告知用户升级可能带来的影响，避免盲目决策。
+在用户确认「允许安装」之前，系统应模拟升级后的依赖状态，检查该用户所有其他 Skill 的依赖声明是否仍然满足。
 
 ```python
-from packaging.requirements import InvalidRequirement, Requirement
-from packaging.version import Version
-from packaging.specifiers import SpecifierSet
-
-
-def _pick_simulated_version(
-    spec_set: SpecifierSet,
-    current: Version | None,
-) -> Version | None:
-    """
-    根据版本约束集合，选择一个模拟安装版本。
-
-    策略：
-    1. 当前版本已满足 → 保留
-    2. 未安装或不满足 → 遍历所有约束，取最高的下限版本
-
-    注意：pip 实际行为是安装满足约束的最新版本（需查询 PyPI），
-    这里采用保守策略，选择下限版本，宁可多报潜在冲突也不漏报。
-    对于 > 约束，取 min_version + 1 patch 作为近似，仍可能产生少量误报。
-    """
-    if current is not None and spec_set.contains(current, prereleases=True):
-        return current
-
-    # 遍历所有约束，找到最高的下限版本
-    floor: Version | None = None
-    for spec in spec_set:
-        if spec.operator == ">=":
-            v = Version(spec.version)
-        elif spec.operator == ">":
-            # 严格大于：取下一个版本作为近似
-            # >1.0.0 → 1.0.1，>1.0 → 1.1.0
-            parts = spec.version.split(".")
-            if len(parts) >= 3:
-                v = Version(f"{parts[0]}.{parts[1]}.{int(parts[2]) + 1}")
-            else:
-                # 2 段版本如 >1.0 → 近似为 1.1.0
-                v = Version(f"{parts[0]}.{int(parts[1]) + 1}.0")
-        elif spec.operator == "==":
-            v = Version(spec.version)
-        elif spec.operator == "~=":
-            # ~=X.Y.Z 等价于 >=X.Y.Z, ==X.Y.*，下限即为 X.Y.Z
-            v = Version(spec.version)
-        else:
-            # !=, <, <= 均不影响下限
-            continue
-
-        if floor is None or v > floor:
-            floor = v
-
-    return floor
-
-
 def detect_upgrade_impact(
     installed: dict[str, str],
     new_skill_deps: list[str],
@@ -114,9 +63,6 @@ def detect_upgrade_impact(
 ) -> list[dict]:
     """
     模拟依赖升级，检查对其他 Skill 的影响。
-
-    使用 packaging 库进行精确的版本解析与比较，
-    正确处理复合约束（如 >=1.0,<2.0）和兼容版本（~=1.4.2）。
 
     Args:
         installed: 当前已安装依赖 {"package": "version"}
@@ -126,7 +72,6 @@ def detect_upgrade_impact(
 
     Returns:
         受影响的 Skill 列表
-        [{"skill_name": str, "breaks": [{"package": str, ...}]}]
     """
     # 1. 构建模拟升级后的依赖状态
     simulated: dict[str, Version] = {
@@ -137,12 +82,12 @@ def detect_upgrade_impact(
         try:
             req = Requirement(dep_str)
         except InvalidRequirement:
-            continue  # 跳过无效依赖声明
+            continue
         pkg_lower = req.name.lower()
         current = simulated.get(pkg_lower)
 
         if not req.specifier:
-            continue  # 无版本约束，保留当前版本
+            continue
 
         new_version = _pick_simulated_version(req.specifier, current)
         if new_version is not None:
@@ -161,7 +106,7 @@ def detect_upgrade_impact(
 
             sim_version = simulated.get(pkg_lower)
             if sim_version is not None and req.specifier:
-                if not req.specifier.contains(sim_version, prereleases=True):
+                if not req.specifier.contains(sim_version, prereleases=False):
                     warnings.append({
                         "package": req.name,
                         "installed_version": str(sim_version),
@@ -175,41 +120,91 @@ def detect_upgrade_impact(
             })
 
     return affected
+
+
+def _pick_simulated_version(
+    specifier: "SpecifierSet",
+    current: "Version | None",
+) -> "Version | None":
+    """
+    为模拟升级选择一个版本号。
+
+    策略：选择满足 specifier 的最小版本（保守估计）。
+    若无法确定具体版本（specifier 为开放范围如 >=1.0），
+    则在当前版本基础上取 specifier 下限 + 1 个 patch。
+
+    Args:
+        specifier: 版本约束条件集（如 >=2.30.0）
+        current: 当前已安装版本（可能为 None）
+
+    Returns:
+        模拟版本号，若无法确定则返回 None
+
+    Note:
+        模拟版本与实际安装版本的关系取决于场景：
+
+        - **升级场景**（当前版本低于 specifier 下限）：模拟版本取下限值，
+          可能高于 pip 实际安装的版本 → 假阳性（安全方向）。
+        - **降级场景**（当前版本高于 specifier 上限）：模拟版本取下限值，
+          低于当前版本。例如当前 `2.31.0`，新 Skill 要求 `~=2.30.0`（即
+          `>=2.30.0,<2.31.0`），模拟版本为 `2.30.0`，正确反映 pip 将降级安装。
+
+        两种场景均不会产生假阴性，符合安全优先原则。
+    """
+    # 尝试从 specifier 中提取下限版本
+    lower_bounds = []
+    for spec in specifier:
+        op, ver_str = spec.operator, spec.version
+        if op in (">=", "==", "~=", "==="):
+            # 注意：~= 操作符（如 ~=2.30.0 等价于 >=2.30.0,<2.31.0）隐含上限约束。
+            # 此处仅取下限作为保守估计。
+            # - 升级场景：模拟版本可能高于 pip 实际安装的版本 → 假阳性
+            # - 降级场景：模拟版本（下限）可能低于当前版本 → 正确反映降级
+            lower_bounds.append(Version(ver_str))
+        elif op == ">":
+            # >1.0 的保守估计：取满足约束的最小版本
+            # 通过 bump patch 实现（如 1.0 → 1.0.1）
+            base = Version(ver_str)
+            lower_bounds.append(Version(f"{base.major}.{base.minor}.{base.patch + 1}"))
+
+    if not lower_bounds:
+        # 无下限约束（如裸版本号或不常见操作符），保守取当前版本 + patch bump
+        if current is not None:
+            return Version(f"{current.major}.{current.minor}.{current.patch + 1}")
+        return None
+
+    # 取所有下限中的最大值作为模拟版本
+    # 升级场景：可能高于 pip 实际安装 → 假阳性（安全方向）
+    # 降级场景：低于当前版本 → 正确反映 pip 降级行为
+    # 两种场景均不会产生假阴性。
+    return max(lower_bounds)
 ```
 
-> **调用时机**：在冲突检测（`detect_dependency_conflicts`）之后、返回冲突信息给前端之前调用。影响预检结果随冲突信息一并返回给前端，展示在冲突对话框中（详见 `08-frontend-ux.md`）。
->
-> **性能考虑**：此函数仅为内存中的字典遍历和版本比较，无 I/O 操作，对性能影响可忽略。
+> **调用时机**：在部署阶段的冲突检测（`detect_dependency_conflicts`）之后、返回冲突信息给前端之前调用。影响预检结果随冲突信息一并返回给前端。
 
 ### 用户交互流程
 
+冲突发生在**部署阶段**，而非上传阶段：
+
 ````
-前端检测到冲突响应
+用户点击「部署运行环境」
        │
        ▼
   ┌─────────────────────────────────────────────────┐
-  │ 显示冲突对话框                                   │
+  │ 后端检测依赖冲突                                │
   │                                                  │
   │ ⚠️ 检测到依赖版本冲突                            │
   │                                                  │
-  │ 以下包的版本与您环境中已安装的版本不兼容：        │
-  │                                                  │
   │ • requests                                       │
-  │   已安装: 2.28.0                                 │
-  │   需要: >=2.30.0                                 │
+  │   已安装: 2.28.0    需要: >=2.30.0               │
   │                                                  │
-  │ （如有受影响 Skill，额外显示：）                  │
   │ ⚠️ 升级后以下 Skill 可能受影响：                  │
   │ • Skill B — 需要 requests>=2.28.0               │
   │ • Skill C — 需要 requests==2.28.0               │
   │                                                  │
-  │ 选择操作：                                       │
+  │ [允许安装]  [取消部署]                           │
   │                                                  │
-  │ [允许安装]  [取消上传]                           │
-  │                                                  │
-  │ 提示：允许安装将卸载旧版本并安装新版本，         │
-  │      可能影响您其他 skill 的运行。               │
-  │      系统将在安装前自动保存依赖快照，            │
+  │ 提示：系统将在安装前自动保存依赖快照，            │
   │      如有问题可从快照恢复。                      │
   └─────────────────────────────────────────────────┘
 ````

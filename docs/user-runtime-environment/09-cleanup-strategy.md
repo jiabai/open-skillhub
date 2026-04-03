@@ -64,15 +64,16 @@ async def save_dependency_snapshot(
     snapshot_repo: SnapshotRepository,
     is_auto: bool = True,
     auto_max: int = 20,
-) -> Snapshot:
+) -> "Snapshot":
     """
     保存依赖快照（自动快照）
 
-    在上传流程步骤 10b/10d 中调用，用于保存安装前的依赖状态。
+    在部署流程中调用，用于保存安装前的依赖状态。
+    自动快照创建后会立即执行内联清理，删除超出限制的最早快照。
 
     Args:
         user_id: 用户 ID
-        reason: 快照原因（如 "pre_upload:skill-name:v1.0.0"）
+        reason: 快照原因（如 "pre_deploy:skill-name:v1.0.0"）
         dependencies: 当前依赖状态 {"package": "version"}
         snapshot_repo: 快照仓库
         is_auto: 是否为自动快照（默认 True）
@@ -80,9 +81,6 @@ async def save_dependency_snapshot(
 
     Returns:
         创建的快照对象
-
-    Note:
-        自动快照创建后会立即执行清理，删除超出限制的最早快照。
     """
     # 1. 创建新快照
     snapshot = await snapshot_repo.create(

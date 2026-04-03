@@ -144,6 +144,8 @@ async def create_virtualenv(
             f"Python {python_version} not found ({python_cmd}), "
             f"falling back to system default"
         )
+        # 清理首次尝试可能留下的残留目录
+        shutil.rmtree(venv_path, ignore_errors=True)
         proc = await asyncio.create_subprocess_exec(
             sys.executable, "-m", "venv", str(venv_path),
             stdout=asyncio.subprocess.PIPE,
@@ -225,7 +227,7 @@ async def delete_skill(
         )
 
     # 2. 删除 Skill 文件
-    skill_path = Path(skill.storage_path)
+    skill_path = Path(skill.skill_dir)
     if skill_path.exists():
         shutil.rmtree(skill_path)
 
@@ -473,30 +475,41 @@ DEPENDENCY_OPERATION_TIMEOUT = 300  # 单个 pip 操作超时（秒），默认 
 
 
 async def save_dependency_snapshot(
-    user: User,
-    snapshot_repo: SnapshotRepository,
+    user_id: str,
     reason: str,
+    dependencies: dict[str, str],
+    snapshot_repo: SnapshotRepository,
     is_auto: bool = True,
-) -> str:
+    auto_max: int = 20,
+) -> "Snapshot":
     """
     保存当前依赖状态快照
 
+    自动快照创建后会立即执行内联清理，删除超出限制的最早快照。
+    完整实现见 docs/user-runtime-environment/09-cleanup-strategy.md。
+
     Args:
-        user: 用户对象
+        user_id: 用户 ID
+        reason: 快照原因，如 "pre_deploy:skill-a:v2.0.0"
+        dependencies: 当前依赖状态 {"package": "version"}
         snapshot_repo: 快照仓库
-        reason: 快照原因，如 "pre_upload:skill-a:v2.0.0"
-        is_auto: 是否为自动快照
+        is_auto: 是否为自动快照（默认 True）
+        auto_max: 自动快照最大数量（默认 20）
 
     Returns:
-        快照 ID
+        创建的快照对象
+
+    Note:
+        参数顺序与 09-cleanup-strategy.md 中的定义保持一致。
+        此处为简化示例，省略了内联清理逻辑（cleanup_dependency_snapshots）。
     """
     snapshot = await snapshot_repo.create(
-        user_id=user.id,
-        dependencies=dict(user.installed_dependencies or {}),
+        user_id=user_id,
+        dependencies=dict(dependencies or {}),
         reason=reason,
         is_auto=is_auto,
     )
-    return snapshot.id
+    return snapshot
 
 
 async def restore_dependencies_from_snapshot(
@@ -527,8 +540,10 @@ async def restore_dependencies_from_snapshot(
     """
     # 1. 保存当前状态作为安全备份（恢复失败时可回退）
     backup_snapshot_id = await save_dependency_snapshot(
-        user, snapshot_repo,
+        user_id=user.id,
         reason=f"pre_restore:{snapshot.reason}",
+        dependencies=dict(user.installed_dependencies or {}),
+        snapshot_repo=snapshot_repo,
         is_auto=True,
     )
 

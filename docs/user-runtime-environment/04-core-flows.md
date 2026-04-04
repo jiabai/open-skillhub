@@ -65,15 +65,17 @@ graph TD
 | 步骤 | 操作 | 说明 | 锁状态 |
 |------|------|------|--------|
 | 1 | 接收 ZIP + 生成 upload_id | 前端上传 Skill ZIP 包，生成临时上传会话 ID | 无锁 |
-| 2 | 验证 ZIP 结构 | 检查 SKILL.md 是否存在 | 无锁 |
-| 3 | 安全扫描脚本 | 扫描所有 .py/.js/.sh 文件 | 无锁 |
-| 3a | HIGH 风险 → 拒绝 | 返回 `SCRIPT_SECURITY_HIGH_RISK`，清理临时文件 | 无锁 |
-| 3b | MEDIUM 风险 → 等待确认 | 返回 `security_review` 状态 + `upload_id`（**不创建 Skill 记录**） | 无锁 |
-| 4 | 解析 SKILL.md | 提取 name, version, dependencies, script_entry | 无锁 |
-| 5 | 创建/更新 Skill 记录 | 新 Skill 创建，已有 Skill 更新（**安全审查确认后执行**） | 无锁 |
-| 6 | 创建 SkillVersion 记录 | 存储版本文件和元数据 | 无锁 |
-| 7 | 设置 install_status | `install_status = pending` | 无锁 |
-| 8 | 返回成功 | 秒级返回，含 skill_uuid 和 pending 状态 | 无锁 |
+| 2 | 解压到临时目录 | 解压 ZIP 到 `User.runtime_temp_path` 指定的临时目录 | 无锁 |
+| 3 | 验证 ZIP 结构 | 检查 SKILL.md 是否存在 | 无锁 |
+| 4 | 安全扫描脚本 | 扫描所有 .py/.js/.sh 文件 | 无锁 |
+| 4a | HIGH 风险 → 拒绝 | 返回 `SCRIPT_SECURITY_HIGH_RISK`，清理 `User.runtime_temp_path` 临时文件 | 无锁 |
+| 4b | MEDIUM 风险 → 等待确认 | 返回 `security_review` 状态 + `upload_id`（**不创建 Skill 记录**），文件保留在 `User.runtime_temp_path` 等待确认 | 无锁 |
+| 5 | 解析 SKILL.md | 提取 name, version, dependencies, script_entry | 无锁 |
+| 6 | 创建/更新 Skill 记录 | 新 Skill 创建，已有 Skill 更新（**安全审查确认后执行**） | 无锁 |
+| 7 | 文件迁移到 skill_dir | 将文件从 `User.runtime_temp_path` 迁移到正式 `Skill.skill_dir`，清空 `User.runtime_temp_path` | 无锁 |
+| 8 | 创建 SkillVersion 记录 | 存储版本文件和元数据 | 无锁 |
+| 9 | 设置 install_status | `install_status = pending` | 无锁 |
+| 10 | 返回成功 | 秒级返回，含 skill_uuid 和 pending 状态 | 无锁 |
 
 #### 状态变更
 

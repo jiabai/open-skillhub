@@ -121,9 +121,10 @@ graph TD
 | 4 | 检查/创建 venv | 首次部署时创建虚拟环境 | 已锁 |
 | 5 | 解析依赖声明 | 从 SkillVersion.dependencies 读取 | 已锁 |
 | 6 | 检测依赖冲突 | 与 `installed_dependencies` 对比 | 已锁 |
-| 7a | 有冲突 → 返回冲突信息 | 含受影响 Skill 列表，等待用户确认期间保持锁；5分钟超时自动解锁 | 已锁 |
-| 7b | 无冲突 → 返回依赖预览 | 待安装和已安装列表，等待用户确认期间保持锁；5分钟超时自动解锁 | 已锁 |
-| 8 | 用户确认 | 冲突：允许升级 / 无冲突：确认安装 | 已锁 |
+| 7a | 有冲突 → 设置 reason + 返回冲突信息 | 设置 `runtime_lock_reason = "Waiting for conflict resolution"` → 含受影响 Skill 列表，等待用户确认期间保持锁；5分钟超时自动解锁或用户调用 `POST /deploy/cancel` 主动释放 | 已锁 |
+| 7b | 无冲突 → 设置 reason + 返回依赖预览 | 设置 `runtime_lock_reason = "Waiting for dependency preview confirmation"` → 待安装和已安装列表，等待用户确认期间保持锁；5分钟超时自动解锁或用户调用 `POST /deploy/cancel` 主动释放 | 已锁 |
+| 7c | 用户取消（确认前阶段） | 调用 `POST /deploy/cancel` 接口释放锁，`install_status` 保持 `pending` 不变 | 无锁 |
+| 8 | 用户确认 | 冲突：允许升级 / 无冲突：确认安装（调用 `POST /deploy/confirm` 或 `POST /deploy/resolve-conflict`） | 已锁 |
 | 9 | 保存依赖快照 | `save_dependency_snapshot(is_auto=True)` | 已锁 |
 | 10 | 执行 pip install | 逐个安装依赖 | 已锁 |
 | 11a | 安装成功 | 更新 `installed_dependencies` | 已锁 |
@@ -208,30 +209,60 @@ failed → installing → failed   (重试失败)
 | 步骤 | 操作 | 说明 | 锁状态 |
 |------|------|------|--------|
 | 1 | MCP 工具调用 | Agent 触发 `load_skill` 或 `execute_skill` | 无锁 |
-| 2 | 检查 install_status | 必须为 `ready` | 无锁 |
-| 2a | 非 ready → 返回错误 | `RUNTIME_NOT_READY` | 无锁 |
-| 3 | 检查运行时锁 | `runtime_locked` 是否为 True | 无锁 |
-| 3a | 已锁 → 返回错误 | `RUNTIME_LOCKED` | 无锁 |
-| 4 | 加锁运行时 | `runtime_locked = True` | 已锁 |
-| 5 | 构建 safe environment | 清理环境变量，设置 PATH | 已锁 |
-| 6 | 执行脚本 | subprocess 使用用户 venv 的 python | 已锁 |
-| 7 | 捕获输出 | stdout/stderr + 超时控制 | 已锁 |
-| 8 | 解锁运行时 | `runtime_locked = False` | 无锁 |
+| 2 | **原子加锁运行时** | `runtime_locked = True`，失败则返回 `RUNTIME_LOCKED` | **已锁** |
+| 2a | 加锁失败 → 返回错误 | 含 `retry_after` 和 `suggest_admin`（基于当前锁的已持有时长计算） | 无锁 |
+| 3 | **锁内二次校验 install_status** | 必须为 `ready`（在持有锁的前提下再次检查，防止 TOCTOU 竞态） | 已锁 |
+| 3a | 非 ready → **立即解锁并返回错误** | `RUNTIME_NOT_READY`（必须在解锁后才返回，避免死锁） | 无锁 |
+| 4 | 构建 safe environment | 清理环境变量，设置 PATH | 已锁 |
+| 5 | 执行脚本 | subprocess 使用用户 venv 的 python | 已锁 |
+| 6 | 捕获输出 | stdout/stderr + 超时控制 | 已锁 |
+| 7 | 更新 venv_last_used_at | 记录最后使用时间（用于空闲清理判断） | 已锁 |
+| 8 | **finally 解锁运行时** | `runtime_locked = False`（无论成功/异常/超时均须执行，使用 try/finally 保证） | 无锁 |
 | 9 | 返回结果 | 脚本输出 + 执行状态 | 无锁 |
 
-#### 前置检查逻辑
+> **为什么必须「先加锁再检查」？**
+>
+> 如果先检查再加锁（旧设计），存在经典的 **TOCTOU (Time Of Check to Time Of Use) 竞态条件**：
+>
+> ```
+> 时间线  执行请求 A                     部署请求 B
+> ──────  ──────────────────             ──────────────────
+> T1      读 install_status = ready
+> T2      读 runtime_locked = False      ← B 还未开始
+> T3                                     原子加锁成功
+> T4                                     设置 install_status = installing
+> T5      尝试加锁 → 可能成功也可能失败   ← 取决于加锁实现的原子性
+> T6      基于 T1 的过期状态开始执行      ← 此时 B 正在修改 venv！
+> ```
+>
+> 部署流程已经正确地采用了「先加锁再检查」模式（参见[部署流程关键设计点](#2-skill-部署流程新增)），执行流程必须保持一致。
 
-执行前检查包含两部分：部署状态检查和运行时锁检查。
+#### 锁内校验与前置快速失败（可选优化）
 
-- **部署状态检查**：`install_status` 必须为 `ready`，否则返回 `RUNTIME_NOT_READY`
-- **运行时锁检查**：`runtime_locked` 为 `True` 时返回 `RUNTIME_LOCKED`，并计算 `retry_after` 和 `suggest_admin`
+上述流程中，步骤 2 的原子加锁操作本身可能因锁被占用而失败。为提供更好的用户体验，允许在加锁之前执行一次**无锁的前置快速检查**（pre-lock hint），用于在大多数情况下提前返回精确的错误信息、减少无意义的加锁尝试：
+
+- **前置快速检查 install_status**：若非 `ready`，可直接返回 `RUNTIME_NOT_READY`（无需尝试加锁）
+- **前置快速检查 runtime_locked**：若已被占用，可直接返回 `RUNTIME_LOCKED`（含 `retry_after` 等）
+
+> **⚠️ 关键约束**：前置快速检查的结果不能作为「可以安全执行」的依据。即使前置快速检查全部通过，仍必须执行步骤 2 的原子加锁 + 步骤 3 的锁内二次校验。前置快速检查仅是一种性能/体验优化，不改变安全保证。
+
+#### 执行前检查函数
+
+执行前的状态检查分为两个层次：
+
+- **前置快速检查（可选）**：无锁读取，用于提前返回友好错误信息。完整实现参见 [并发安全机制 - 前置快速检查](./05-concurrency.md#前置快速检查)。
+- **锁内校验（必须）**：在持有运行时锁之后执行的二次校验，是防止竞态条件的最终安全门。完整实现参见 [并发安全机制 - 锁内校验](./05-concurrency.md#锁内校验)。
 
 > **完整实现**参见 [并发安全机制 - 执行前检查逻辑](./05-concurrency.md#执行前检查逻辑)。
 
 #### 关键设计点
 
-- **install_status 优先检查**：先检查部署状态，再检查锁状态，返回更精确的错误信息
+- **先加锁再检查（防竞态）**：与部署流程一致的原则——原子获取锁后，在锁的保护下校验所有前置条件。这是防止 TOCTOU 竞态的唯一正确方式
+- **finally 解锁**：解锁操作必须在 `try/finally` 块中执行，确保无论执行成功、超时还是抛出异常，锁都能被释放
+- **锁内校验失败必须先解锁再返回**：如果锁内校验发现 install_status 非 ready，必须先释放锁再返回错误，否则会导致死锁
+- **前置快速检查是纯优化**：它不参与安全保证，可以省略；但锁内校验绝对不可省略
 - **执行不改变 install_status**：执行不影响部署状态，只有部署操作改变状态
+- **更新 veng_last_used_at 在锁内执行**：确保时间戳更新的原子性
 
 ---
 
@@ -281,9 +312,10 @@ failed → installing → failed   (重试失败)
 
 | 步骤 | 操作 | 说明 | 锁状态 |
 |------|------|------|--------|
-| 1 | 检查运行时锁 | 锁定时禁止回滚 | 无锁 |
-| 2 | 原子加锁 | `runtime_locked = True`，失败返回 `RUNTIME_LOCKED` | 已锁 |
-| 3 | 检查前置条件 | `install_status` 为 `ready`，目标版本存在 | 已锁 |
+| 1 | 检查运行时锁（前置快速检查） | 锁定时禁止回滚；若已锁，返回含上下文信息的错误 | 无锁 |
+| 2 | 原子加锁 | `runtime_locked = True`，失败返回 `RUNTIME_LOCKED`（**回滚专用错误信息**） | 已锁 |
+| 2a | 加锁失败 → 返回回滚专用错误 | 错误消息应包含：当前锁定原因、建议操作（如「请等待部署完成后再重试」） | 无锁 |
+| 3 | **锁内二次校验前置条件** | 在持有锁的前提下再次确认 `install_status = ready` 且目标版本存在（防 TOCTOU） | 已锁 |
 | 4 | 获取目标版本的依赖声明 | | 已锁 |
 | 5 | 检查依赖兼容性 | 与已安装依赖对比 | 已锁 |
 | 6a | 兼容 → 切换版本 + 解锁 | 更新 `current_version`，立即解锁 | 无锁 |
@@ -292,6 +324,30 @@ failed → installing → failed   (重试失败)
 | 7 | 更新 `venv_last_used_at` | | 无锁 |
 
 > **注意**：版本回滚**不重置** `install_status`。如果当前是 `ready`，回滚后仍为 `ready`，但可能存在依赖不匹配的风险（步骤 5 已检测并警告）。回滚会话超时机制详见 [API 设计 - 版本回滚接口](./06-api-design.md)。
+
+#### 回滚加锁失败时的错误信息设计
+
+当回滚流程在步骤 2 尝试原子加锁失败时，返回的错误信息应当比通用的 `RUNTIME_LOCKED` 更具**场景感知能力**，帮助用户理解「为什么不能回滚」以及「应该怎么做」：
+
+```json
+// 回滚加锁失败的响应示例
+{
+  "error": "ROLLBACK_LOCK_ACQUISITION_FAILED",
+  "message": "Cannot acquire runtime lock for version rollback",
+  "context": {
+    "current_lock_reason": "Deploying dependencies",
+    "locked_at": "2025-01-15T10:30:00Z",
+    "suggestion": "Another deployment is currently in progress. Please wait for it to complete before retrying the rollback.",
+    "retry_after": 60,
+    "suggest_admin": false
+  }
+}
+```
+
+**关键设计原则**：
+- **暴露当前锁定原因**：让用户知道是谁占用了锁（部署？恢复？另一个回滚？）
+- **提供可操作的 suggestion**：不是泛泛的「稍后重试」，而是基于 `lock_reason` 给出具体建议
+- **使用独立的错误码**：`ROLLBACK_LOCK_ACQUISITION_FAILED` 而非复用 `RUNTIME_LOCKED`，便于前端做差异化展示
 
 
 ---

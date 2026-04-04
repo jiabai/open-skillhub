@@ -208,7 +208,76 @@ parent: user-runtime-environment
 }
 ```
 
-#### 2.4 查询部署状态
+#### 2.4 取消部署
+
+**接口**：`POST /api/v1/skills/{skill_uuid}/deploy/cancel`
+
+> **说明**：用户在依赖预览或冲突确认对话框中选择「取消」时调用此接口，主动释放运行时锁。
+>
+> **适用阶段**：仅在部署流程的**确认前阶段**有效——即用户已触发 `POST /deploy` 并收到了 `dependency_preview` 或 `conflict` 响应、但尚未点击「确认」或「允许安装」的等待期间。
+>
+> 一旦用户调用了 `POST /deploy/confirm` 或 `POST /deploy/resolve-conflict`，pip 安装已在后台执行（FastAPI BackgroundTasks），此时取消操作不再适用，只能等待安装完成或失败。
+
+**前置条件**：
+
+- 当前用户持有该 Skill 对应用户的运行时锁（`runtime_locked = True`）
+- 锁定原因为以下之一（表示处于"等待用户确认"状态）：
+  - `Waiting for dependency preview confirmation`
+  - `Waiting for conflict resolution`
+- `install_status` 为 `pending`（尚未进入 installing）
+
+**请求**：
+
+```json
+// 无需请求体（或可接受空 body {}）
+```
+
+**响应 — 成功取消**：
+
+```json
+{
+  "status": "cancelled",
+  "skill_uuid": "xxx-xxx-xxx",
+  "install_status": "pending",
+  "message": "Deployment cancelled, runtime lock released"
+}
+```
+
+**错误响应**：
+
+| 错误码 | HTTP | 说明 | 触发场景 |
+|--------|------|------|---------|
+| `RUNTIME_NOT_LOCKED` | 409 | 运行时环境当前未被锁定 | 用户未持有锁（可能已被超时自动释放或已取消过） |
+| `DEPLOY_ALREADY_STARTED` | 409 | 部署已经开始，无法取消 | install_status 已变为 installing（pip 已在后台运行） |
+| `INVALID_LOCK_STATE` | 409 | 当前锁定状态不允许取消 | lock_reason 不属于"等待用户确认"类（如正在 pip install 中） |
+| `SKILL_NOT_FOUND` | 404 | Skill 不存在 | - |
+
+**错误响应示例 — 部署已开始**：
+
+```json
+{
+  "error": "DEPLOY_ALREADY_STARTED",
+  "message": "Cannot cancel: dependency installation has already started",
+  "details": {
+    "install_status": "installing",
+    "suggestion": "Wait for installation to complete or fail, then retry if needed"
+  }
+}
+```
+
+**错误响应示例 — 未持锁（幂等安全）**：
+
+```json
+{
+  "error": "RUNTIME_NOT_LOCKED",
+  "message": "Runtime is not currently locked (may have been released by timeout or previous cancel)",
+  "status": "not_locked"
+}
+```
+
+> **幂等性设计**：如果运行时锁已经不在持有状态（例如被超时机制自动释放、或用户之前已调用过 cancel），此接口返回 `RUNTIME_NOT_LOCKED` 而非报错。这保证了前端在网络重试场景下的安全性——重复调用 cancel 不会产生副作用。
+
+#### 2.5 查询部署状态
 
 **接口**：`GET /api/v1/skills/{skill_uuid}/deploy-status`
 
@@ -275,30 +344,30 @@ parent: user-runtime-environment
 
 #### 部署状态流转图
 
-> **说明**：`cancelled` 不是一个持久化的 `install_status` 值。用户在依赖预览或冲突确认对话框中选择取消时，运行时锁被释放，`install_status` 保持 `pending` 不变。
+> **说明**：`cancelled` 不是一个持久化的 `install_status` 值。用户在依赖预览或冲突确认对话框中选择取消时，调用 `POST /deploy/cancel` 接口释放运行时锁，`install_status` 保持 `pending` 不变。
 
 ```
 POST /api/v1/skills/{skill_uuid}/deploy
        │
        ▼
-       ├──── 无冲突 ──── dependency_preview ──▶ POST /confirm
+       ├──── 无冲突 ──── dependency_preview ──▶ POST /confirm (2.2)
        │                                             │
        │                                    ┌────────┴────────┐
-       │                                  proceed           cancel
+       │                                  proceed           cancel → POST /cancel (2.4)
        │                                    │                 │
        │                                    ▼                 ▼
-       │                              installing          cancelled（解锁）
+       │                              installing          cancelled（锁已释放，install_status=pending）
        │                                    │
-       ├──── 有冲突 ──── conflict ─────────▶ POST /resolve-conflict
+       ├──── 有冲突 ──── conflict ─────────▶ POST /resolve-conflict (2.3)
        │                                       │
        │                              ┌────────┴────────┐
-       │                            proceed           cancel
+       │                            proceed           cancel → POST /cancel (2.4)
        │                              │                 │
        │                              ▼                 ▼
-       │                        installing          cancelled（解锁）
+       │                        installing          cancelled（锁已释放，install_status=pending）
        │                              │
        ▼                              │
-  installing ────── 轮询进度 ──────────┤
+  installing ────── 轮询 GET /deploy-status (2.5) ───┤
                               │        │
                               ▼        ▼
                      ready（解锁）   failed（回滚+解锁）

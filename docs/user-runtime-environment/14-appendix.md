@@ -199,39 +199,66 @@ async def delete_skill(
     user: User,
     skill: Skill,
     skill_repo: SkillRepository,
+    user_repo: UserRepository,
 ) -> dict:
     """
     删除单个 Skill
 
-    注意：不卸载依赖，保持环境不变
+    ⚠️ 并发安全要求：删除操作必须原子加锁后执行，防止与部署/执行/回滚等操作产生文件系统竞争。
+
+    为什么需要加锁？
+    ────────────────
+    如果不加锁直接删除 Skill 文件，可能发生以下竞态：
+      - 部署流程正在 pip install 到该 Skill 的目录 → 删除导致安装中断 / 文件残留
+      - 执行流程正在从该 Skill 目录读取脚本 → 删除导致 FileNotFoundError
+      - 依赖恢复正在写入该 Skill 的依赖快照 → 删除导致数据不一致
+
+    注意：不卸载依赖，保持环境不变（其他 Skill 可能使用相同依赖）
     """
-    # 1. 检查运行时锁状态
-    if user.runtime_locked:
-        raise RuntimeLockedError(  # 错误码: RUNTIME_LOCKED
-            reason=user.runtime_lock_reason,
+    # 1. 原子加锁运行时（防止并发修改）
+    acquired = await atomic_acquire_runtime_lock(
+        user_id=user.id,
+        reason="Deleting skill",
+        user_repo=user_repo,
+    )
+    if not acquired:
+        raise RuntimeErrorLockedError(
+            reason=user.runtime_lock_reason or "Unknown",
             locked_at=user.runtime_locked_at,
-            retry_after=30
+            retry_after=30,
+            suggest_admin=False,
+            lock_timeout=False,
         )
 
-    # 2. 删除 Skill 文件
-    skill_path = Path(skill.skill_dir)
-    if skill_path.exists():
-        shutil.rmtree(skill_path)
+    try:
+        # 2. 锁内二次校验：确认 Skill 仍然存在（防止在加锁前被其他请求删除）
+        fresh_skill = await skill_repo.get(skill.id)
+        if fresh_skill is None:
+            raise SkillNotFoundError(skill_id=skill.id)
 
-    # 3. 删除版本记录
-    await skill_repo.delete_versions(skill.id)
+        # 3. 删除 Skill 文件
+        skill_path = Path(fresh_skill.skill_dir)
+        if skill_path.exists():
+            shutil.rmtree(skill_path)
 
-    # 4. 删除 Skill 记录
-    await skill_repo.delete(skill.id)
+        # 4. 删除版本记录
+        await skill_repo.delete_versions(fresh_skill.id)
 
-    # 5. 依赖不卸载，环境保持不变
-    # 其他 Skill 可能使用相同依赖
+        # 5. 删除 Skill 记录
+        await skill_repo.delete(fresh_skill.id)
 
-    return {
-        "status": "success",
-        "skill_id": skill.id,
-        "dependencies_preserved": True,
-    }
+        # 6. 依赖不卸载，环境保持不变
+        # 其他 Skill 可能使用相同依赖
+
+        return {
+            "status": "success",
+            "skill_id": fresh_skill.id,
+            "dependencies_preserved": True,
+        }
+
+    finally:
+        # 7. 无论成功或异常，都必须释放锁
+        await release_runtime_lock(user.id, user_repo)
 
 
 async def on_last_skill_deleted(

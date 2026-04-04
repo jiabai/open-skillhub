@@ -80,7 +80,7 @@ parent: user-runtime-environment
 - [ ] 管理接口：清理用户环境（清理后重置 Skill `install_status`）
 - [ ] 管理接口：清理未使用依赖（含 dry_run 模式）
 - [ ] 定时任务：自动清理空闲环境
-- [ ] 定时任务：清理超时的运行时锁
+- [ ] 定时任务：清理超时的运行时锁（**必须实现进程存活检查**：对于 `Deploying dependencies` / `Creating virtual environment` / `Restoring dependencies` / `Rolling back version` 类型的锁，超时前须检查关联的后台进程是否仍在运行；仅在进程已结束或无法确定时才执行解锁。详见 [并发安全机制 - 超时解锁安全性分类](./05-concurrency.md#超时解锁安全性分类)）
 - [ ] 定时任务：清理超时的上传会话临时文件（扫描 `runtime_temp_path IS NOT NULL` 且目录过期）
 - [ ] 前端：依赖管理页面
 

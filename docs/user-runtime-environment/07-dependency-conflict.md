@@ -34,7 +34,7 @@ def detect_dependency_conflicts(
     installed_lower = {k.lower(): v for k, v in installed.items()}
 
     for req in required:
-        pkg_name, version_spec = parse_requirement(req)
+        pkg_name, version_spec = parse_requirement(req)  # 定义见 [附录 - 工具函数](./14-appendix.md)
         pkg_name_lower = pkg_name.lower()
 
         if pkg_name_lower in installed_lower:

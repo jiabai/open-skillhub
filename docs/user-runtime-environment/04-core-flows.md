@@ -26,21 +26,24 @@ graph TD
 
     subgraph 部署阶段
         J --> K[用户点击部署]
-        K --> L[加锁运行时]
-        L --> M[检查/创建 venv]
-        M --> N[检测依赖冲突]
-        N -->|有冲突| O[冲突确认对话框]
-        N -->|无冲突| P[依赖预览对话框]
-        O -->|允许| Q[保存快照]
-        O -->|取消| R[解锁]
-        P -->|确认| Q
-        P -->|取消| R
-        Q --> S[pip install]
-        S -->|成功| T[install_status = ready]
-        S -->|失败| U[install_status = failed]
-        T --> V[解锁]
-        U --> W[回滚依赖]
-        W --> V
+        K --> L[原子加锁运行时]
+        L -->|加锁失败| LA[返回 RUNTIME_LOCKED]
+        L -->|加锁成功| M[检查 install_status]
+        M -->|非 pending/failed| MB[解锁 + 返回 DEPLOY_NOT_NEEDED]
+        M --> N[检查/创建 venv]
+        N --> O[检测依赖冲突]
+        O -->|有冲突| P[冲突确认对话框]
+        O -->|无冲突| Q[依赖预览对话框]
+        P -->|允许| R[保存快照]
+        P -->|取消| S[解锁]
+        Q -->|确认| R
+        Q -->|取消| S
+        R --> T[pip install]
+        T -->|成功| U[install_status = ready]
+        T -->|失败| V[install_status = failed]
+        U --> W[解锁]
+        V --> X[回滚依赖]
+        X --> W
     end
 
     subgraph 执行阶段
@@ -112,13 +115,14 @@ graph TD
 | 步骤 | 操作 | 说明 | 锁状态 |
 |------|------|------|--------|
 | 1 | 用户触发部署 | 点击「部署运行环境」按钮 | 无锁 |
-| 2 | 检查 deploy 前置条件 | install_status 为 pending 或 failed | 无锁 |
-| 3 | 加锁运行时 | `runtime_locked = True` | 已锁 |
+| 2 | 原子加锁 | `runtime_locked = True`，失败则返回 `RUNTIME_LOCKED` | 已锁 |
+| 3 | 检查 deploy 前置条件 | install_status 为 pending 或 failed（**在锁内检查**） | 已锁 |
+| 3a | 前置条件不满足 → 解锁并返回错误 | install_status 为 ready 时返回 `DEPLOY_NOT_NEEDED` | 无锁 |
 | 4 | 检查/创建 venv | 首次部署时创建虚拟环境 | 已锁 |
 | 5 | 解析依赖声明 | 从 SkillVersion.dependencies 读取 | 已锁 |
 | 6 | 检测依赖冲突 | 与 `installed_dependencies` 对比 | 已锁 |
-| 7a | 有冲突 → 返回冲突信息 | 含受影响 Skill 列表 | 已锁 |
-| 7b | 无冲突 → 返回依赖预览 | 待安装和已安装列表 | 已锁 |
+| 7a | 有冲突 → 返回冲突信息 | 含受影响 Skill 列表，等待用户确认期间保持锁 | 已锁 |
+| 7b | 无冲突 → 返回依赖预览 | 待安装和已安装列表，等待用户确认期间保持锁 | 已锁 |
 | 8 | 用户确认 | 冲突：允许升级 / 无冲突：确认安装 | 已锁 |
 | 9 | 保存依赖快照 | `save_dependency_snapshot(is_auto=True)` | 已锁 |
 | 10 | 执行 pip install | 逐个安装依赖 | 已锁 |
@@ -139,7 +143,7 @@ failed → installing → failed   (重试失败)
 #### API 交互
 
 ```json
-// POST /api/v1/skills/{uuid}/deploy
+// POST /api/v1/skills/{skill_uuid}/deploy
 // Response - 无冲突
 {
   "status": "dependency_preview",
@@ -161,14 +165,14 @@ failed → installing → failed   (重试失败)
   "affected_skills": [...]
 }
 
-// POST /api/v1/skills/{uuid}/deploy/confirm
+// POST /api/v1/skills/{skill_uuid}/deploy/confirm
 // Response
 {
   "status": "installing",
   "message": "Dependency installation started"
 }
 
-// GET /api/v1/skills/{uuid}/deploy-status
+// GET /api/v1/skills/{skill_uuid}/deploy-status
 // Response
 {
   "install_status": "ready",
@@ -191,6 +195,7 @@ failed → installing → failed   (重试失败)
 - **冲突在部署时检测**：上传时不检测冲突（因为还没装），部署时检测
 - **锁保护部署过程**：部署期间不能执行，执行期间不能部署
 - **回滚仅回滚依赖**：安装失败回滚已安装的包，Skill 记录保留
+- **先加锁再检查（防竞态）**：前置条件检查（install_status）必须在获取锁之后执行。若在加锁前检查，两个并发请求可能同时通过检查再竞争加锁，导致重复部署。加锁本身采用数据库级原子操作（如 `SELECT ... FOR UPDATE` + 条件更新），确保同一时刻只有一个请求能成功获取锁
 
 ---
 
@@ -272,19 +277,21 @@ failed → installing → failed   (重试失败)
 
 ### 7. Skill 版本回滚流程
 
-版本回滚不回滚依赖。
+版本回滚不回滚依赖。回滚等待用户确认期间**不持有运行时锁**。
 
-| 步骤 | 操作 | 说明 |
-|------|------|------|
-| 1 | 检查运行时锁 | 锁定时禁止回滚 |
-| 2 | 检查目标版本是否存在 | |
-| 3 | 获取目标版本的依赖声明 | |
-| 4 | 检查依赖兼容性 | 与已安装依赖对比 |
-| 5a | 兼容 → 直接切换版本 | 更新 `current_version` |
-| 5b | 不兼容 → 返回警告 | 用户确认后切换 |
-| 6 | 更新 `venv_last_used_at` | |
+| 步骤 | 操作 | 说明 | 锁状态 |
+|------|------|------|--------|
+| 1 | 检查运行时锁 | 锁定时禁止回滚 | 无锁 |
+| 2 | 原子加锁 | `runtime_locked = True`，失败返回 `RUNTIME_LOCKED` | 已锁 |
+| 3 | 检查前置条件 | `install_status` 为 `ready`，目标版本存在 | 已锁 |
+| 4 | 获取目标版本的依赖声明 | | 已锁 |
+| 5 | 检查依赖兼容性 | 与已安装依赖对比 | 已锁 |
+| 6a | 兼容 → 切换版本 + 解锁 | 更新 `current_version`，立即解锁 | 无锁 |
+| 6b | 不兼容 → 解锁并返回警告 | 释放锁，返回 `rollback_session_id`，等待用户确认（**等待期间不持有锁**） | 无锁 |
+| 6c | 用户确认 → 重新加锁 → 切换版本 + 解锁 | 校验会话有效性后加锁执行回滚，完成后解锁 | 无锁 |
+| 7 | 更新 `venv_last_used_at` | | 无锁 |
 
-> **注意**：版本回滚**不重置** `install_status`。如果当前是 `ready`，回滚后仍为 `ready`，但可能存在依赖不匹配的风险（步骤 4 已检测并警告）。
+> **注意**：版本回滚**不重置** `install_status`。如果当前是 `ready`，回滚后仍为 `ready`，但可能存在依赖不匹配的风险（步骤 5 已检测并警告）。回滚会话超时机制详见 [API 设计 - 版本回滚接口](./06-api-design.md)。
 
 
 ---

@@ -26,6 +26,7 @@ parent: user-runtime-environment
 |--------|------|------|
 | `SCRIPT_SECURITY_HIGH_RISK` | 403 | HIGH 级别风险，禁止上传 |
 | `SKILL_NOT_FOUND` | 404 | 更新的 Skill 不存在 |
+| `UPLOAD_SESSION_EXPIRED` | 410 | 安全审查等待超时（`session_timeout_seconds`），会话已失效 |
 
 **成功响应**：
 
@@ -81,7 +82,18 @@ parent: user-runtime-environment
 }
 ```
 
-> **超时机制**：安全审查等待超时时间 5 分钟，超过后上传自动取消。
+> **超时机制**：安全审查等待超时时间 `session_timeout_seconds`（默认 5 分钟），超过后会话自动失效。用户再次调用确认接口时返回 `UPLOAD_SESSION_EXPIRED`（HTTP 410），需重新上传。会话在确认成功后立即失效，防止重放攻击。详见 [并发安全机制 - 安全审查超时清理](./05-concurrency.md#安全审查超时清理机制)。
+
+**超时错误响应**：
+
+```json
+// Response - 上传会话已超时
+{
+  "error": "UPLOAD_SESSION_EXPIRED",
+  "message": "Upload session has expired due to security review timeout, please re-upload",
+  "upload_id": "upload-xxx-xxx"
+}
+```
 
 ### 2. 部署接口（新增）
 
@@ -200,6 +212,21 @@ parent: user-runtime-environment
 
 **接口**：`GET /api/v1/skills/{skill_uuid}/deploy-status`
 
+> **进度数据存储机制**：
+>
+> `installing` 状态下的实时进度数据（`current_package`、`completed_packages`、`progress_percent`、`elapsed_seconds`、`estimated_remaining_seconds`）**不持久化到数据库**，而是存储在进程内存中（Python dict），键为 `skill_uuid`。
+>
+> 生命周期：
+> 1. `deploy/confirm` 或 `deploy/resolve-conflict` 调用时创建进度记录
+> 2. `deploy_with_rollback` 每安装完一个包后更新进度
+> 3. 部署完成（成功或失败）时**立即删除**进度记录
+>
+> 查询逻辑：
+> - 内存中存在进度记录 → 返回 `installing` 响应（含进度）
+> - 内存中不存在进度记录 → 直接读取 `Skill.install_status`，返回 `ready` 或 `failed`
+>
+> 容错：进程重启后内存中的进度数据丢失，前端轮询会发现状态回退到 `installing` 但无进度详情，此时后端应根据 `runtime_locked=True` + `install_status=installing` 推断部署仍在进行中，返回一个不含进度细节的 `installing` 响应。部署完成后正常更新状态即可。
+
 ```json
 // Response - 安装中
 {
@@ -237,12 +264,21 @@ parent: user-runtime-environment
   },
   "retryable": true
 }
+
+// Response - 进程重启后进度丢失（容错）
+{
+  "install_status": "installing",
+  "message": "Installation in progress, progress details unavailable due to server restart",
+  "progress_detail_available": false
+}
 ```
 
 #### 部署状态流转图
 
+> **说明**：`cancelled` 不是一个持久化的 `install_status` 值。用户在依赖预览或冲突确认对话框中选择取消时，运行时锁被释放，`install_status` 保持 `pending` 不变。
+
 ```
-POST /api/v1/skills/{uuid}/deploy
+POST /api/v1/skills/{skill_uuid}/deploy
        │
        ▼
        ├──── 无冲突 ──── dependency_preview ──▶ POST /confirm
@@ -277,6 +313,10 @@ POST /api/v1/skills/{uuid}/deploy
 
 > **变更说明**：版本回滚不重置 `install_status`。如果当前是 ready，回滚后仍为 ready，但会返回兼容性警告。
 
+**前置条件**：
+- `install_status` 为 `ready`（版本回滚仅对已部署的 Skill 有效）
+- 运行时环境未锁定
+
 ```json
 // Request
 {
@@ -297,16 +337,35 @@ POST /api/v1/skills/{uuid}/deploy
   "skill_uuid": "xxx-xxx-xxx",
   "target_version": "1.0.0",
   "compatibility_issues": [...],
-  "require_confirmation": true
+  "require_confirmation": true,
+  "rollback_session_id": "rollback-xxx-xxx"
 }
 ```
 
-**确认兼容性警告并继续回滚**：`POST /api/v1/skills/{skill_uuid}/versions/rollback/confirm`
+> **说明**：兼容性警告响应使用临时 `rollback_session_id`（回滚会话标识），而非直接使用 `target_version`。用户确认后，系统才执行回滚操作。`rollback_session_id` 在确认成功或超时后立即失效。同一 Skill 同时只允许一个有效的回滚会话，新的回滚请求会使旧会话自动失效。
+
+**错误响应**：
+
+| 错误码 | HTTP | 说明 |
+|--------|------|------|
+| `RUNTIME_LOCKED` | 423 | 运行时环境正在被其他操作占用 |
+| `SKILL_NOT_FOUND` | 404 | Skill 不存在 |
+| `VERSION_NOT_FOUND` | 404 | 目标版本不存在 |
+| `ROLLBACK_NOT_NEEDED` | 400 | 当前已是目标版本，无需回滚 |
+
+#### 3.1 确认兼容性警告并继续回滚
+
+**接口**：`POST /api/v1/skills/{skill_uuid}/versions/rollback/confirm`
+
+**前置条件**：
+- 存在有效的回滚会话（`rollback_session_id` 未超时）
+- `install_status` 为 `ready`（版本回滚仅对已部署的 Skill 有效）
+- 运行时环境未锁定
 
 ```json
 // Request
 {
-  "target_version": "1.0.0",
+  "rollback_session_id": "rollback-xxx-xxx",
   "action": "proceed"
 }
 
@@ -319,11 +378,60 @@ POST /api/v1/skills/{uuid}/deploy
 }
 ```
 
+**错误响应**：
+
+| 错误码 | HTTP | 说明 |
+|--------|------|------|
+| `ROLLBACK_SESSION_EXPIRED` | 410 | 回滚会话超时，需重新发起回滚 |
+| `RUNTIME_LOCKED` | 423 | 运行时环境正在被其他操作占用 |
+| `SKILL_NOT_FOUND` | 404 | Skill 不存在 |
+| `VERSION_NOT_FOUND` | 404 | 目标版本不存在 |
+
+> **超时机制**：回滚会话等待期间**不持有运行时锁**（与会话 ID 机制配合，超时后会话失效即可），与安全审查等待模式一致。超时时间由 `session_timeout_seconds`（默认 5 分钟）控制，超过后会话自动失效。用户再次调用确认接口时返回 `ROLLBACK_SESSION_EXPIRED`（HTTP 410），需重新发起回滚。会话在确认成功后也立即失效，防止重放攻击。详见 [并发安全机制 - 锁机制说明](./05-concurrency.md#锁机制说明)。
+
+**超时错误响应**：
+
+```json
+// Response - 回滚会话已超时
+{
+  "error": "ROLLBACK_SESSION_EXPIRED",
+  "message": "Rollback session has expired, please initiate rollback again",
+  "rollback_session_id": "rollback-xxx-xxx"
+}
+```
+
+#### 版本回滚状态流转图
+
+> **说明**：`cancelled` 不是一个持久化的状态。用户在兼容性警告确认对话框中选择取消时，回滚会话失效，Skill 版本保持不变。
+
+```
+POST /api/v1/skills/{skill_uuid}/versions/rollback
+       │
+       ▼
+  ├──── 无兼容性问题 ──── success ──▶ 回滚完成（版本切换）
+  │
+  ├──── 存在兼容性警告 ── compatibility_warning ──▶ POST /versions/rollback/confirm
+  │                                                       │
+  │                                              ┌────────┴────────┐
+  │                                            proceed           cancel
+  │                                              │                 │
+  │                                              ▼                 ▼
+  │                                        回滚完成（版本切换）   cancelled（会话失效）
+  │                                                                     │
+  │                                                                     ▼
+  │                                                              保持当前版本不变
+  │
+  └──── 会话超时 ──────▶ ROLLBACK_SESSION_EXPIRED（HTTP 410）
+                             │
+                             ▼
+                        用户重新发起 rollback
+```
+
 ### 4. 管理接口
 
 #### 4.1 查询用户环境状态
 
-**接口**：`GET /api/v1/admin/users/{user_id}/runtime`
+**接口**：`GET /api/v1/admin/users/{user_uuid}/runtime`
 
 ```json
 {
@@ -346,7 +454,7 @@ POST /api/v1/skills/{uuid}/deploy
 
 #### 4.2 清理用户环境
 
-**接口**：`DELETE /api/v1/admin/users/{user_id}/runtime`
+**接口**：`DELETE /api/v1/admin/users/{user_uuid}/runtime`
 
 ```json
 {
@@ -361,7 +469,7 @@ POST /api/v1/skills/{uuid}/deploy
 
 #### 4.3 清理未使用依赖
 
-**接口**：`POST /api/v1/admin/users/{user_id}/runtime/cleanup-dependencies`
+**接口**：`POST /api/v1/admin/users/{user_uuid}/runtime/cleanup-dependencies`
 
 ```json
 // Request
@@ -429,11 +537,11 @@ POST /api/v1/skills/{uuid}/deploy
 
 #### 5.3 删除快照
 
-**接口**：`DELETE /api/v1/runtime/dependency-snapshots/{snapshot_id}`
+**接口**：`DELETE /api/v1/runtime/dependency-snapshots/{snapshot_uuid}`
 
 #### 5.4 恢复快照
 
-**接口**：`POST /api/v1/runtime/dependency-snapshots/{snapshot_id}/restore`
+**接口**：`POST /api/v1/runtime/dependency-snapshots/{snapshot_uuid}/restore`
 
 > **前置条件**：
 > - 运行时环境未锁定（`runtime_locked = False`）
@@ -450,7 +558,131 @@ POST /api/v1/skills/{uuid}/deploy
 > - **兼容**：依赖版本满足 Skill 要求（如 Skill 需要 `requests>=2.28.0`，恢复后为 `2.29.0`），保持 `ready` 状态
 > - **不兼容**：依赖版本不满足 Skill 要求（如 Skill 需要 `requests==2.30.0`，恢复后为 `2.28.0`），自动重置为 `pending`
 >
-> 兼容性检测规则：对每个 Skill 的 `dependencies` 列表逐项检查，使用 pip 版本匹配逻辑（`>=`、`==`、`<=`、`~= 等）。
+> 兼容性检测规则：对每个 Skill 的 `dependencies` 列表逐项检查，使用 pip 版本匹配逻辑（`>=`、`==`、`<=`、`~= 等`）。
+
+**兼容性检测实现**：
+
+> **说明**：以下函数复用 [附录 - 工具函数](./14-appendix.md) 中已定义的 `parse_requirement()` 和 `version_satisfies()`，确保依赖解析和版本匹配逻辑在项目中保持一致。
+
+```python
+# 复用附录中已定义的工具函数
+# from appendix import parse_requirement, version_satisfies
+
+
+def check_dependencies_compatible(
+    skill_dependencies: list[str],
+    installed_versions: dict[str, str],
+) -> bool:
+    """
+    检查 Skill 的所有依赖是否在当前已安装环境中满足版本要求。
+    复用 parse_requirement() 和 version_satisfies()（定义见附录 A），
+    确保依赖解析和版本匹配逻辑与项目中其他模块一致。
+
+    Args:
+        skill_dependencies: Skill 的依赖列表，如 ["requests>=2.28.0", "numpy~=1.24.0"]
+        installed_versions: 当前环境中已安装的包版本，如 {"requests": "2.29.0", "numpy": "1.24.3"}
+            键应使用小写格式（与 User.installed_dependencies 存储规范一致）
+
+    Returns:
+        True 表示所有依赖都满足，False 表示存在不兼容的依赖
+    """
+    # 构建小写化的已安装依赖映射，确保大小写不敏感匹配
+    installed_lower = {k.lower(): v for k, v in installed_versions.items()}
+
+    for dep_spec in skill_dependencies:
+        pkg_name, version_spec = parse_requirement(dep_spec)
+        pkg_name_lower = pkg_name.lower()
+
+        if pkg_name_lower not in installed_lower:
+            return False
+
+        if not version_satisfies(installed_lower[pkg_name_lower], version_spec):
+            return False
+
+    return True
+
+
+async def check_all_skills_compatibility(
+    db: AsyncSession,
+    user_id: str,
+    installed_versions: dict[str, str],
+) -> dict:
+    """
+    依赖恢复后，检测用户所有 ready 状态 Skill 的依赖兼容性。
+    不兼容的 Skill 自动重置为 pending。
+
+    Returns:
+        兼容性检测结果，包含 compatible_skills、incompatible_skills 列表和 summary 汇总
+    """
+    from sqlalchemy import select
+
+    result = {"compatible_skills": [], "incompatible_skills": []}
+
+    # 查询用户所有 install_status=ready 的 Skill
+    stmt = select(Skill).where(
+        Skill.user_id == user_id,
+        Skill.install_status == "ready",
+    )
+    skills = (await db.execute(stmt)).scalars().all()
+
+    for skill in skills:
+        is_compatible = check_dependencies_compatible(
+            skill_dependencies=skill.dependencies or [],
+            installed_versions=installed_versions,
+        )
+        if is_compatible:
+            result["compatible_skills"].append({
+                "skill_name": skill.name,
+                "skill_uuid": str(skill.uuid),
+                "kept_ready": True,
+                "reason": "所有依赖版本满足要求",
+            })
+        else:
+            skill.install_status = "pending"
+            result["incompatible_skills"].append({
+                "skill_name": skill.name,
+                "skill_uuid": str(skill.uuid),
+                "reset_to_pending": True,
+                "reason": _build_incompatibility_reason(
+                    skill.dependencies or [], installed_versions
+                ),
+            })
+
+    await db.commit()
+
+    # 构建汇总信息
+    result["summary"] = {
+        "total_checked": len(result["compatible_skills"]) + len(result["incompatible_skills"]),
+        "kept_ready": len(result["compatible_skills"]),
+        "reset_to_pending": len(result["incompatible_skills"]),
+    }
+
+    return result
+
+
+def _build_incompatibility_reason(
+    dependencies: list[str],
+    installed_versions: dict[str, str],
+) -> str:
+    """构建不兼容原因描述字符串，复用 parse_requirement() 和 version_satisfies()"""
+    installed_lower = {k.lower(): v for k, v in installed_versions.items()}
+    reasons = []
+
+    for dep_spec in dependencies:
+        pkg_name, version_spec = parse_requirement(dep_spec)
+        pkg_name_lower = pkg_name.lower()
+
+        if pkg_name_lower not in installed_lower:
+            reasons.append(f"{pkg_name} 未安装")
+            continue
+
+        if version_spec and not version_satisfies(installed_lower[pkg_name_lower], version_spec):
+            reasons.append(
+                f"{dep_spec.strip()} 不满足，当前 {installed_lower[pkg_name_lower]}"
+            )
+
+    return "；".join(reasons) if reasons else "依赖兼容性检查失败"
+```
 
 ```json
 // Response
@@ -464,12 +696,12 @@ POST /api/v1/skills/{uuid}/deploy
     ],
     "incompatible_skills": [
       {"skill_name": "skill-b", "skill_uuid": "yyy-yyy", "reset_to_pending": true, "reason": "requests==2.30.0 不满足，当前 2.28.0"}
-    ]
-  },
-  "summary": {
-    "total_checked": 2,
-    "kept_ready": 1,
-    "reset_to_pending": 1
+    ],
+    "summary": {
+      "total_checked": 2,
+      "kept_ready": 1,
+      "reset_to_pending": 1
+    }
   }
 }
 ```
@@ -480,7 +712,7 @@ POST /api/v1/skills/{uuid}/deploy
 |--------|------|------|
 | `RUNTIME_LOCKED` | 423 | 运行时环境正在被其他操作占用 |
 | `SNAPSHOT_NOT_FOUND` | 404 | 快照不存在 |
-| `RESTORE_FAILED` | 500 | 依赖恢复失败，详见错误信息 |
+| `DEPENDENCY_RESTORE_FAILED` | 500 | 依赖恢复失败，详见错误信息 |
 
 ---
 

@@ -32,10 +32,12 @@ parent: user-runtime-environment
 | 冲突等待超时 | 解锁 | 5分钟无响应自动取消 |
 | 执行前检查 | 检锁 | 已锁定则返回错误 |
 | 依赖恢复 | 加锁 | 恢复期间锁定 |
+| 版本回滚（无兼容性问题） | 加锁 → 立即解锁 | 版本指针切换，加锁保证原子性，完成后立即解锁 |
+| 版本回滚确认（有兼容性问题） | 加锁 → 立即解锁 | 用户确认后重新加锁执行回滚，完成后立即解锁 |
 
-> **设计说明**：上传不涉及 venv 操作，无需加锁。加锁仅在部署和执行阶段使用。
+> **设计说明**：上传不涉及 venv 操作，无需加锁。版本回滚虽然不直接操作 pip，但涉及版本指针切换和 `install_status` 更新，加锁保证原子性。回滚等待用户确认期间**不持有运行时锁**（与会话 ID 机制配合，超时后会话失效即可），与安全审查等待模式一致。加锁在部署、版本回滚和依赖恢复阶段使用。
 
-#### 锁超时配置
+#### 超时配置
 
 ```yaml
 # config/default.yaml
@@ -52,6 +54,10 @@ runtime:
 
   # 依赖恢复超时时间（秒）
   restore_timeout_seconds: 600  # 10分钟
+
+  # 会话超时时间（秒）
+  # 适用于需要用户确认的会话场景（安全审查等待、版本回滚确认），超时后会话自动失效
+  session_timeout_seconds: 300  # 5分钟
 ```
 
 #### 锁字段设计
@@ -61,7 +67,7 @@ runtime:
 runtime_locked: bool              # 是否锁定
 runtime_lock_reason: str | None   # 锁定原因
 runtime_locked_at: datetime | None  # 锁定时间
-runtime_temp_path: str | None     # 部署临时目录路径
+runtime_temp_path: str | None     # 上传临时目录路径
 ```
 
 #### runtime_temp_path 使用场景
@@ -73,14 +79,35 @@ runtime_temp_path: str | None     # 部署临时目录路径
 | 上传开始 | 创建临时目录，解压 ZIP | 设置为临时目录路径 |
 | 安全审查等待 | 文件暂存，等待用户确认（最多 5 分钟） | 保持设置 |
 | 用户确认安全审查 | 文件迁移到正式 skill_dir，创建 Skill 记录 | 清空（设为 None） |
-| 安全审查超时 | 自动取消上传，删除临时目录 | 清空 |
+| 安全审查超时 | **惰性检查**或 cron 兜底清理 | 清空 |
 | 用户取消上传 | 删除临时目录 | 清空 |
 | HIGH 风险拒绝 | 删除临时目录 | 清空 |
 
 > **设计说明**：
 > - 临时目录路径：`{TEMP_STORAGE_PATH}/{upload_id}/`
-> - 安全审查超时：5 分钟无响应自动清理（见 `lock_wait_timeout_seconds`）
+> - 安全审查超时：5 分钟无响应自动失效（见 `session_timeout_seconds`）
 > - 清理时机：无论成功/失败/超时/取消，临时目录必须在流程结束时清理
+
+#### 安全审查超时清理机制
+
+安全审查等待期间**不持有运行时锁**（参见 [核心流程 - 上传步骤 3b](./04-core-flows.md)），因此锁超时机制（`lock_wait_timeout_seconds`）不适用于此场景。安全审查超时采用**惰性检查 + 每日 cron 兜底**的双重策略：
+
+**执行者 1：惰性检查（主要路径）**
+
+在 `/api/v1/skills/upload/resolve-security` 接口入口处，检查临时目录是否过期：
+
+- 判断依据：临时目录的文件系统修改时间（`Path.stat().st_mtime`），安全审查等待期间临时目录无写操作，mtime 准确反映会话开始时间
+- 过期阈值：`session_timeout_seconds`（默认 300 秒）
+- 过期时行为：删除物理临时目录 → 清空 `runtime_temp_path` → 返回 `UPLOAD_SESSION_EXPIRED` 错误
+- 无需新增 DB 字段
+
+**执行者 2：每日 cron 兜底（边缘路径）**
+
+在现有 `cleanup_cron` 定时任务中增加上传会话清理步骤（详见 [环境清理策略](./09-cleanup-strategy.md)，cron 基于服务器本地时间）：
+
+- 扫描 `runtime_temp_path IS NOT NULL` 的用户记录
+- 检查对应临时目录是否过期，过期则清理
+- 覆盖用户放弃会话、进程重启等惰性检查无法触发的场景
 
 #### runtime_lock_reason 值定义
 
@@ -91,6 +118,47 @@ runtime_temp_path: str | None     # 部署临时目录路径
 | `Waiting for conflict resolution` | 等待用户确认依赖冲突 | `lock_wait_timeout_seconds` |
 | `Waiting for dependency preview confirmation` | 等待用户确认依赖预览 | `lock_wait_timeout_seconds` |
 | `Restoring dependencies` | 正在恢复依赖快照 | `restore_timeout_seconds` |
+| `Rolling back version` | 正在执行版本回滚 | `session_timeout_seconds` |
+
+> **维护提示**：新增 `runtime_lock_reason` 值时，须同步更新下方 `get_timeout_for_reason()` 函数中的 `timeout_map`。
+
+#### 超时映射辅助函数
+
+```python
+def get_timeout_for_reason(reason: str | None) -> int:
+    """
+    根据 runtime_lock_reason 返回对应的超时时间（秒）。
+    未匹配时返回 lock_wait_timeout_seconds 作为兜底。
+
+    Args:
+        reason: runtime_lock_reason 字段值，None 表示未锁定
+
+    Returns:
+        对应的超时时间（秒）
+    """
+    from config import get_settings
+    import logging
+
+    logger = logging.getLogger(__name__)
+
+    settings = get_settings()
+    timeout_map = {
+        "Deploying dependencies": settings.install_timeout_seconds,
+        "Creating virtual environment": settings.venv_creation_timeout_seconds,
+        "Waiting for conflict resolution": settings.lock_wait_timeout_seconds,
+        "Waiting for dependency preview confirmation": settings.lock_wait_timeout_seconds,
+        "Restoring dependencies": settings.restore_timeout_seconds,
+        "Rolling back version": settings.session_timeout_seconds,
+    }
+
+    if reason not in timeout_map and reason is not None:
+        logger.warning(
+            f"Unknown runtime_lock_reason: {reason!r}, "
+            f"falling back to lock_wait_timeout_seconds"
+        )
+
+    return timeout_map.get(reason, settings.lock_wait_timeout_seconds)
+```
 
 #### 执行前检查逻辑
 

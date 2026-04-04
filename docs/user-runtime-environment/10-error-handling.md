@@ -23,6 +23,7 @@ parent: user-runtime-environment
 |--------|----------|------|
 | `SCRIPT_SECURITY_HIGH_RISK` | 403 | 脚本包含高风险操作，禁止上传 |
 | `SCRIPT_SECURITY_REVIEW` | 409 | 脚本包含中等风险操作，需要用户确认 |
+| `UPLOAD_SESSION_EXPIRED` | 410 | 安全审查等待超时，上传会话已失效，需重新上传 |
 
 #### 部署阶段错误（新增）
 
@@ -50,6 +51,13 @@ parent: user-runtime-environment
 | `RUNTIME_LOCKED` | 423 | 运行时环境正在部署中，请等待 |
 | `RUNTIME_NOT_READY` | 400 | Skill 运行环境未部署 |
 | `EXECUTION_TIMEOUT` | 504 | Skill 执行超时 |
+
+#### 版本回滚阶段错误
+
+| 错误码 | HTTP 状态 | 说明 |
+|--------|----------|------|
+| `ROLLBACK_NOT_NEEDED` | 400 | 当前已是目标版本，无需回滚 |
+| `ROLLBACK_SESSION_EXPIRED` | 410 | 回滚会话超时，需重新发起回滚 |
 
 #### 其他错误
 
@@ -147,13 +155,16 @@ async def deploy_with_rollback(
     中确认后调用。冲突检测、依赖预览等前置步骤由 deploy 触发接口处理，
     此函数仅负责确认后的实际安装过程。
 
+    前置条件（由调用方保证）：
+    - 已通过原子加锁获取运行时锁（runtime_locked = True）
+    - 已在锁内通过前置条件检查（install_status 为 pending 或 failed）
+
     流程：
-    1. 加锁运行时环境
-    2. 检查/创建虚拟环境
-    3. 保存依赖快照
-    4. 安装依赖
-    5. 更新 install_status = ready
-    6. 解锁
+    1. 检查/创建虚拟环境
+    2. 保存依赖快照
+    3. 安装依赖
+    4. 更新 install_status = ready
+    5. 解锁
 
     失败时：
     1. 回滚已安装的依赖
@@ -165,11 +176,9 @@ async def deploy_with_rollback(
     newly_installed_packages: set[str] = set()
 
     try:
-        # 加锁
-        user.runtime_locked = True
-        user.runtime_lock_reason = "Deploying dependencies"
-        user.runtime_locked_at = datetime.now(timezone.utc)
-        await user_repo.update(user)
+        # 前置条件：调用方已原子加锁，此处断言锁状态
+        if not user.runtime_locked:
+            raise RuntimeError("deploy_with_rollback called without holding runtime lock")
 
         # 检查/创建 venv
         if not user.venv_path:
@@ -256,6 +265,45 @@ async def deploy_with_rollback(
         await user_repo.update(user)
         raise
 ```
+
+async def _rollback_new_packages(
+    user: User,
+    new_packages: list[str],
+    backup_dependencies: dict[str, str],
+) -> None:
+    """
+    回滚本次部署新安装的依赖包
+
+    仅卸载 new_packages 中属于「本次新增」的包（即不在 backup_dependencies 中的包），
+    避免误卸载其他 Skill 共用的已有依赖。
+
+    Args:
+        user: 用户对象（需要 venv_path）
+        new_packages: 本次安装成功的包名列表（小写）
+        backup_dependencies: 部署前的依赖快照 {"package": "version"}
+    """
+    if not new_packages or not user.venv_path:
+        return
+
+    pip_path = await get_pip_path(Path(user.venv_path))
+    backup_lower = {k.lower() for k in (backup_dependencies or {})}
+
+    for pkg_name in new_packages:
+        if pkg_name in backup_lower:
+            # 该包在部署前已存在，不是本次新增的，跳过
+            continue
+        try:
+            proc = await asyncio.create_subprocess_exec(
+                str(pip_path), "uninstall", "-y", pkg_name,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+            )
+            stdout, stderr = await proc.communicate()
+            if proc.returncode != 0:
+                logger.warning(f"Rollback uninstall failed for {pkg_name}: {stderr.decode()}")
+        except Exception as e:
+            logger.warning(f"Rollback uninstall error for {pkg_name}: {e}")
+
 
 > **说明**：部署失败不删除 Skill 记录，将 `install_status` 设为 `failed`，用户可以重新触发部署。
 

@@ -80,10 +80,7 @@ def build_safe_environment(
             shutil.rmtree(temp_dir, ignore_errors=True)
         ```
     """
-    if platform.system() == "Windows":
-        venv_bin = venv_path / "Scripts"
-    else:
-        venv_bin = venv_path / "bin"
+    venv_bin = venv_path / "bin"
 
     import tempfile
     temp_dir = Path(tempfile.gettempdir()) / f"skill_{user.id}_{uuid.uuid4().hex[:8]}"
@@ -101,9 +98,6 @@ def build_safe_environment(
         "LANG": "en_US.UTF-8",
         "LC_ALL": "en_US.UTF-8",
     }
-
-    if platform.system() == "Windows":
-        safe_env["SystemRoot"] = os.environ.get("SystemRoot", "C:\\Windows")
 
     return safe_env, temp_dir
 ```
@@ -155,7 +149,7 @@ RISK_PATTERNS: list[RiskPattern] = [
     RiskPattern(r"open\s*\(\s*[\'\"]\/var\/log\/", "读取系统日志", RiskLevel.HIGH),
     RiskPattern(r"open\s*\(\s*[\'\"]\/proc\/", "读取进程信息", RiskLevel.HIGH),
     RiskPattern(r"os\.environ(\s*\[|\.(get|pop|setdefault|update)\s*\()", "读取/操作环境变量", RiskLevel.HIGH),
-    RiskPattern(r"winreg\.", "Windows 注册表操作", RiskLevel.HIGH),
+
     RiskPattern(r"yaml\.load\s*\([^)]*,\s*Loader\s*=\s*None", "不安全的 YAML 加载", RiskLevel.HIGH),
 
     # MEDIUM: 需要确认

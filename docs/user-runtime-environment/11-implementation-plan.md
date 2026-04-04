@@ -29,6 +29,7 @@ parent: user-runtime-environment
 - [ ] 上传完成后设置 `install_status = pending`
 - [ ] SKILL.md metadata 解析：提取 `script_entry` 设置 `script_file` 字段
 - [ ] 临时文件清理：上传完成/失败后清理临时目录
+- [ ] 安全审查超时惰性检查：`/resolve-security` 接口入口检查临时目录 mtime，过期则清理并返回 `UPLOAD_SESSION_EXPIRED`
 - [ ] 上传阶段不加锁（仅验证和解析）
 
 ### Phase 4: 部署模块（P0，新增）
@@ -42,10 +43,10 @@ parent: user-runtime-environment
 - [ ] 依赖冲突检测：部署时检测（从上传阶段迁移）
 - [ ] 升级影响预检：`detect_upgrade_impact()` 函数
 - [ ] 依赖安装 + 回滚：`deploy_with_rollback()` 函数
-- [ ] 新增 API：`POST /skills/{uuid}/deploy`（触发部署）
-- [ ] 新增 API：`POST /skills/{uuid}/deploy/confirm`（确认无冲突部署）
-- [ ] 新增 API：`POST /skills/{uuid}/deploy/resolve-conflict`（解决冲突）
-- [ ] 新增 API：`GET /api/v1/skills/{uuid}/deploy-status`（安装进度轮询）
+- [ ] 新增 API：`POST /api/v1/skills/{skill_uuid}/deploy`（触发部署）
+- [ ] 新增 API：`POST /api/v1/skills/{skill_uuid}/deploy/confirm`（确认无冲突部署）
+- [ ] 新增 API：`POST /api/v1/skills/{skill_uuid}/deploy/resolve-conflict`（解决冲突）
+- [ ] 新增 API：`GET /api/v1/skills/{skill_uuid}/deploy-status`（安装进度轮询）
 - [ ] 前端部署状态标识组件（红/黄/绿）
 - [ ] 前端部署按钮和流程交互
 - [ ] 前端依赖预览对话框组件
@@ -80,6 +81,7 @@ parent: user-runtime-environment
 - [ ] 管理接口：清理未使用依赖（含 dry_run 模式）
 - [ ] 定时任务：自动清理空闲环境
 - [ ] 定时任务：清理超时的运行时锁
+- [ ] 定时任务：清理超时的上传会话临时文件（扫描 `runtime_temp_path IS NOT NULL` 且目录过期）
 - [ ] 前端：依赖管理页面
 
 ### Phase 8: 监控指标（P1）

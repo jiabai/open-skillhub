@@ -67,7 +67,6 @@ parent: user-runtime-environment
 │       └── ...
 └── ...
 
-> **注**：Windows 系统下虚拟环境的 `bin/` 目录为 `Scripts/`，`lib/python3.x/` 目录结构相同。
 ```
 
 

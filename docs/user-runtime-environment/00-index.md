@@ -6,6 +6,8 @@ last_updated: 2026-04-03
 
 # 用户级运行时环境设计文档
 
+> **平台限制**：本设计方案仅适用于 **Linux** 系统。文档中的代码示例、路径约定（如 venv 的 `bin/` 目录）、定时任务（cron）及安全扫描模式（`/etc/`、`/proc/` 等系统路径）均基于 Linux 环境编写，不支持 Windows 部署。
+
 本文档描述了 Open SkillHub 的用户级运行时环境设计方案。由于 skill 的 scripts 脚本会在服务端运行，需要为每个用户的私有 skill 空间搭建独立的运行时环境。
 
 ## 核心架构：上传与部署分离
@@ -39,7 +41,7 @@ Skill 的生命周期分为**上传**和**部署**两个独立阶段：
 |------|------|------|
 | 01 | [概述](./01-overview.md) | 设计目标与核心决策 |
 | 02 | [架构设计](./02-architecture.md) | 整体架构与目录结构 |
-| 03 | [数据模型](./03-data-model.md) | User 和 Skill 模型扩展 |
+| 03 | [数据模型](./03-data-model.md) | User/Skill/SkillVersion/DependencySnapshot 数据模型 |
 | 04 | [核心流程](./04-core-flows.md) | 上传、部署、执行、删除、回滚等关键流程 |
 | 05 | [并发安全机制](./05-concurrency.md) | 用户级操作锁与超时机制 |
 | 06 | [API 设计](./06-api-design.md) | 上传/部署接口扩展与管理接口 |

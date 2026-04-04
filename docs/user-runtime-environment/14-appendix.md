@@ -1,7 +1,7 @@
 ---
 status: draft
 ai_read: true
-last_updated: 2026-03-31
+last_updated: 2026-04-03
 parent: user-runtime-environment
 ---
 
@@ -86,7 +86,6 @@ def version_satisfies(installed: str, spec: str, strict_mode: bool = True) -> bo
 
 ```python
 import asyncio
-import platform
 import shutil
 import sys
 from pathlib import Path
@@ -114,7 +113,6 @@ async def create_virtualenv(
         Python 版本解析策略：
         1. 尝试使用 `python{version}` 命令（如 python3.11）
         2. 如果不存在，回退到系统默认 `python` 命令并记录警告
-        3. Windows 下尝试 `python.exe` 和 `py -{version}` 命令
     """
     if venv_path.exists():
         shutil.rmtree(venv_path)
@@ -122,12 +120,7 @@ async def create_virtualenv(
     venv_path.parent.mkdir(parents=True, exist_ok=True)
 
     # 根据 Python 版本确定解释器命令
-    if platform.system() == "Windows":
-        # Windows: 尝试 py 启动器或直接使用 python
-        python_cmd = f"py -{python_version}"
-    else:
-        # Linux/Mac: 使用 python3.x 命令
-        python_cmd = f"python{python_version}"
+    python_cmd = f"python{python_version}"
 
     # 尝试使用指定版本
     proc = await asyncio.create_subprocess_exec(
@@ -165,22 +158,14 @@ async def get_pip_path(venv_path: Path) -> Path:
     """
     获取虚拟环境中的 pip 路径
     """
-    if platform.system() == "Windows":
-        return venv_path / "Scripts" / "pip.exe"
-    else:
-        # Linux/Mac
-        return venv_path / "bin" / "pip"
+    return venv_path / "bin" / "pip"
 
 
 async def get_python_path(venv_path: Path) -> Path:
     """
     获取虚拟环境中的 Python 路径
     """
-    if platform.system() == "Windows":
-        return venv_path / "Scripts" / "python.exe"
-    else:
-        # Linux/Mac
-        return venv_path / "bin" / "python"
+    return venv_path / "bin" / "python"
 ```
 
 ### C. Skill 删除与账户级联清理
@@ -339,6 +324,8 @@ async def delete_user_account(
 
 ### D. Skill 版本回滚
 
+> **注意**：此函数基于早期设计编写，未包含加锁机制、`rollback_session_id` 会话确认流程和 `install_status` 前置检查。完整实现请以 [API 设计 - 版本回滚接口](./06-api-design.md) 和 [核心流程 - 版本回滚流程](./04-core-flows.md) 为准。
+
 ```python
 from datetime import datetime, timezone
 from pathlib import Path
@@ -467,8 +454,11 @@ def check_dependency_compatibility(
 
 ```python
 import asyncio
+import logging
 from pathlib import Path
 from datetime import datetime, timezone
+
+logger = logging.getLogger(__name__)
 
 # 配置常量（从配置文件获取）
 DEPENDENCY_OPERATION_TIMEOUT = 300  # 单个 pip 操作超时（秒），默认 5 分钟
@@ -481,7 +471,7 @@ async def save_dependency_snapshot(
     snapshot_repo: SnapshotRepository,
     is_auto: bool = True,
     auto_max: int = 20,
-) -> "Snapshot":
+) -> "DependencySnapshot":
     """
     保存当前依赖状态快照
 

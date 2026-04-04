@@ -1,7 +1,7 @@
 ---
 status: draft
 ai_read: true
-last_updated: 2026-03-31
+last_updated: 2026-04-03
 parent: user-runtime-environment
 ---
 
@@ -22,8 +22,8 @@ runtime:
   # 是否启用自动清理
   auto_cleanup_enabled: true
   
-  # 清理任务执行时间（cron 表达式）
-  cleanup_cron: "0 3 * * *"  # 每天凌晨 3 点
+  # 清理任务执行时间（cron 表达式，基于服务器本地时间）
+  cleanup_cron: "0 3 * * *"  # 每天凌晨 3 点（服务器本地时间）
   
   # Python 版本（用于创建虚拟环境）
   python_version: "3.11"
@@ -52,7 +52,7 @@ runtime:
 > **触发时机说明**：
 > - **自动快照清理**：在 `save_dependency_snapshot()` 函数内部，创建新快照后**立即调用** `cleanup_dependency_snapshots()`，确保自动快照数量始终 ≤ 20
 > - **手动快照限制**：在 `create_manual_snapshot()` API 中，创建前**先检查数量**，若已达上限（5 条）则拒绝创建并返回错误，由用户决定删除哪些旧快照
-> - **定时任务不涉及快照清理**：快照清理与 `cleanup_cron` 定时任务无关，定时任务仅清理空闲环境
+> - **定时任务不涉及快照清理**：快照清理与 `cleanup_cron` 定时任务无关，定时任务负责清理空闲环境和超时的上传会话临时文件
 
 **清理逻辑**：
 
@@ -64,7 +64,7 @@ async def save_dependency_snapshot(
     snapshot_repo: SnapshotRepository,
     is_auto: bool = True,
     auto_max: int = 20,
-) -> "Snapshot":
+) -> "DependencySnapshot":
     """
     保存依赖快照（自动快照）
 
@@ -136,9 +136,10 @@ async def cleanup_dependency_snapshots(
 
 | 条件 | 触发方式 | 清理范围 | 快照处理 | 说明 |
 |------|----------|----------|----------|------|
+| 上传会话超时 | 惰性检查 + cron 兜底 | 仅临时目录 | 不涉及 | 用户安全审查等待超过 `session_timeout_seconds`（默认 5 分钟）未响应。惰性检查在 `/resolve-security` 接口入口触发，返回 `UPLOAD_SESSION_EXPIRED` 错误；每日 cron 扫描 `runtime_temp_path IS NOT NULL` 且目录过期（基于 mtime）的记录兜底清理。安全审查期间不创建 Skill 记录，无需回滚（详见 [并发安全机制 - 安全审查超时清理](./05-concurrency.md#安全审查超时清理机制)） |
 | 空闲超时 + 无剩余 Skill | 定时任务 | 仅环境 | **保留** | `venv_last_used_at` 超过配置天数 **且** 用户无剩余 Skill。快照保留以便用户重新上传 Skill 后恢复依赖 |
 | 用户有剩余 Skill | 不清理 | - | 保留 | 用户有 Skill 时环境必须保留（不受空闲超时限制） |
-| 管理员触发 | 管理接口 | 仅环境 | 保留 | 通过 `DELETE /api/v1/admin/users/{user_id}/runtime` 手动清理 |
+| 管理员触发 | 管理接口 | 仅环境 | 保留 | 通过 `DELETE /api/v1/admin/users/{user_uuid}/runtime` 手动清理 |
 | 用户删除所有 Skill | Skill 删除流程 | 仅环境（等待空闲清理） | 保留 | 保留环境，`venv_last_used_at` 保持不变，等待空闲超时自动清理 |
 | 用户删除账户 | 账户删除流程 | Skill + 环境 + 快照 + 用户记录 | **级联删除** | 级联清理，彻底删除所有资源（详见 `04-core-flows.md` 用户删除账户流程） |
 

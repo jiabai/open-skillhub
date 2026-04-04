@@ -64,6 +64,7 @@ parent: user-runtime-environment
 | 错误码 | HTTP 状态 | 说明 |
 |--------|----------|------|
 | `SNAPSHOT_NOT_FOUND` | 404 | 依赖快照不存在 |
+| `SNAPSHOT_LIMIT_EXCEEDED` | 409 | 手动快照数量已达上限（最多 5 条），需先删除旧快照 |
 | `DEPENDENCY_RESTORE_FAILED` | 500 | 依赖恢复失败 |
 
 ### 错误响应格式

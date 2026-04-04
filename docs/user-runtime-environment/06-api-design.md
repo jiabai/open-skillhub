@@ -258,7 +258,7 @@ parent: user-runtime-environment
     "failed_package": {
       "name": "playwright",
       "version": "1.40.0",
-      "error_type": "NETWORK_ERROR",
+      "error_type": "DEPENDENCY_NETWORK_ERROR",
       "error_message": "Network timeout after 30s"
     }
   },

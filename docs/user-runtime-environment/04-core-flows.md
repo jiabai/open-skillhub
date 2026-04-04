@@ -47,7 +47,7 @@ graph TD
     end
 
     subgraph 执行阶段
-        T --> X[MCP 工具调用]
+        ExtEvent[外部事件触发] --> X[MCP 工具调用]
         X --> Y{install_status?}
         Y -->|ready| Z[加锁 + 执行脚本]
         Y -->|!ready| AA[返回 NOT_READY]
@@ -121,8 +121,8 @@ graph TD
 | 4 | 检查/创建 venv | 首次部署时创建虚拟环境 | 已锁 |
 | 5 | 解析依赖声明 | 从 SkillVersion.dependencies 读取 | 已锁 |
 | 6 | 检测依赖冲突 | 与 `installed_dependencies` 对比 | 已锁 |
-| 7a | 有冲突 → 返回冲突信息 | 含受影响 Skill 列表，等待用户确认期间保持锁 | 已锁 |
-| 7b | 无冲突 → 返回依赖预览 | 待安装和已安装列表，等待用户确认期间保持锁 | 已锁 |
+| 7a | 有冲突 → 返回冲突信息 | 含受影响 Skill 列表，等待用户确认期间保持锁；5分钟超时自动解锁 | 已锁 |
+| 7b | 无冲突 → 返回依赖预览 | 待安装和已安装列表，等待用户确认期间保持锁；5分钟超时自动解锁 | 已锁 |
 | 8 | 用户确认 | 冲突：允许升级 / 无冲突：确认安装 | 已锁 |
 | 9 | 保存依赖快照 | `save_dependency_snapshot(is_auto=True)` | 已锁 |
 | 10 | 执行 pip install | 逐个安装依赖 | 已锁 |

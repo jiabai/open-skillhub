@@ -67,6 +67,25 @@ parent: user-runtime-environment
 | `SNAPSHOT_LIMIT_EXCEEDED` | 409 | 手动快照数量已达上限（最多 5 条），需先删除旧快照 |
 | `DEPENDENCY_RESTORE_FAILED` | 500 | 依赖恢复失败 |
 
+### 自定义异常类
+
+```python
+class DependencyInstallError(Exception):
+    """依赖安装失败"""
+    def __init__(self, package: str, error: str):
+        self.package = package
+        self.error = error
+        super().__init__(f"Failed to install package {package}: {error}")
+
+
+class VenvCreationError(Exception):
+    """虚拟环境创建失败"""
+    def __init__(self, path: str, error: str):
+        self.path = path
+        self.error = error
+        super().__init__(f"Failed to create virtual environment at {path}: {error}")
+```
+
 ### 错误响应格式
 
 #### RUNTIME_NOT_READY 错误响应（新增）
@@ -186,7 +205,10 @@ async def deploy_with_rollback(
             user.runtime_lock_reason = "Creating virtual environment"
             await user_repo.update(user)
             venv_path = Path(VENV_STORAGE_PATH) / user.id
-            await create_virtualenv(venv_path)
+            try:
+                await create_virtualenv(venv_path)
+            except Exception as e:
+                raise VenvCreationError(path=str(venv_path), error=str(e))
             user.venv_path = str(venv_path)
             user.venv_created_at = datetime.now(timezone.utc)
 
@@ -228,6 +250,25 @@ async def deploy_with_rollback(
         await user_repo.update(user)
 
         return {"status": "success", "install_status": "ready"}
+
+    except VenvCreationError as e:
+        # 虚拟环境创建失败，无需回滚依赖（尚未安装）
+        skill.install_status = "failed"
+        skill.install_error = f"VENV_CREATION_FAILED: {e.error}"
+        await skill_repo.update(skill)
+
+        user.runtime_locked = False
+        user.runtime_lock_reason = None
+        user.runtime_locked_at = None
+        await user_repo.update(user)
+
+        return {
+            "status": "failed",
+            "error": "VENV_CREATION_FAILED",
+            "message": str(e),
+            "details": {"venv_path": e.path},
+            "retryable": True,
+        }
 
     except DependencyInstallError as e:
         # 回滚依赖

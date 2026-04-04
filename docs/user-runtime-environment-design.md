@@ -1316,7 +1316,7 @@ ws.onmessage = (event) => {
 │                                                                      │
 │  包名: playwright                                                    │
 │  版本: 1.40.0                                                        │
-│  错误类型: NETWORK_ERROR                                             │
+│  错误类型: DEPENDENCY_NETWORK_ERROR                                  │
 │                                                                      │
 │  错误信息:                                                           │
 │  ┌─────────────────────────────────────────────────────────────┐    │
@@ -1351,7 +1351,7 @@ ws.onmessage = (event) => {
 
 | 错误类型 | 错误码 | 说明 | 用户建议 |
 |----------|--------|------|----------|
-| 网络错误 | `NETWORK_ERROR` | 无法连接 PyPI 或下载超时 | 检查网络，稍后重试 |
+| 网络错误 | `DEPENDENCY_NETWORK_ERROR` | 无法连接 PyPI 或下载超时 | 检查网络，稍后重试 |
 | 包不存在 | `PACKAGE_NOT_FOUND` | PyPI 上不存在该包或版本 | 检查包名/版本是否正确 |
 | 版本冲突 | `VERSION_CONFLICT` | 与其他已安装包版本冲突 | 查看冲突详情，调整依赖 |
 | 权限错误 | `PERMISSION_ERROR` | 无权限安装到环境 | 联系管理员 |
@@ -1368,7 +1368,7 @@ ws.onmessage = (event) => {
     "failed_package": {
       "name": "playwright",
       "version": "1.40.0",
-      "error_type": "NETWORK_ERROR",
+      "error_type": "DEPENDENCY_NETWORK_ERROR",
       "error_message": "Could not fetch package playwright-1.40.0\nReason: Network timeout after 30s",
       "mirror": "https://pypi.org/simple"
     },
@@ -1528,7 +1528,7 @@ interface InstallErrorDialogProps {
 interface PackageErrorInfo {
   name: string;
   version: string;
-  errorType: 'NETWORK_ERROR' | 'PACKAGE_NOT_FOUND' | 'VERSION_CONFLICT' | ...;
+  errorType: 'DEPENDENCY_NETWORK_ERROR' | 'PACKAGE_NOT_FOUND' | 'VERSION_CONFLICT' | ...;
   errorMessage: string;
   mirror?: string;
 }

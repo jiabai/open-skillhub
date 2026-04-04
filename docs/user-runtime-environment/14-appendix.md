@@ -64,6 +64,7 @@ def version_satisfies(installed: str, spec: str, strict_mode: bool = True) -> bo
         严格模式下返回 False，确保冲突检测不会被绕过。
         仅在明确配置宽松模式时才返回 True。
     """
+    spec = spec.strip()
     if not spec:
         return True
 
@@ -135,7 +136,8 @@ async def create_virtualenv(
     if proc.returncode != 0:
         logger.warning(
             f"Python {python_version} not found ({python_cmd}), "
-            f"falling back to system default"
+            f"falling back to {sys.executable} "
+            f"(Python {sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro})"
         )
         # 清理首次尝试可能留下的残留目录
         shutil.rmtree(venv_path, ignore_errors=True)

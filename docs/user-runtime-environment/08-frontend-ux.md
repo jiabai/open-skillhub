@@ -208,7 +208,7 @@ Skill 列表页中，每个 Skill 卡片显示状态标识圆点：
 │                                                                      │
 │  包名: playwright                                                    │
 │  版本: 1.40.0                                                        │
-│  错误类型: NETWORK_ERROR                                             │
+│  错误类型: DEPENDENCY_NETWORK_ERROR                                  │
 │                                                                      │
 │  错误信息:                                                           │
 │  Could not fetch package playwright-1.40.0                           │

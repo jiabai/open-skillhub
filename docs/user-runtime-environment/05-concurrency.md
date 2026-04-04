@@ -188,7 +188,9 @@ async def check_execution_ready(skill: Skill, user: User) -> None:
 
     timeout_seconds = get_timeout_for_reason(user.runtime_lock_reason)
 
-    if elapsed_seconds > timeout_seconds:
+    lock_timeout = elapsed_seconds > timeout_seconds
+
+    if lock_timeout:
         retry_after = 30
         suggest_admin = True
     elif elapsed_seconds > timeout_seconds * 0.5:
@@ -202,7 +204,8 @@ async def check_execution_ready(skill: Skill, user: User) -> None:
         reason=user.runtime_lock_reason,
         locked_at=user.runtime_locked_at,
         retry_after=int(retry_after),
-        suggest_admin=suggest_admin
+        suggest_admin=suggest_admin,
+        lock_timeout=lock_timeout
     )
 ```
 
@@ -225,18 +228,36 @@ async def check_execution_ready(skill: Skill, user: User) -> None:
 
 收到 RUNTIME_LOCKED 错误
        │
-       ▼
-  ┌─────────────────────────────────────────────────┐
-  │ 显示等待提示                                     │
-  │                                                  │
-  │ ⏳ 运行时环境正在更新                            │
-  │                                                  │
-  │ 原因：Deploying dependencies                    │
-  │                                                  │
-  │ 请等待约 30 秒后重试                             │
-  │                                                  │
-  │ [自动重试（倒计时）]  [取消]                     │
-  └─────────────────────────────────────────────────┘
+       ├── lock_timeout = True（锁已超时）
+       │         │
+       │         ▼
+       │   ┌─────────────────────────────────────────────────┐
+       │   │ 显示锁超时提示                                   │
+       │   │                                                  │
+       │   │ ⚠️ 运行时锁超时                                  │
+       │   │                                                  │
+       │   │ 原因：Deploying dependencies                    │
+       │   │                                                  │
+       │   │ 系统检测到锁已超时但未释放，可能存在异常。       │
+       │   │ 请联系管理员手动解锁。                          │
+       │   │                                                  │
+       │   │ [联系管理员]  [返回]                            │
+       │   └─────────────────────────────────────────────────┘
+       │
+       └── lock_timeout = False（锁未超时）
+                 │
+                 ▼
+           ┌─────────────────────────────────────────────────┐
+           │ 显示等待提示                                     │
+           │                                                  │
+           │ ⏳ 运行时环境正在更新                            │
+           │                                                  │
+           │ 原因：Deploying dependencies                    │
+           │                                                  │
+           │ 请等待约 30 秒后重试                             │
+           │                                                  │
+           │ [自动重试（倒计时）]  [取消]                     │
+           └─────────────────────────────────────────────────┘
 ```
 
 

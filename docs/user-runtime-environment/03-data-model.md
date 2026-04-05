@@ -55,7 +55,7 @@ class User(UUIDPrimaryKeyMixin, TimestampMixin, Base):
 }
 ```
 
-> **格式规范**：字典的键（包名）应使用**小写格式**存储。Python 包名在 PyPI 上不区分大小写，但为了确保依赖冲突检测、版本比较等操作的一致性，建议统一使用小写格式。
+> **格式规范**：字典的键（包名）应**保持原始大小写**存储。PyPI 不允许发布仅大小写不同的包名，因此无需强制小写化。由于 Python 字典键区分大小写，在进行依赖冲突检测、版本比较等操作时，应保持一致的大小写处理方式。
 
 ### Skill 模型扩展
 
@@ -96,8 +96,6 @@ class Skill(UUIDPrimaryKeyMixin, TimestampMixin, Base):
 | `script_file` | `str` | 脚本入口文件名，默认 `main.py`，可从 SKILL.md metadata 解析覆盖 |
 | `dependencies` | `list` | 当前激活版本的依赖声明列表，格式：`["requests>=2.28.0", "playwright>=1.40.0"]` |
 | `metadata_json` | `dict` | SKILL.md 解析的元数据（DB 列名 `metadata`），可包含 `script_entry` 等自定义配置 |
-| `current_version` | `str` | 当前激活的版本号，默认 `1.0.0` |
-| `skill_dir` | `str` | Skill 文件存储路径，格式：`{SKILL_STORAGE_PATH}/{user_id}/{skill_name}` |
 | `install_status` | `str` | **部署状态**，值域：`pending` / `installing` / `ready` / `failed` |
 | `install_error` | `str \| None` | 部署失败时的错误信息，`install_status=failed` 时有值 |
 
@@ -105,18 +103,19 @@ class Skill(UUIDPrimaryKeyMixin, TimestampMixin, Base):
 
 ```
 上传完成 ──→ pending ──→ installing ──→ ready
-                 ↑            │
-                 │            ↓
-                 └────── failed ←── 安装失败
-                 用户重试 ──→ installing
+                              │
+                              ↓
+                         failed ←── 安装失败
+                              │
+                              └─── 用户重试 ──→ installing
 ```
 
-| 状态 | 触发条件 | 可执行 | 可部署 |
+| 状态 | 触发条件 | 可执行 | 可操作 |
 |------|---------|--------|--------|
-| `pending` | 上传完成时设置 | 否 | 是 |
-| `installing` | 用户触发部署时设置 | 否 | 否 |
-| `ready` | 依赖安装成功时设置 | 是 | 否（已就绪） |
-| `failed` | 依赖安装失败时设置 | 否 | 是（可重试） |
+| `pending` | 上传完成时设置（首次创建） | 否 | 首次部署 |
+| `installing` | 用户触发部署时设置 | 否 | -（进行中） |
+| `ready` | 依赖安装成功时设置 | 是 | -（已就绪） |
+| `failed` | 依赖安装失败时设置 | 否 | 重试部署 |
 
 > **设计说明**：
 > - `Skill.dependencies`：当前激活版本的依赖声明（冗余字段，方便查询）
@@ -259,6 +258,9 @@ DependencySnapshot 模型使用一个 3 列复合索引：
 # ⚠️ 第 186 行 ForeignKey 上的 index=True 会自动创建单列索引 ix_dependency_snapshots_user_id，
 #   与复合索引的最左前缀 (user_id) 功能重复。建议移除外键上的 index=True，
 #   由复合索引的最左前缀覆盖即可。如保留，应在迁移中明确说明原因。
+# ⚠️ created_at.desc() 语法在 Index() 中的支持取决于数据库后端：
+#   - SQLite 支持此语法
+#   - PostgreSQL 需要确认 SQLAlchemy 版本的兼容性
 Index('ix_dependency_snapshots_user_is_auto_created_at', user_id, is_auto, created_at.desc())
 ```
 

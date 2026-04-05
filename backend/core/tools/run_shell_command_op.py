@@ -22,6 +22,7 @@ from flowllm.core.schema import ToolCall
 from backend.config.settings import settings
 from backend.core.metrics.tool_call_metrics import record_tool_call
 from backend.core.utils.command_whitelist import validate_command
+from backend.core.utils.process_exec import split_command_args
 from backend.core.utils.skill_storage import tool_error_payload, validate_skill_name
 from backend.core.utils.user_context import get_current_user_id
 
@@ -233,18 +234,36 @@ class RunShellCommandOp(BaseAsyncToolOp):
             if not is_valid:
                 self.set_output(tool_error_payload(error_msg, "COMMAND_BLOCKED"))
                 return
+            try:
+                command_args = split_command_args(command)
+            except ValueError as exc:
+                self.set_output(tool_error_payload(str(exc), "COMMAND_BLOCKED"))
+                return
 
             if self.auto_install_deps:
                 if "py" in command:
                     pipreqs_available = shutil.which("pipreqs") is not None
                     if pipreqs_available:
-                        install_cmd = f"cd {work_dir} && pipreqs . --force && pip install -r requirements.txt"
-                        proc = await asyncio.create_subprocess_shell(
-                            install_cmd,
+                        proc = await asyncio.create_subprocess_exec(
+                            "pipreqs",
+                            ".",
+                            "--force",
                             stdout=asyncio.subprocess.PIPE,
                             stderr=asyncio.subprocess.PIPE,
+                            cwd=str(work_dir),
                         )
                         stdout, stderr = await proc.communicate()
+                        if proc.returncode == 0:
+                            proc = await asyncio.create_subprocess_exec(
+                                "pip",
+                                "install",
+                                "-r",
+                                "requirements.txt",
+                                stdout=asyncio.subprocess.PIPE,
+                                stderr=asyncio.subprocess.PIPE,
+                                cwd=str(work_dir),
+                            )
+                            stdout, stderr = await proc.communicate()
                         if proc.returncode != 0:
                             logger.warning(f"⚠️ Failed to install dependencies:\n{stdout.decode()}\n{stderr.decode()}")
                         else:
@@ -252,10 +271,11 @@ class RunShellCommandOp(BaseAsyncToolOp):
                     else:
                         logger.info("❗️ pipreqs not found, skipping dependency auto-install.")
 
-            proc = await asyncio.create_subprocess_shell(
-                f"cd {work_dir} && {command}",
+            proc = await asyncio.create_subprocess_exec(
+                *command_args,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
+                cwd=str(work_dir),
                 env={"PATH": os.environ.get("PATH", "")} if settings.ENABLE_SANDBOX_EXECUTION else os.environ.copy(),
             )
 

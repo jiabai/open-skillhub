@@ -12,6 +12,7 @@ from backend.config.settings import settings
 from backend.core.metrics.tool_call_metrics import record_tool_call
 from backend.core.security.rbac import has_permission, is_skill_visible
 from backend.core.utils.command_whitelist import validate_command
+from backend.core.utils.process_exec import split_command_args
 from backend.core.utils.skill_storage import get_skill_versions_dir, tool_error_payload
 from backend.core.utils.user_context import get_current_user_id
 from backend.db import session as db_session
@@ -154,15 +155,21 @@ class ExecuteSkillOp(BaseAsyncToolOp):
                 if not is_valid:
                     self._set_output(tool_error_payload(error_msg, "COMMAND_BLOCKED"))
                     return
+                try:
+                    command_args = split_command_args(command)
+                except ValueError as exc:
+                    self._set_output(tool_error_payload(str(exc), "COMMAND_BLOCKED"))
+                    return
                 env = os.environ.copy()
                 if settings.ENABLE_SANDBOX_EXECUTION:
                     env = {"PATH": env.get("PATH", ""), "SKILL_PARAMS": ""}
                 env["SKILL_PARAMS"] = json.dumps(parameters, ensure_ascii=False)
                 start = perf_counter()
-                proc = await asyncio.subprocess.create_subprocess_shell(
-                    f"cd {version_dir} && {command}",
+                proc = await asyncio.create_subprocess_exec(
+                    *command_args,
                     stdout=asyncio.subprocess.PIPE,
                     stderr=asyncio.subprocess.PIPE,
+                    cwd=str(version_dir),
                     env=env,
                 )
                 status = "success"

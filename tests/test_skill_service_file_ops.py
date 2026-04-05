@@ -9,6 +9,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from backend.config.settings import settings
+from backend.core.utils.key_derivation import derive_aes256_key
 from backend.core.utils.skill_storage import (
     get_skill_versions_dir,
     get_user_skill_dir,
@@ -386,14 +387,12 @@ pandas~=1.3.0
         """测试加密解密一致性"""
         import base64
         from cryptography.hazmat.primitives.ciphers.aead import AESGCM
-        import hashlib
-
         payload = b"test data for encryption"
 
         encrypted, checksum = SkillService._encrypt_payload(payload)
 
         # 验证可以解密
-        key = hashlib.sha256(settings.SECRET_KEY.encode("utf-8")).digest()
+        key = derive_aes256_key(settings.SECRET_KEY, "skill-download-encryption")
         encrypted_bytes = base64.b64decode(encrypted)
         nonce = encrypted_bytes[:12]
         ciphertext = encrypted_bytes[12:]

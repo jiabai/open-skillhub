@@ -3,8 +3,7 @@ from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, status
 
 from backend.config.settings import settings
-from backend.core.middleware.auth import get_current_active_user
-from backend.core.security.rbac import has_permission
+from backend.core.deps import require_permission
 from backend.db.session import get_async_session
 from backend.repositories.audit_log import AuditLogRepository
 from backend.schemas.audit import AuditLogExportRequest, AuditLogExportResponse, AuditLogListResponse
@@ -28,13 +27,11 @@ async def list_audit_logs(
     end: str | None = None,
     skip: int = 0,
     limit: int = 100,
-    current_user=Depends(get_current_active_user),
+    current_user=Depends(require_permission("audit.read")),
     session=Depends(get_async_session),
 ):
     if not settings.ENABLE_AUDIT_LOG:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Audit disabled")
-    if not has_permission(current_user, "audit.read"):
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Permission denied")
     service = AuditService(AuditLogRepository(session))
     items = await service.list_events(
         actor_id=actor_id,
@@ -50,13 +47,11 @@ async def list_audit_logs(
 @router.post("/logs/export", response_model=AuditLogExportResponse)
 async def export_audit_logs(
     payload: AuditLogExportRequest,
-    current_user=Depends(get_current_active_user),
+    current_user=Depends(require_permission("audit.export")),
     session=Depends(get_async_session),
 ):
     if not settings.ENABLE_AUDIT_EXPORT:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Audit export disabled")
-    if not has_permission(current_user, "audit.export"):
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Permission denied")
     filters = payload.filters or {}
     service = AuditService(AuditLogRepository(session))
     items = await service.list_events(

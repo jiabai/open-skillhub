@@ -2,8 +2,7 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Reques
 from loguru import logger
 
 from backend.config.settings import settings
-from backend.core.middleware.auth import get_current_active_user
-from backend.core.security.rbac import has_permission
+from backend.core.deps import require_permission
 from backend.db.session import get_async_session
 from backend.repositories.audit_log import AuditLogRepository
 from backend.repositories.skill import SkillRepository
@@ -32,11 +31,9 @@ async def list_skills(
     limit: int = 100,
     q: str | None = None,
     include_inactive: bool = False,
-    current_user=Depends(get_current_active_user),
+    current_user=Depends(require_permission("skill.list")),
     session=Depends(get_async_session),
 ):
-    if not has_permission(current_user, "skill.list"):
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Permission denied")
     service = SkillService(SkillRepository(session), SkillVersionRepository(session))
     skills = await service.list_skills(
         current_user,
@@ -59,9 +56,7 @@ async def list_skills(
 
 
 @router.get("/cache-policy", response_model=SkillCachePolicyResponse)
-async def get_cache_policy(current_user=Depends(get_current_active_user)):
-    if not has_permission(current_user, "skill.read"):
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Permission denied")
+async def get_cache_policy(current_user=Depends(require_permission("skill.read"))):
     return SkillCachePolicyResponse(
         cache_ttl_seconds=settings.SKILL_CACHE_TTL_SECONDS,
         encryption_enabled=settings.ENABLE_LOCAL_CACHE_ENCRYPTION,
@@ -74,11 +69,9 @@ async def get_cache_policy(current_user=Depends(get_current_active_user)):
 async def create_skill(
     request: Request,
     payload: SkillCreate,
-    current_user=Depends(get_current_active_user),
+    current_user=Depends(require_permission("skill.create")),
     session=Depends(get_async_session),
 ):
-    if not has_permission(current_user, "skill.create"):
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Permission denied")
     service = SkillService(SkillRepository(session))
     try:
         skill = await service.create_skill(
@@ -105,11 +98,9 @@ async def create_skill(
 @router.get("/{skill_uuid}", response_model=SkillResponse)
 async def get_skill(
     skill_uuid: str,
-    current_user=Depends(get_current_active_user),
+    current_user=Depends(require_permission("skill.read")),
     session=Depends(get_async_session),
 ):
-    if not has_permission(current_user, "skill.read"):
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Permission denied")
     service = SkillService(SkillRepository(session))
     try:
         skill = await service.get_skill(current_user, skill_uuid)
@@ -123,11 +114,9 @@ async def update_skill(
     request: Request,
     skill_uuid: str,
     payload: SkillUpdate,
-    current_user=Depends(get_current_active_user),
+    current_user=Depends(require_permission("skill.update")),
     session=Depends(get_async_session),
 ):
-    if not has_permission(current_user, "skill.update"):
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Permission denied")
     service = SkillService(SkillRepository(session))
     fields = payload.model_dump(exclude_unset=True)
     visible = fields.pop("visible", None)
@@ -143,7 +132,7 @@ async def update_skill(
             actor_id=current_user.id,
             action="skill.update",
             target=skill_uuid,
-            ip=request.client.host if request.client else "",
+            ip=request.client.host if request and request.client else "",
             user_agent=request.headers.get("user-agent", ""),
             metadata=fields,
         )
@@ -155,11 +144,9 @@ async def delete_skill(
     request: Request,
     skill_uuid: str,
     delete_archives: bool = Query(False, description="Also delete skill archives"),
-    current_user=Depends(get_current_active_user),
+    current_user=Depends(require_permission("skill.delete")),
     session=Depends(get_async_session),
 ):
-    if not has_permission(current_user, "skill.delete"):
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Permission denied")
     service = SkillService(SkillRepository(session))
     try:
         await service.delete_skill(current_user, skill_uuid, delete_archives=delete_archives)
@@ -171,7 +158,7 @@ async def delete_skill(
             actor_id=current_user.id,
             action="skill.delete",
             target=skill_uuid,
-            ip=request.client.host if request.client else "",
+            ip=request.client.host if request and request.client else "",
             user_agent=request.headers.get("user-agent", ""),
             metadata={"delete_archives": delete_archives},
         )
@@ -185,11 +172,9 @@ async def upload_skill_file(
     skill_uuid: str | None = Form(None),
     visibility: str = Form("private"),
     metadata: str | None = Form(None),
-    current_user=Depends(get_current_active_user),
+    current_user=Depends(require_permission("skill.upload")),
     session=Depends(get_async_session),
 ):
-    if not has_permission(current_user, "skill.upload"):
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Permission denied")
     service = SkillService(SkillRepository(session), SkillVersionRepository(session))
     content = await file.read()
     filename = file.filename or ""
@@ -258,11 +243,9 @@ async def upload_skill_file(
 async def download_skill(
     request: Request,
     payload: SkillDownloadRequest,
-    current_user=Depends(get_current_active_user),
+    current_user=Depends(require_permission("skill.download")),
     session=Depends(get_async_session),
 ):
-    if not has_permission(current_user, "skill.download"):
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Permission denied")
     service = SkillService(SkillRepository(session), SkillVersionRepository(session))
     try:
         result = await service.download_skill(current_user, payload.skill_uuid, payload.version)
@@ -285,7 +268,7 @@ async def download_skill(
 async def deactivate_skill(
     request: Request,
     skill_uuid: str,
-    current_user=Depends(get_current_active_user),
+    current_user=Depends(require_permission("skill.update")),
     session=Depends(get_async_session),
 ):
     service = SkillService(SkillRepository(session), SkillVersionRepository(session))
@@ -309,7 +292,7 @@ async def deactivate_skill(
 async def activate_skill(
     request: Request,
     skill_uuid: str,
-    current_user=Depends(get_current_active_user),
+    current_user=Depends(require_permission("skill.update")),
     session=Depends(get_async_session),
 ):
     service = SkillService(SkillRepository(session), SkillVersionRepository(session))
@@ -332,7 +315,7 @@ async def activate_skill(
 @router.get("/{skill_uuid}/versions", response_model=SkillVersionListResponse)
 async def list_skill_versions(
     skill_uuid: str,
-    current_user=Depends(get_current_active_user),
+    current_user=Depends(require_permission("skill.read")),
     session=Depends(get_async_session),
 ):
     service = SkillService(SkillRepository(session), SkillVersionRepository(session))
@@ -349,7 +332,7 @@ async def diff_skill_versions(
     skill_uuid: str,
     from_version: str = Query(..., alias="from"),
     to_version: str = Query(..., alias="to"),
-    current_user=Depends(get_current_active_user),
+    current_user=Depends(require_permission("skill.read")),
     session=Depends(get_async_session),
 ):
     service = SkillService(SkillRepository(session), SkillVersionRepository(session))
@@ -369,7 +352,7 @@ async def diff_skill_versions(
 async def get_skill_version(
     skill_uuid: str,
     version: str,
-    current_user=Depends(get_current_active_user),
+    current_user=Depends(require_permission("skill.read")),
     session=Depends(get_async_session),
 ):
     service = SkillService(SkillRepository(session), SkillVersionRepository(session))
@@ -384,7 +367,7 @@ async def get_skill_version(
 async def get_install_instructions(
     skill_uuid: str,
     version: str,
-    current_user=Depends(get_current_active_user),
+    current_user=Depends(require_permission("skill.read")),
     session=Depends(get_async_session),
 ):
     service = SkillService(SkillRepository(session), SkillVersionRepository(session))
@@ -405,7 +388,7 @@ async def rollback_skill_version(
     request: Request,
     skill_uuid: str,
     version: str,
-    current_user=Depends(get_current_active_user),
+    current_user=Depends(require_permission("skill.update")),
     session=Depends(get_async_session),
 ):
     service = SkillService(SkillRepository(session), SkillVersionRepository(session))
@@ -429,7 +412,7 @@ async def rollback_skill_version(
 @router.get("/{skill_uuid}/files")
 async def list_skill_files(
     skill_uuid: str,
-    current_user=Depends(get_current_active_user),
+    current_user=Depends(require_permission("skill.read")),
     session=Depends(get_async_session),
 ):
     service = SkillService(SkillRepository(session))
@@ -449,7 +432,7 @@ async def list_skill_files(
 async def read_skill_file(
     skill_uuid: str,
     file_path: str,
-    current_user=Depends(get_current_active_user),
+    current_user=Depends(require_permission("skill.read")),
     session=Depends(get_async_session),
 ):
     service = SkillService(SkillRepository(session), SkillVersionRepository(session))

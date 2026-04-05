@@ -1,8 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 
 from backend.config.settings import settings
+from backend.core.deps import require_permission
 from backend.core.middleware.auth import get_current_active_user
-from backend.core.security.rbac import has_permission
 from backend.db.session import get_async_session
 from backend.repositories.audit_log import AuditLogRepository
 from backend.repositories.user import UserRepository
@@ -35,11 +35,9 @@ async def list_users(
     skip: int = 0,
     limit: int = 100,
     q: str | None = None,
-    current_user=Depends(get_current_active_user),
+    current_user=Depends(require_permission("user.manage")),
     session=Depends(get_async_session),
 ):
-    if not has_permission(current_user, "user.manage"):
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Permission denied")
     user_repo = UserRepository(session)
     users = await user_repo.list_users(skip=skip, limit=limit, query=q)
     total = await user_repo.count_users(query=q)
@@ -131,11 +129,9 @@ async def update_identity(
     request: Request,
     user_id: str,
     payload: UserIdentityUpdate,
-    current_user=Depends(get_current_active_user),
+    current_user=Depends(require_permission("user.manage")),
     session=Depends(get_async_session),
 ):
-    if not has_permission(current_user, "user.manage"):
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Permission denied")
     user_repo = UserRepository(session)
     target = await user_repo.get_by_id(user_id)
     if not target:

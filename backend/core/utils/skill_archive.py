@@ -8,6 +8,10 @@ from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from loguru import logger
 
 from backend.config.settings import settings
+from backend.core.utils.key_derivation import derive_aes256_key
+
+
+_LOCAL_CACHE_ENCRYPTION_PURPOSE = "skill-local-cache-encryption"
 
 
 def _archive_key(user_id: str, skill_name: str, version: str) -> str:
@@ -25,7 +29,7 @@ def _local_cache_path(user_id: str, skill_name: str, version: str) -> Path:
 
 
 def _build_encryption_key(value: str) -> bytes:
-    return hashlib.sha256(value.encode("utf-8")).digest()
+    return derive_aes256_key(value, _LOCAL_CACHE_ENCRYPTION_PURPOSE)
 
 
 def _encrypt_payload(payload: bytes) -> bytes:

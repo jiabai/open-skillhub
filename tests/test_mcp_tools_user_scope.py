@@ -169,6 +169,11 @@ def load_command_whitelist():
     return load_module("backend.core.utils.command_whitelist", module_path)
 
 
+def load_process_exec():
+    module_path = Path(__file__).resolve().parents[1] / "backend" / "core" / "utils" / "process_exec.py"
+    return load_module("backend.core.utils.process_exec", module_path)
+
+
 def test_load_skill_metadata_scopes_by_user_id(tmp_path, monkeypatch):
     user_context = load_user_context()
     command_whitelist = load_command_whitelist()
@@ -278,7 +283,9 @@ def test_read_reference_file_scopes_by_user_id(tmp_path, monkeypatch):
 def test_run_shell_command_uses_user_scoped_workdir(tmp_path, monkeypatch):
     user_context = load_user_context()
     command_whitelist = load_command_whitelist()
+    process_exec = load_process_exec()
     install_mcp_package_stubs(monkeypatch, user_context, command_whitelist)
+    monkeypatch.setitem(sys.modules, "backend.core.utils.process_exec", process_exec)
     install_flowllm_stubs(tmp_path, monkeypatch)
 
     write_skill(tmp_path, "skill_cmd", "global", "global body")
@@ -289,8 +296,9 @@ def test_run_shell_command_uses_user_scoped_workdir(tmp_path, monkeypatch):
 
     captured = {}
 
-    async def fake_create_subprocess_shell(cmd, **_kwargs):
-        captured["command"] = cmd
+    async def fake_create_subprocess_exec(*args, **kwargs):
+        captured["args"] = list(args)
+        captured["cwd"] = kwargs.get("cwd")
 
         class Proc:
             returncode = 0
@@ -300,11 +308,12 @@ def test_run_shell_command_uses_user_scoped_workdir(tmp_path, monkeypatch):
 
         return Proc()
 
-    module.asyncio.create_subprocess_shell = fake_create_subprocess_shell
+    module.asyncio.create_subprocess_exec = fake_create_subprocess_exec
 
     user_context.set_current_user_id("user-4")
     op = module.RunShellCommandOp(auto_install_deps=False)
     op.input_dict = {"skill_name": "skill_cmd", "command": 'python -c "print(1)"'}
     asyncio.run(op.async_execute())
     expected_dir = str(tmp_path / "user-4" / "skill_cmd")
-    assert f"cd {expected_dir}" in captured["command"]
+    assert captured["cwd"] == expected_dir
+    assert captured["args"] == ["python", "-c", "print(1)"]

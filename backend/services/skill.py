@@ -16,6 +16,8 @@ import yaml
 
 from backend.config.settings import settings
 from backend.core.security.rbac import is_skill_visible
+from backend.core.utils.key_derivation import derive_aes256_key
+from backend.core.utils.process_exec import quote_shell_arg
 from backend.core.utils.skill_storage import (
     MAX_FILES_PER_SKILL,
     MAX_FILE_SIZE,
@@ -45,6 +47,8 @@ from backend.repositories.skill_version import SkillVersionRepository
 
 
 class SkillService:
+    _DOWNLOAD_ENCRYPTION_PURPOSE = "skill-download-encryption"
+
     def __init__(self, skill_repo: SkillRepository, version_repo: SkillVersionRepository | None = None):
         self.skill_repo = skill_repo
         self.version_repo = version_repo
@@ -269,12 +273,15 @@ class SkillService:
         return items
 
     @staticmethod
-    def _build_encryption_key(value: str) -> bytes:
-        return hashlib.sha256(value.encode("utf-8")).digest()
+    def _build_encryption_key(value: str, purpose: str = "skill-download-encryption") -> bytes:
+        return derive_aes256_key(value, purpose)
 
     @staticmethod
     def _encrypt_payload(payload: bytes) -> tuple[str, str]:
-        key = SkillService._build_encryption_key(settings.SECRET_KEY)
+        key = SkillService._build_encryption_key(
+            settings.SECRET_KEY,
+            SkillService._DOWNLOAD_ENCRYPTION_PURPOSE,
+        )
         nonce = os.urandom(12)
         encrypted = nonce + AESGCM(key).encrypt(nonce, payload, None)
         encoded = base64.b64encode(encrypted).decode("utf-8")
@@ -381,11 +388,12 @@ class SkillService:
     @staticmethod
     def _build_python_commands(manager: str, requirements: list[str], files: list[str]) -> list[str]:
         commands: list[str] = []
+        quoted_requirements = [quote_shell_arg(str(item)) for item in requirements if str(item).strip()]
         if manager == "pip":
             if "requirements.txt" in files:
                 commands.append("pip install -r requirements.txt")
-            if requirements:
-                commands.append("pip install " + " ".join(requirements))
+            if quoted_requirements:
+                commands.append("pip install " + " ".join(quoted_requirements))
         elif manager == "poetry":
             commands.append("poetry install")
         elif manager == "uv":
@@ -393,8 +401,8 @@ class SkillService:
                 commands.append("uv sync")
             elif "requirements.txt" in files:
                 commands.append("uv pip install -r requirements.txt")
-            if requirements:
-                commands.append("uv pip install " + " ".join(requirements))
+            if quoted_requirements:
+                commands.append("uv pip install " + " ".join(quoted_requirements))
         elif manager == "conda":
             if "environment.yml" in files:
                 commands.append("conda env create -f environment.yml")
@@ -503,7 +511,7 @@ class SkillService:
                 requirements_text = ""
         if not commands and dependencies:
             commands = [
-                "pip install " + " ".join(dependencies),
+                "pip install " + " ".join(quote_shell_arg(str(item)) for item in dependencies if str(item).strip()),
                 "pip install -r requirements.txt",
             ]
         return {

@@ -306,11 +306,24 @@ pandas>=1.3.0"""
         """测试 uv 带 requirements.txt"""
         cmds = SkillService._build_python_commands("uv", [], ["requirements.txt"])
         assert "uv pip install -r requirements.txt" in cmds
+        assert "uv sync" not in cmds
+
+    def test_build_python_commands_uv_with_pyproject(self):
+        """测试 uv 带 pyproject.toml"""
+        cmds = SkillService._build_python_commands("uv", [], ["pyproject.toml"])
+        assert "uv sync" in cmds
+        assert "uv pip install" not in cmds
+
+    def test_build_python_commands_uv_with_pyproject_and_requirements(self):
+        """测试 uv 同时有 pyproject.toml 和 requirements.txt"""
+        cmds = SkillService._build_python_commands("uv", ["requests"], ["pyproject.toml", "requirements.txt"])
+        assert "uv sync" in cmds
+        assert "uv pip install requests" in cmds
 
     def test_build_python_commands_uv_without_requirements(self):
-        """测试 uv 无 requirements.txt"""
+        """测试 uv 无 requirements.txt 且无 pyproject.toml"""
         cmds = SkillService._build_python_commands("uv", [], [])
-        assert "uv pip install" in cmds
+        assert cmds == []
 
     def test_build_python_commands_conda_with_environment_yml(self):
         """测试 conda 带 environment.yml"""

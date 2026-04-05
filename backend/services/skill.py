@@ -336,6 +336,49 @@ class SkillService:
         return next_version
 
     @staticmethod
+    def _detect_python_dependency_spec(
+        entry_names: set[str],
+        archive,
+        requirements: list[str],
+    ) -> tuple[dict[str, object], list[str]]:
+        python_spec: dict[str, object] = {}
+        deps = list(requirements)
+        if "pyproject.toml" in entry_names:
+            has_uv_lock = "uv.lock" in entry_names
+            python_spec = {
+                "manager": "uv",
+                "requirements": deps,
+                "files": ["pyproject.toml"],
+                "lockfile": "uv.lock" if has_uv_lock else None,
+            }
+        elif "requirements.txt" in entry_names:
+            try:
+                requirements_text = archive.read("requirements.txt").decode("utf-8", errors="replace")
+            except Exception:
+                requirements_text = ""
+            parsed = SkillService._parse_requirements_text(requirements_text)
+            if parsed:
+                deps = parsed
+            python_spec = {
+                "manager": "pip",
+                "requirements": deps,
+                "files": ["requirements.txt"],
+            }
+        elif "environment.yml" in entry_names:
+            python_spec = {
+                "manager": "conda",
+                "requirements": deps,
+                "files": ["environment.yml"],
+            }
+        if not python_spec and deps:
+            python_spec = {
+                "manager": "pip",
+                "requirements": deps,
+                "files": [],
+            }
+        return python_spec, deps
+
+    @staticmethod
     def _build_python_commands(manager: str, requirements: list[str], files: list[str]) -> list[str]:
         commands: list[str] = []
         if manager == "pip":
@@ -346,7 +389,12 @@ class SkillService:
         elif manager == "poetry":
             commands.append("poetry install")
         elif manager == "uv":
-            commands.append("uv pip install -r requirements.txt" if "requirements.txt" in files else "uv pip install")
+            if "pyproject.toml" in files:
+                commands.append("uv sync")
+            elif "requirements.txt" in files:
+                commands.append("uv pip install -r requirements.txt")
+            if requirements:
+                commands.append("uv pip install " + " ".join(requirements))
         elif manager == "conda":
             if "environment.yml" in files:
                 commands.append("conda env create -f environment.yml")
@@ -623,25 +671,10 @@ class SkillService:
                 dependency_spec = {"schema_version": 1}
                 dependency_spec_version = "1"
                 entry_names = {info.filename.replace("\\", "/").lstrip("/") for info in entries}
-                python_spec: dict[str, object] = {}
                 node_spec: dict[str, object] = {}
-                requirements: list[str] = []
-                if "requirements.txt" in entry_names:
-                    requirements_text = archive.read("requirements.txt").decode("utf-8", errors="replace")
-                    requirements = self._parse_requirements_text(requirements_text)
-                    if requirements:
-                        dependencies = requirements
-                    python_spec = {
-                        "manager": "pip",
-                        "requirements": requirements,
-                        "files": ["requirements.txt"],
-                    }
-                if "environment.yml" in entry_names:
-                    python_spec = {
-                        "manager": "conda",
-                        "requirements": requirements,
-                        "files": ["environment.yml"],
-                    }
+                python_spec, deps = self._detect_python_dependency_spec(entry_names, archive, [])
+                if deps:
+                    dependencies = deps
                 if "package.json" in entry_names:
                     try:
                         package_json = json.loads(archive.read("package.json").decode("utf-8", errors="replace"))
@@ -654,12 +687,6 @@ class SkillService:
                         "manager": "npm",
                         "package_json": package_json,
                         "lockfile": lockfile or None,
-                    }
-                if not python_spec and dependencies:
-                    python_spec = {
-                        "manager": "pip",
-                        "requirements": dependencies,
-                        "files": [],
                     }
                 if python_spec:
                     dependency_spec["python"] = python_spec
@@ -815,25 +842,10 @@ class SkillService:
                 dependency_spec = {"schema_version": 1}
                 dependency_spec_version = "1"
                 entry_names = {info.filename.replace("\\", "/").lstrip("/") for info in entries}
-                python_spec: dict[str, object] = {}
                 node_spec: dict[str, object] = {}
-                requirements: list[str] = []
-                if "requirements.txt" in entry_names:
-                    requirements_text = archive.read("requirements.txt").decode("utf-8", errors="replace")
-                    requirements = self._parse_requirements_text(requirements_text)
-                    if requirements:
-                        dependencies = requirements
-                    python_spec = {
-                        "manager": "pip",
-                        "requirements": requirements,
-                        "files": ["requirements.txt"],
-                    }
-                if "environment.yml" in entry_names:
-                    python_spec = {
-                        "manager": "conda",
-                        "requirements": requirements,
-                        "files": ["environment.yml"],
-                    }
+                python_spec, deps = self._detect_python_dependency_spec(entry_names, archive, [])
+                if deps:
+                    dependencies = deps
                 if "package.json" in entry_names:
                     try:
                         package_json = json.loads(archive.read("package.json").decode("utf-8", errors="replace"))
@@ -846,12 +858,6 @@ class SkillService:
                         "manager": "npm",
                         "package_json": package_json,
                         "lockfile": lockfile or None,
-                    }
-                if not python_spec and dependencies:
-                    python_spec = {
-                        "manager": "pip",
-                        "requirements": dependencies,
-                        "files": [],
                     }
                 if python_spec:
                     dependency_spec["python"] = python_spec

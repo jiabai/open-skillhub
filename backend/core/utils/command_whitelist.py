@@ -10,6 +10,7 @@ ALLOWED_COMMANDS: Set[str] = {
     "npm",
     "bash",
     "sh",
+    "uv",
 }
 
 BLOCKED_PATTERNS: list[str] = [

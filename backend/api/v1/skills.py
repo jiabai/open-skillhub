@@ -1,8 +1,13 @@
+import os
+from pathlib import Path
+import tempfile
+
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Request, Response, UploadFile, status
 from loguru import logger
 
 from backend.config.settings import settings
 from backend.core.deps import require_permission
+from backend.core.utils.skill_storage import MAX_FILE_SIZE, MAX_TOTAL_SIZE
 from backend.db.session import get_async_session
 from backend.repositories.audit_log import AuditLogRepository
 from backend.repositories.skill import SkillRepository
@@ -22,6 +27,30 @@ from backend.services.skill import SkillService
 
 
 router = APIRouter()
+UPLOAD_CHUNK_SIZE = 64 * 1024
+
+
+async def _stream_upload_to_temp_file(file: UploadFile, max_bytes: int) -> tuple[Path, int]:
+    suffix = Path(file.filename or "").suffix or ".upload"
+    total_size = 0
+    with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as temp_file:
+        temp_path = Path(temp_file.name)
+        try:
+            while True:
+                chunk = await file.read(UPLOAD_CHUNK_SIZE)
+                if not chunk:
+                    break
+                total_size += len(chunk)
+                if total_size > max_bytes:
+                    raise ValueError("File too large")
+                temp_file.write(chunk)
+        except Exception:
+            try:
+                os.unlink(temp_path)
+            except OSError:
+                pass
+            raise
+    return temp_path, total_size
 
 
 @router.get("", response_model=SkillListResponse)
@@ -176,17 +205,21 @@ async def upload_skill_file(
     session=Depends(get_async_session),
 ):
     service = SkillService(SkillRepository(session), SkillVersionRepository(session))
-    content = await file.read()
     filename = file.filename or ""
-    logger.info(
-        f"[UPLOAD START] user_id={current_user.id}, filename={filename}, "
-        f"skill_uuid={skill_uuid}, visibility={visibility}, content_size={len(content)} bytes"
-    )
+    is_zip = filename.lower().endswith(".zip")
+    temp_path = None
+    content_size = 0
+    max_upload_size = MAX_TOTAL_SIZE if is_zip else MAX_FILE_SIZE
     try:
-        if filename.lower().endswith(".zip"):
+        temp_path, content_size = await _stream_upload_to_temp_file(file, max_upload_size)
+        logger.info(
+            f"[UPLOAD START] user_id={current_user.id}, filename={filename}, "
+            f"skill_uuid={skill_uuid}, visibility={visibility}, content_size={content_size} bytes"
+        )
+        if is_zip:
             if skill_uuid:
                 logger.debug(f"[UPLOAD ZIP] Updating existing skill, skill_uuid={skill_uuid}")
-                payload = await service.upload_zip(current_user, skill_uuid, filename, content, metadata)
+                payload = await service.upload_zip_from_path(current_user, skill_uuid, filename, temp_path, metadata)
                 logger.info(f"[UPLOAD ZIP SUCCESS] Updated skill, version={payload.get('version')}")
                 if settings.ENABLE_AUDIT_LOG:
                     audit_service = AuditService(AuditLogRepository(session))
@@ -201,7 +234,7 @@ async def upload_skill_file(
                 return payload
             else:
                 logger.debug(f"[UPLOAD ZIP] Creating new skill")
-                payload = await service.upload_zip_create_skill(current_user, filename, content, visibility)
+                payload = await service.upload_zip_create_skill_from_path(current_user, filename, temp_path, visibility)
                 logger.info(
                     f"[UPLOAD ZIP SUCCESS] Created new skill, id={payload.get('id')}, "
                     f"name={payload.get('name')}, version={payload.get('version')}"
@@ -219,13 +252,20 @@ async def upload_skill_file(
                 return payload
         if not skill_uuid:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="skill_uuid is required for non-zip uploads")
-        filename = await service.upload_file(current_user, skill_uuid, filename, content)
+        filename = await service.upload_file_from_path(current_user, skill_uuid, filename, temp_path, content_size)
     except ValueError as exc:
         logger.error(f"[UPLOAD FAILED] user_id={current_user.id}, filename={filename}, error={str(exc)}", exc_info=True)
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
     except Exception as exc:
         logger.error(f"[UPLOAD FAILED] user_id={current_user.id}, filename={filename}, unexpected_error={str(exc)}", exc_info=True)
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Upload failed") from exc
+    finally:
+        await file.close()
+        if temp_path:
+            try:
+                os.unlink(temp_path)
+            except OSError:
+                pass
     if settings.ENABLE_AUDIT_LOG:
         audit_service = AuditService(AuditLogRepository(session))
         await audit_service.create_event(

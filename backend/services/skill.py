@@ -8,6 +8,7 @@ import os
 from pathlib import Path
 import re
 import shutil
+import tempfile
 import zipfile
 
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
@@ -39,6 +40,7 @@ from backend.core.utils.skill_archive import (
     list_archive_versions,
     load_archive,
     save_archive,
+    save_archive_from_path,
 )
 from backend.models.skill import Skill
 from backend.models.user import User
@@ -177,12 +179,26 @@ class SkillService:
         return safe_path.read_text(encoding="utf-8", errors="replace")
 
     async def upload_file(self, user: User, skill_id: str, filename: str, content: bytes) -> str:
+        temp_path = self._write_temp_upload(content, suffix=Path(filename or "").suffix or ".upload")
+        try:
+            return await self.upload_file_from_path(user, skill_id, filename, temp_path, len(content))
+        finally:
+            self._cleanup_temp_path(temp_path)
+
+    async def upload_file_from_path(
+        self,
+        user: User,
+        skill_id: str,
+        filename: str,
+        source_path: Path,
+        content_size: int,
+    ) -> str:
         skill = await self.get_skill(user, skill_id)
         self._ensure_owner(user, skill)
         valid, error = validate_filename(filename)
         if not valid:
             raise ValueError(error)
-        if len(content) > MAX_FILE_SIZE:
+        if content_size > MAX_FILE_SIZE:
             raise ValueError("File too large")
         existing = list_files(user.id, skill.name)
         if len(existing) >= MAX_FILES_PER_SKILL:
@@ -193,14 +209,14 @@ class SkillService:
             file_path = skill_dir / rel_path
             if file_path.exists() and file_path.is_file():
                 total_size += file_path.stat().st_size
-        if total_size + len(content) > MAX_TOTAL_SIZE:
+        if total_size + content_size > MAX_TOTAL_SIZE:
             raise ValueError("Total skill size limit exceeded")
         base_dir = Path(settings.SKILL_STORAGE_PATH)
         safe_path = get_safe_skill_path(base_dir, user.id, skill.name, filename)
         if not safe_path:
             raise ValueError("Invalid file path")
         safe_path.parent.mkdir(parents=True, exist_ok=True)
-        safe_path.write_bytes(content)
+        shutil.copyfile(source_path, safe_path)
         return filename
 
     def _require_version_repo(self) -> SkillVersionRepository:
@@ -607,15 +623,30 @@ class SkillService:
         content: bytes,
         metadata_text: str | None = None,
     ) -> dict:
+        temp_path = self._write_temp_upload(content, suffix=".zip")
+        try:
+            return await self.upload_zip_from_path(user, skill_id, filename, temp_path, metadata_text)
+        finally:
+            self._cleanup_temp_path(temp_path)
+
+    async def upload_zip_from_path(
+        self,
+        user: User,
+        skill_id: str,
+        filename: str,
+        archive_path: Path,
+        metadata_text: str | None = None,
+    ) -> dict:
         repo = self._require_version_repo()
-        logger.debug(f"[UPLOAD_ZIP] user_id={user.id}, skill_id={skill_id}, filename={filename}, content_size={len(content)} bytes")
+        archive_size = archive_path.stat().st_size if archive_path.exists() else 0
+        logger.debug(f"[UPLOAD_ZIP] user_id={user.id}, skill_id={skill_id}, filename={filename}, content_size={archive_size} bytes")
         skill = await self.get_skill(user, skill_id)
         self._ensure_owner(user, skill)
         logger.debug(f"[UPLOAD_ZIP] Found skill: name={skill.name}")
         if not filename.lower().endswith(".zip"):
             raise ValueError("Invalid zip file")
         try:
-            archive = zipfile.ZipFile(io.BytesIO(content))
+            archive = zipfile.ZipFile(archive_path)
         except zipfile.BadZipFile as exc:
             logger.error(f"[UPLOAD_ZIP] Invalid zip file: {str(exc)}")
             raise ValueError("Invalid zip file") from exc
@@ -743,7 +774,7 @@ class SkillService:
             )
             await self.skill_repo.update(skill, current_version=version, description=description, is_active=True)
             logger.debug(f"[UPLOAD_ZIP] Saving archive, version={version}")
-            await save_archive(user.id, skill.name, version, content)
+            await save_archive_from_path(user.id, skill.name, version, archive_path)
             logger.debug(f"[UPLOAD_ZIP] Success, skill_id={skill_id}, version={version}")
             return {
                 "version": record.version,
@@ -758,12 +789,26 @@ class SkillService:
         content: bytes,
         visibility: str = "private",
     ) -> dict:
+        temp_path = self._write_temp_upload(content, suffix=".zip")
+        try:
+            return await self.upload_zip_create_skill_from_path(user, filename, temp_path, visibility)
+        finally:
+            self._cleanup_temp_path(temp_path)
+
+    async def upload_zip_create_skill_from_path(
+        self,
+        user: User,
+        filename: str,
+        archive_path: Path,
+        visibility: str = "private",
+    ) -> dict:
         repo = self._require_version_repo()
-        logger.debug(f"[UPLOAD_ZIP_CREATE] user_id={user.id}, filename={filename}, content_size={len(content)} bytes")
+        archive_size = archive_path.stat().st_size if archive_path.exists() else 0
+        logger.debug(f"[UPLOAD_ZIP_CREATE] user_id={user.id}, filename={filename}, content_size={archive_size} bytes")
         if not filename.lower().endswith(".zip"):
             raise ValueError("Invalid zip file")
         try:
-            archive = zipfile.ZipFile(io.BytesIO(content))
+            archive = zipfile.ZipFile(archive_path)
         except zipfile.BadZipFile as exc:
             logger.error(f"[UPLOAD_ZIP_CREATE] Invalid zip file: {str(exc)}")
             raise ValueError("Invalid zip file") from exc
@@ -915,7 +960,7 @@ class SkillService:
             )
             await self.skill_repo.update(skill, current_version=version, description=description, is_active=True)
             logger.debug(f"[UPLOAD_ZIP_CREATE] Saving archive, version={version}")
-            await save_archive(user.id, skill.name, version, content)
+            await save_archive_from_path(user.id, skill.name, version, archive_path)
             logger.info(f"[UPLOAD_ZIP_CREATE] Success, skill_id={skill.id}, version={version}")
             return {
                 "id": skill.id,
@@ -925,3 +970,16 @@ class SkillService:
                 "current_version": version,
                 "dependencies": record.dependencies,
             }
+
+    @staticmethod
+    def _write_temp_upload(content: bytes, suffix: str) -> Path:
+        with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as temp_file:
+            temp_file.write(content)
+            return Path(temp_file.name)
+
+    @staticmethod
+    def _cleanup_temp_path(path: Path) -> None:
+        try:
+            path.unlink(missing_ok=True)
+        except OSError:
+            logger.warning(f"[UPLOAD CLEANUP] Failed to remove temp file: {path}")

@@ -158,6 +158,47 @@ async def test_skill_upload_and_list_files(client, tmp_path, monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_skill_upload_rejects_oversized_file_before_full_read(client, tmp_path, monkeypatch):
+    import backend.api.v1.skills as skills_api
+
+    monkeypatch.setenv("SKILL_STORAGE_PATH", str(tmp_path))
+    monkeypatch.setattr(skills_api, "MAX_FILE_SIZE", 5)
+    await client.post(
+        "/api/v1/auth/verification-code",
+        json={"email": "upload-limit@example.com", "purpose": "register"},
+    )
+    await client.post(
+        "/api/v1/auth/register",
+        json={"email": "upload-limit@example.com", "username": "uploadlimit", "code": "123456"},
+    )
+    await client.post(
+        "/api/v1/auth/verification-code",
+        json={"email": "upload-limit@example.com", "purpose": "login"},
+    )
+    login = await client.post(
+        "/api/v1/auth/login",
+        json={"email": "upload-limit@example.com", "code": "123456"},
+    )
+    access = login.json()["access_token"]
+    headers = {"Authorization": f"Bearer {access}"}
+    created = await client.post(
+        "/api/v1/skills",
+        json={"name": "skilllimit", "description": "desc"},
+        headers=headers,
+    )
+    skill_id = created.json()["id"]
+    files = {"file": ("reference.md", b"123456", "text/markdown")}
+    response = await client.post(
+        "/api/v1/skills/upload",
+        data={"skill_uuid": skill_id},
+        files=files,
+        headers=headers,
+    )
+    assert response.status_code == 400
+    assert response.json()["detail"] == "File too large"
+
+
+@pytest.mark.asyncio
 async def test_skill_zip_upload_creates_version(client, tmp_path, monkeypatch):
     monkeypatch.setenv("SKILL_STORAGE_PATH", str(tmp_path))
     await client.post(

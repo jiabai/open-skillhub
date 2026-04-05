@@ -122,6 +122,33 @@ class TestSkillServiceUploadFile:
 
         assert result == "test.txt"
 
+    @pytest.mark.asyncio
+    async def test_upload_file_from_path_success(
+        self, mock_skill_repo, test_user, test_skill, tmp_path
+    ):
+        import os
+        os.environ["SKILL_STORAGE_PATH"] = str(tmp_path)
+
+        mock_skill_repo.get_by_id = AsyncMock(return_value=test_skill)
+        service = SkillService(mock_skill_repo, None)
+
+        skill_dir = get_user_skill_dir(test_user.id, test_skill.name)
+        skill_dir.mkdir(parents=True, exist_ok=True)
+
+        source_path = tmp_path / "upload.tmp"
+        source_path.write_bytes(b"streamed content")
+
+        result = await service.upload_file_from_path(
+            test_user,
+            "skill-uuid-123",
+            "stream.txt",
+            source_path,
+            source_path.stat().st_size,
+        )
+
+        assert result == "stream.txt"
+        assert (skill_dir / "stream.txt").read_bytes() == b"streamed content"
+
 
 class TestSkillServiceSkillOperations:
     """测试技能操作"""

@@ -137,6 +137,26 @@ async def save_archive(user_id: str, skill_name: str, version: str, content: byt
     logger.debug(f"[ARCHIVE_SAVE] Saved to local file, path={path}")
 
 
+async def save_archive_from_path(user_id: str, skill_name: str, version: str, source_path: Path) -> None:
+    backend = (settings.SKILL_ARCHIVE_BACKEND or "local").lower()
+    size = source_path.stat().st_size if source_path.exists() else 0
+    logger.debug(
+        f"[ARCHIVE_SAVE_PATH] user_id={user_id}, skill_name={skill_name}, "
+        f"version={version}, backend={backend}, content_size={size} bytes"
+    )
+    if backend == "s3":
+        _write_local_cache(_local_cache_path(user_id, skill_name, version), source_path.read_bytes())
+        client = _get_s3_client()
+        with source_path.open("rb") as file_obj:
+            client.upload_fileobj(file_obj, settings.SKILL_ARCHIVE_S3_BUCKET, _archive_key(user_id, skill_name, version))
+        logger.debug(f"[ARCHIVE_SAVE_PATH] Saved to S3, key={_archive_key(user_id, skill_name, version)}")
+        return
+    path = _archive_path(user_id, skill_name, version)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copyfile(source_path, path)
+    logger.debug(f"[ARCHIVE_SAVE_PATH] Saved to local file, path={path}")
+
+
 async def load_archive(user_id: str, skill_name: str, version: str) -> bytes | None:
     backend = (settings.SKILL_ARCHIVE_BACKEND or "local").lower()
     logger.debug(f"[ARCHIVE_LOAD] user_id={user_id}, skill_name={skill_name}, version={version}, backend={backend}")

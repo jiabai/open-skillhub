@@ -1,9 +1,17 @@
-# <img src="docs/figure/skillhub-logo.png" alt="Open SkillHub Logo" width="5%" style="vertical-align: middle;"> Open SkillHub
+<p align="center">
+  <img src="docs/figure/skillhub-logo.png" alt="Open SkillHub Logo" width="120" style="vertical-align: middle;">
+</p>
+
+<h1 align="center">Open SkillHub</h1>
 
 <p align="center">
-  <a href="https://pypi.org/project/open-skillhub/"><img src="https://img.shields.io/badge/python-3.10+-blue" alt="Python Version"></a>
-  <a href="https://pypi.org/project/open-skillhub/"><img src="https://img.shields.io/pypi/v/open-skillhub.svg?logo=pypi" alt="PyPI Version"></a>
-  <a href="./LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0-black" alt="License"></a>
+  <strong>面向 AI Agent 的私有化技能管理 SaaS 平台</strong>
+</p>
+
+<p align="center">
+  <a href="https://pypi.org/project/open-skillhub/"><img src="https://img.shields.io/badge/python-3.10+-blue?style=flat-square&logo=python" alt="Python 版本"></a>
+  <a href="https://pypi.org/project/open-skillhub/"><img src="https://img.shields.io/pypi/v/open-skillhub.svg?style=flat-square&logo=pypi&color=green" alt="PyPI 版本"></a>
+  <a href="./LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0-black?style=flat-square" alt="许可证"></a>
   <a href="https://github.com/zouyingcao/open-skillhub"><img src="https://img.shields.io/github/stars/zouyingcao/open-skillhub?style=social" alt="GitHub Stars"></a>
 </p>
 
@@ -11,136 +19,139 @@
   简体中文 | <a href="./README.md">English</a>
 </p>
 
-## 项目简介
+---
 
-Open SkillHub 是一个**私有化 Skills 管理 SaaS 平台**，专为 AI Agent 设计。它提供多租户账户体系、私有技能空间、可视化控制台以及 MCP HTTP/SSE 接入能力。系统通过 Web API 管理 Skill 生命周期，并通过 MCP 端点供客户端执行 Skills，实现"上传-管理-调用"的完整闭环。
+## ✨ 项目简介
 
-## 功能特性
+**Open SkillHub** 是一个**私有化 Skills 管理 SaaS 平台**，专为 AI Agent 打造。它提供完整的「上传 → 管理 → 调用」闭环能力，支持多租户隔离、可视化 Web 控制台，以及原生 MCP (Model Context Protocol) HTTP/SSE 接入。
 
-### 核心能力
-- **多租户架构** - 用户隔离与 JWT 认证
-- **API Token 管理** - 通过 `ask_live_...` Token 安全访问 MCP
-- **Skill 生命周期管理** - 创建、上传（ZIP）、版本管理、回滚、启用/停用
-- **Web 控制台** - 技能、Token、个人资料与安全设置的统一管理界面
-- **MCP 集成** - HTTP/SSE 端点供 AI Agent 接入
+### 为什么选择 Open SkillHub？
 
-### 企业级功能（可选）
-- **组织模型** - 企业/团队/用户层级结构
-- **RBAC 权限** - 基于角色的访问控制，权限可配置
-- **技能可见性** - 企业级/团队级/私有三级可见性
-- **审计日志** - 完整的操作审计追踪，支持导出
-- **SSO 集成** - 基于 JWT 的 SSO，支持 LDAP
-- **邮件验证** - OTP 登录与邮箱验证码
+| 痛点 | 解决方案 |
+|------|---------|
+| 技能散落在各处仓库 | 集中式私有技能存储 |
+| AI Agent 无访问控制 | JWT + API Token 双重认证 |
+| 手动部署技能繁琐 | Web 控制台 + MCP 自动发现 |
+| 缺乏版本追踪 | 内置版本管理与回滚 |
 
-### MCP 工具（7 个）
-1. `load_skill_metadata` - 扫描可用技能
-2. `load_skill` - 加载技能指令（SKILL.md）
-3. `read_reference_file` - 读取技能参考文件
-4. `run_shell_command` - 执行 Shell 命令（白名单控制）
-5. `skill_list_resource` - MCP Resource `skill://list`
-6. `skill_detail_resource` - MCP Resource `skill://{uuid}@{version}`
-7. `execute_skill` - 执行技能（带 RBAC 检查）
+---
 
-## 快速开始
+## 🚀 快速开始
 
 ### 环境要求
-- Python 3.10+
-- PostgreSQL 14+（生产环境）
-- Node.js 18+（前端控制台）
 
-### 1. 安装依赖
+- **Python 3.10+**
+- **PostgreSQL 14+**（生产环境）
+- **Node.js 18+**（前端，可选）
+
+### 一键 Docker 部署（推荐）
 
 ```bash
+git clone https://github.com/zouyingcao/open-skillhub.git
+cd open-skillhub
+cp backend/.env.example backend/.env
+docker compose up -d --build
+```
+
+**完成！** 访问 `http://localhost` 即可打开 Web 控制台。
+
+### 手动安装
+
+```bash
+# 1. 创建虚拟环境
 python -m venv .venv
 source .venv/bin/activate  # Linux/macOS
 # .venv\Scripts\activate   # Windows
+
+# 2. 安装依赖
 pip install -e ".[dev]"
-```
 
-### 2. 配置环境变量
+# 3. 配置环境变量
+cp backend/.env.example backend/.env
+# 编辑 backend/.env 填入你的配置
 
-复制 `backend/.env.example` 为 `backend/.env` 并配置：
-
-```bash
-DATABASE_URL=postgresql+asyncpg://user:pass@localhost:5432/skillhub
-SECRET_KEY=your-secret-key-min-32-chars
-SKILL_STORAGE_PATH=/data/skills
-CORS_ORIGINS=["http://localhost:3000"]
-```
-
-### 3. 初始化数据库
-
-```bash
+# 4. 初始化数据库
 alembic upgrade head
-```
 
-### 4. 启动后端 API
-
-```bash
+# 5. 启动服务
 uvicorn backend.api_app:app --host 0.0.0.0 --port 8000
 ```
 
-## Docker Compose 部署
+---
 
-### 快速开始（推荐）
+## 🎯 核心功能
 
-```bash
-# 启动所有服务
-docker compose up -d --build
+### 多租户架构
 
-# 查看日志
-docker compose logs -f
+每位用户拥有独立的技能空间，基于 JWT 身份认证与 API Token 管理（`ask_live_...` Token 安全访问 MCP）。
 
-# 停止服务
-docker compose down
-```
-
-### 服务端口
-
-| 服务 | 端口 | 说明 |
-|------|------|------|
-| Frontend | 80 | Web 控制台 (Next.js) |
-| API | 8001 | 后端 API（仅内网） |
-| PostgreSQL | 5432 | 数据库（仅内网） |
-| Adminer | 18080 | 数据库管理界面 |
-
-### 配置说明
-
-1. 复制 `backend/.env.example` 为 `backend/.env` 并配置
-2. 环境变量自动从 `backend/.env` 加载
-3. 生产环境请确保设置了 `SECRET_KEY` 且 `DEBUG=false`
-
-### 架构图
+### 完整的技能生命周期
 
 ```
-┌─────────────────────────────────────────────────────────┐
-│                      外部网络                            │
-│                                                         │
-│   浏览器 ───► http://your-domain.com (端口 80)         │
-│                                                         │
-└─────────────────────────────────────────────────────────┘
-                           │
-                           ▼
-┌─────────────────────────────────────────────────────────┐
-│                   Docker 网络                            │
-│                                                         │
-│   ┌─────────────┐      ┌─────────────┐                │
-│   │   Frontend  │◄────►│     API      │                │
-│   │  (Next.js)  │代理  │  (FastAPI)   │                │
-│   │   :3000     │      │   :8001      │                │
-│   └─────────────┘      └──────┬───────┘                │
-│                               │                         │
-│                               ▼                         │
-│                        ┌─────────────┐                 │
-│                        │ PostgreSQL  │                 │
-│                        │   :5432     │                 │
-│                        └─────────────┘                 │
-└─────────────────────────────────────────────────────────┘
+上传 ZIP → 解析 SKILL.md → 版本管理 → 启用 → MCP 发现 → 执行
+     ↑                                                |
+     └──────────────── 回滚 / 停用 ←───────────────────┘
 ```
 
-所有外部流量通过 Frontend 进入，由 Frontend 代理 API 请求。
+### 企业级安全保障
 
-## MCP 接入配置
+- **RBAC 权限控制** — 基于角色的细粒度权限管理
+- **组织架构模型** — 企业 → 团队 → 用户三级层级
+- **审计日志** — 完整操作记录，支持导出
+- **SSO 单点登录** — 基于 JWT 的 SSO，支持 LDAP
+- **邮箱验证** — OTP 登录 + 验证码校验
+
+### MCP 集成（7 个工具）
+
+AI Agent 通过标准 MCP 协议自动发现和执行技能：
+
+| 工具 | 用途 |
+|------|------|
+| `load_skill_metadata` | 扫描可用技能列表 |
+| `load_skill` | 加载技能指令（SKILL.md） |
+| `read_reference_file` | 读取技能内参考文件 |
+| `run_shell_command` | 执行 Shell 命令（白名单控制） |
+| `skill_list_resource` | 资源端点：技能列表 |
+| `skill_detail_resource` | 资源端点：技能详情 |
+| `execute_skill` | 执行技能（含 RBAC 检查） |
+
+---
+
+## 🏗️ 架构图
+
+```mermaid
+graph TB
+    subgraph External["外部网络"]
+        Browser["浏览器"]
+        AIAgent["AI 客户端 / Agent"]
+    end
+
+    subgraph Docker["Docker 网络"]
+        Frontend["前端<br/>Next.js :3000"]
+        API["API 服务<br/>FastAPI :8001"]
+        DB[(PostgreSQL<br/>:5432)]
+        Storage["技能存储<br/>/data/skills"]
+    end
+
+    Browser -->|HTTP :80| Frontend
+    Frontend -->|代理转发| API
+    AIAgent -->|MCP HTTP/SSE| API
+    API --> DB
+    API --> Storage
+
+    style External fill:#1e293b,stroke:#334155,color:#f8fafc
+    style Docker fill:#0f172a,stroke:#22c55e,color:#22c55e
+    style Frontend fill:#334155,stroke:#475569,color:#f8fafc
+    style API fill:#334155,stroke:#475569,color:#22c55e
+    style DB fill:#334155,stroke:#475569,color:#60a5fa
+    style Storage fill:#334155,stroke:#475569,color:#f472b6
+```
+
+所有外部流量通过前端（端口 80）进入，由前端内部代理转发 API 请求。
+
+---
+
+## 🔌 MCP 接入配置
 
 在 AI 客户端中配置 Open SkillHub：
 
@@ -160,20 +171,37 @@ docker compose down
 
 ### 认证流程
 
-1. 通过 `POST /api/v1/auth/verification-code` 发送验证码（用途：`login`/`register`/`delete_account`）
-2. 通过 `POST /api/v1/auth/login` 使用邮箱和验证码登录获取 JWT Token
-3. 通过 `POST /api/v1/tokens` 创建 API Token
-4. 使用 API Token（`ask_live_...`）访问 MCP 服务
-5. MCP 服务自动识别用户身份，访问其私有 Skill 空间
+```mermaid
+sequenceDiagram
+    participant Client as AI 客户端
+    participant API as SkillHub API
+    participant DB as 数据库
 
-## Skill 存储结构
+    Client->>API: POST /auth/verification-code
+    API->>DB: 创建 OTP 记录
+    DB-->>Client: 邮箱收到验证码
+    
+    Client->>API: POST /auth/login (邮箱 + 验证码)
+    API-->>Client: JWT Token
+    
+    Client->>API: POST /tokens (创建 API Token)
+    API-->>Client: ask_live_... token
+    
+    Client->>API: MCP 请求 (Bearer Token)
+    API->>DB: 校验用户身份 + 权限
+    API-->>Client: 技能执行结果
+```
+
+---
+
+## 📁 存储结构
 
 ```
 /data/skills/
 ├── {user_id_1}/
 │   ├── pdf/
-│   │   ├── SKILL.md
-│   │   └── reference.md
+│   │   ├── SKILL.md          # 技能指令文件
+│   │   └── reference.md      # 参考文档
 │   └── xlsx/
 │       └── SKILL.md
 ├── {user_id_2}/
@@ -182,73 +210,93 @@ docker compose down
 └── ...
 ```
 
-每个用户只能访问自己目录下的 Skills，确保数据隔离与安全。
+每个用户目录完全隔离，仅能访问自己的技能空间，确保数据安全。
 
-## 文档
+---
 
-| 文档 | 说明 |
+## 📊 服务端口说明
+
+| 服务 | 端口 | 说明 | 访问范围 |
+|------|------|------|---------|
+| **前端** | 80 | Web 控制台 (Next.js) | 对外开放 |
+| **API 服务** | 8001 | 后端 API (FastAPI) | 仅内网 |
+| **PostgreSQL** | 5432 | 数据库 | 仅内网 |
+| **Adminer** | 18080 | 数据库管理界面 | 仅内网 |
+
+---
+
+## 📚 文档资源
+
+| 资源 | 说明 |
 |------|------|
-| [docs/backend-design/](docs/backend-design/) | 后端架构与设计文档 |
-| [docs/deployment.md](docs/deployment.md) | 部署指南 |
-| [docs/tools.md](docs/tools.md) | MCP 工具文档 |
-| [docs/frontend-design/](docs/frontend-design/) | 前端设计规范 |
+| [后端架构设计](docs/backend-design/) | 系统架构与技术设计文档 |
+| [部署指南](docs/deployment.md) | 生产环境部署教程 |
+| [MCP 工具文档](docs/tools.md) | 工具规格与使用说明 |
+| [前端设计规范](docs/frontend-design/) | UI/UX 设计规格 |
 
-## API 端点
+---
 
-### 认证
-- `POST /api/v1/auth/verification-code` - 发送邮箱验证码
-- `POST /api/v1/auth/register` - 用户注册（验证码方式）
-- `POST /api/v1/auth/login` - 用户登录（验证码方式）
-- `POST /api/v1/auth/refresh` - 刷新 Token
-- `POST /api/v1/auth/sso/login` - SSO 登录
-- `POST /api/v1/auth/ldap/login` - LDAP 登录
+## 🔐 核心 API 端点
 
-### 用户管理
-- `GET /api/v1/users/me` - 获取当前用户信息
-- `PUT /api/v1/users/me` - 更新用户信息
-- `POST /api/v1/users/me/delete-request` - 请求删除账户验证码
-- `DELETE /api/v1/users/me` - 删除账户（需验证码）
-- `POST /api/v1/users/bind-email` - 绑定邮箱
-- `PUT /api/v1/users/{user_id}/identity` - 更新用户身份（管理员）
+<details>
+<summary><strong>认证模块</strong></summary>
 
-### 技能管理
-- `GET /api/v1/skills` - 获取技能列表
-- `GET /api/v1/skills/cache-policy` - 获取缓存策略
-- `POST /api/v1/skills` - 创建技能
-- `GET /api/v1/skills/{id}` - 获取技能详情
-- `PUT /api/v1/skills/{id}` - 更新技能
-- `DELETE /api/v1/skills/{id}` - 删除技能
-- `POST /api/v1/skills/upload` - 上传技能 ZIP 包
-- `POST /api/v1/skills/download` - 下载技能（仅管理员）
-- `POST /api/v1/skills/{id}/deactivate` - 停用技能
-- `POST /api/v1/skills/{id}/activate` - 启用技能
-- `GET /api/v1/skills/{id}/versions` - 获取技能版本列表
-- `POST /api/v1/skills/{id}/versions/{version}/rollback` - 版本回滚
-- `GET /api/v1/skills/{id}/files` - 获取文件列表
-- `GET /api/v1/skills/{id}/files/{file_path}` - 读取文件内容
+- `POST /api/v1/auth/verification-code` — 发送邮箱验证码
+- `POST /api/v1/auth/register` — 用户注册
+- `POST /api/v1/auth/login` — 用户登录
+- `POST /api/v1/auth/sso/login` — SSO 认证
+- `POST /api/v1/auth/ldap/login` — LDAP 登录
 
-### Token 管理
-- `GET /api/v1/tokens` - 获取 API Token 列表
-- `POST /api/v1/tokens` - 创建 API Token
-- `DELETE /api/v1/tokens/{id}` - 撤销 Token
+</details>
 
-### 仪表盘
-- `GET /api/v1/dashboard/overview` - 获取仪表盘概览
-- `POST /api/v1/dashboard/metrics/cleanup` - 清理指标数据（仅管理员）
-- `POST /api/v1/dashboard/metrics/reset-24h` - 重置24小时指标（仅管理员）
+<details>
+<summary><strong>技能管理</strong></summary>
 
-### 审计日志
-- `GET /api/v1/audit/logs` - 查询审计日志
-- `POST /api/v1/audit/logs/export` - 导出审计日志
+- `GET /api/v1/skills` — 获取技能列表
+- `POST /api/v1/skills` — 创建新技能
+- `POST /api/v1/skills/upload` — 上传技能 ZIP 包
+- `GET /api/v1/skills/{id}/versions` — 版本历史
+- `POST /api/v1/skills/{id}/versions/{version}/rollback` — 版本回滚
+- `POST /api/v1/skills/{id}/activate|deactivate` — 启用/停用
 
-### MCP
-- `POST /mcp` - MCP HTTP 端点
-- `GET /sse` - MCP SSE 端点
+</details>
 
-## 许可证
+<details>
+<summary><strong>Token 与审计</strong></summary>
 
-本项目采用 Apache License 2.0 许可证 —— 详情请参见 [LICENSE](./LICENSE) 文件。
+- `GET/POST /api/v1/tokens` — 管理 API Token
+- `GET /api/v1/audit/logs` — 查询审计日志
+- `POST /api/v1/audit/logs/export` — 导出日志
 
-## 贡献指南
+</details>
 
-欢迎提交 PR 与反馈问题。
+完整 API 文档：启动服务后访问 `/docs`（FastAPI 自动生成）
+
+---
+
+## 🛠️ 技术栈
+
+| 层面 | 技术 |
+|------|------|
+| 后端 | Python 3.10+, FastAPI, SQLAlchemy (async) |
+| 数据库 | PostgreSQL 14+ (asyncpg) |
+| 前端 | Next.js 14+, TypeScript, Tailwind CSS |
+| 认证 | JWT (PyJWT), OTP 邮箱验证 |
+| 部署 | Docker Compose, Nginx 反向代理 |
+| 协议 | MCP (HTTP + SSE) |
+
+---
+
+## 📄 许可证
+
+本项目采用 **Apache License 2.0** 开源协议 —— 详情请参阅 [LICENSE](./LICENSE) 文件。
+
+---
+
+## 🤝 参与贡献
+
+欢迎提交 Issue 和 Pull Request！
+
+<p align="center">
+  <sub>为 AI 开发者社区用心构建</sub>
+</p>

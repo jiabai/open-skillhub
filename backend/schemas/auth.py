@@ -3,6 +3,7 @@ from pydantic import BaseModel, Field
 
 class SSOLoginRequest(BaseModel):
     id_token: str = Field(min_length=10)
+    nonce: str = Field(min_length=20, max_length=256)
 
 
 class LDAPLoginRequest(BaseModel):

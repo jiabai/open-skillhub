@@ -1,31 +1,21 @@
 import os
-import jwt
 import pytest
 from sqlalchemy import select
 
 from backend.models.audit_log import AuditLog
-
-
-async def _sso_login(client, email, username, role="admin"):
-    payload = {
-        "email": email,
-        "username": username,
-        "enterprise_id": "ent-audit",
-        "team_id": "team-audit",
-        "role": role,
-        "status": "active",
-        "iss": os.environ["SSO_JWT_ISSUER"],
-        "aud": os.environ["SSO_JWT_AUDIENCE"],
-    }
-    token = jwt.encode(payload, os.environ["SSO_JWT_SECRET"], algorithm="HS256")
-    response = await client.post("/api/v1/auth/sso/login", json={"id_token": token})
-    assert response.status_code == 200
-    return response.json()["access_token"]
+from sso_helpers import sso_login
 
 
 @pytest.mark.asyncio
 async def test_user_delete_creates_audit_log(client, async_session):
-    token = await _sso_login(client, "delete-user@example.com", "delete-user")
+    token = await sso_login(
+        client,
+        email="delete-user@example.com",
+        username="delete-user",
+        enterprise_id="ent-audit",
+        team_id="team-audit",
+        role="admin",
+    )
     headers = {"Authorization": f"Bearer {token}"}
     await client.post("/api/v1/users/me/delete-request", headers=headers)
     response = await client.request(
@@ -45,7 +35,14 @@ async def test_user_delete_creates_audit_log(client, async_session):
 
 @pytest.mark.asyncio
 async def test_skill_update_creates_audit_log(client, async_session):
-    token = await _sso_login(client, "update-skill@example.com", "update-skill")
+    token = await sso_login(
+        client,
+        email="update-skill@example.com",
+        username="update-skill",
+        enterprise_id="ent-audit",
+        team_id="team-audit",
+        role="admin",
+    )
     headers = {"Authorization": f"Bearer {token}"}
     create_response = await client.post(
         "/api/v1/skills",
@@ -71,7 +68,14 @@ async def test_skill_update_creates_audit_log(client, async_session):
 
 @pytest.mark.asyncio
 async def test_skill_delete_creates_audit_log(client, async_session):
-    token = await _sso_login(client, "delete-skill@example.com", "delete-skill")
+    token = await sso_login(
+        client,
+        email="delete-skill@example.com",
+        username="delete-skill",
+        enterprise_id="ent-audit",
+        team_id="team-audit",
+        role="admin",
+    )
     headers = {"Authorization": f"Bearer {token}"}
     create_response = await client.post(
         "/api/v1/skills",
@@ -96,7 +100,14 @@ async def test_skill_delete_creates_audit_log(client, async_session):
 
 @pytest.mark.asyncio
 async def test_token_create_creates_audit_log(client, async_session):
-    token = await _sso_login(client, "create-token@example.com", "create-token")
+    token = await sso_login(
+        client,
+        email="create-token@example.com",
+        username="create-token",
+        enterprise_id="ent-audit",
+        team_id="team-audit",
+        role="admin",
+    )
     headers = {"Authorization": f"Bearer {token}"}
     create_response = await client.post(
         "/api/v1/tokens",
@@ -116,7 +127,14 @@ async def test_token_create_creates_audit_log(client, async_session):
 
 @pytest.mark.asyncio
 async def test_token_delete_creates_audit_log(client, async_session):
-    token = await _sso_login(client, "delete-token@example.com", "delete-token")
+    token = await sso_login(
+        client,
+        email="delete-token@example.com",
+        username="delete-token",
+        enterprise_id="ent-audit",
+        team_id="team-audit",
+        role="admin",
+    )
     headers = {"Authorization": f"Bearer {token}"}
     create_response = await client.post(
         "/api/v1/tokens",

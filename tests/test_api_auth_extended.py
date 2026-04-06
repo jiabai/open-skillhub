@@ -132,9 +132,17 @@ class TestAuthAPISso:
         """测试无效 SSO token"""
         response = await client.post(
             "/api/v1/auth/sso/login",
-            json={"id_token": "invalid.token"},
+            json={"id_token": "invalid.token", "nonce": "n" * 24},
         )
         assert response.status_code in [401, 403]
+
+    @pytest.mark.asyncio
+    async def test_sso_prepare_returns_nonce(self, client):
+        response = await client.post("/api/v1/auth/sso/prepare")
+        assert response.status_code == 200
+        payload = response.json()
+        assert payload["nonce"]
+        assert payload["expires_in"] > 0
 
 
 class TestAuthAPILDap:

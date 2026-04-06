@@ -16,11 +16,11 @@ export default function SSOCallbackPage() {
 
   useEffect(() => {
     const handleCallback = async () => {
-      // 从 URL 参数获取 id_token 或 code
+      // 从 URL 参数获取 id_token
       const idToken = searchParams.get("id_token")
-      const code = searchParams.get("code")
       const errorParam = searchParams.get("error")
       const errorDescription = searchParams.get("error_description")
+      const nonce = typeof window !== "undefined" ? window.sessionStorage.getItem("skillhub.sso.nonce") : null
 
       if (errorParam) {
         setError(errorDescription || errorParam)
@@ -28,15 +28,20 @@ export default function SSOCallbackPage() {
         return
       }
 
-      if (!idToken && !code) {
+      if (!idToken) {
         setError("缺少认证凭证")
+        setLoading(false)
+        return
+      }
+      if (!nonce) {
+        setError("SSO 会话已失效，请重新发起登录")
         setLoading(false)
         return
       }
 
       try {
-        // 使用 id_token 或 code 进行登录
-        const tokenPair = await api.ssoLogin({ id_token: idToken || code || "" })
+        const tokenPair = await api.ssoLogin({ id_token: idToken, nonce })
+        window.sessionStorage.removeItem("skillhub.sso.nonce")
         storeTokens(tokenPair)
         router.replace("/dashboard")
       } catch (err) {

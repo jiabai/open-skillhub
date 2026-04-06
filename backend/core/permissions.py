@@ -78,6 +78,8 @@ class Permission:
     
     AUDIT_READ: str = "audit.read"      # ⚠️ Admin-only: view audit logs
     AUDIT_EXPORT: str = "audit.export"  # ⚠️ Admin-only: export audit data
+    DASHBOARD_READ: str = "dashboard.read"  # Read personal dashboard overview
+    METRICS_MANAGE: str = "metrics.manage"  # Admin-only: cleanup/reset metrics
     
     # =========================================================================
     # Aliases & Convenience Groups
@@ -126,6 +128,7 @@ class Permission:
             cls.USER_MANAGE,
             cls.AUDIT_READ,
             cls.AUDIT_EXPORT,
+            cls.METRICS_MANAGE,
         ]
 
 

@@ -1,31 +1,12 @@
-import os
-
-import jwt
 import pytest
-
-
-async def _sso_login(client, email, username, enterprise_id, team_id, role="member"):
-    payload = {
-        "email": email,
-        "username": username,
-        "enterprise_id": enterprise_id,
-        "team_id": team_id,
-        "role": role,
-        "status": "active",
-        "iss": os.environ["SSO_JWT_ISSUER"],
-        "aud": os.environ["SSO_JWT_AUDIENCE"],
-    }
-    token = jwt.encode(payload, os.environ["SSO_JWT_SECRET"], algorithm="HS256")
-    response = await client.post("/api/v1/auth/sso/login", json={"id_token": token})
-    assert response.status_code == 200
-    return response.json()["access_token"]
+from sso_helpers import sso_login
 
 
 @pytest.mark.asyncio
 async def test_skill_visibility_filters_list(client):
-    token_owner = await _sso_login(client, "owner@example.com", "owner", "ent-1", "team-1", role="member")
-    token_peer = await _sso_login(client, "peer@example.com", "peer", "ent-1", "team-1", role="member")
-    token_other = await _sso_login(client, "other@example.com", "other", "ent-1", "team-2", role="member")
+    token_owner = await sso_login(client, email="owner@example.com", username="owner", enterprise_id="ent-1", team_id="team-1", role="member")
+    token_peer = await sso_login(client, email="peer@example.com", username="peer", enterprise_id="ent-1", team_id="team-1", role="member")
+    token_other = await sso_login(client, email="other@example.com", username="other", enterprise_id="ent-1", team_id="team-2", role="member")
 
     headers_owner = {"Authorization": f"Bearer {token_owner}"}
     await client.post(

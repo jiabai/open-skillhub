@@ -5,6 +5,8 @@ from sqlalchemy import select
 from backend.api_app import create_application
 from backend.config.settings import settings
 from backend.models.audit_log import AuditLog
+from backend.repositories.user import UserRepository
+from backend.services.auth import AuthService
 
 
 @pytest.mark.asyncio
@@ -127,6 +129,32 @@ async def test_refresh_invalid_token_creates_audit_log(client, async_session):
     result = await async_session.execute(query)
     event = result.scalar_one_or_none()
     assert event is not None
+
+
+@pytest.mark.asyncio
+async def test_logout_revokes_existing_access_and_refresh_tokens(client, async_session):
+    user_repo = UserRepository(async_session)
+    auth_service = AuthService(user_repo)
+    user = await auth_service.register(
+        email="logout@example.com",
+        username="logoutuser",
+        password="pass1234",
+    )
+    token_pair = auth_service.issue_token(user)
+    access_token = token_pair.access_token
+    refresh_token = token_pair.refresh_token
+    headers = {"Authorization": f"Bearer {access_token}"}
+
+    logout = await client.post("/api/v1/auth/logout", headers=headers)
+    assert logout.status_code == 200
+
+    listed = await client.get("/api/v1/tokens", headers=headers)
+    assert listed.status_code == 401
+    assert listed.json()["detail"] == "Token revoked"
+
+    refreshed = await client.post("/api/v1/auth/refresh", json={"refresh_token": refresh_token})
+    assert refreshed.status_code == 401
+    assert refreshed.json()["detail"] == "Token revoked"
 
 
 @pytest.mark.asyncio

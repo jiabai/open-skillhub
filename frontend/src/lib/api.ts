@@ -10,6 +10,7 @@ import type {
   MetricsCleanupResponse,
   MetricsReset24hResponse,
   VerificationCodeResponse,
+  SSOPrepareResponse,
   SkillListResponse,
   TokenListResponse,
   SkillCreateRequest,
@@ -244,7 +245,9 @@ export const api = {
     apiFetch<TokenPair>("/api/v1/auth/login", { method: "POST", body: JSON.stringify(payload) }),
   refresh: (payload: { refresh_token: string }) =>
     apiFetch<AccessTokenResponse>("/api/v1/auth/refresh", { method: "POST", body: JSON.stringify(payload) }),
-  ssoLogin: (payload: { id_token: string }) =>
+  ssoPrepare: () =>
+    apiFetch<SSOPrepareResponse>("/api/v1/auth/sso/prepare", { method: "POST", body: JSON.stringify({}) }),
+  ssoLogin: (payload: { id_token: string; nonce: string }) =>
     apiFetch<TokenPair>("/api/v1/auth/sso/login", { method: "POST", body: JSON.stringify(payload) }),
   ldapLogin: (payload: { username: string; password: string }) =>
     apiFetch<TokenPair>("/api/v1/auth/ldap/login", { method: "POST", body: JSON.stringify(payload) }),

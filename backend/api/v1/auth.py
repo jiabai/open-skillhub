@@ -10,12 +10,13 @@ from backend.db.session import get_async_session
 from backend.repositories.audit_log import AuditLogRepository
 from backend.repositories.user import UserRepository
 from backend.schemas.auth import LDAPLoginRequest, SSOLoginRequest
-from backend.schemas.response import AccessTokenResponse, TokenPair
+from backend.schemas.response import AccessTokenResponse, SSOPrepareResponse, TokenPair
 from backend.schemas.token import TokenRefresh
 from backend.schemas.user import UserLoginCode, UserRegisterCode
 from backend.schemas.verification import VerificationCodeRequest, VerificationCodeResponse
 from backend.services.audit import AuditService
 from backend.services.auth import AuthService
+from backend.services.sso_replay_guard import SSOReplayGuardService
 from backend.services.verification_code import get_verification_service
 
 
@@ -170,13 +171,21 @@ async def refresh(payload: TokenRefresh, session=Depends(get_async_session)):
     return AccessTokenResponse(access_token=token_pair.access_token)
 
 
+@router.post("/sso/prepare", response_model=SSOPrepareResponse)
+async def sso_prepare(session=Depends(get_async_session)):
+    if not settings.ENABLE_SSO:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="SSO disabled")
+    nonce, expires_in = await SSOReplayGuardService(session).issue_nonce()
+    return SSOPrepareResponse(nonce=nonce, expires_in=expires_in)
+
+
 @router.post("/sso/login", response_model=TokenPair)
 async def sso_login(payload: SSOLoginRequest, session=Depends(get_async_session)):
     if not settings.ENABLE_SSO:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="SSO disabled")
-    service = AuthService(UserRepository(session))
+    service = AuthService(UserRepository(session), SSOReplayGuardService(session))
     try:
-        token_pair = await service.login_sso(payload.id_token)
+        token_pair = await service.login_sso(payload.id_token, payload.nonce)
     except Exception as exc:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=str(exc)) from exc
     if settings.ENABLE_AUDIT_LOG:
@@ -211,9 +220,13 @@ async def logout(
     session=Depends(get_async_session),
 ):
     """
-    Logout current user.
-    Note: JWT tokens cannot be invalidated server-side, this is mainly for audit logging.
+    Logout current user and revoke all previously issued JWTs for that user.
     """
+    user_repo = UserRepository(session)
+    await user_repo.update(
+        current_user,
+        jwt_token_version=current_user.jwt_token_version + 1,
+    )
     if settings.ENABLE_AUDIT_LOG:
         audit_service = AuditService(AuditLogRepository(session))
         await audit_service.create_event(
@@ -222,4 +235,3 @@ async def logout(
             target=current_user.id,
         )
     return None
-

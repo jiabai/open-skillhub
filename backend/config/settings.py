@@ -100,6 +100,8 @@ class Settings(BaseSettings):
     SSO_JWT_ISSUER: str = ""
     SSO_JWT_AUDIENCE: str = ""
     SSO_JWT_ALGORITHM: str = "HS256"
+    SSO_NONCE_EXPIRE_SECONDS: int = 300
+    SSO_IAT_FUTURE_SKEW_SECONDS: int = 60
     SSO_EMAIL_CLAIM: str = "email"
     SSO_USERNAME_CLAIM: str = "username"
     SSO_ENTERPRISE_CLAIM: str = "enterprise_id"

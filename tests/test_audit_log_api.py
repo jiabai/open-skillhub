@@ -2,30 +2,20 @@ import os
 import io
 import zipfile
 
-import jwt
 import pytest
-
-
-async def _sso_login(client, email, username, role="admin"):
-    payload = {
-        "email": email,
-        "username": username,
-        "enterprise_id": "ent-audit",
-        "team_id": "team-audit",
-        "role": role,
-        "status": "active",
-        "iss": os.environ["SSO_JWT_ISSUER"],
-        "aud": os.environ["SSO_JWT_AUDIENCE"],
-    }
-    token = jwt.encode(payload, os.environ["SSO_JWT_SECRET"], algorithm="HS256")
-    response = await client.post("/api/v1/auth/sso/login", json={"id_token": token})
-    assert response.status_code == 200
-    return response.json()["access_token"]
+from sso_helpers import sso_login
 
 
 @pytest.mark.asyncio
 async def test_audit_log_query_and_export(client):
-    token = await _sso_login(client, "audit@example.com", "auditor")
+    token = await sso_login(
+        client,
+        email="audit@example.com",
+        username="auditor",
+        enterprise_id="ent-audit",
+        team_id="team-audit",
+        role="admin",
+    )
     headers = {"Authorization": f"Bearer {token}"}
     create_response = await client.post(
         "/api/v1/skills",
@@ -86,3 +76,51 @@ async def test_audit_log_query_and_export(client):
     logs_after_export = await client.get("/api/v1/audit/logs", headers=headers)
     assert logs_after_export.status_code == 200
     assert any(item["action"] == "audit.export" for item in logs_after_export.json()["items"])
+
+
+@pytest.mark.asyncio
+async def test_audit_log_query_rejects_invalid_start_time(client):
+    token = await sso_login(
+        client,
+        email="audit-invalid-query@example.com",
+        username="audit-invalid-query",
+        enterprise_id="ent-audit-invalid-query",
+        team_id="team-audit-invalid-query",
+        role="admin",
+    )
+    headers = {"Authorization": f"Bearer {token}"}
+
+    response = await client.get(
+        "/api/v1/audit/logs",
+        params={"start": "2024-13-45T99:99:99"},
+        headers=headers,
+    )
+
+    assert response.status_code == 400
+    payload = response.json()
+    assert payload["detail"] == "Invalid time format for 'start'"
+    assert payload["code"] == "BAD_REQUEST"
+
+
+@pytest.mark.asyncio
+async def test_audit_log_export_rejects_invalid_end_time(client):
+    token = await sso_login(
+        client,
+        email="audit-invalid-export@example.com",
+        username="audit-invalid-export",
+        enterprise_id="ent-audit-invalid-export",
+        team_id="team-audit-invalid-export",
+        role="admin",
+    )
+    headers = {"Authorization": f"Bearer {token}"}
+
+    response = await client.post(
+        "/api/v1/audit/logs/export",
+        json={"format": "json", "filters": {"end": "2024-13-45T99:99:99"}},
+        headers=headers,
+    )
+
+    assert response.status_code == 400
+    payload = response.json()
+    assert payload["detail"] == "Invalid time format for 'end'"
+    assert payload["code"] == "BAD_REQUEST"

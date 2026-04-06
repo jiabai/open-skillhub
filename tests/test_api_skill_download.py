@@ -1,35 +1,24 @@
 import base64
 import hashlib
 import io
-import os
 import zipfile
 from datetime import datetime, timezone
 
-import jwt
 import pytest
-
-
-async def _sso_login_with_role(client, email, username, role="member"):
-    payload = {
-        "email": email,
-        "username": username,
-        "enterprise_id": "test-ent",
-        "team_id": "test-team",
-        "role": role,
-        "status": "active",
-        "iss": os.environ["SSO_JWT_ISSUER"],
-        "aud": os.environ["SSO_JWT_AUDIENCE"],
-    }
-    token = jwt.encode(payload, os.environ["SSO_JWT_SECRET"], algorithm="HS256")
-    response = await client.post("/api/v1/auth/sso/login", json={"id_token": token})
-    assert response.status_code == 200
-    return response.json()["access_token"]
+from sso_helpers import sso_login
 
 
 @pytest.mark.asyncio
 async def test_skill_download_returns_encrypted_payload(client, tmp_path, monkeypatch):
     monkeypatch.setenv("SKILL_STORAGE_PATH", str(tmp_path))
-    access = await _sso_login_with_role(client, "download@example.com", "downloader", role="admin")
+    access = await sso_login(
+        client,
+        email="download@example.com",
+        username="downloader",
+        enterprise_id="test-ent",
+        team_id="test-team",
+        role="admin",
+    )
     headers = {"Authorization": f"Bearer {access}"}
     created = await client.post(
         "/api/v1/skills",
@@ -67,7 +56,14 @@ async def test_skill_download_returns_encrypted_payload(client, tmp_path, monkey
 @pytest.mark.asyncio
 async def test_skill_download_denied_without_permission(client, tmp_path, monkeypatch):
     monkeypatch.setenv("SKILL_STORAGE_PATH", str(tmp_path))
-    access = await _sso_login_with_role(client, "nodownload@example.com", "nodownloader", role="member")
+    access = await sso_login(
+        client,
+        email="nodownload@example.com",
+        username="nodownloader",
+        enterprise_id="test-ent",
+        team_id="test-team",
+        role="member",
+    )
     headers = {"Authorization": f"Bearer {access}"}
     created = await client.post(
         "/api/v1/skills",

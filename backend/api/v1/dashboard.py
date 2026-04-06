@@ -1,9 +1,10 @@
 from datetime import datetime, timedelta, timezone
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends
 
 from backend.config.settings import settings
-from backend.core.middleware.auth import get_current_active_user
+from backend.core.deps import require_permission
+from backend.core.permissions import Permission
 from backend.db.session import get_async_session
 from backend.repositories.request_metric import RequestMetricRepository
 from backend.repositories.skill import SkillRepository
@@ -18,7 +19,7 @@ router = APIRouter()
 
 @router.get("/overview", response_model=DashboardOverviewResponse)
 async def get_dashboard_overview(
-    current_user=Depends(get_current_active_user),
+    current_user=Depends(require_permission(Permission.DASHBOARD_READ)),
     session=Depends(get_async_session),
 ):
     skill_repo = SkillRepository(session)
@@ -42,11 +43,9 @@ async def get_dashboard_overview(
 @router.post("/metrics/cleanup", response_model=MetricsCleanupResponse)
 async def cleanup_metrics(
     payload: MetricsCleanupRequest | None = None,
-    current_user=Depends(get_current_active_user),
+    current_user=Depends(require_permission(Permission.METRICS_MANAGE)),
     session=Depends(get_async_session),
 ):
-    if not current_user.is_superuser:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Forbidden")
     retention_days = (
         payload.retention_days
         if payload and payload.retention_days is not None
@@ -66,11 +65,9 @@ async def cleanup_metrics(
 
 @router.post("/metrics/reset-24h", response_model=MetricsReset24hResponse)
 async def reset_metrics_24h(
-    current_user=Depends(get_current_active_user),
+    current_user=Depends(require_permission(Permission.METRICS_MANAGE)),
     session=Depends(get_async_session),
 ):
-    if not current_user.is_superuser:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Forbidden")
     window_end = datetime.now(timezone.utc)
     window_start = window_end - timedelta(hours=24)
     metric_repo = RequestMetricRepository(session)

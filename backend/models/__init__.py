@@ -5,6 +5,8 @@ from backend.models.enterprise import Enterprise
 from backend.models.request_metric import RequestMetric
 from backend.models.skill import Skill
 from backend.models.skill_version import SkillVersion
+from backend.models.sso_nonce import SSONonce
+from backend.models.sso_replay_token import SSOReplayToken
 from backend.models.team import Team
 from backend.models.token import APIToken
 from backend.models.user import User
@@ -18,6 +20,8 @@ __all__ = [
     "User",
     "Skill",
     "SkillVersion",
+    "SSONonce",
+    "SSOReplayToken",
     "APIToken",
     "RequestMetric",
     "VerificationCode",

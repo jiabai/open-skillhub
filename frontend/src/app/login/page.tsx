@@ -85,6 +85,8 @@ export default function LoginPage() {
     setError(null)
     setSuccess(null)
     try {
+      const prepared = await api.ssoPrepare()
+      window.sessionStorage.setItem("skillhub.sso.nonce", prepared.nonce)
       // SSO 登录需要跳转到 SSO 提供商
       // 这里简化处理，实际实现可能需要打开新窗口或跳转
       window.location.href = `/api/v1/auth/sso/authorize`

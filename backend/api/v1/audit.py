@@ -13,10 +13,16 @@ from backend.services.audit import AuditService
 router = APIRouter()
 
 
-def _parse_time(value: str | None) -> datetime | None:
+def _parse_time(value: str | None, field_name: str) -> datetime | None:
     if not value:
         return None
-    return datetime.fromisoformat(value.replace("Z", "+00:00"))
+    try:
+        return datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid time format for '{field_name}'",
+        ) from exc
 
 
 @router.get("/logs", response_model=AuditLogListResponse)
@@ -36,8 +42,8 @@ async def list_audit_logs(
     items = await service.list_events(
         actor_id=actor_id,
         action=action,
-        start=_parse_time(start),
-        end=_parse_time(end),
+        start=_parse_time(start, "start"),
+        end=_parse_time(end, "end"),
         skip=skip,
         limit=limit,
     )
@@ -57,8 +63,8 @@ async def export_audit_logs(
     items = await service.list_events(
         actor_id=filters.get("actor_id"),
         action=filters.get("action"),
-        start=_parse_time(filters.get("start")),
-        end=_parse_time(filters.get("end")),
+        start=_parse_time(filters.get("start"), "start"),
+        end=_parse_time(filters.get("end"), "end"),
         skip=0,
         limit=1000,
     )

@@ -5,27 +5,19 @@ from sqlalchemy import func, select
 
 from backend.models.request_metric import RequestMetric
 from backend.repositories.user import UserRepository
+from sso_helpers import sso_login
 
 
 @pytest.mark.asyncio
 async def test_metrics_reset_24h_requires_superuser(client):
-    await client.post(
-        "/api/v1/auth/verification-code",
-        json={"email": "basic-reset@example.com", "purpose": "register"},
+    access = await sso_login(
+        client,
+        email="basic-reset@example.com",
+        username="basicreset",
+        enterprise_id="ent-metrics-reset",
+        team_id="team-metrics-reset",
+        role="member",
     )
-    await client.post(
-        "/api/v1/auth/register",
-        json={"email": "basic-reset@example.com", "username": "basicreset", "code": "123456"},
-    )
-    await client.post(
-        "/api/v1/auth/verification-code",
-        json={"email": "basic-reset@example.com", "purpose": "login"},
-    )
-    login = await client.post(
-        "/api/v1/auth/login",
-        json={"email": "basic-reset@example.com", "code": "123456"},
-    )
-    access = login.json()["access_token"]
     response = await client.post(
         "/api/v1/dashboard/metrics/reset-24h",
         headers={"Authorization": f"Bearer {access}"},
@@ -35,27 +27,17 @@ async def test_metrics_reset_24h_requires_superuser(client):
 
 @pytest.mark.asyncio
 async def test_metrics_reset_24h_removes_only_window_buckets(client, async_session):
-    await client.post(
-        "/api/v1/auth/verification-code",
-        json={"email": "admin-reset@example.com", "purpose": "register"},
+    access = await sso_login(
+        client,
+        email="admin-reset@example.com",
+        username="adminreset",
+        enterprise_id="ent-metrics-reset",
+        team_id="team-metrics-reset",
+        role="admin",
     )
-    await client.post(
-        "/api/v1/auth/register",
-        json={"email": "admin-reset@example.com", "username": "adminreset", "code": "123456"},
-    )
-    await client.post(
-        "/api/v1/auth/verification-code",
-        json={"email": "admin-reset@example.com", "purpose": "login"},
-    )
-    login = await client.post(
-        "/api/v1/auth/login",
-        json={"email": "admin-reset@example.com", "code": "123456"},
-    )
-    access = login.json()["access_token"]
 
     user_repo = UserRepository(async_session)
     user = await user_repo.get_by_email("admin-reset@example.com")
-    await user_repo.update(user, is_superuser=True)
 
     now = datetime.now(timezone.utc).replace(minute=0, second=0, microsecond=0)
     async_session.add_all(

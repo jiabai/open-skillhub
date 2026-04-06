@@ -39,6 +39,7 @@ def test_user():
 def create_sso_token(
     email: str = "sso@example.com",
     username: str = "ssouser",
+    nonce: str = "test-sso-nonce",
     enterprise_id: str | None = None,
     team_id: str | None = None,
     role: str = "user",
@@ -59,6 +60,7 @@ def create_sso_token(
 
     payload = {
         "sub": "sso-user-123",
+        "nonce": nonce,
         "exp": exp,
         "iat": now,
     }
@@ -237,6 +239,7 @@ class TestAuthServiceSSOLogin:
         now = datetime.now(timezone.utc)
         payload = {
             "sub": "sso-user-123",
+            "nonce": "test-sso-nonce",
             "username": "ssouser",
             "exp": now + timedelta(hours=1),
             "iat": now,
@@ -266,6 +269,7 @@ class TestAuthServiceSSOLogin:
         payload = {
             "sub": "sso-user-123",
             "email": "john.doe@example.com",
+            "nonce": "test-sso-nonce",
             "exp": now + timedelta(hours=1),
             "iat": now,
             "iss": settings.SSO_JWT_ISSUER,
@@ -477,6 +481,7 @@ class TestAuthServiceEdgeCases:
             "sub": "sso-user-123",
             "email": "   ",  # 只有空格
             "username": "ssouser",
+            "nonce": "test-sso-nonce",
             "exp": now + timedelta(hours=1),
             "iat": now,
             "iss": settings.SSO_JWT_ISSUER,

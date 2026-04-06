@@ -29,7 +29,7 @@ os.environ["ENABLE_METRICS"] = "true"
 os.environ["SSO_JWT_SECRET"] = "test-sso-secret"
 os.environ["SSO_JWT_ISSUER"] = "test-issuer"
 os.environ["SSO_JWT_AUDIENCE"] = "skillhub"
-os.environ["RBAC_ROLE_PERMISSIONS"] = '{"admin":["*"],"member":["skill.list","skill.read","skill.create","skill.update","skill.delete","skill.upload","skill.execute"],"viewer":["skill.list","skill.read"]}'
+os.environ["RBAC_ROLE_PERMISSIONS"] = '{"admin":["*"],"member":["dashboard.read","skill.list","skill.read","skill.create","skill.update","skill.delete","skill.upload","skill.execute"],"viewer":["dashboard.read","skill.list","skill.read"]}'
 
 import pytest_asyncio
 import httpx

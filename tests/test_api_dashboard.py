@@ -3,26 +3,18 @@ from datetime import datetime, timedelta, timezone
 import pytest
 
 from backend.models.request_metric import RequestMetric
+from sso_helpers import sso_login
 
 @pytest.mark.asyncio
 async def test_dashboard_overview_zero_when_no_metrics(client):
-    await client.post(
-        "/api/v1/auth/verification-code",
-        json={"email": "dash@example.com", "purpose": "register"},
+    access = await sso_login(
+        client,
+        email="dash@example.com",
+        username="dashuser",
+        enterprise_id="ent-dashboard",
+        team_id="team-dashboard",
+        role="member",
     )
-    await client.post(
-        "/api/v1/auth/register",
-        json={"email": "dash@example.com", "username": "dashuser", "code": "123456"},
-    )
-    await client.post(
-        "/api/v1/auth/verification-code",
-        json={"email": "dash@example.com", "purpose": "login"},
-    )
-    login = await client.post(
-        "/api/v1/auth/login",
-        json={"email": "dash@example.com", "code": "123456"},
-    )
-    access = login.json()["access_token"]
     headers = {"Authorization": f"Bearer {access}"}
     response = await client.get("/api/v1/dashboard/overview", headers=headers)
     assert response.status_code == 200
@@ -33,23 +25,14 @@ async def test_dashboard_overview_zero_when_no_metrics(client):
 
 @pytest.mark.asyncio
 async def test_dashboard_overview_aggregates_persisted_metrics(client, async_session):
-    await client.post(
-        "/api/v1/auth/verification-code",
-        json={"email": "dash2@example.com", "purpose": "register"},
+    access = await sso_login(
+        client,
+        email="dash2@example.com",
+        username="dashuser2",
+        enterprise_id="ent-dashboard",
+        team_id="team-dashboard",
+        role="member",
     )
-    await client.post(
-        "/api/v1/auth/register",
-        json={"email": "dash2@example.com", "username": "dashuser2", "code": "123456"},
-    )
-    await client.post(
-        "/api/v1/auth/verification-code",
-        json={"email": "dash2@example.com", "purpose": "login"},
-    )
-    login = await client.post(
-        "/api/v1/auth/login",
-        json={"email": "dash2@example.com", "code": "123456"},
-    )
-    access = login.json()["access_token"]
     headers = {"Authorization": f"Bearer {access}"}
     me = await client.get("/api/v1/users/me", headers=headers)
     user_id = me.json()["id"]

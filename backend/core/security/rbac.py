@@ -8,6 +8,7 @@ from backend.models.user import User
 _DEFAULT_ROLE_PERMISSIONS = {
     "admin": ["*"],
     "member": [
+        "dashboard.read",
         "skill.list",
         "skill.read",
         "skill.create",
@@ -16,7 +17,7 @@ _DEFAULT_ROLE_PERMISSIONS = {
         "skill.upload",
         "skill.execute",
     ],
-    "viewer": ["skill.list", "skill.read"],
+    "viewer": ["dashboard.read", "skill.list", "skill.read"],
 }
 
 

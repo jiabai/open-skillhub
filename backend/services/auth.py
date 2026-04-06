@@ -1,4 +1,6 @@
 from dataclasses import dataclass
+from datetime import datetime, timezone
+import hashlib
 import secrets
 
 import jwt
@@ -7,6 +9,7 @@ from backend.config.settings import settings
 from backend.core.security.jwt_utils import create_access_token, create_refresh_token, decode_token
 from backend.models.user import User
 from backend.repositories.user import UserRepository
+from backend.services.sso_replay_guard import SSOReplayGuardService
 
 
 @dataclass
@@ -15,9 +18,27 @@ class TokenPair:
     refresh_token: str
 
 
+class _NoopSSOReplayGuard:
+    async def consume_nonce(self, _nonce: str) -> None:
+        return None
+
+    async def mark_token_used(self, _replay_key: str, _expires_at: datetime) -> None:
+        return None
+
+
 class AuthService:
-    def __init__(self, user_repo: UserRepository):
+    def __init__(
+        self,
+        user_repo: UserRepository,
+        sso_replay_guard: SSOReplayGuardService | None = None,
+    ):
         self.user_repo = user_repo
+        self.sso_replay_guard = sso_replay_guard or _NoopSSOReplayGuard()
+
+    @staticmethod
+    def _get_token_version(user: User) -> int:
+        value = getattr(user, "jwt_token_version", 0)
+        return value if isinstance(value, int) else 0
 
     async def register(self, email: str, username: str, password: str | None) -> User:
         if await self.user_repo.get_by_email(email):
@@ -27,14 +48,35 @@ class AuthService:
         raw_password = password or secrets.token_urlsafe(24)
         return await self.user_repo.create(email=email, username=username, password=raw_password)
 
-    async def login_sso(self, id_token: str) -> TokenPair:
+    async def login_sso(self, id_token: str, nonce: str | None = None) -> TokenPair:
         payload = jwt.decode(
             id_token,
             settings.SSO_JWT_SECRET,
             algorithms=[settings.SSO_JWT_ALGORITHM],
             audience=settings.SSO_JWT_AUDIENCE or None,
             issuer=settings.SSO_JWT_ISSUER or None,
+            options={"require": ["exp", "iat"]},
         )
+        token_nonce = str(payload.get("nonce") or "").strip()
+        if not token_nonce:
+            raise ValueError("SSO_NONCE_MISSING")
+        expected_nonce = nonce or token_nonce
+        if token_nonce != expected_nonce:
+            raise ValueError("SSO_NONCE_INVALID")
+        iat = payload.get("iat")
+        if iat is None:
+            raise ValueError("SSO_TOKEN_MISSING_IAT")
+        issued_at = datetime.fromtimestamp(int(iat), tz=timezone.utc)
+        now = datetime.now(timezone.utc)
+        if issued_at > now.replace(microsecond=0) and (issued_at - now).total_seconds() > settings.SSO_IAT_FUTURE_SKEW_SECONDS:
+            raise ValueError("SSO_TOKEN_INVALID_IAT")
+        exp = payload.get("exp")
+        if exp is None:
+            raise ValueError("SSO_TOKEN_MISSING_EXP")
+        expires_at = datetime.fromtimestamp(int(exp), tz=timezone.utc)
+        await self.sso_replay_guard.consume_nonce(expected_nonce)
+        replay_key = str(payload.get("jti") or "").strip() or hashlib.sha256(id_token.encode("utf-8")).hexdigest()
+        await self.sso_replay_guard.mark_token_used(replay_key, expires_at)
         email = str(payload.get(settings.SSO_EMAIL_CLAIM) or "").strip()
         username = str(payload.get(settings.SSO_USERNAME_CLAIM) or email.split("@")[0]).strip()
         if not email:
@@ -68,9 +110,16 @@ class AuthService:
         return self.issue_token(user)
 
     def issue_token(self, user: User) -> TokenPair:
+        token_version = self._get_token_version(user)
         return TokenPair(
-            access_token=create_access_token(subject=str(user.id)),
-            refresh_token=create_refresh_token(subject=str(user.id)),
+            access_token=create_access_token(
+                subject=str(user.id),
+                token_version=token_version,
+            ),
+            refresh_token=create_refresh_token(
+                subject=str(user.id),
+                token_version=token_version,
+            ),
         )
 
     async def login_ldap(self, username: str, password: str) -> TokenPair:
@@ -150,4 +199,6 @@ class AuthService:
         user = await self.user_repo.get_by_id(subject)
         if not user or not user.is_active:
             raise ValueError("User not found")
+        if payload.get("ver", 0) != self._get_token_version(user):
+            raise ValueError("Token revoked")
         return self.issue_token(user)

@@ -1,9 +1,17 @@
-# <img src="docs/figure/skillhub-logo.png" alt="Open SkillHub Logo" width="5%" style="vertical-align: middle;"> Open SkillHub
+<p align="center">
+  <img src="docs/figure/skillhub-logo.png" alt="Open SkillHub Logo" width="120" style="vertical-align: middle;">
+</p>
+
+<h1 align="center">Open SkillHub</h1>
 
 <p align="center">
-  <a href="https://pypi.org/project/open-skillhub/"><img src="https://img.shields.io/badge/python-3.10+-blue" alt="Python Version"></a>
-  <a href="https://pypi.org/project/open-skillhub/"><img src="https://img.shields.io/pypi/v/open-skillhub.svg?logo=pypi" alt="PyPI Version"></a>
-  <a href="./LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0-black" alt="License"></a>
+  <strong>Private Skills Management Platform for AI Agents</strong>
+</p>
+
+<p align="center">
+  <a href="https://pypi.org/project/open-skillhub/"><img src="https://img.shields.io/badge/python-3.10+-blue?style=flat-square&logo=python" alt="Python Version"></a>
+  <a href="https://pypi.org/project/open-skillhub/"><img src="https://img.shields.io/pypi/v/open-skillhub.svg?style=flat-square&logo=pypi&color=green" alt="PyPI Version"></a>
+  <a href="./LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0-black?style=flat-square" alt="License"></a>
   <a href="https://github.com/zouyingcao/open-skillhub"><img src="https://img.shields.io/github/stars/zouyingcao/open-skillhub?style=social" alt="GitHub Stars"></a>
 </p>
 
@@ -11,138 +19,141 @@
   <a href="./README_ZH.md">简体中文</a> | English
 </p>
 
-## Overview
+---
 
-Open SkillHub is a **private Skills management SaaS platform** designed for AI agents. It provides multi-tenant accounts, private skill spaces, a web console, and MCP HTTP/SSE endpoints so clients can execute skills securely. The system manages skill lifecycles through the Web API and exposes MCP endpoints for execution, enabling a complete "upload → manage → run" workflow.
+## ✨ Overview
 
-## Features
+**Open SkillHub** is a **private Skills management SaaS platform** purpose-built for AI agents. It delivers a complete "upload → manage → execute" workflow with multi-tenant isolation, a modern web console, and native MCP (Model Context Protocol) HTTP/SSE endpoints.
 
-### Core Capabilities
-- **Multi-tenant Architecture** - User isolation with JWT authentication
-- **API Token Management** - Secure MCP access control with `ask_live_...` tokens
-- **Skill Lifecycle Management** - Create, upload (ZIP), version, rollback, activate/deactivate
-- **Web Console** - Dashboard for skills, tokens, profile, and security settings
-- **MCP Integration** - HTTP/SSE endpoints for AI agent integration
+### Why Open SkillHub?
 
-### Enterprise Features (Optional)
-- **Organization Model** - Enterprise/Team/User hierarchy
-- **RBAC** - Role-based access control with configurable permissions
-- **Skill Visibility** - Enterprise/Team/Private visibility levels
-- **Audit Logging** - Comprehensive audit trail with export capability
-- **SSO Integration** - JWT-based SSO with LDAP support
-- **Email Verification** - OTP login and email verification codes
+| Challenge | Solution |
+|-----------|----------|
+| Skills scattered across repositories | Centralized private skill storage |
+| No access control for AI agents | JWT + API Token authentication |
+| Manual skill deployment | Web console + MCP auto-discovery |
+| No version tracking | Built-in versioning & rollback |
 
-### MCP Tools (7 Tools)
-1. `load_skill_metadata` - Scan available skills
-2. `load_skill` - Load skill instructions (SKILL.md)
-3. `read_reference_file` - Read skill reference files
-4. `run_shell_command` - Execute shell commands (whitelist-controlled)
-5. `skill_list_resource` - MCP Resource for `skill://list`
-6. `skill_detail_resource` - MCP Resource for `skill://{uuid}@{version}`
-7. `execute_skill` - Execute skill with RBAC checks
+---
 
-## Quick Start
+## 🚀 Quick Start
 
 ### Prerequisites
-- Python 3.10+
-- PostgreSQL 14+ (production)
-- Node.js 18+ (frontend console)
 
-### 1. Install Dependencies
+- **Python 3.10+**
+- **PostgreSQL 14+** (production)
+- **Node.js 18+** (frontend, optional)
+
+### One-Command Docker Setup
 
 ```bash
+git clone https://github.com/zouyingcao/open-skillhub.git
+cd open-skillhub
+cp backend/.env.example backend/.env
+docker compose up -d --build
+```
+
+**That's it!** Access the web console at `http://localhost`
+
+### Manual Installation
+
+```bash
+# 1. Create virtual environment
 python -m venv .venv
 source .venv/bin/activate  # Linux/macOS
 # .venv\Scripts\activate   # Windows
+
+# 2. Install dependencies
 pip install -e ".[dev]"
-```
 
-### 2. Configure Environment
+# 3. Configure environment
+cp backend/.env.example backend/.env
+# Edit backend/.env with your settings
 
-Copy `backend/.env.example` to `backend/.env` and configure:
-
-```bash
-DATABASE_URL=postgresql+asyncpg://user:pass@localhost:5432/skillhub
-SECRET_KEY=your-secret-key-min-32-chars
-SKILL_STORAGE_PATH=/data/skills
-CORS_ORIGINS=["http://localhost:3000"]
-```
-
-### 3. Initialize Database
-
-```bash
+# 4. Initialize database
 alembic upgrade head
-```
 
-### 4. Start API Server
-
-```bash
+# 5. Start server
 uvicorn backend.api_app:app --host 0.0.0.0 --port 8000
 ```
 
-## Docker Compose Deployment
+---
 
-### Quick Start (Recommended)
+## 🎯 Core Features
 
-```bash
-# Start all services with Docker Compose
-docker compose up -d --build
+### Multi-Tenant Architecture
 
-# View logs
-docker compose logs -f
+Every user gets an isolated skill space with JWT-based authentication and API token management (`ask_live_...` tokens for secure MCP access).
 
-# Stop services
-docker compose down
-```
-
-### Services
-
-| Service | Port | Description |
-|---------|------|-------------|
-| Frontend | 80 | Web console (Next.js) |
-| API | 8001 | Backend API (internal only) |
-| PostgreSQL | 5432 | Database (internal only) |
-| Adminer | 18080 | Database admin UI |
-
-### Configuration
-
-1. Copy `backend/.env.example` to `backend/.env` and configure
-2. Environment variables are loaded from `backend/.env` automatically
-3. For production, ensure `SECRET_KEY` is set and `DEBUG=false`
-
-### Architecture
+### Complete Skill Lifecycle
 
 ```
-┌─────────────────────────────────────────────────────────┐
-│                      External                           │
-│                                                         │
-│   Browser ───► http://your-domain.com (Port 80)        │
-│                                                         │
-└─────────────────────────────────────────────────────────┘
-                           │
-                           ▼
-┌─────────────────────────────────────────────────────────┐
-│                   Docker Network                         │
-│                                                         │
-│   ┌─────────────┐      ┌─────────────┐                  │
-│   │   Frontend  │◄────►│     API     │                  │
-│   │  (Next.js)  │proxy │  (FastAPI)  │                  │
-│   │   :3000     │      │   :8001     │                  │
-│   └─────────────┘      └──────┬──────┘                  │
-│                              │                          │
-│                              ▼                          │
-│                        ┌─────────────┐                  │
-│                        │ PostgreSQL  │                  │
-│                        │   :5432     │                  │
-│                        └─────────────┘                  │
-└─────────────────────────────────────────────────────────┘
+Upload ZIP → Parse SKILL.md → Version Control → Activate → MCP Discovery → Execute
+     ↑                                                              |
+     └────────────────── Rollback / Deactivate ←────────────────────┘
 ```
 
-All external traffic enters through the Frontend, which proxies API requests internally.
+### Enterprise-Grade Security
 
-## MCP Integration
+- **RBAC**: Role-based access control with fine-grained permissions
+- **Organization Model**: Enterprise → Team → User hierarchy
+- **Audit Logging**: Full operation trail with export capability
+- **SSO Integration**: JWT-based SSO with LDAP support
+- **Email Verification**: OTP login and verification codes
 
-Configure your AI client to connect to Open SkillHub:
+### MCP Integration (7 Tools)
+
+Your AI agent can discover and execute skills via standard MCP protocol:
+
+| Tool | Purpose |
+|------|---------|
+| `load_skill_metadata` | Scan available skills |
+| `load_skill` | Load skill instructions (SKILL.md) |
+| `read_reference_file` | Read reference files within skills |
+| `run_shell_command` | Execute shell commands (whitelist-controlled) |
+| `skill_list_resource` | Resource endpoint for skill listing |
+| `skill_detail_resource` | Resource endpoint for skill details |
+| `execute_skill` | Execute skill with RBAC checks |
+
+---
+
+## 🏗️ Architecture
+
+```mermaid
+graph TB
+    subgraph External["External Network"]
+        Browser["Browser"]
+        AIAgent["AI Agent / Client"]
+    end
+
+    subgraph Docker["Docker Network"]
+        Frontend["Frontend<br/>Next.js :3000"]
+        API["API Server<br/>FastAPI :8001"]
+        DB[(PostgreSQL<br/>:5432)]
+        Storage["Skill Storage<br/>/data/skills"]
+    end
+
+    Browser -->|HTTP :80| Frontend
+    Frontend -->|Proxy| API
+    AIAgent -->|MCP HTTP/SSE| API
+    API --> DB
+    API --> Storage
+
+    style External fill:#1e293b,stroke:#334155,color:#f8fafc
+    style Docker fill:#0f172a,stroke:#22c55e,color:#22c55e
+    style Frontend fill:#334155,stroke:#475569,color:#f8fafc
+    style API fill:#334155,stroke:#475569,color:#22c55e
+    style DB fill:#334155,stroke:#475569,color:#60a5fa
+    style Storage fill:#334155,stroke:#475569,color:#f472b6
+```
+
+All external traffic enters through Frontend (port 80), which proxies API requests internally.
+
+---
+
+## 🔌 MCP Configuration
+
+Connect your AI client to Open SkillHub:
 
 ```json
 {
@@ -160,20 +171,37 @@ Configure your AI client to connect to Open SkillHub:
 
 ### Authentication Flow
 
-1. Send verification code via `POST /api/v1/auth/verification-code` (purpose: `login`/`register`/`delete_account`)
-2. Login via `POST /api/v1/auth/login` with email and verification code to get JWT token
-3. Create API token via `POST /api/v1/tokens`
-4. Use API token (`ask_live_...`) for MCP access
-5. MCP service automatically identifies user and accesses their private skill space
+```mermaid
+sequenceDiagram
+    participant Client as AI Client
+    participant API as SkillHub API
+    participant DB as Database
 
-## Skill Storage Structure
+    Client->>API: POST /auth/verification-code
+    API->>DB: Create OTP record
+    DB-->>Client: Email with code
+    
+    Client->>API: POST /auth/login (email + code)
+    API-->>Client: JWT Token
+    
+    Client->>API: POST /tokens (create API token)
+    API-->>Client: ask_live_... token
+    
+    Client->>API: MCP Request (Bearer token)
+    API->>DB: Verify user + permissions
+    API-->>Client: Skill execution result
+```
+
+---
+
+## 📁 Storage Structure
 
 ```
 /data/skills/
 ├── {user_id_1}/
 │   ├── pdf/
-│   │   ├── SKILL.md
-│   │   └── reference.md
+│   │   ├── SKILL.md          # Skill instructions
+│   │   └── reference.md      # Reference documentation
 │   └── xlsx/
 │       └── SKILL.md
 ├── {user_id_2}/
@@ -182,73 +210,93 @@ Configure your AI client to connect to Open SkillHub:
 └── ...
 ```
 
-Each user can only access their own skill directory, ensuring data isolation.
+Each user's directory is fully isolated — users can only access their own skills.
 
-## Documentation
+---
 
-| Document | Description |
+## 📊 Services & Ports
+
+| Service | Port | Description | Access |
+|---------|------|-------------|--------|
+| **Frontend** | 80 | Web Console (Next.js) | Public |
+| **API Server** | 8001 | Backend API (FastAPI) | Internal |
+| **PostgreSQL** | 5432 | Database | Internal |
+| **Adminer** | 18080 | Database Admin UI | Internal |
+
+---
+
+## 📚 Documentation
+
+| Resource | Description |
 |----------|-------------|
-| [docs/backend-design/](docs/backend-design/) | Backend architecture and design docs |
-| [docs/deployment.md](docs/deployment.md) | Deployment guide |
-| [docs/tools.md](docs/tools.md) | MCP tools documentation |
-| [docs/frontend-design/](docs/frontend-design/) | Frontend design specs |
+| [Backend Architecture](docs/backend-design/) | System design & architecture docs |
+| [Deployment Guide](docs/deployment.md) | Production setup instructions |
+| [MCP Tools](docs/tools.md) | Tool specifications & usage |
+| [Frontend Design](docs/frontend-design/) | UI/UX design specs |
 
-## API Endpoints
+---
 
-### Authentication
-- `POST /api/v1/auth/verification-code` - Send email verification code
-- `POST /api/v1/auth/register` - User registration (with verification code)
-- `POST /api/v1/auth/login` - User login (with verification code)
-- `POST /api/v1/auth/refresh` - Refresh token
-- `POST /api/v1/auth/sso/login` - SSO login
-- `POST /api/v1/auth/ldap/login` - LDAP login
+## 🔐 Key API Endpoints
 
-### Users
-- `GET /api/v1/users/me` - Get current user info
-- `PUT /api/v1/users/me` - Update user info
-- `POST /api/v1/users/me/delete-request` - Request account deletion code
-- `DELETE /api/v1/users/me` - Delete account (with verification code)
-- `POST /api/v1/users/bind-email` - Bind email address
-- `PUT /api/v1/users/{user_id}/identity` - Update user identity (admin only)
+<details>
+<summary><strong>Authentication</strong></summary>
 
-### Skills
-- `GET /api/v1/skills` - List skills
-- `GET /api/v1/skills/cache-policy` - Get cache policy
-- `POST /api/v1/skills` - Create skill
-- `GET /api/v1/skills/{id}` - Get skill detail
-- `PUT /api/v1/skills/{id}` - Update skill
-- `DELETE /api/v1/skills/{id}` - Delete skill
+- `POST /api/v1/auth/verification-code` - Send email code
+- `POST /api/v1/auth/register` - User registration
+- `POST /api/v1/auth/login` - User login
+- `POST /api/v1/auth/sso/login` - SSO authentication
+- `POST /api/v1/auth/ldap/login` - LDAP authentication
+
+</details>
+
+<details>
+<summary><strong>Skill Management</strong></summary>
+
+- `GET /api/v1/skills` - List all skills
+- `POST /api/v1/skills` - Create new skill
 - `POST /api/v1/skills/upload` - Upload skill ZIP
-- `POST /api/v1/skills/download` - Download skill (admin only)
-- `POST /api/v1/skills/{id}/deactivate` - Deactivate skill
-- `POST /api/v1/skills/{id}/activate` - Activate skill
-- `GET /api/v1/skills/{id}/versions` - List skill versions
-- `POST /api/v1/skills/{id}/versions/{version}/rollback` - Rollback to version
-- `GET /api/v1/skills/{id}/files` - List skill files
-- `GET /api/v1/skills/{id}/files/{file_path}` - Read file content
+- `GET /api/v1/skills/{id}/versions` - Version history
+- `POST /api/v1/skills/{id}/versions/{version}/rollback` - Rollback
+- `POST /api/v1/skills/{id}/activate|deactivate` - Toggle status
 
-### Tokens
-- `GET /api/v1/tokens` - List API tokens
-- `POST /api/v1/tokens` - Create API token
-- `DELETE /api/v1/tokens/{id}` - Revoke token
+</details>
 
-### Dashboard
-- `GET /api/v1/dashboard/overview` - Get dashboard overview
-- `POST /api/v1/dashboard/metrics/cleanup` - Cleanup metrics (admin only)
-- `POST /api/v1/dashboard/metrics/reset-24h` - Reset 24h metrics (admin only)
+<details>
+<summary><strong>Tokens & Audit</strong></summary>
 
-### Audit Logs
+- `GET/POST /api/v1/tokens` - Manage API tokens
 - `GET /api/v1/audit/logs` - Query audit logs
-- `POST /api/v1/audit/logs/export` - Export audit logs
+- `POST /api/v1/audit/logs/export` - Export logs
 
-### MCP
-- `POST /mcp` - MCP HTTP endpoint
-- `GET /sse` - MCP SSE endpoint
+</details>
 
-## License
+For full API docs, visit `/docs` when running the server (FastAPI auto-generated).
 
-This project is licensed under the Apache License 2.0 - see [LICENSE](./LICENSE) for details.
+---
 
-## Contributing
+## 🛠️ Tech Stack
 
-Issues and pull requests are welcome.
+| Layer | Technology |
+|-------|-----------|
+| Backend | Python 3.10+, FastAPI, SQLAlchemy (async) |
+| Database | PostgreSQL 14+ (via asyncpg) |
+| Frontend | Next.js 14+, TypeScript, Tailwind CSS |
+| Auth | JWT (PyJWT), OTP email verification |
+| Deployment | Docker Compose, Nginx reverse proxy |
+| Protocol | MCP (HTTP + SSE) |
+
+---
+
+## 📄 License
+
+This project is licensed under **Apache License 2.0** — see [LICENSE](./LICENSE) for details.
+
+---
+
+## 🤝 Contributing
+
+We welcome contributions! Please feel free to submit issues and pull requests.
+
+<p align="center">
+  <sub>Built with care for the AI developer community</sub>
+</p>

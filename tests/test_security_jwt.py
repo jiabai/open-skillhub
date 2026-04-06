@@ -16,6 +16,7 @@ def test_access_token_contains_type_and_subject():
     payload = decode_token(token)
     assert payload["sub"] == "user-1"
     assert payload["type"] == "access"
+    assert payload["ver"] == 0
 
 
 def test_refresh_token_contains_type_and_subject():
@@ -23,6 +24,7 @@ def test_refresh_token_contains_type_and_subject():
     payload = decode_token(token)
     assert payload["sub"] == "user-2"
     assert payload["type"] == "refresh"
+    assert payload["ver"] == 0
 
 
 def test_decode_token_rejects_expired():

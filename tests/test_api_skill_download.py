@@ -87,3 +87,49 @@ async def test_skill_download_denied_without_permission(client, tmp_path, monkey
         headers=headers,
     )
     assert response.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_skill_download_returns_gone_for_deactivated_skill(client, tmp_path, monkeypatch):
+    monkeypatch.setenv("SKILL_STORAGE_PATH", str(tmp_path))
+    access = await sso_login(
+        client,
+        email="download-deactivated@example.com",
+        username="downloaddeactivated",
+        enterprise_id="test-ent",
+        team_id="test-team",
+        role="admin",
+    )
+    headers = {"Authorization": f"Bearer {access}"}
+    created = await client.post(
+        "/api/v1/skills",
+        json={"name": "skilldl3", "description": "desc"},
+        headers=headers,
+    )
+    skill_id = created.json()["id"]
+    buffer = io.BytesIO()
+    with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as archive:
+        archive.writestr("SKILL.md", "---\nname: skilldl3\nversion: 1.0.0\n---\nbody")
+    buffer.seek(0)
+    await client.post(
+        "/api/v1/skills/upload",
+        data={"skill_uuid": skill_id},
+        files={"file": ("skill.zip", buffer.read(), "application/zip")},
+        headers=headers,
+    )
+    deactivate_response = await client.post(
+        f"/api/v1/skills/{skill_id}/deactivate",
+        headers=headers,
+    )
+    assert deactivate_response.status_code == 200
+
+    response = await client.post(
+        "/api/v1/skills/download",
+        json={"skill_uuid": skill_id, "version": "1.0.0"},
+        headers=headers,
+    )
+
+    assert response.status_code == 410
+    payload = response.json()
+    assert payload["code"] == "SKILL_DEACTIVATED"
+    assert payload["timestamp"].endswith("Z")

@@ -290,6 +290,11 @@ async def download_skill(
     try:
         result = await service.download_skill(current_user, payload.skill_uuid, payload.version)
     except ValueError as exc:
+        if str(exc) == "SKILL_DEACTIVATED":
+            raise HTTPException(
+                status_code=status.HTTP_410_GONE,
+                detail={"detail": "Skill deactivated", "code": "SKILL_DEACTIVATED"},
+            ) from exc
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
     response_payload = SkillDownloadResponse.model_validate(result)
     if settings.ENABLE_AUDIT_LOG:

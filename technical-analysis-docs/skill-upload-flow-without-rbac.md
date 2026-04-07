@@ -94,10 +94,52 @@ def has_permission(user: User, permission: str) -> bool:
 ENABLE_RBAC: bool = False  # ← 默认关闭！
 ```
 
+**权限常量定义** (`backend/core/permissions.py:25-64`)：
+
+```python
+class Permission:
+    SKILL_LIST: str = "skill.list"
+    SKILL_READ: str = "skill.read"
+    SKILL_CREATE: str = "skill.create"
+    SKILL_UPDATE: str = "skill.update"
+    SKILL_DELETE: str = "skill.delete"
+    SKILL_UPLOAD: str = "skill.upload"
+    SKILL_EXECUTE: str = "skill.execute"
+    SKILL_DOWNLOAD: str = "skill.download"
+```
+
+**角色权限矩阵** (`backend/core/permissions.py:8-21`)：
+
+| Permission | Admin | Member | Viewer |
+|------------|-------|--------|--------|
+| skill.list | ✅ | ✅ | ✅ |
+| skill.read | ✅ | ✅ | ✅ |
+| skill.create | ✅ | ✅ | ❌ |
+| skill.update | ✅ | ✅ | ❌ |
+| skill.delete | ✅ | ✅ | ❌ |
+| skill.upload | ✅ | ✅ | ❌ |
+| skill.execute | ✅ | ✅ | ❌ |
+| skill.download | ✅ | ❌ | ❌ |
+
+> 注：RBAC 关闭时，上述矩阵完全失效，所有权限检查均返回 `True`。
+
+**`require_permission` 依赖注入** (`backend/core/deps.py:26-74`)：
+
+```python
+def require_permission(permission: str):
+    async def _permission_checker(current_user=Depends(get_current_active_user)):
+        if not has_permission(current_user, permission):
+            raise HTTPException(status_code=403, detail="Permission denied")
+        return current_user
+    return _permission_checker
+```
+
 **结论**：当 RBAC 关闭时：
 - 所有 `require_permission()` 检查都会直接通过
 - 不校验用户角色（admin/member/viewer）
+- 不校验用户是否为 `is_superuser`
 - 只需要**有效的 JWT 认证**即可访问任何接口
+- `require_permission("")` 会抛 ValueError（入参校验），但正常路由不会触发此分支
 
 ---
 
@@ -258,7 +300,54 @@ SKILL_ARCHIVE_BACKEND=local     # local 或 s3
 
 ---
 
-## 六、总结
+## 六、完整请求响应流程图
+
+```
+请求 POST /api/v1/skills/upload
+         │
+         ▼
+   JWT 认证 (get_current_active_user)  ← 始终生效
+         │
+         ▼
+   require_permission("skill.upload")
+         │
+         ▼                              ← ENABLE_RBAC = False
+   has_permission(user, "skill.upload")
+         │
+         └───────── 直接 return True    ← 跳过角色/权限矩阵
+         │
+         ▼
+   upload_skill_file() API handler
+         │
+    ┌────┴──────────────────────────────────────────┐
+    │                                               │
+    ▼ 是 .zip?                                      ▼
+   ┌──────┐                                    不是 .zip
+   │有skill_uuid?                                ▼
+   └──┬───┘                             必须有 skill_uuid
+    否 ▼         是                     否则返回 400
+   ┌─────────┐  ┌──────────────────────┐
+   │创建新Skill│  │ 更新已有 Skill       │
+   │L798-972 │  │ upload_zip_from_path │
+   └────┬────┘  │ L632-783            │
+        │       └──────┬───────────────┘
+        │              │
+        │              ▼
+        │       upload_file_from_path (L188-220)
+        │              │
+        ▼              ▼
+   写入 {SKILL_STORAGE_PATH}/{user_id}/{skill_name}/
+              │
+              ▼
+         (可选) 写入审计日志 (ENABLE_AUDIT_LOG=True)
+              │
+              ▼
+         201 Created + JSON 响应
+```
+
+---
+
+## 七、总结
 
 **不开启 RBAC 时，上传流程简化为**：
 
@@ -271,3 +360,9 @@ SKILL_ARCHIVE_BACKEND=local     # local 或 s3
 2. 仍需通过 JWT 认证和基本数据校验
 3. 所有权机制保护用户间数据隔离（只能操作自己的 Skill）
 4. 文件系统安全措施完全生效
+
+**关键安全边界**：
+- JWT 认证是**唯一的入口屏障** — 如果用户没有有效 token，请求在 `get_current_active_user` 阶段即被拒绝
+- `_ensure_owner` 检查（`services/skill.py:233-235`）是**唯一的应用层保护** — 确保用户只能修改自己拥有的 Skill，与 RBAC 无关
+- 所有文件存储安全机制（路径遍历防护、扩展名白名单、大小限制）与 RBAC 无关，始终生效
+- 审计日志仅在 `ENABLE_AUDIT_LOG=True` 时记录，默认 `False`

@@ -71,6 +71,18 @@ type ApiRequestOptions = RequestInit & {
   accessToken?: string
 }
 
+export class ApiError extends Error {
+  status: number
+  code?: string
+
+  constructor(message: string, status: number, code?: string) {
+    super(message)
+    this.name = "ApiError"
+    this.status = status
+    this.code = code
+  }
+}
+
 type ApiResponse = {
   response: Response
   payload: unknown
@@ -81,14 +93,25 @@ type TextResponse = {
   text: string
 }
 
-const getDetail = (payload: unknown, fallback: string) => {
+const getErrorInfo = (payload: unknown, fallback: string): { detail: string; code?: string } => {
   if (payload && typeof payload === "object" && "detail" in payload) {
-    const detail = (payload as { detail?: string }).detail
-    if (detail) {
-      return detail
+    const detail = (payload as { detail?: string | { detail?: string; code?: string }; code?: string }).detail
+    const topLevelCode = (payload as { code?: string }).code
+    if (typeof detail === "string" && detail) {
+      return { detail, code: topLevelCode }
+    }
+    if (detail && typeof detail === "object") {
+      return {
+        detail: typeof detail.detail === "string" ? detail.detail : fallback,
+        code: typeof detail.code === "string" ? detail.code : topLevelCode,
+      }
     }
   }
-  return fallback
+  return { detail: fallback }
+}
+
+const getDetail = (payload: unknown, fallback: string) => {
+  return getErrorInfo(payload, fallback).detail
 }
 
 const getDetailFromText = (text: string, fallback: string) => {
@@ -104,7 +127,7 @@ const getDetailFromText = (text: string, fallback: string) => {
 }
 
 const fetchJson = async (path: string, options: ApiRequestOptions = {}): Promise<ApiResponse> => {
-  const { skipRefresh: _skipRefresh, accessToken, ...requestOptions } = options
+  const { skipRefresh: _skipRefresh, accessToken, signal, ...requestOptions } = options
   const tokens = getStoredTokens()
   const headers = new Headers(requestOptions.headers)
   headers.set("Content-Type", "application/json")
@@ -112,7 +135,7 @@ const fetchJson = async (path: string, options: ApiRequestOptions = {}): Promise
   if (resolvedToken) {
     headers.set("Authorization", `Bearer ${resolvedToken}`)
   }
-  const response = await fetch(`${apiBaseUrl}${path}`, { ...requestOptions, headers })
+  const response = await fetch(`${apiBaseUrl}${path}`, { ...requestOptions, headers, signal })
   if (response.status === 204) {
     return { response, payload: {} }
   }
@@ -121,14 +144,14 @@ const fetchJson = async (path: string, options: ApiRequestOptions = {}): Promise
 }
 
 const fetchText = async (path: string, options: ApiRequestOptions = {}): Promise<TextResponse> => {
-  const { skipRefresh: _skipRefresh, accessToken, ...requestOptions } = options
+  const { skipRefresh: _skipRefresh, accessToken, signal, ...requestOptions } = options
   const tokens = getStoredTokens()
   const headers = new Headers(requestOptions.headers)
   const resolvedToken = accessToken ?? tokens?.access_token
   if (resolvedToken) {
     headers.set("Authorization", `Bearer ${resolvedToken}`)
   }
-  const response = await fetch(`${apiBaseUrl}${path}`, { ...requestOptions, headers })
+  const response = await fetch(`${apiBaseUrl}${path}`, { ...requestOptions, headers, signal })
   const text = await response.text().catch(() => "")
   return { response, text }
 }
@@ -151,7 +174,8 @@ const refreshTokens = async (refreshToken: string): Promise<AccessTokenResponse>
     skipRefresh: true
   })
   if (!response.ok) {
-    throw new Error(getDetail(payload, response.statusText))
+    const error = getErrorInfo(payload, response.statusText)
+    throw new ApiError(error.detail, response.status, error.code)
   }
   return payload as AccessTokenResponse
 }
@@ -191,7 +215,8 @@ async function apiFetch<T>(path: string, options: ApiRequestOptions = {}): Promi
         if (retry.response.ok) {
           return retry.payload as T
         }
-        throw new Error(getDetail(retry.payload, retry.response.statusText))
+        const error = getErrorInfo(retry.payload, retry.response.statusText)
+        throw new ApiError(error.detail, retry.response.status, error.code)
       } catch (error) {
         // 刷新失败时清除本地存储的 tokens，强制用户重新登录
         clearTokens()
@@ -199,7 +224,8 @@ async function apiFetch<T>(path: string, options: ApiRequestOptions = {}): Promi
       }
     }
   }
-  throw new Error(getDetail(payload, response.statusText))
+  const error = getErrorInfo(payload, response.statusText)
+  throw new ApiError(error.detail, response.status, error.code)
 }
 
 async function apiFetchText(path: string, options: ApiRequestOptions = {}): Promise<string> {
@@ -221,7 +247,7 @@ async function apiFetchText(path: string, options: ApiRequestOptions = {}): Prom
         if (retry.response.ok) {
           return retry.text
         }
-        throw new Error(getDetailFromText(retry.text, retry.response.statusText))
+        throw new ApiError(getDetailFromText(retry.text, retry.response.statusText), retry.response.status)
       } catch (error) {
         // 刷新失败时清除本地存储的 tokens，强制用户重新登录
         clearTokens()
@@ -229,7 +255,7 @@ async function apiFetchText(path: string, options: ApiRequestOptions = {}): Prom
       }
     }
   }
-  throw new Error(getDetailFromText(text, response.statusText))
+  throw new ApiError(getDetailFromText(text, response.statusText), response.status)
 }
 
 export const api = {
@@ -421,8 +447,26 @@ export const api = {
     apiFetch<SkillInstallInstructions>(`/api/v1/skills/${skillUuid}/versions/${version}/install-instructions`),
   rollbackSkillVersion: (skillUuid: string, version: string) =>
     apiFetch<SkillVersion>(`/api/v1/skills/${skillUuid}/versions/${version}/rollback`, { method: "POST" }),
-  downloadSkill: (payload: { skill_uuid: string; version?: string }) =>
-    apiFetch<SkillDownloadResponse>("/api/v1/skills/download", { method: "POST", body: JSON.stringify(payload) }),
+  downloadSkill: (payload: { skill_uuid: string; version?: string; signal?: AbortSignal }) => {
+    const { signal, ...body } = payload
+    return apiFetch<SkillDownloadResponse>("/api/v1/skills/download", {
+      method: "POST",
+      body: JSON.stringify(body),
+      signal,
+    })
+  },
+  downloadSkillRaw: async (payload: { skill_uuid: string; version?: string; signal?: AbortSignal }) => {
+    const { signal, ...body } = payload
+    const text = await apiFetchText("/api/v1/skills/download", {
+      method: "POST",
+      body: JSON.stringify(body),
+      signal,
+    })
+    return {
+      rawText: text,
+      payload: JSON.parse(text) as SkillDownloadResponse,
+    }
+  },
 
   // ========== Tokens ==========
   listTokens: () => apiFetch<{ items: Token[]; total: number }>("/api/v1/tokens"),

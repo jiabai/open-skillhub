@@ -63,6 +63,12 @@ async def test_audit_log_query_and_export(client):
     assert any(item["action"] == "skill.upload" for item in items)
     assert any(item["action"] == "skill.rollback" for item in items)
     assert any(item["action"] == "skill.download" for item in items)
+    download_item = next(item for item in items if item["action"] == "skill.download")
+    assert download_item["details"]["version"] == "1.0.0"
+    assert download_item["details"]["requested_version"] == "1.0.0"
+    assert download_item["details"]["archive_size_bytes"] > 0
+    assert download_item["details"]["encryption_enabled"] is True
+    assert download_item["details"]["download_filename"].endswith(".encrypted.json")
 
     export_response = await client.post(
         "/api/v1/audit/logs/export",

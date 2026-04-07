@@ -48,6 +48,13 @@ from backend.repositories.skill import SkillRepository
 from backend.repositories.skill_version import SkillVersionRepository
 
 
+class DownloadTooLargeError(ValueError):
+    def __init__(self, size_bytes: int, limit_bytes: int):
+        super().__init__("DOWNLOAD_TOO_LARGE")
+        self.size_bytes = size_bytes
+        self.limit_bytes = limit_bytes
+
+
 class SkillService:
     _DOWNLOAD_ENCRYPTION_PURPOSE = "skill-download-encryption"
 
@@ -476,12 +483,17 @@ class SkillService:
                     archive.write(file_path, arcname=relative.as_posix())
             archive_bytes = buffer.getvalue()
             await save_archive(user.id, skill.name, target_version, archive_bytes)
+        archive_size_bytes = len(archive_bytes)
+        if archive_size_bytes > settings.SKILL_DOWNLOAD_MAX_ARCHIVE_BYTES:
+            raise DownloadTooLargeError(archive_size_bytes, settings.SKILL_DOWNLOAD_MAX_ARCHIVE_BYTES)
         if settings.ENABLE_SKILL_DOWNLOAD_ENCRYPTION:
             encrypted_code, checksum = self._encrypt_payload(archive_bytes)
         else:
             encrypted_code = base64.b64encode(archive_bytes).decode("utf-8")
             checksum = self._checksum_payload(archive_bytes)
         expires_at = datetime.now(timezone.utc) + timedelta(hours=1)
+        encryption_enabled = settings.ENABLE_SKILL_DOWNLOAD_ENCRYPTION
+        filename_suffix = ".encrypted.json" if encryption_enabled else ".json"
         return {
             "skill_uuid": skill.id,
             "version": target_version,
@@ -489,6 +501,14 @@ class SkillService:
             "checksum": checksum,
             "expires_at": expires_at,
             "cache_ttl_seconds": settings.SKILL_CACHE_TTL_SECONDS,
+            "archive_size_bytes": archive_size_bytes,
+            "encryption_enabled": encryption_enabled,
+            "download_filename": f"skill-{skill.id[:8]}-{target_version}{filename_suffix}",
+            "decryption_hint": (
+                "This download is encrypted and requires the official decryption tool before use."
+                if encryption_enabled
+                else None
+            ),
         }
 
     async def get_install_instructions(self, user: User, skill_id: str, version: str) -> dict:

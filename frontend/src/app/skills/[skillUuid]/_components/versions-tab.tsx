@@ -1,11 +1,12 @@
 "use client"
 
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import { formatDistanceToNow } from "date-fns"
 import { zhCN } from "date-fns/locale"
 import { GitCompare, Loader2, RotateCcw, Package, FileCode, Clock, ListTree, Download, Terminal, Copy, Check } from "lucide-react"
 
 import { api } from "@/lib/api"
+import { buildSkillDownloadArtifact, getDownloadErrorMessage } from "@/lib/skill-download"
 import type { SkillVersion, SkillVersionDiff, SkillInstallInstructions } from "@/types"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -57,6 +58,7 @@ export function VersionsTab({ skillUuid }: VersionsTabProps) {
 
   // 下载状态
   const [downloadLoading, setDownloadLoading] = useState(false)
+  const downloadControllerRef = useRef<AbortController | null>(null)
 
   const fetchVersions = useCallback(async () => {
     setLoading(true)
@@ -74,6 +76,13 @@ export function VersionsTab({ skillUuid }: VersionsTabProps) {
   useEffect(() => {
     fetchVersions()
   }, [fetchVersions])
+
+  useEffect(() => {
+    return () => {
+      downloadControllerRef.current?.abort()
+      downloadControllerRef.current = null
+    }
+  }, [])
 
   const handleVersionSelect = useCallback((version: string) => {
     setSelectedVersions((prev) => {
@@ -193,26 +202,43 @@ export function VersionsTab({ skillUuid }: VersionsTabProps) {
 
   // 下载 Skill
   const handleDownload = async (version?: string) => {
+    const controller = new AbortController()
+    downloadControllerRef.current = controller
     setDownloadLoading(true)
+    setError(null)
     try {
-      const result = await api.downloadSkill({ skill_uuid: skillUuid, version })
-      // 创建下载内容
-      const content = JSON.stringify(result, null, 2)
-      const blob = new Blob([content], { type: "application/json" })
+      const result = await api.downloadSkillRaw({ skill_uuid: skillUuid, version, signal: controller.signal })
+      const artifact = buildSkillDownloadArtifact(result.payload, skillUuid, result.rawText)
+      if (artifact.confirmMessage && !window.confirm(artifact.confirmMessage)) {
+        return
+      }
+      const blob = new Blob([artifact.content], { type: artifact.contentType })
       const url = URL.createObjectURL(blob)
       const link = document.createElement("a")
       link.href = url
-      link.download = `skill-${skillUuid.slice(0, 8)}-${result.version}.json`
+      link.download = artifact.filename
       document.body.appendChild(link)
       link.click()
       document.body.removeChild(link)
       URL.revokeObjectURL(url)
     } catch (err) {
-      setError(err instanceof Error ? err.message : "下载失败")
+      const message = getDownloadErrorMessage(err)
+      if (message !== "下载已取消") {
+        setError(message)
+      }
     } finally {
+      if (downloadControllerRef.current === controller) {
+        downloadControllerRef.current = null
+      }
       setDownloadLoading(false)
     }
   }
+
+  const handleCancelDownload = useCallback(() => {
+    downloadControllerRef.current?.abort()
+    downloadControllerRef.current = null
+    setDownloadLoading(false)
+  }, [])
 
   const renderVersionList = () => {
     if (loading) {
@@ -487,6 +513,12 @@ export function VersionsTab({ skillUuid }: VersionsTabProps) {
               )}
               下载
             </Button>
+
+            {downloadLoading && (
+              <Button variant="ghost" onClick={handleCancelDownload}>
+                取消下载
+              </Button>
+            )}
 
             {/* 回滚确认对话框 */}
             <AlertDialog>

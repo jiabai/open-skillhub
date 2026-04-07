@@ -1,6 +1,8 @@
+import asyncio
 import os
 from pathlib import Path
 import tempfile
+import time
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Request, Response, UploadFile, status
 from loguru import logger
@@ -23,11 +25,13 @@ from backend.schemas.skill import (
 )
 from backend.schemas.skill_version import SkillVersionListResponse, SkillVersionResponse
 from backend.services.audit import AuditService
-from backend.services.skill import SkillService
+from backend.services.skill import DownloadTooLargeError, SkillService
 
 
 router = APIRouter()
 UPLOAD_CHUNK_SIZE = 64 * 1024
+_download_rate_limit_lock = asyncio.Lock()
+_download_rate_limit_state: dict[str, list[float]] = {}
 
 
 async def _stream_upload_to_temp_file(file: UploadFile, max_bytes: int) -> tuple[Path, int]:
@@ -51,6 +55,31 @@ async def _stream_upload_to_temp_file(file: UploadFile, max_bytes: int) -> tuple
                 pass
             raise
     return temp_path, total_size
+
+
+async def _enforce_download_rate_limit(request: Request, current_user) -> None:
+    if not settings.ENABLE_RATE_LIMIT:
+        return
+    limit = settings.SKILL_DOWNLOAD_RATE_LIMIT_REQUESTS
+    window = settings.SKILL_DOWNLOAD_RATE_LIMIT_WINDOW
+    if limit <= 0 or window <= 0:
+        return
+    key = str(getattr(current_user, "id", "") or (request.client.host if request and request.client else "unknown"))
+    now = time.monotonic()
+    async with _download_rate_limit_lock:
+        timestamps = _download_rate_limit_state.get(key, [])
+        cutoff = now - window
+        timestamps = [timestamp for timestamp in timestamps if timestamp >= cutoff]
+        if len(timestamps) >= limit:
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail={
+                    "detail": "Too many download requests. Please try again later.",
+                    "code": "RATE_LIMIT_EXCEEDED",
+                },
+            )
+        timestamps.append(now)
+        _download_rate_limit_state[key] = timestamps
 
 
 @router.get("", response_model=SkillListResponse)
@@ -288,7 +317,13 @@ async def download_skill(
 ):
     service = SkillService(SkillRepository(session), SkillVersionRepository(session))
     try:
+        await _enforce_download_rate_limit(request, current_user)
         result = await service.download_skill(current_user, payload.skill_uuid, payload.version)
+    except DownloadTooLargeError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            detail=f"Download too large ({exc.size_bytes // 1024 // 1024}MB). Max allowed is {exc.limit_bytes // 1024 // 1024}MB.",
+        ) from exc
     except ValueError as exc:
         if str(exc) == "SKILL_DEACTIVATED":
             raise HTTPException(
@@ -296,6 +331,14 @@ async def download_skill(
                 detail={"detail": "Skill deactivated", "code": "SKILL_DEACTIVATED"},
             ) from exc
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.error(
+            f"[DOWNLOAD FAILED] user_id={current_user.id}, skill={payload.skill_uuid}, unexpected_error={str(exc)}",
+            exc_info=True,
+        )
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Download failed") from exc
     response_payload = SkillDownloadResponse.model_validate(result)
     if settings.ENABLE_AUDIT_LOG:
         audit_service = AuditService(AuditLogRepository(session))
@@ -305,6 +348,13 @@ async def download_skill(
             target=payload.skill_uuid,
             ip=request.client.host if request and request.client else "",
             user_agent=request.headers.get("user-agent", ""),
+            metadata={
+                "version": response_payload.version,
+                "requested_version": payload.version or "(current)",
+                "archive_size_bytes": response_payload.archive_size_bytes,
+                "encryption_enabled": response_payload.encryption_enabled,
+                "download_filename": response_payload.download_filename,
+            },
         )
     return response_payload
 

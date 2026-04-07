@@ -155,6 +155,41 @@ def create_application() -> FastAPI:
             422: "VALIDATION_ERROR",
         }.get(status_code, "HTTP_ERROR")
 
+    @application.middleware("http")
+    async def limit_skill_download_request_size(request: Request, call_next):
+        if request.method == "POST" and request.url.path == "/api/v1/skills/download":
+            content_length = request.headers.get("content-length")
+            if content_length:
+                try:
+                    if int(content_length) > settings.SKILL_DOWNLOAD_MAX_REQUEST_BYTES:
+                        return JSONResponse(
+                            status_code=413,
+                            content=_error_payload("Request too large", "REQUEST_TOO_LARGE"),
+                        )
+                except ValueError:
+                    return JSONResponse(
+                        status_code=400,
+                        content=_error_payload("Invalid Content-Length header", "BAD_REQUEST"),
+                    )
+            received_bytes = 0
+            original_receive = request._receive
+
+            async def limited_receive():
+                nonlocal received_bytes
+                message = await original_receive()
+                if message["type"] == "http.request":
+                    body = message.get("body", b"")
+                    received_bytes += len(body)
+                    if received_bytes > settings.SKILL_DOWNLOAD_MAX_REQUEST_BYTES:
+                        raise HTTPException(
+                            status_code=413,
+                            detail={"detail": "Request too large", "code": "REQUEST_TOO_LARGE"},
+                        )
+                return message
+
+            request._receive = limited_receive
+        return await call_next(request)
+
     @application.exception_handler(HTTPException)
     async def http_exception_handler(_request: Request, exc: HTTPException):
         return JSONResponse(

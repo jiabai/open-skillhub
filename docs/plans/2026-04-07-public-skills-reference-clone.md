@@ -131,11 +131,147 @@ VALUES ('uuid-xxx', 'system', 'python-data-analyzer', '描述', 'public',
 
 ### 1.2 公共 Skill 的文件维护
 
-公共 Skill 由管理员通过以下方式管理：
+公共 Skill **不提供 Web 管理界面**。上传到公共空间走运维/开发者路径，用户侧只有浏览、引用、Clone 能力。
 
-1. **数据库初始化脚本** — 系统首次部署时自动植入
-2. **管理 API** — 仅 `is_superuser` 可调用（后续可选实现）
-3. **直接放置到 `__system__` 目录** — 配合 CLI 工具注册
+公共 Skill 的管理分两种方式：**初始化** 和 **日常运维**。
+
+### 1.3.1 初始化（首次部署）
+
+系统首次部署时，扫描 `data/skills/__system__/` 目录，自动创建缺失的数据库记录：
+
+```python
+# backend/scripts/seed_public_skills.py
+"""
+启动时扫描 __system__ 目录，自动注册公共 Skill。
+如果 DB 中已存在同名 Skill，跳过。
+"""
+import asyncio
+from pathlib import Path
+
+from backend.config.settings import settings
+from backend.db.session import async_session
+from backend.repositories.skill import SkillRepository
+from backend.repositories.skill_version import SkillVersionRepository
+from backend.services.skill import SkillService
+
+SYSTEM_USER_ID = "system"
+
+
+async def seed_public_skills():
+    """扫描 __system__ 目录，自动创建缺失的公共 Skill 记录。"""
+    system_dir = Path(settings.SKILL_STORAGE_PATH) / "__system__"
+    if not system_dir.exists():
+        return
+
+    async with async_session() as session:
+
+        skill_repo = SkillRepository(session)
+        version_repo = SkillVersionRepository(session)
+
+        for skill_dir in sorted(system_dir.iterdir()):
+            if not skill_dir.is_dir() or skill_dir.name.startswith("_"):
+                continue
+            skill_md = skill_dir / "SKILL.md"
+            if not skill_md.exists():
+                continue
+            name = skill_dir.name
+            existing = await skill_repo.get_by_user_and_name(SYSTEM_USER_ID, name)
+            if existing:
+                continue  # 已存在，跳过
+            # 从 SKILL.md frontmatter 提取元数据
+            content = skill_md.read_text(encoding="utf-8")
+            frontmatter = SkillService._parse_frontmatter(content)
+            description = frontmatter.get("description", "")
+            # 创建 Skill 记录
+            skill = await skill_repo.create(
+                user_id=SYSTEM_USER_ID,
+                name=name,
+                description=description,
+                visibility="public",
+                skill_dir=str(skill_dir),
+            )
+            # 扫描 _versions 目录或直接以当前目录作为 v1.0.0
+            versions_dir = skill_dir / "_versions"
+            if versions_dir.exists():
+                for v_dir in sorted(versions_dir.iterdir()):
+                    if v_dir.is_dir():
+                        await version_repo.create_version(
+                            skill_id=skill.id,
+                            version=v_dir.name,
+                            description=description,
+                        )
+                # 用最新版本号更新 current_version
+                # (简化处理：取目录名排序最大者为当前版本)
+            else:
+                # 当前目录本身就是一个 skill，版本为 1.0.0
+                await version_repo.create_version(
+                    skill_id=skill.id,
+                    version="1.0.0",
+                    description=description,
+                )
+```
+
+在 `backend/api_app.py` 的启动生命周期中调用：
+
+```python
+@lifespan
+async def lifespan(app):
+    # ... 已有的启动逻辑 ...
+    from backend.scripts.seed_public_skills import seed_public_skills
+    await seed_public_skills()
+    # ... 其余启动逻辑 ...
+    yield
+```
+
+### 1.3.2 日常新增/更新公共 Skill
+
+通过现有 API 上传，新增一个 `target` 参数：
+
+```
+POST /api/v1/skills/upload?target=system
+Authorization: Bearer <admin-jwt>
+
+Content-Type: multipart/form-data
+- file: ZIP 文件
+- skill_uuid: 已有公共 Skill UUID（更新时用，新增时不传）
+```
+
+**实现逻辑**（`backend/api/v1/skills.py:197-279`）：
+
+```python
+@router.post("/upload", status_code=status.HTTP_201_CREATED)
+async def upload_skill_file(
+    request: Request,
+    file: UploadFile = File(...),
+    skill_uuid: str | None = Form(None),
+    visibility: str = Form("private"),
+    target: str | None = Form(None),  # ← 新增参数："system" 表示公共空间
+    metadata: str | None = Form(None),
+    current_user=Depends(require_permission("skill.upload")),
+    session=Depends(get_async_session),
+):
+    # 如果目标是系统空间，校验管理员权限
+    if target == "system":
+        if not current_user.is_superuser:
+            raise HTTPException(status_code=403, detail="Admin only")
+    else:
+        effective_user_id = current_user.id
+```
+
+服务层适配（`backend/services/skill.py`）：
+
+- `upload_zip_create_skill_from_path` 中，`user_id` 为 `"system"`
+- 文件写入 `{SKILL_STORAGE_PATH}/__system__/{skill_name}/`
+- `visibility` 强制设为 `"public"`
+
+### 1.3.3 运维方式总结
+
+| 场景 | 方式 | 权限 |
+|------|------|------|
+| 首次部署 + 批量添加 | 手动放置 Skill 文件夹到 `data/skills/__system__/`，重启服务后 `seed_public_skills()` 自动注册 | 直接操作文件系统 |
+| 日常单个上传 | 用现有 API 加 `target=system` 参数，通过 curl 或脚本调用 | `is_superuser` |
+| 更新已有公共 Skill | 同上 + `skill_uuid` 参数 | `is_superuser` |
+| 下线公共 Skill | `POST /api/v1/skills/{uuid}/deactivate` 或 `DELETE /api/v1/skills/{uuid}`，`target=system` | `is_superuser` |
 
 ## 二、Clone 方案设计
 

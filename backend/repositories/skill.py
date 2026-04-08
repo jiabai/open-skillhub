@@ -18,6 +18,64 @@ class SkillRepository(BaseRepository):
         )
         return result.scalar_one_or_none()
 
+    async def get_public_by_id(self, skill_id: str) -> Skill | None:
+        result = await self.session.execute(
+            select(Skill).where(
+                Skill.id == skill_id,
+                Skill.visibility == "public",
+            ),
+        )
+        return result.scalar_one_or_none()
+
+    async def list_public(
+        self,
+        skip: int = 0,
+        limit: int = 100,
+        query: str | None = None,
+    ) -> list[Skill]:
+        stmt = select(Skill).where(
+            Skill.visibility == "public",
+            Skill.is_active.is_(True),
+        )
+        if query:
+            pattern = f"%{query}%"
+            stmt = stmt.where(
+                or_(
+                    Skill.name.ilike(pattern),
+                    Skill.description.ilike(pattern),
+                    cast(Skill.tags, String).ilike(pattern),
+                )
+            )
+        stmt = stmt.offset(skip).limit(limit)
+        result = await self.session.execute(stmt)
+        return list(result.scalars().all())
+
+    async def count_public(self, query: str | None = None) -> int:
+        stmt = select(func.count()).select_from(Skill).where(
+            Skill.visibility == "public",
+            Skill.is_active.is_(True),
+        )
+        if query:
+            pattern = f"%{query}%"
+            stmt = stmt.where(
+                or_(
+                    Skill.name.ilike(pattern),
+                    Skill.description.ilike(pattern),
+                    cast(Skill.tags, String).ilike(pattern),
+                )
+            )
+        result = await self.session.execute(stmt)
+        return int(result.scalar_one())
+
+    async def get_reference_by_source(self, user_id: str, source_skill_id: str) -> Skill | None:
+        result = await self.session.execute(
+            select(Skill).where(
+                Skill.user_id == user_id,
+                Skill.source_skill_id == source_skill_id,
+            )
+        )
+        return result.scalar_one_or_none()
+
     async def list_by_user(
         self,
         user_id: str,
@@ -89,6 +147,8 @@ class SkillRepository(BaseRepository):
         if not include_inactive:
             stmt = stmt.where(Skill.is_active.is_(True))
         visibility_filters = [Skill.user_id == user_id]
+        if not settings.ENABLE_RBAC:
+            visibility_filters.append(Skill.visibility == "public")
         if enterprise_id:
             visibility_filters.append(
                 and_(Skill.visibility == "enterprise", Skill.enterprise_id == enterprise_id),
@@ -129,6 +189,8 @@ class SkillRepository(BaseRepository):
         if not include_inactive:
             stmt = stmt.where(Skill.is_active.is_(True))
         visibility_filters = [Skill.user_id == user_id]
+        if not settings.ENABLE_RBAC:
+            visibility_filters.append(Skill.visibility == "public")
         if enterprise_id:
             visibility_filters.append(
                 and_(Skill.visibility == "enterprise", Skill.enterprise_id == enterprise_id),

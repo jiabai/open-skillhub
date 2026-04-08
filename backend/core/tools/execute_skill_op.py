@@ -114,19 +114,19 @@ class ExecuteSkillOp(BaseAsyncToolOp):
                 if not skill.is_active:
                     self._set_output(tool_error_payload("Skill deactivated", "SKILL_DEACTIVATED"))
                     return
-                version = version_input or skill.current_version or ""
-                if not version:
-                    versions = await version_repo.list_by_skill(skill.id)
-                    if versions:
-                        version = versions[0].version
-                if not version:
-                    self._set_output(tool_error_payload("Version not found", "VERSION_NOT_FOUND"))
+                try:
+                    source_skill, version, _record, version_dir = await SkillService(
+                        skill_repo, version_repo
+                    ).resolve_version_dir(skill, version_input)
+                except ValueError as exc:
+                    detail = str(exc)
+                    if detail == "SOURCE_SKILL_UNAVAILABLE":
+                        self._set_output(tool_error_payload("Source skill unavailable", "SOURCE_SKILL_UNAVAILABLE"))
+                    elif detail == "Version not found":
+                        self._set_output(tool_error_payload("Version not found", "VERSION_NOT_FOUND"))
+                    else:
+                        self._set_output(tool_error_payload(detail, "SKILL_NOT_FOUND"))
                     return
-                record = await version_repo.get_by_version(skill.id, version)
-                if not record:
-                    self._set_output(tool_error_payload("Version not found", "VERSION_NOT_FOUND"))
-                    return
-                version_dir = get_skill_versions_dir(user_id, skill.name) / version
                 if settings.ENABLE_RESOURCE_QUOTA and not is_within_workdir_quota(version_dir):
                     self._set_output(tool_error_payload("Work directory quota exceeded", "QUOTA_EXCEEDED"))
                     return
@@ -191,7 +191,11 @@ class ExecuteSkillOp(BaseAsyncToolOp):
                         action="skill.execute",
                         target=skill.id,
                         result=status,
-                        metadata={"version": version, "execution_time_ms": duration_ms},
+                        metadata={
+                            "version": version,
+                            "source_skill_id": source_skill.id,
+                            "execution_time_ms": duration_ms,
+                        },
                     )
                 self._set_output(
                     json.dumps(

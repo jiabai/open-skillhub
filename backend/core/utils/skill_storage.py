@@ -20,6 +20,8 @@ MAX_FILE_SIZE = 10 * 1024 * 1024
 MAX_TOTAL_SIZE = 100 * 1024 * 1024
 MAX_FILES_PER_SKILL = 50
 SKILL_VERSIONS_DIRNAME = "_versions"
+SYSTEM_USER_ID = "00000000-0000-0000-0000-000000000001"
+SYSTEM_STORAGE_OWNER = "__system__"
 
 
 def validate_skill_name(skill_name: str) -> tuple[bool, str]:
@@ -49,9 +51,13 @@ def tool_error_payload(detail: object, code: str) -> str:
     )
 
 
+def resolve_storage_owner(user_id: str) -> str:
+    return SYSTEM_STORAGE_OWNER if str(user_id) == SYSTEM_USER_ID else str(user_id)
+
+
 def get_user_skill_dir(user_id: str, skill_name: str) -> Path:
     base = Path(settings.SKILL_STORAGE_PATH)
-    return base / user_id / skill_name
+    return base / resolve_storage_owner(user_id) / skill_name
 
 
 def get_skill_versions_dir(user_id: str, skill_name: str) -> Path:

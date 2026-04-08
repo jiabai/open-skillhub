@@ -14,7 +14,8 @@ export type AccessTokenResponse = {
   expires_in?: number
 }
 
-export type SkillVisible = "private" | "team" | "enterprise"
+export type SkillVisible = "private" | "team" | "enterprise" | "public"
+export type SkillKind = "regular" | "public" | "reference" | "clone"
 
 // ========== 核心数据模型 ==========
 
@@ -27,12 +28,19 @@ export type Skill = {
   visible?: SkillVisible
   enterprise_id?: string | null
   team_id?: string | null
+  source_skill_id?: string | null
+  pinned_version?: string | null
+  resolved_version?: string | null
+  skill_kind?: SkillKind
+  is_reference_read_only?: boolean
   skill_dir?: string
   current_version?: string | null
   is_active?: boolean
   cache_revoked_at?: string | null
   created_at?: string
   updated_at?: string
+  has_reference?: boolean
+  has_clone?: boolean
 }
 
 export type Token = {
@@ -277,14 +285,24 @@ export type SkillCreateRequest = {
   name: string
   description?: string | null
   tags?: string[]
-  visible?: SkillVisible
+  visible?: Exclude<SkillVisible, "public">
 }
 
 export type SkillUpdateRequest = {
   name?: string
   description?: string | null
   tags?: string[]
-  visible?: SkillVisible
+  visible?: Exclude<SkillVisible, "public">
+}
+
+export type PublicSkillReferenceRequest = {
+  name: string
+  pinned_version?: string | null
+}
+
+export type PublicSkillCloneRequest = {
+  name: string
+  visible?: Exclude<SkillVisible, "public">
 }
 
 export type TokenCreateRequest = {

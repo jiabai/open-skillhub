@@ -23,6 +23,7 @@ from backend.core.utils.skill_storage import (
     MAX_FILES_PER_SKILL,
     MAX_FILE_SIZE,
     MAX_TOTAL_SIZE,
+    SYSTEM_USER_ID,
     clear_skill_current_dir,
     create_skill_dir,
     delete_skill_dir,
@@ -88,6 +89,91 @@ class SkillService:
             raise ValueError("Skill not found")
         return skill
 
+    @staticmethod
+    def public_features_enabled() -> bool:
+        return bool(settings.ENABLE_SKILL_VISIBILITY) and not bool(settings.ENABLE_RBAC)
+
+    @staticmethod
+    def is_public_skill(skill: Skill) -> bool:
+        return (skill.visibility or "").strip().lower() == "public"
+
+    @staticmethod
+    def is_reference_skill(skill: Skill) -> bool:
+        source_skill_id = getattr(skill, "source_skill_id", None)
+        return isinstance(source_skill_id, str) and bool(source_skill_id.strip())
+
+    async def is_clone_skill(self, skill: Skill) -> bool:
+        if self.is_reference_skill(skill) or self.is_public_skill(skill):
+            return False
+        if not skill.current_version or not self.version_repo:
+            return False
+        record = await self.version_repo.get_by_version(skill.id, skill.current_version)
+        if not record:
+            return False
+        return bool((record.metadata_json or {}).get("cloned_from_skill_id"))
+
+    async def skill_kind(self, skill: Skill) -> str:
+        if self.is_reference_skill(skill):
+            return "reference"
+        if self.is_public_skill(skill):
+            return "public"
+        if await self.is_clone_skill(skill):
+            return "clone"
+        return "regular"
+
+    @staticmethod
+    def _assert_public_features_enabled() -> None:
+        if not SkillService.public_features_enabled():
+            raise ValueError("PUBLIC_SKILLS_DISABLED")
+
+    @staticmethod
+    def _ensure_not_reference(skill: Skill) -> None:
+        if SkillService.is_reference_skill(skill):
+            raise ValueError("REFERENCE_SKILL_READ_ONLY")
+
+    async def _resolve_source_skill(self, skill: Skill) -> Skill:
+        if not skill.source_skill_id:
+            return skill
+        source_skill = await self.skill_repo.get_by_id(skill.source_skill_id)
+        if not source_skill or not self.is_public_skill(source_skill) or not source_skill.is_active:
+            raise ValueError("SOURCE_SKILL_UNAVAILABLE")
+        return source_skill
+
+    async def _resolve_version_and_record(
+        self,
+        skill: Skill,
+        requested_version: str | None = None,
+    ) -> tuple[Skill, str, object]:
+        repo = self._require_version_repo()
+        source_skill = await self._resolve_source_skill(skill)
+        version = ""
+        if self.is_reference_skill(skill):
+            version = str(skill.pinned_version or requested_version or source_skill.current_version or "").strip()
+        else:
+            version = str(requested_version or source_skill.current_version or "").strip()
+        if not version:
+            versions = await repo.list_by_skill(source_skill.id)
+            if versions:
+                version = versions[0].version
+        if not version:
+            raise ValueError("Version not found")
+        version = self._validate_version(version)
+        record = await repo.get_by_version(source_skill.id, version)
+        if not record:
+            raise ValueError("Version not found")
+        return source_skill, version, record
+
+    async def resolve_version_dir(
+        self,
+        skill: Skill,
+        requested_version: str | None = None,
+    ) -> tuple[Skill, str, object, Path]:
+        source_skill, version, record = await self._resolve_version_and_record(skill, requested_version)
+        version_dir = get_skill_versions_dir(source_skill.user_id, source_skill.name) / version
+        if not version_dir.exists():
+            raise ValueError("Version files not found")
+        return source_skill, version, record, version_dir
+
     async def create_skill(
         self,
         user: User,
@@ -120,6 +206,10 @@ class SkillService:
     async def update_skill(self, user: User, skill_id: str, **fields) -> Skill:
         skill = await self.get_skill(user, skill_id)
         self._ensure_owner(user, skill)
+        if self.is_reference_skill(skill):
+            disallowed = {"description", "tags", "visibility"}
+            if any(key in fields for key in disallowed):
+                raise ValueError("REFERENCE_SKILL_READ_ONLY")
         visibility = fields.get("visibility")
         if visibility is not None:
             normalized = str(visibility).strip().lower()
@@ -149,12 +239,14 @@ class SkillService:
     async def deactivate_skill(self, user: User, skill_id: str) -> Skill:
         skill = await self.get_skill(user, skill_id)
         self._ensure_owner(user, skill)
+        self._ensure_not_reference(skill)
         now = datetime.now(timezone.utc).replace(microsecond=0)
         return await self.skill_repo.update(skill, is_active=False, cache_revoked_at=now)
 
     async def activate_skill(self, user: User, skill_id: str) -> Skill:
         skill = await self.get_skill(user, skill_id)
         self._ensure_owner(user, skill)
+        self._ensure_not_reference(skill)
         return await self.skill_repo.update(skill, is_active=True, cache_revoked_at=None)
 
     async def delete_skill(self, user: User, skill_id: str, delete_archives: bool = False) -> bool:
@@ -162,6 +254,10 @@ class SkillService:
         skill = await self.get_skill(user, skill_id)
         logger.debug(f"[DELETE_SKILL] Found skill: name={skill.name}, id={skill.id}")
         self._ensure_owner(user, skill)
+        if self.is_reference_skill(skill):
+            await self.skill_repo.delete(skill)
+            logger.info(f"[DELETE_SKILL] Deleted reference skill, skill_name={skill.name}")
+            return True
         await self.skill_repo.delete(skill)
         delete_skill_dir(user.id, skill.name)
         if delete_archives:
@@ -172,13 +268,29 @@ class SkillService:
     async def list_skill_files(self, user: User, skill_id: str) -> list[str]:
         skill = await self.get_skill(user, skill_id)
         self._ensure_active(skill)
+        if self.is_reference_skill(skill):
+            _, _, _, version_dir = await self.resolve_version_dir(skill)
+            files = []
+            for item in version_dir.rglob("*"):
+                if item.is_file():
+                    files.append(str(item.relative_to(version_dir)).replace("\\", "/"))
+            return files
         return list_files(user.id, skill.name)
 
     async def read_skill_file(self, user: User, skill_id: str, file_path: str) -> str:
         skill = await self.get_skill(user, skill_id)
         self._ensure_active(skill)
-        base_dir = Path(settings.SKILL_STORAGE_PATH)
-        safe_path = get_safe_skill_path(base_dir, user.id, skill.name, file_path)
+        if self.is_reference_skill(skill):
+            _, _, _, version_dir = await self.resolve_version_dir(skill)
+            valid, error = validate_file_path(file_path)
+            if not valid:
+                raise ValueError(error)
+            safe_path = (version_dir / file_path).resolve()
+            if not safe_path.is_relative_to(version_dir.resolve()):
+                raise ValueError("Invalid file path")
+        else:
+            base_dir = Path(settings.SKILL_STORAGE_PATH)
+            safe_path = get_safe_skill_path(base_dir, user.id, skill.name, file_path)
         if not safe_path:
             raise ValueError("Invalid file path")
         if not safe_path.exists() or not safe_path.is_file():
@@ -202,6 +314,7 @@ class SkillService:
     ) -> str:
         skill = await self.get_skill(user, skill_id)
         self._ensure_owner(user, skill)
+        self._ensure_not_reference(skill)
         valid, error = validate_filename(filename)
         if not valid:
             raise ValueError(error)
@@ -439,41 +552,153 @@ class SkillService:
             return ["yarn install"]
         return ["npm ci" if has_lockfile else "npm install"]
 
+    async def list_public_skills(self, skip: int = 0, limit: int = 100, query: str | None = None) -> list[Skill]:
+        self._assert_public_features_enabled()
+        return await self.skill_repo.list_public(skip=skip, limit=limit, query=query)
+
+    async def count_public_skills(self, query: str | None = None) -> int:
+        self._assert_public_features_enabled()
+        return await self.skill_repo.count_public(query=query)
+
+    async def get_public_skill(self, skill_id: str) -> Skill:
+        self._assert_public_features_enabled()
+        skill = await self.skill_repo.get_public_by_id(skill_id)
+        if not skill or not skill.is_active:
+            raise ValueError("Skill not found")
+        return skill
+
+    async def create_reference_skill(
+        self,
+        user: User,
+        public_skill_id: str,
+        name: str,
+        pinned_version: str | None = None,
+    ) -> Skill:
+        self._assert_public_features_enabled()
+        source_skill = await self.get_public_skill(public_skill_id)
+        valid, error = validate_skill_name(name)
+        if not valid:
+            raise ValueError(error)
+        if await self.skill_repo.get_by_name(user.id, name):
+            raise ValueError("Skill already exists")
+        pinned_value = None
+        if pinned_version:
+            _, pinned_value, _ = await self._resolve_version_and_record(source_skill, pinned_version)
+        return await self.skill_repo.create(
+            user_id=user.id,
+            name=name,
+            description=source_skill.description,
+            tags=list(source_skill.tags or []),
+            visibility="private",
+            enterprise_id=user.enterprise_id,
+            team_id=user.team_id,
+            source_skill_id=source_skill.id,
+            pinned_version=pinned_value,
+            skill_dir="",
+            current_version=None,
+            is_active=True,
+        )
+
+    async def clone_public_skill(
+        self,
+        user: User,
+        public_skill_id: str,
+        name: str,
+        visibility: str = "private",
+    ) -> dict:
+        self._assert_public_features_enabled()
+        repo = self._require_version_repo()
+        source_skill = await self.get_public_skill(public_skill_id)
+        _, resolved_version, source_record, source_version_dir = await self.resolve_version_dir(source_skill)
+        skill = await self.create_skill(
+            user,
+            name,
+            source_skill.description,
+            tags=list(source_skill.tags or []),
+            visibility=visibility,
+        )
+        version = "1.0.0"
+        version_dir = get_skill_versions_dir(skill.user_id, skill.name) / version
+        version_dir.mkdir(parents=True, exist_ok=True)
+        for entry_path in source_version_dir.rglob("*"):
+            if not entry_path.is_file():
+                continue
+            relative = entry_path.relative_to(source_version_dir)
+            target = version_dir / relative
+            target.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(entry_path, target)
+        clear_skill_current_dir(skill.user_id, skill.name)
+        root_dir = get_user_skill_dir(skill.user_id, skill.name)
+        for entry_path in version_dir.rglob("*"):
+            if not entry_path.is_file():
+                continue
+            relative = entry_path.relative_to(version_dir)
+            target = root_dir / relative
+            target.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(entry_path, target)
+        metadata = dict(source_record.metadata_json or {})
+        metadata["cloned_from_skill_id"] = source_skill.id
+        metadata["cloned_from_version"] = resolved_version
+        record = await repo.create_version(
+            skill_id=skill.id,
+            version=version,
+            description=source_record.description,
+            dependencies=list(source_record.dependencies or []),
+            dependency_spec=dict(source_record.dependency_spec or {}),
+            dependency_spec_version=source_record.dependency_spec_version,
+            metadata=metadata,
+        )
+        await self.skill_repo.update(skill, current_version=version, description=record.description, is_active=True)
+        return {
+            "skill": skill,
+            "version": record.version,
+            "current_version": version,
+        }
+
+    async def pin_reference_version(self, user: User, skill_id: str, version: str) -> Skill:
+        skill = await self.get_skill(user, skill_id)
+        self._ensure_owner(user, skill)
+        if not self.is_reference_skill(skill):
+            raise ValueError("Skill not found")
+        _, normalized, _ = await self._resolve_version_and_record(skill, version)
+        return await self.skill_repo.update(skill, pinned_version=normalized)
+
+    async def unpin_reference_version(self, user: User, skill_id: str) -> Skill:
+        skill = await self.get_skill(user, skill_id)
+        self._ensure_owner(user, skill)
+        if not self.is_reference_skill(skill):
+            raise ValueError("Skill not found")
+        return await self.skill_repo.update(skill, pinned_version=None)
+
+    async def resolved_version_for_skill(self, skill: Skill) -> str | None:
+        try:
+            _, version, _ = await self._resolve_version_and_record(skill)
+            return version
+        except ValueError:
+            return None
+
     async def list_versions(self, user: User, skill_id: str):
         repo = self._require_version_repo()
         skill = await self.get_skill(user, skill_id)
-        return await repo.list_by_skill(skill.id)
+        source_skill = await self._resolve_source_skill(skill)
+        return await repo.list_by_skill(source_skill.id)
 
     async def get_version(self, user: User, skill_id: str, version: str):
         repo = self._require_version_repo()
         skill = await self.get_skill(user, skill_id)
         version = self._validate_version(version)
-        record = await repo.get_by_version(skill.id, version)
+        source_skill = await self._resolve_source_skill(skill)
+        record = await repo.get_by_version(source_skill.id, version)
         if not record:
             raise ValueError("Version not found")
         return record
 
     async def download_skill(self, user: User, skill_id: str, version: str | None = None) -> dict:
-        repo = self._require_version_repo()
         skill = await self.get_skill(user, skill_id)
         self._ensure_active(skill)
-        target_version = version or skill.current_version or ""
-        if not target_version:
-            latest = await repo.list_by_skill(skill.id)
-            if latest:
-                target_version = latest[0].version
-        if not target_version:
-            raise ValueError("Version not found")
-        target_version = self._validate_version(target_version)
-        record = await repo.get_by_version(skill.id, target_version)
-        if not record:
-            raise ValueError("Version not found")
-        archive_bytes = await load_archive(user.id, skill.name, target_version)
+        source_skill, target_version, _record, version_dir = await self.resolve_version_dir(skill, version)
+        archive_bytes = await load_archive(source_skill.user_id, source_skill.name, target_version)
         if archive_bytes is None:
-            base_dir = get_skill_versions_dir(user.id, skill.name)
-            version_dir = (base_dir / target_version).resolve()
-            if not version_dir.exists():
-                raise ValueError("Version files not found")
             buffer = io.BytesIO()
             with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as archive:
                 for file_path in version_dir.rglob("*"):
@@ -482,7 +707,7 @@ class SkillService:
                     relative = file_path.relative_to(version_dir)
                     archive.write(file_path, arcname=relative.as_posix())
             archive_bytes = buffer.getvalue()
-            await save_archive(user.id, skill.name, target_version, archive_bytes)
+            await save_archive(source_skill.user_id, source_skill.name, target_version, archive_bytes)
         archive_size_bytes = len(archive_bytes)
         if archive_size_bytes > settings.SKILL_DOWNLOAD_MAX_ARCHIVE_BYTES:
             raise DownloadTooLargeError(archive_size_bytes, settings.SKILL_DOWNLOAD_MAX_ARCHIVE_BYTES)
@@ -512,13 +737,9 @@ class SkillService:
         }
 
     async def get_install_instructions(self, user: User, skill_id: str, version: str) -> dict:
-        repo = self._require_version_repo()
         skill = await self.get_skill(user, skill_id)
         self._ensure_active(skill)
-        version = self._validate_version(version)
-        record = await repo.get_by_version(skill.id, version)
-        if not record:
-            raise ValueError("Version not found")
+        _, version, record = await self._resolve_version_and_record(skill, version)
         dependency_spec = dict(record.dependency_spec or {})
         dependencies = list(record.dependencies or [])
         requirements_text = "\n".join(dependencies)
@@ -563,7 +784,8 @@ class SkillService:
     async def diff_versions(self, user: User, skill_id: str, from_version: str, to_version: str) -> dict:
         skill = await self.get_skill(user, skill_id)
         self._ensure_active(skill)
-        base_dir = get_skill_versions_dir(user.id, skill.name)
+        source_skill = await self._resolve_source_skill(skill)
+        base_dir = get_skill_versions_dir(source_skill.user_id, source_skill.name)
         base_resolved = base_dir.resolve()
         from_version = self._validate_version(from_version)
         to_version = self._validate_version(to_version)
@@ -612,6 +834,7 @@ class SkillService:
         repo = self._require_version_repo()
         skill = await self.get_skill(user, skill_id)
         self._ensure_owner(user, skill)
+        self._ensure_not_reference(skill)
         version = self._validate_version(version)
         record = await repo.get_by_version(skill.id, version)
         if not record:
@@ -662,6 +885,7 @@ class SkillService:
         logger.debug(f"[UPLOAD_ZIP] user_id={user.id}, skill_id={skill_id}, filename={filename}, content_size={archive_size} bytes")
         skill = await self.get_skill(user, skill_id)
         self._ensure_owner(user, skill)
+        self._ensure_not_reference(skill)
         logger.debug(f"[UPLOAD_ZIP] Found skill: name={skill.name}")
         if not filename.lower().endswith(".zip"):
             raise ValueError("Invalid zip file")

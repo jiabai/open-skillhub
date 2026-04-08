@@ -160,19 +160,19 @@ class SkillDetailResourceOp(BaseAsyncToolOp):
                 if not skill or not is_skill_visible(user, skill):
                     self._set_output(tool_error_payload("Skill not found", "SKILL_NOT_FOUND"))
                     return
-                version = version_input or skill.current_version or ""
-                if not version:
-                    versions = await version_repo.list_by_skill(skill.id)
-                    if versions:
-                        version = versions[0].version
-                if not version:
-                    self._set_output(tool_error_payload("Version not found", "VERSION_NOT_FOUND"))
+                try:
+                    source_skill, version, record, version_dir = await SkillService(
+                        skill_repo, version_repo
+                    ).resolve_version_dir(skill, version_input)
+                except ValueError as exc:
+                    detail = str(exc)
+                    if detail == "SOURCE_SKILL_UNAVAILABLE":
+                        self._set_output(tool_error_payload("Source skill unavailable", "SOURCE_SKILL_UNAVAILABLE"))
+                    elif detail == "Version not found":
+                        self._set_output(tool_error_payload("Version not found", "VERSION_NOT_FOUND"))
+                    else:
+                        self._set_output(tool_error_payload(detail, "SKILL_NOT_FOUND"))
                     return
-                record = await version_repo.get_by_version(skill.id, version)
-                if not record:
-                    self._set_output(tool_error_payload("Version not found", "VERSION_NOT_FOUND"))
-                    return
-                version_dir = get_skill_versions_dir(user_id, skill.name) / version
                 skill_md_path = version_dir / "SKILL.md"
                 metadata = {}
                 if skill_md_path.exists():
@@ -189,7 +189,7 @@ class SkillDetailResourceOp(BaseAsyncToolOp):
                     "version": version,
                     "name": metadata.get("name") or skill.name,
                     "description": metadata.get("description") or skill.description,
-                    "author": str(skill.user_id),
+                    "author": str(source_skill.user_id),
                     "parameters": parameters,
                     "dependencies": list(record.dependencies or []),
                     "visible": _normalized_visibility(skill.visibility),

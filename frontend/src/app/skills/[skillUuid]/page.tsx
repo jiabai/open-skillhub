@@ -19,6 +19,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Textarea } from "@/components/ui/textarea"
 import { VersionsTab } from "./_components/versions-tab"
 
+type EditableSkillVisible = Exclude<SkillVisible, "public">
+
 type SkillDetailProps = {
   params: { skillUuid: string }
 }
@@ -31,13 +33,14 @@ export default function SkillDetailPage({ params }: SkillDetailProps) {
   const [error, setError] = useState<string | null>(null)
   const [name, setName] = useState("")
   const [description, setDescription] = useState("")
-  const [visible, setVisible] = useState<SkillVisible>("private")
+  const [visible, setVisible] = useState<EditableSkillVisible>("private")
   const [saving, setSaving] = useState(false)
   const [previewOpen, setPreviewOpen] = useState(false)
   const [previewFile, setPreviewFile] = useState<string | null>(null)
   const [previewContent, setPreviewContent] = useState("")
   const [previewStatus, setPreviewStatus] = useState<"idle" | "loading" | "ready" | "error">("idle")
   const [previewError, setPreviewError] = useState<string | null>(null)
+  const isReference = skill?.skill_kind === "reference" || skill?.is_reference_read_only
 
   const fetchData = useCallback(async () => {
     setStatus("loading")
@@ -47,7 +50,7 @@ export default function SkillDetailPage({ params }: SkillDetailProps) {
       setSkill(data)
       setName(data.name)
       setDescription(data.description || "")
-      setVisible(data.visible || "private")
+      setVisible((data.visible === "team" || data.visible === "enterprise" ? data.visible : "private") as EditableSkillVisible)
       const fileList = await api.listSkillFiles(params.skillUuid)
       setFiles(fileList)
       setStatus("ready")
@@ -140,6 +143,7 @@ export default function SkillDetailPage({ params }: SkillDetailProps) {
             </div>
             <Button
               variant={skill.is_active ? "outline" : "default"}
+              disabled={!!isReference}
               onClick={async () => {
                 try {
                   if (skill.is_active) {
@@ -198,6 +202,9 @@ export default function SkillDetailPage({ params }: SkillDetailProps) {
                     {skill.visible === "private" ? "私有" : skill.visible === "team" ? "团队" : "企业"}
                   </Badge>
                 )}
+                {skill.skill_kind ? <Badge variant="muted">{skill.skill_kind}</Badge> : null}
+                {skill.resolved_version ? <Badge variant="outline">v{skill.resolved_version}</Badge> : null}
+                {skill.pinned_version ? <Badge variant="outline">Pinned {skill.pinned_version}</Badge> : null}
                 {!featureFlags.enableSkillVisibility && <Badge variant="outline">私有目录</Badge>}
                 <Badge variant="accent">MCP 可用</Badge>
               </CardContent>
@@ -280,7 +287,7 @@ export default function SkillDetailPage({ params }: SkillDetailProps) {
                 </div>
                 <div className="flex flex-col gap-2">
                   <Label htmlFor="description">描述</Label>
-                  <Textarea id="description" value={description} onChange={(event) => setDescription(event.target.value)} />
+                  <Textarea id="description" value={description} onChange={(event) => setDescription(event.target.value)} disabled={!!isReference} />
                 </div>
                 {/* 可见性设置 - 条件显示 */}
                 {featureFlags.enableSkillVisibility && (
@@ -289,7 +296,7 @@ export default function SkillDetailPage({ params }: SkillDetailProps) {
                       <Eye className="h-4 w-4 text-muted-foreground" />
                       可见性
                     </Label>
-                    <Select value={visible} onValueChange={(value) => setVisible(value as SkillVisible)}>
+                    <Select value={visible} onValueChange={(value) => setVisible(value as EditableSkillVisible)} disabled={!!isReference}>
                       <SelectTrigger id="visible">
                         <SelectValue placeholder="选择可见性" />
                       </SelectTrigger>
@@ -305,7 +312,7 @@ export default function SkillDetailPage({ params }: SkillDetailProps) {
                   </div>
                 )}
                 <div className="flex flex-wrap gap-2">
-                  <Button onClick={handleSave} disabled={saving}>
+                  <Button onClick={handleSave} disabled={saving || !!isReference}>
                     <Save className="h-4 w-4" />
                     {saving ? "保存中..." : "保存修改"}
                   </Button>

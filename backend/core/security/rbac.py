@@ -54,6 +54,8 @@ def is_skill_visible(user: User, skill: Skill) -> bool:
     if not settings.ENABLE_SKILL_VISIBILITY:
         return skill.user_id == user.id
     visibility = (skill.visibility or settings.DEFAULT_SKILL_VISIBILITY or "private").strip().lower()
+    if visibility == "public" and not settings.ENABLE_RBAC:
+        return True
     if visibility == "enterprise":
         return bool(user.enterprise_id) and user.enterprise_id == skill.enterprise_id
     if visibility == "team":

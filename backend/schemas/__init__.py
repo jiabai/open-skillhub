@@ -2,9 +2,13 @@ from backend.schemas.audit import AuditLogExportRequest, AuditLogExportResponse,
 from backend.schemas.auth import LDAPLoginRequest, SSOLoginRequest, UserIdentityUpdate
 from backend.schemas.response import ErrorResponse, PaginatedResponse, TokenPair
 from backend.schemas.skill import (
+    PublicSkillListResponse,
     SkillCachePolicyResponse,
+    SkillCloneCreate,
     SkillCreate,
     SkillListResponse,
+    SkillPinVersionRequest,
+    SkillReferenceCreate,
     SkillResponse,
     SkillUpdate,
 )
@@ -48,6 +52,10 @@ __all__ = [
     "SkillUpdate",
     "SkillResponse",
     "SkillListResponse",
+    "PublicSkillListResponse",
+    "SkillReferenceCreate",
+    "SkillCloneCreate",
+    "SkillPinVersionRequest",
     "SkillCachePolicyResponse",
     "TokenCreate",
     "TokenResponse",

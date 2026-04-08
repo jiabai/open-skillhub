@@ -1,5 +1,9 @@
 import pytest
 from sso_helpers import sso_login
+from unittest.mock import MagicMock
+
+from backend.core.security.rbac import is_skill_visible
+from backend.services.skill import SkillService
 
 
 @pytest.mark.asyncio
@@ -38,3 +42,21 @@ async def test_skill_visibility_filters_list(client):
     assert "enterprise-skill" in other_names
     assert "team-skill" not in other_names
     assert "private-skill" not in other_names
+
+
+def test_public_skill_visible_when_rbac_disabled(monkeypatch):
+    monkeypatch.setattr("backend.core.security.rbac.settings.ENABLE_SKILL_VISIBILITY", True)
+    monkeypatch.setattr("backend.core.security.rbac.settings.ENABLE_RBAC", False)
+    user = MagicMock(id="user-1", enterprise_id=None, team_id=None)
+    skill = MagicMock(user_id="system-user", visibility="public", enterprise_id=None, team_id=None)
+    assert is_skill_visible(user, skill) is True
+
+
+def test_reference_detection_requires_non_empty_string():
+    skill = MagicMock()
+    skill.source_skill_id = MagicMock()
+    assert SkillService.is_reference_skill(skill) is False
+    skill.source_skill_id = ""
+    assert SkillService.is_reference_skill(skill) is False
+    skill.source_skill_id = "source-id"
+    assert SkillService.is_reference_skill(skill) is True

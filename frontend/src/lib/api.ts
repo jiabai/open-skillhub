@@ -12,6 +12,8 @@ import type {
   VerificationCodeResponse,
   SSOPrepareResponse,
   SkillListResponse,
+  PublicSkillCloneRequest,
+  PublicSkillReferenceRequest,
   TokenListResponse,
   SkillCreateRequest,
   SkillUpdateRequest,
@@ -320,11 +322,26 @@ export const api = {
     const queryString = params.toString()
     return apiFetch<{ items: Skill[]; total: number }>(`/api/v1/skills${queryString ? `?${queryString}` : ""}`)
   },
+  listPublicSkills: (query?: string) => {
+    const params = new URLSearchParams()
+    if (query) params.set("q", query)
+    const queryString = params.toString()
+    return apiFetch<{ items: Skill[]; total: number }>(`/api/v1/skills/public${queryString ? `?${queryString}` : ""}`)
+  },
+  getPublicSkill: (skillUuid: string) => apiFetch<Skill>(`/api/v1/skills/public/${skillUuid}`),
   createSkill: (payload: { name: string; description?: string | null; tags?: string[]; visible?: "private" | "team" | "enterprise" }) =>
     apiFetch<Skill>("/api/v1/skills", { method: "POST", body: JSON.stringify(payload) }),
   getSkill: (skillUuid: string) => apiFetch<Skill>(`/api/v1/skills/${skillUuid}`),
   updateSkill: (skillUuid: string, payload: { name?: string; description?: string | null; tags?: string[]; visible?: "private" | "team" | "enterprise" }) =>
     apiFetch<Skill>(`/api/v1/skills/${skillUuid}`, { method: "PUT", body: JSON.stringify(payload) }),
+  referencePublicSkill: (skillUuid: string, payload: PublicSkillReferenceRequest) =>
+    apiFetch<Skill>(`/api/v1/skills/${skillUuid}/reference`, { method: "POST", body: JSON.stringify(payload) }),
+  clonePublicSkill: (skillUuid: string, payload: PublicSkillCloneRequest) =>
+    apiFetch<Skill>(`/api/v1/skills/${skillUuid}/clone`, { method: "POST", body: JSON.stringify(payload) }),
+  pinReferenceSkillVersion: (skillUuid: string, version: string) =>
+    apiFetch<Skill>(`/api/v1/skills/${skillUuid}/pin`, { method: "PUT", body: JSON.stringify({ version }) }),
+  unpinReferenceSkillVersion: (skillUuid: string) =>
+    apiFetch<Skill>(`/api/v1/skills/${skillUuid}/unpin`, { method: "PUT", body: JSON.stringify({}) }),
   deleteSkill: (skillUuid: string, deleteArchives?: boolean) => {
     const params = new URLSearchParams()
     if (deleteArchives) params.set("delete_archives", "true")

@@ -133,6 +133,15 @@ export default function SkillsPage() {
         ) : null}
         {skills.map((skill) => {
           const skillUuid = skill.id
+          const isReference = skill.skill_kind === "reference" || skill.is_reference_read_only
+          const kindLabel =
+            skill.skill_kind === "reference"
+              ? "Reference"
+              : skill.skill_kind === "clone"
+                ? "Clone"
+                : skill.skill_kind === "public"
+                  ? "Public"
+                  : "Private"
           return (
           <Card key={skill.id}>
             <CardHeader className="flex flex-row items-start justify-between gap-4">
@@ -143,7 +152,9 @@ export default function SkillsPage() {
                   <Badge variant={skill.is_active ? "accent" : "muted"}>
                     {skill.is_active ? "已启用" : "已停用"}
                   </Badge>
-                  <Badge variant="muted">私有目录</Badge>
+                  <Badge variant="muted">{kindLabel}</Badge>
+                  {skill.resolved_version ? <Badge variant="outline">v{skill.resolved_version}</Badge> : null}
+                  {skill.pinned_version ? <Badge variant="outline">Pinned {skill.pinned_version}</Badge> : null}
                   <Badge variant="outline">id: {skill.id.slice(0, 8)}</Badge>
                 </div>
               </div>
@@ -154,6 +165,7 @@ export default function SkillsPage() {
                 <Button
                   variant={skill.is_active ? "secondary" : "outline"}
                   size="sm"
+                  disabled={isReference}
                   onClick={() => handleToggleActive(skillUuid, skill.is_active ?? false)}
                 >
                   {skill.is_active ? "停用" : "启用"}

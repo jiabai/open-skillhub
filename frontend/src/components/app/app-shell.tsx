@@ -66,6 +66,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const navItems = [
     { href: "/dashboard", label: "概览", icon: LayoutGrid },
     { href: "/skills", label: "Skills", icon: Sparkles },
+    { href: "/public-skills", label: "Public Skills", icon: Sparkles },
     { href: "/tokens", label: "Tokens", icon: KeyRound },
     ...(featureFlags.enableAuditLog ? [{ href: "/audit", label: "审计日志", icon: ScrollText }] : []),
     ...(canManageUsers ? [{ href: "/admin/users", label: "用户管理", icon: Users }] : []),

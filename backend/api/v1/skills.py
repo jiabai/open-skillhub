@@ -5,21 +5,29 @@ import tempfile
 import time
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Request, Response, UploadFile, status
+from fastapi.security import OAuth2PasswordBearer
 from loguru import logger
 
 from backend.config.settings import settings
 from backend.core.deps import require_permission
+from backend.core.security.jwt_utils import decode_token
 from backend.core.utils.skill_storage import MAX_FILE_SIZE, MAX_TOTAL_SIZE
 from backend.db.session import get_async_session
 from backend.repositories.audit_log import AuditLogRepository
 from backend.repositories.skill import SkillRepository
 from backend.repositories.skill_version import SkillVersionRepository
+from backend.repositories.user import UserRepository
 from backend.schemas.skill_download import SkillDownloadRequest, SkillDownloadResponse
 from backend.schemas.skill_lifecycle import SkillInstallInstructionsResponse, SkillVersionDiffResponse
 from backend.schemas.skill import (
     SkillCachePolicyResponse,
+    SkillCloneCreate,
     SkillCreate,
     SkillListResponse,
+    SkillPinVersionRequest,
+    PublicSkillListItem,
+    PublicSkillListResponse,
+    SkillReferenceCreate,
     SkillResponse,
     SkillUpdate,
 )
@@ -32,6 +40,96 @@ router = APIRouter()
 UPLOAD_CHUNK_SIZE = 64 * 1024
 _download_rate_limit_lock = asyncio.Lock()
 _download_rate_limit_state: dict[str, list[float]] = {}
+optional_oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login", auto_error=False)
+
+
+def _handle_skill_value_error(exc: ValueError) -> HTTPException:
+    detail = str(exc)
+    if detail == "SKILL_DEACTIVATED":
+        return HTTPException(
+            status_code=status.HTTP_410_GONE,
+            detail={"detail": "Skill deactivated", "code": "SKILL_DEACTIVATED"},
+        )
+    if detail == "PUBLIC_SKILLS_DISABLED":
+        return HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"detail": "Public skills disabled", "code": "PUBLIC_SKILLS_DISABLED"},
+        )
+    if detail == "REFERENCE_SKILL_READ_ONLY":
+        return HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={"detail": "Reference skill is read only", "code": "REFERENCE_SKILL_READ_ONLY"},
+        )
+    if detail == "SOURCE_SKILL_UNAVAILABLE":
+        return HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={"detail": "Source skill unavailable", "code": "SOURCE_SKILL_UNAVAILABLE"},
+        )
+    if detail == "Skill already exists":
+        return HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={"detail": detail, "code": "SKILL_ALREADY_EXISTS"},
+        )
+    if detail == "Version not found":
+        return HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"detail": detail, "code": "VERSION_NOT_FOUND"},
+        )
+    if detail == "Invalid visibility":
+        return HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=detail)
+    return HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=detail)
+
+
+async def get_optional_current_user(
+    token: str | None = Depends(optional_oauth2_scheme),
+    session=Depends(get_async_session),
+):
+    if not token:
+        return None
+    try:
+        payload = decode_token(token)
+    except ValueError:
+        return None
+    if payload.get("type") != "access":
+        return None
+    user_id = payload.get("sub")
+    if not user_id:
+        return None
+    repo = UserRepository(session)
+    user = await repo.get_by_id(user_id)
+    if not user or not user.is_active:
+        return None
+    if payload.get("ver", 0) != user.jwt_token_version:
+        return None
+    return user
+
+
+async def _serialize_skill(service: SkillService, skill) -> SkillResponse:
+    payload = SkillResponse.model_validate(skill).model_dump(by_alias=True)
+    payload["resolved_version"] = await service.resolved_version_for_skill(skill)
+    payload["skill_kind"] = await service.skill_kind(skill)
+    payload["is_reference_read_only"] = service.is_reference_skill(skill)
+    return SkillResponse.model_validate(payload)
+
+
+async def _serialize_public_skill(service: SkillService, skill, current_user, session) -> PublicSkillListItem:
+    payload = (await _serialize_skill(service, skill)).model_dump(by_alias=True)
+    payload["has_reference"] = False
+    payload["has_clone"] = False
+    if current_user:
+        repo = SkillRepository(session)
+        reference = await repo.get_reference_by_source(current_user.id, skill.id)
+        payload["has_reference"] = reference is not None
+        owned_skills = await repo.list_by_user(current_user.id, limit=500, include_inactive=True)
+        for owned_skill in owned_skills:
+            if await service.is_clone_skill(owned_skill):
+                version_repo = service._require_version_repo()
+                if owned_skill.current_version:
+                    record = await version_repo.get_by_version(owned_skill.id, owned_skill.current_version)
+                    if record and (record.metadata_json or {}).get("cloned_from_skill_id") == skill.id:
+                        payload["has_clone"] = True
+                        break
+    return PublicSkillListItem.model_validate(payload)
 
 
 async def _stream_upload_to_temp_file(file: UploadFile, max_bytes: int) -> tuple[Path, int]:
@@ -108,9 +206,40 @@ async def list_skills(
         include_inactive=include_inactive,
     )
     return SkillListResponse(
-        items=[SkillResponse.model_validate(skill) for skill in skills],
+        items=[await _serialize_skill(service, skill) for skill in skills],
         total=total,
     )
+
+
+@router.get("/public", response_model=PublicSkillListResponse)
+async def list_public_skills(
+    skip: int = 0,
+    limit: int = 100,
+    q: str | None = None,
+    current_user=Depends(get_optional_current_user),
+    session=Depends(get_async_session),
+):
+    service = SkillService(SkillRepository(session), SkillVersionRepository(session))
+    try:
+        skills = await service.list_public_skills(skip=skip, limit=limit, query=q)
+        total = await service.count_public_skills(query=q)
+    except ValueError as exc:
+        raise _handle_skill_value_error(exc) from exc
+    items = [await _serialize_public_skill(service, skill, current_user, session) for skill in skills]
+    return PublicSkillListResponse(items=items, total=total)
+
+
+@router.get("/public/{skill_uuid}", response_model=SkillResponse)
+async def get_public_skill(
+    skill_uuid: str,
+    session=Depends(get_async_session),
+):
+    service = SkillService(SkillRepository(session), SkillVersionRepository(session))
+    try:
+        skill = await service.get_public_skill(skill_uuid)
+    except ValueError as exc:
+        raise _handle_skill_value_error(exc) from exc
+    return await _serialize_skill(service, skill)
 
 
 @router.get("/cache-policy", response_model=SkillCachePolicyResponse)
@@ -140,7 +269,7 @@ async def create_skill(
             visibility=payload.visible,
         )
     except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+        raise _handle_skill_value_error(exc) from exc
     if settings.ENABLE_AUDIT_LOG:
         audit_service = AuditService(AuditLogRepository(session))
         await audit_service.create_event(
@@ -150,7 +279,7 @@ async def create_skill(
             ip=request.client.host if request and request.client else "",
             user_agent=request.headers.get("user-agent", ""),
         )
-    return skill
+    return await _serialize_skill(service, skill)
 
 
 @router.get("/{skill_uuid}", response_model=SkillResponse)
@@ -163,8 +292,8 @@ async def get_skill(
     try:
         skill = await service.get_skill(current_user, skill_uuid)
     except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
-    return skill
+        raise _handle_skill_value_error(exc) from exc
+    return await _serialize_skill(service, skill)
 
 
 @router.put("/{skill_uuid}", response_model=SkillResponse)
@@ -183,7 +312,7 @@ async def update_skill(
     try:
         skill = await service.update_skill(current_user, skill_uuid, **fields)
     except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+        raise _handle_skill_value_error(exc) from exc
     if settings.ENABLE_AUDIT_LOG:
         audit_service = AuditService(AuditLogRepository(session))
         await audit_service.create_event(
@@ -194,7 +323,7 @@ async def update_skill(
             user_agent=request.headers.get("user-agent", ""),
             metadata=fields,
         )
-    return skill
+    return await _serialize_skill(service, skill)
 
 
 @router.delete("/{skill_uuid}", status_code=status.HTTP_204_NO_CONTENT)
@@ -209,7 +338,7 @@ async def delete_skill(
     try:
         await service.delete_skill(current_user, skill_uuid, delete_archives=delete_archives)
     except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+        raise _handle_skill_value_error(exc) from exc
     if settings.ENABLE_AUDIT_LOG:
         audit_service = AuditService(AuditLogRepository(session))
         await audit_service.create_event(
@@ -221,6 +350,108 @@ async def delete_skill(
             metadata={"delete_archives": delete_archives},
         )
     return None
+
+
+@router.post("/{public_uuid}/reference", response_model=SkillResponse, status_code=status.HTTP_201_CREATED)
+async def create_reference_skill(
+    request: Request,
+    public_uuid: str,
+    payload: SkillReferenceCreate,
+    current_user=Depends(require_permission("skill.create")),
+    session=Depends(get_async_session),
+):
+    service = SkillService(SkillRepository(session), SkillVersionRepository(session))
+    try:
+        skill = await service.create_reference_skill(current_user, public_uuid, payload.name, payload.pinned_version)
+    except ValueError as exc:
+        raise _handle_skill_value_error(exc) from exc
+    if settings.ENABLE_AUDIT_LOG:
+        audit_service = AuditService(AuditLogRepository(session))
+        await audit_service.create_event(
+            actor_id=current_user.id,
+            action="skill.reference",
+            target=skill.id,
+            ip=request.client.host if request and request.client else "",
+            user_agent=request.headers.get("user-agent", ""),
+            metadata={"source_skill_id": public_uuid, "pinned_version": payload.pinned_version},
+        )
+    return await _serialize_skill(service, skill)
+
+
+@router.post("/{public_uuid}/clone", response_model=SkillResponse, status_code=status.HTTP_201_CREATED)
+async def clone_public_skill(
+    request: Request,
+    public_uuid: str,
+    payload: SkillCloneCreate,
+    current_user=Depends(require_permission("skill.create")),
+    session=Depends(get_async_session),
+):
+    service = SkillService(SkillRepository(session), SkillVersionRepository(session))
+    try:
+        result = await service.clone_public_skill(current_user, public_uuid, payload.name, payload.visible)
+    except ValueError as exc:
+        raise _handle_skill_value_error(exc) from exc
+    if settings.ENABLE_AUDIT_LOG:
+        audit_service = AuditService(AuditLogRepository(session))
+        await audit_service.create_event(
+            actor_id=current_user.id,
+            action="skill.clone",
+            target=result["skill"].id,
+            ip=request.client.host if request and request.client else "",
+            user_agent=request.headers.get("user-agent", ""),
+            metadata={"source_skill_id": public_uuid, "version": result["version"]},
+        )
+    return await _serialize_skill(service, result["skill"])
+
+
+@router.put("/{skill_uuid}/pin", response_model=SkillResponse)
+async def pin_reference_skill_version(
+    request: Request,
+    skill_uuid: str,
+    payload: SkillPinVersionRequest,
+    current_user=Depends(require_permission("skill.update")),
+    session=Depends(get_async_session),
+):
+    service = SkillService(SkillRepository(session), SkillVersionRepository(session))
+    try:
+        skill = await service.pin_reference_version(current_user, skill_uuid, payload.version)
+    except ValueError as exc:
+        raise _handle_skill_value_error(exc) from exc
+    if settings.ENABLE_AUDIT_LOG:
+        audit_service = AuditService(AuditLogRepository(session))
+        await audit_service.create_event(
+            actor_id=current_user.id,
+            action="skill.pin_version",
+            target=skill_uuid,
+            ip=request.client.host if request and request.client else "",
+            user_agent=request.headers.get("user-agent", ""),
+            metadata={"version": payload.version},
+        )
+    return await _serialize_skill(service, skill)
+
+
+@router.put("/{skill_uuid}/unpin", response_model=SkillResponse)
+async def unpin_reference_skill_version(
+    request: Request,
+    skill_uuid: str,
+    current_user=Depends(require_permission("skill.update")),
+    session=Depends(get_async_session),
+):
+    service = SkillService(SkillRepository(session), SkillVersionRepository(session))
+    try:
+        skill = await service.unpin_reference_version(current_user, skill_uuid)
+    except ValueError as exc:
+        raise _handle_skill_value_error(exc) from exc
+    if settings.ENABLE_AUDIT_LOG:
+        audit_service = AuditService(AuditLogRepository(session))
+        await audit_service.create_event(
+            actor_id=current_user.id,
+            action="skill.unpin_version",
+            target=skill_uuid,
+            ip=request.client.host if request and request.client else "",
+            user_agent=request.headers.get("user-agent", ""),
+        )
+    return await _serialize_skill(service, skill)
 
 
 @router.post("/upload", status_code=status.HTTP_201_CREATED)
@@ -284,7 +515,7 @@ async def upload_skill_file(
         filename = await service.upload_file_from_path(current_user, skill_uuid, filename, temp_path, content_size)
     except ValueError as exc:
         logger.error(f"[UPLOAD FAILED] user_id={current_user.id}, filename={filename}, error={str(exc)}", exc_info=True)
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+        raise _handle_skill_value_error(exc) from exc
     except Exception as exc:
         logger.error(f"[UPLOAD FAILED] user_id={current_user.id}, filename={filename}, unexpected_error={str(exc)}", exc_info=True)
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Upload failed") from exc
@@ -325,12 +556,7 @@ async def download_skill(
             detail=f"Download too large ({exc.size_bytes // 1024 // 1024}MB). Max allowed is {exc.limit_bytes // 1024 // 1024}MB.",
         ) from exc
     except ValueError as exc:
-        if str(exc) == "SKILL_DEACTIVATED":
-            raise HTTPException(
-                status_code=status.HTTP_410_GONE,
-                detail={"detail": "Skill deactivated", "code": "SKILL_DEACTIVATED"},
-            ) from exc
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+        raise _handle_skill_value_error(exc) from exc
     except HTTPException:
         raise
     except Exception as exc:
@@ -370,7 +596,7 @@ async def deactivate_skill(
     try:
         skill = await service.deactivate_skill(current_user, skill_uuid)
     except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+        raise _handle_skill_value_error(exc) from exc
     if settings.ENABLE_AUDIT_LOG:
         audit_service = AuditService(AuditLogRepository(session))
         await audit_service.create_event(
@@ -380,7 +606,7 @@ async def deactivate_skill(
             ip=request.client.host if request and request.client else "",
             user_agent=request.headers.get("user-agent", ""),
         )
-    return skill
+    return await _serialize_skill(service, skill)
 
 
 @router.post("/{skill_uuid}/activate", response_model=SkillResponse)
@@ -394,7 +620,7 @@ async def activate_skill(
     try:
         skill = await service.activate_skill(current_user, skill_uuid)
     except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+        raise _handle_skill_value_error(exc) from exc
     if settings.ENABLE_AUDIT_LOG:
         audit_service = AuditService(AuditLogRepository(session))
         await audit_service.create_event(
@@ -404,7 +630,7 @@ async def activate_skill(
             ip=request.client.host if request and request.client else "",
             user_agent=request.headers.get("user-agent", ""),
         )
-    return skill
+    return await _serialize_skill(service, skill)
 
 
 @router.get("/{skill_uuid}/versions", response_model=SkillVersionListResponse)
@@ -417,7 +643,7 @@ async def list_skill_versions(
     try:
         versions = await service.list_versions(current_user, skill_uuid)
     except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+        raise _handle_skill_value_error(exc) from exc
     return SkillVersionListResponse(items=[SkillVersionResponse.model_validate(item) for item in versions])
 
 
@@ -434,12 +660,7 @@ async def diff_skill_versions(
     try:
         payload = await service.diff_versions(current_user, skill_uuid, from_version, to_version)
     except ValueError as exc:
-        if str(exc) == "SKILL_DEACTIVATED":
-            raise HTTPException(
-                status_code=status.HTTP_410_GONE,
-                detail={"detail": "Skill deactivated", "code": "SKILL_DEACTIVATED"},
-            ) from exc
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+        raise _handle_skill_value_error(exc) from exc
     return SkillVersionDiffResponse.model_validate(payload)
 
 
@@ -454,7 +675,7 @@ async def get_skill_version(
     try:
         record = await service.get_version(current_user, skill_uuid, version)
     except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+        raise _handle_skill_value_error(exc) from exc
     return SkillVersionResponse.model_validate(record)
 
 
@@ -469,12 +690,7 @@ async def get_install_instructions(
     try:
         payload = await service.get_install_instructions(current_user, skill_uuid, version)
     except ValueError as exc:
-        if str(exc) == "SKILL_DEACTIVATED":
-            raise HTTPException(
-                status_code=status.HTTP_410_GONE,
-                detail={"detail": "Skill deactivated", "code": "SKILL_DEACTIVATED"},
-            ) from exc
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+        raise _handle_skill_value_error(exc) from exc
     return SkillInstallInstructionsResponse.model_validate(payload)
 
 
@@ -490,7 +706,7 @@ async def rollback_skill_version(
     try:
         record = await service.rollback_version(current_user, skill_uuid, version)
     except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+        raise _handle_skill_value_error(exc) from exc
     if settings.ENABLE_AUDIT_LOG:
         audit_service = AuditService(AuditLogRepository(session))
         await audit_service.create_event(
@@ -514,12 +730,7 @@ async def list_skill_files(
     try:
         files = await service.list_skill_files(current_user, skill_uuid)
     except ValueError as exc:
-        if str(exc) == "SKILL_DEACTIVATED":
-            raise HTTPException(
-                status_code=status.HTTP_410_GONE,
-                detail={"detail": "Skill deactivated", "code": "SKILL_DEACTIVATED"},
-            ) from exc
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+        raise _handle_skill_value_error(exc) from exc
     return files
 
 
@@ -534,10 +745,5 @@ async def read_skill_file(
     try:
         content = await service.read_skill_file(current_user, skill_uuid, file_path)
     except ValueError as exc:
-        if str(exc) == "SKILL_DEACTIVATED":
-            raise HTTPException(
-                status_code=status.HTTP_410_GONE,
-                detail={"detail": "Skill deactivated", "code": "SKILL_DEACTIVATED"},
-            ) from exc
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+        raise _handle_skill_value_error(exc) from exc
     return Response(content, media_type="text/plain; charset=utf-8")

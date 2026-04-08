@@ -53,7 +53,7 @@ Acceptance:
 
 ### 3. Make clone creation atomic
 
-Status: `in_progress`
+Status: `completed`
 
 Problem:
 - Clone creation can leave partial DB rows or filesystem artifacts when an intermediate step fails.
@@ -68,7 +68,7 @@ Acceptance:
 
 ### 4. Remove public-source enumeration leak
 
-Status: `pending`
+Status: `in_progress`
 
 Problem:
 - API currently distinguishes `SKILL_NOT_FOUND` and `SKILL_NOT_PUBLIC` for arbitrary skill UUIDs.

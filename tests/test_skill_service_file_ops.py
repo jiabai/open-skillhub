@@ -324,6 +324,70 @@ class TestSkillServiceSkillOperations:
             with pytest.raises(ValueError, match="REFERENCE_ALREADY_EXISTS"):
                 await service.create_reference_skill(test_user, "public-skill-id", "another-reference")
 
+    @pytest.mark.asyncio
+    async def test_clone_public_skill_cleans_up_on_failure(
+        self, mock_skill_repo, mock_version_repo, test_user, tmp_path, monkeypatch
+    ):
+        monkeypatch.setattr(settings, "SKILL_STORAGE_PATH", str(tmp_path))
+        monkeypatch.setattr(settings, "ENABLE_SKILL_VISIBILITY", True)
+        monkeypatch.setattr(settings, "ENABLE_RBAC", False)
+
+        source_skill = MagicMock(spec=Skill)
+        source_skill.id = "public-skill-id"
+        source_skill.name = "public-skill"
+        source_skill.user_id = "system-user"
+        source_skill.description = "Public skill description"
+        source_skill.tags = ["public", "starter"]
+        source_skill.current_version = "1.2.3"
+        source_skill.source_skill_id = None
+        source_skill.is_active = True
+        source_skill.visibility = "public"
+
+        clone_skill = MagicMock(spec=Skill)
+        clone_skill.id = "clone-skill-id"
+        clone_skill.name = "public-skill-copy"
+        clone_skill.user_id = test_user.id
+        clone_skill.description = source_skill.description
+        clone_skill.tags = list(source_skill.tags)
+        clone_skill.current_version = None
+        clone_skill.is_active = True
+        clone_skill.visibility = "private"
+        clone_skill.source_skill_id = None
+
+        source_record = MagicMock(spec=SkillVersion)
+        source_record.version = "1.2.3"
+        source_record.description = "Public skill description"
+        source_record.dependencies = ["requests"]
+        source_record.dependency_spec = {}
+        source_record.dependency_spec_version = None
+        source_record.metadata_json = {"existing": "value"}
+
+        source_dir = get_skill_versions_dir(source_skill.user_id, source_skill.name) / "1.2.3"
+        source_dir.mkdir(parents=True, exist_ok=True)
+        (source_dir / "SKILL.md").write_text("---\nname: public-skill\nversion: 1.2.3\n---\nbody", encoding="utf-8")
+        (source_dir / "reference.md").write_text("public reference", encoding="utf-8")
+
+        mock_skill_repo.get_by_id = AsyncMock(side_effect=[source_skill, clone_skill])
+        mock_skill_repo.get_by_name = AsyncMock(return_value=None)
+        mock_skill_repo.create = AsyncMock(return_value=clone_skill)
+        mock_skill_repo.delete = AsyncMock(return_value=True)
+        mock_version_repo.get_by_version = AsyncMock(
+            side_effect=lambda skill_id, version: source_record if skill_id == source_skill.id and version == "1.2.3" else None
+        )
+        mock_version_repo.create_version = AsyncMock(side_effect=RuntimeError("create version failed"))
+
+        mock_session = AsyncMock()
+        mock_skill_repo.session = mock_session
+
+        service = SkillService(mock_skill_repo, mock_version_repo)
+
+        with pytest.raises(RuntimeError, match="create version failed"):
+            await service.clone_public_skill(test_user, source_skill.id, clone_skill.name, "private")
+
+        mock_session.rollback.assert_awaited()
+        mock_skill_repo.delete.assert_awaited_once_with(clone_skill)
+        assert not get_user_skill_dir(test_user.id, clone_skill.name).exists()
+
 
 class TestSkillServiceListSkills:
     """测试技能列表"""

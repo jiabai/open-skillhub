@@ -623,50 +623,69 @@ class SkillService:
         repo = self._require_version_repo()
         source_skill = await self._get_public_source_skill(public_skill_id)
         _, resolved_version, source_record, source_version_dir = await self.resolve_version_dir(source_skill)
-        skill = await self.create_skill(
-            user,
-            name,
-            source_skill.description,
-            tags=list(source_skill.tags or []),
-            visibility=visibility,
-        )
-        version = "1.0.0"
-        version_dir = get_skill_versions_dir(skill.user_id, skill.name) / version
-        version_dir.mkdir(parents=True, exist_ok=True)
-        for entry_path in source_version_dir.rglob("*"):
-            if not entry_path.is_file():
-                continue
-            relative = entry_path.relative_to(source_version_dir)
-            target = version_dir / relative
-            target.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copy2(entry_path, target)
-        clear_skill_current_dir(skill.user_id, skill.name)
-        root_dir = get_user_skill_dir(skill.user_id, skill.name)
-        for entry_path in version_dir.rglob("*"):
-            if not entry_path.is_file():
-                continue
-            relative = entry_path.relative_to(version_dir)
-            target = root_dir / relative
-            target.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copy2(entry_path, target)
-        metadata = dict(source_record.metadata_json or {})
-        metadata["cloned_from_skill_id"] = source_skill.id
-        metadata["cloned_from_version"] = resolved_version
-        record = await repo.create_version(
-            skill_id=skill.id,
-            version=version,
-            description=source_record.description,
-            dependencies=list(source_record.dependencies or []),
-            dependency_spec=dict(source_record.dependency_spec or {}),
-            dependency_spec_version=source_record.dependency_spec_version,
-            metadata=metadata,
-        )
-        await self.skill_repo.update(skill, current_version=version, description=record.description, is_active=True)
-        return {
-            "skill": skill,
-            "version": record.version,
-            "current_version": version,
-        }
+        skill = None
+        try:
+            skill = await self.create_skill(
+                user,
+                name,
+                source_skill.description,
+                tags=list(source_skill.tags or []),
+                visibility=visibility,
+            )
+            version = "1.0.0"
+            version_dir = get_skill_versions_dir(skill.user_id, skill.name) / version
+            version_dir.mkdir(parents=True, exist_ok=True)
+            for entry_path in source_version_dir.rglob("*"):
+                if not entry_path.is_file():
+                    continue
+                relative = entry_path.relative_to(source_version_dir)
+                target = version_dir / relative
+                target.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(entry_path, target)
+            clear_skill_current_dir(skill.user_id, skill.name)
+            root_dir = get_user_skill_dir(skill.user_id, skill.name)
+            for entry_path in version_dir.rglob("*"):
+                if not entry_path.is_file():
+                    continue
+                relative = entry_path.relative_to(version_dir)
+                target = root_dir / relative
+                target.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(entry_path, target)
+            metadata = dict(source_record.metadata_json or {})
+            metadata["cloned_from_skill_id"] = source_skill.id
+            metadata["cloned_from_version"] = resolved_version
+            record = await repo.create_version(
+                skill_id=skill.id,
+                version=version,
+                description=source_record.description,
+                dependencies=list(source_record.dependencies or []),
+                dependency_spec=dict(source_record.dependency_spec or {}),
+                dependency_spec_version=source_record.dependency_spec_version,
+                metadata=metadata,
+            )
+            await self.skill_repo.update(skill, current_version=version, description=record.description, is_active=True)
+            return {
+                "skill": skill,
+                "version": record.version,
+                "current_version": version,
+            }
+        except Exception:
+            if skill is not None:
+                try:
+                    await self.skill_repo.session.rollback()
+                except Exception:
+                    pass
+                try:
+                    persisted_skill = await self.skill_repo.get_by_id(skill.id)
+                    if persisted_skill:
+                        await self.skill_repo.delete(persisted_skill)
+                except Exception:
+                    logger.exception("Failed to delete partially created cloned skill")
+                try:
+                    delete_skill_dir(skill.user_id, skill.name)
+                except Exception:
+                    logger.exception("Failed to clean up partially created cloned skill directory")
+            raise
 
     async def pin_reference_version(self, user: User, skill_id: str, version: str) -> Skill:
         skill = await self.get_skill(user, skill_id)

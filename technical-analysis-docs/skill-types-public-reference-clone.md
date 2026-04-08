@@ -70,7 +70,9 @@ graph LR
 
 ### 可用操作
 
-**用户可以**：浏览列表、查看详情/文件/版本、读取文件内容、执行、下载、创建 Reference 或 Clone。
+**用户可以**：浏览列表、查看详情/文件/版本、读取文件内容、执行、通过 Reference 间接下载、创建 Reference 或 Clone。
+
+> **下载权限说明**：RBAC 关闭后，公共 Skill 的直接下载受 `require_skill_download_access()` 限制（只能下载自己的 Skill）。但用户可以下载自己创建的 Reference Skill，而 Reference 的文件实际来自源公共 Skill——这构成了间接下载通道。RBAC 开启时仅 admin 可直接下载公共 Skill。
 
 **用户不可以**：修改任何内容（返回 `REFERENCE_SKILL_READ_ONLY`）、删除或停用、上传文件。
 
@@ -204,7 +206,7 @@ Pin 操作会验证目标版本是否存在于源 Skill，不存在则返回 `VE
 
 Reference Skill 是"半只读"实体。
 
-**允许的操作**：查看详情、列出文件、读取文件、执行、下载、查看版本列表、版本对比 (diff)、重命名（只改 name 字段）、Pin / Unpin、删除（仅删引用记录，不影响源 Skill）。
+**允许的操作**：查看详情、列出文件、读取文件、执行、下载（RBAC 关闭时因 `user_id` 是自己而放行）、查看版本列表、版本对比 (diff)、重命名（只改 name 字段）、Pin / Unpin、删除（仅删引用记录，不影响源 Skill）。
 
 **禁止的操作**：
 
@@ -562,12 +564,12 @@ Response 200:
 | 场景 | HTTP 状态码 | 错误码 |
 |------|------------|--------|
 | 公共能力未启用 | 404 | `PUBLIC_SKILLS_DISABLED` |
-| 源 Skill 不存在 | 404 | `SKILL_NOT_FOUND` |
-| 目标 Skill 不是公共的 | 400 | `SKILL_NOT_PUBLIC` |
+| 源 Skill 不存在或不是公共的 | 404 | `SKILL_NOT_FOUND` |
 | 名称已被占用 | 409 | `SKILL_ALREADY_EXISTS` |
 | Reference 上尝试写操作 | 409 | `REFERENCE_SKILL_READ_ONLY` |
 | Pin 到不存在的版本 | 404 | `VERSION_NOT_FOUND` |
 | 源 Skill 已失效/停用 | 409 | `SOURCE_SKILL_UNAVAILABLE` |
+| 已存在同名 Reference | 409 | `REFERENCE_ALREADY_EXISTS` |
 
 ---
 

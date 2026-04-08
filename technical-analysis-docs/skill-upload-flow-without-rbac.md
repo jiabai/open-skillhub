@@ -200,7 +200,7 @@ data/
 | 单文件大小 | 10 MB | 413 FILE_TOO_LARGE | `skill_storage.py` |
 | Skill 总大小 | 100 MB | 400 TOTAL_SKILL_SIZE_LIMIT_EXCEEDED | `skill_storage.py` |
 | 文件数量上限 | 50 个 | 400 TOO_MANY_FILES | `skill_storage.py` |
-| 文件扩展名 | 33 种白名单 | 400 INVALID_FILENAME | `skill_storage.py` |
+| 文件扩展名 | 36 种白名单 | 400 INVALID_FILENAME | `skill_storage.py` |
 | 路径遍历防护 | 拦截 `../` | 400 INVALID_FILE_PATH | `skill_storage.py` |
 | Skill 名称格式 | 字母数字+连字符 | 400 INVALID_SKILL_NAME | `skill_storage.py` |
 | 所有权验证 | `_ensure_owner()` | 403 权限不足 | `services/skill.py` |

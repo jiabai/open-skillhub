@@ -1075,6 +1075,73 @@ async def test_reference_skill_repin_updates_to_new_version(client, async_sessio
 
 
 @pytest.mark.asyncio
+async def test_duplicate_reference_returns_conflict(client, async_session, tmp_path, monkeypatch):
+    monkeypatch.setenv("SKILL_STORAGE_PATH", str(tmp_path))
+    monkeypatch.setattr(settings, "ENABLE_SKILL_VISIBILITY", True)
+    monkeypatch.setattr(settings, "ENABLE_RBAC", False)
+    public_skill = await _create_public_skill(async_session, tmp_path)
+
+    headers = await _register_and_login(client, "duplicate-ref@example.com", "duplicate-ref-user")
+    first = await client.post(
+        f"/api/v1/skills/{public_skill.id}/reference",
+        json={"name": "public-reference-one"},
+        headers=headers,
+    )
+    assert first.status_code == 201
+
+    second = await client.post(
+        f"/api/v1/skills/{public_skill.id}/reference",
+        json={"name": "public-reference-two"},
+        headers=headers,
+    )
+    assert second.status_code == 409
+    assert second.json()["code"] == "REFERENCE_ALREADY_EXISTS"
+
+
+@pytest.mark.asyncio
+async def test_public_list_tolerates_historical_duplicate_references(client, async_session, tmp_path, monkeypatch):
+    monkeypatch.setenv("SKILL_STORAGE_PATH", str(tmp_path))
+    monkeypatch.setattr(settings, "ENABLE_SKILL_VISIBILITY", True)
+    monkeypatch.setattr(settings, "ENABLE_RBAC", False)
+    public_skill = await _create_public_skill(async_session, tmp_path)
+
+    headers = await _register_and_login(client, "duplicate-history@example.com", "duplicate-history-user")
+    user_result = await async_session.execute(select(User).where(User.email == "duplicate-history@example.com"))
+    user = user_result.scalar_one()
+    async_session.add_all(
+        [
+            Skill(
+                user_id=user.id,
+                name="historical-reference-a",
+                description="ref",
+                visibility="private",
+                source_skill_id=public_skill.id,
+                pinned_version=None,
+                skill_dir="",
+                current_version=None,
+                is_active=True,
+            ),
+            Skill(
+                user_id=user.id,
+                name="historical-reference-b",
+                description="ref",
+                visibility="private",
+                source_skill_id=public_skill.id,
+                pinned_version=None,
+                skill_dir="",
+                current_version=None,
+                is_active=True,
+            ),
+        ]
+    )
+    await async_session.commit()
+
+    listed = await client.get("/api/v1/skills/public", headers=headers)
+    assert listed.status_code == 200
+    assert listed.json()["items"][0]["has_reference"] is True
+
+
+@pytest.mark.asyncio
 async def test_clone_public_skill_and_mark_public_list_flags(client, async_session, tmp_path, monkeypatch):
     monkeypatch.setattr(settings, "SKILL_STORAGE_PATH", str(tmp_path))
     monkeypatch.setattr(settings, "ENABLE_RBAC", False)

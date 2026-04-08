@@ -70,6 +70,11 @@ def _handle_skill_value_error(exc: ValueError) -> HTTPException:
             status_code=status.HTTP_409_CONFLICT,
             detail={"detail": "Reference skill is read only", "code": "REFERENCE_SKILL_READ_ONLY"},
         )
+    if detail == "REFERENCE_ALREADY_EXISTS":
+        return HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={"detail": "Reference skill already exists", "code": "REFERENCE_ALREADY_EXISTS"},
+        )
     if detail == "SOURCE_SKILL_UNAVAILABLE":
         return HTTPException(
             status_code=status.HTTP_409_CONFLICT,

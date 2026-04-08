@@ -295,6 +295,35 @@ class TestSkillServiceSkillOperations:
         mock_version_repo.get_by_version.assert_called_once_with("public-skill-id", "1.2.4")
         mock_skill_repo.update.assert_called_once_with(reference_skill, pinned_version="1.2.4")
 
+    @pytest.mark.asyncio
+    async def test_create_reference_skill_rejects_duplicate_source_reference(
+        self, mock_skill_repo, mock_version_repo, test_user
+    ):
+        source_skill = MagicMock(spec=Skill)
+        source_skill.id = "public-skill-id"
+        source_skill.user_id = "system"
+        source_skill.name = "public-skill"
+        source_skill.description = "Public"
+        source_skill.tags = ["starter"]
+        source_skill.visibility = "public"
+        source_skill.is_active = True
+        source_skill.current_version = "1.2.3"
+
+        existing_reference = MagicMock(spec=Skill)
+        existing_reference.id = "ref-existing"
+
+        mock_skill_repo.get_by_id = AsyncMock(return_value=source_skill)
+        mock_skill_repo.get_reference_by_source = AsyncMock(return_value=existing_reference)
+        mock_skill_repo.get_by_name = AsyncMock(return_value=None)
+
+        service = SkillService(mock_skill_repo, mock_version_repo)
+
+        with patch("backend.services.skill.settings.ENABLE_SKILL_VISIBILITY", True), patch(
+            "backend.services.skill.settings.ENABLE_RBAC", False
+        ):
+            with pytest.raises(ValueError, match="REFERENCE_ALREADY_EXISTS"):
+                await service.create_reference_skill(test_user, "public-skill-id", "another-reference")
+
 
 class TestSkillServiceListSkills:
     """测试技能列表"""

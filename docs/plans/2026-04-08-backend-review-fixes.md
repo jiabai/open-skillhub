@@ -35,7 +35,7 @@ Acceptance:
 
 ### 2. Enforce one reference per `(user_id, source_skill_id)`
 
-Status: `in_progress`
+Status: `completed`
 
 Problem:
 - Duplicate references to the same public source can be created.
@@ -53,7 +53,7 @@ Acceptance:
 
 ### 3. Make clone creation atomic
 
-Status: `pending`
+Status: `in_progress`
 
 Problem:
 - Clone creation can leave partial DB rows or filesystem artifacts when an intermediate step fails.

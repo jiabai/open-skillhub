@@ -589,6 +589,9 @@ class SkillService:
         valid, error = validate_skill_name(name)
         if not valid:
             raise ValueError(error)
+        existing_reference = await self.skill_repo.get_reference_by_source(user.id, source_skill.id)
+        if existing_reference:
+            raise ValueError("REFERENCE_ALREADY_EXISTS")
         if await self.skill_repo.get_by_name(user.id, name):
             raise ValueError("Skill already exists")
         pinned_value = None

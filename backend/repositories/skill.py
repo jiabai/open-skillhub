@@ -72,9 +72,9 @@ class SkillRepository(BaseRepository):
             select(Skill).where(
                 Skill.user_id == user_id,
                 Skill.source_skill_id == source_skill_id,
-            )
+            ).limit(1)
         )
-        return result.scalar_one_or_none()
+        return result.scalars().first()
 
     async def list_by_user(
         self,

@@ -31,6 +31,7 @@ def test_skill_unique_constraint_name():
 @pytest.mark.asyncio
 async def test_rename_skill_updates_directory(async_session, tmp_path):
     from backend.config.settings import settings
+    from backend.core.utils.skill_archive import list_archive_versions, save_archive
 
     original_path = settings.SKILL_STORAGE_PATH
     settings.SKILL_STORAGE_PATH = str(tmp_path)
@@ -40,6 +41,8 @@ async def test_rename_skill_updates_directory(async_session, tmp_path):
         skill_service = SkillService(skill_repo)
         user = await user_repo.create(email="f@example.com", username="userf", password="pass1234")
         created = await skill_service.create_skill(user, name="skillold", description="desc")
+        await save_archive(str(user.id), "skillold", "1.0.0", b"archive-bytes")
+        assert list_archive_versions(str(user.id), "skillold") == ["1.0.0"]
         old_path = tmp_path / str(user.id) / "skillold"
         assert old_path.exists()
         updated = await skill_service.update_skill(user, created.id, name="skillnew")
@@ -47,6 +50,8 @@ async def test_rename_skill_updates_directory(async_session, tmp_path):
         assert updated.name == "skillnew"
         assert new_path.exists()
         assert not old_path.exists()
+        assert list_archive_versions(str(user.id), "skillold") == []
+        assert list_archive_versions(str(user.id), "skillnew") == ["1.0.0"]
     finally:
         settings.SKILL_STORAGE_PATH = original_path
 

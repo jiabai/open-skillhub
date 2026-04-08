@@ -76,6 +76,16 @@ async def _send_error(
     await response(scope, receive, send)
 
 
+async def _load_active_user(user_id: str):
+    async for session in get_async_session():
+        repo = UserRepository(session)
+        user = await repo.get_by_id(user_id)
+        if user and user.is_active:
+            return user
+        return None
+    return None
+
+
 async def _authorize_mcp_request(scope: Scope, receive: Receive, send: Send) -> bool:
     token = _extract_bearer_token(scope)
     if not token:
@@ -101,16 +111,15 @@ async def _authorize_mcp_request(scope: Scope, receive: Receive, send: Send) -> 
     if not user_id:
         await _send_error(scope, receive, send, "Invalid token", "INVALID_TOKEN")
         return False
-    async for session in get_async_session():
-        repo = UserRepository(session)
-        user = await repo.get_by_id(user_id)
-        if not user or not user.is_active:
-            await _send_error(scope, receive, send, "User not found", "USER_NOT_FOUND")
-            return False
-        set_current_user_id(str(user.id))
-        return True
-    await _send_error(scope, receive, send, "User not found", "USER_NOT_FOUND")
-    return False
+    user = await _load_active_user(str(user_id))
+    if not user:
+        await _send_error(scope, receive, send, "User not found", "USER_NOT_FOUND")
+        return False
+    if payload.get("ver", 0) != user.jwt_token_version:
+        await _send_error(scope, receive, send, "Token revoked", "TOKEN_REVOKED")
+        return False
+    set_current_user_id(str(user.id))
+    return True
 
 
 def _build_fallback_app() -> Starlette:

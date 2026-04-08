@@ -213,6 +213,41 @@ def delete_archives_for_skill(user_id: str, skill_name: str) -> None:
         logger.debug(f"[ARCHIVE_DELETE] Deleted local archive directory: {archive_dir}")
 
 
+def rename_archives_for_skill(user_id: str, old_skill_name: str, new_skill_name: str) -> None:
+    if old_skill_name == new_skill_name:
+        return
+    backend = (settings.SKILL_ARCHIVE_BACKEND or "local").lower()
+    logger.info(
+        f"[ARCHIVE_RENAME] user_id={user_id}, old_skill_name={old_skill_name}, "
+        f"new_skill_name={new_skill_name}, backend={backend}"
+    )
+    if backend == "s3":
+        client = _get_s3_client()
+        old_prefix = f"{user_id}/{old_skill_name}/"
+        new_prefix = f"{user_id}/{new_skill_name}/"
+        paginator = client.get_paginator("list_objects_v2")
+        for page in paginator.paginate(Bucket=settings.SKILL_ARCHIVE_S3_BUCKET, Prefix=old_prefix):
+            for obj in page.get("Contents", []):
+                old_key = obj["Key"]
+                new_key = old_key.replace(old_prefix, new_prefix, 1)
+                client.copy_object(
+                    Bucket=settings.SKILL_ARCHIVE_S3_BUCKET,
+                    CopySource={"Bucket": settings.SKILL_ARCHIVE_S3_BUCKET, "Key": old_key},
+                    Key=new_key,
+                )
+                client.delete_object(Bucket=settings.SKILL_ARCHIVE_S3_BUCKET, Key=old_key)
+    old_archive_dir = Path(settings.SKILL_STORAGE_PATH) / "_archives" / user_id / old_skill_name
+    new_archive_dir = Path(settings.SKILL_STORAGE_PATH) / "_archives" / user_id / new_skill_name
+    if old_archive_dir.exists():
+        new_archive_dir.parent.mkdir(parents=True, exist_ok=True)
+        shutil.move(str(old_archive_dir), str(new_archive_dir))
+    old_local_cache_dir = Path(settings.SKILL_STORAGE_PATH) / "_local_cache" / user_id / old_skill_name
+    new_local_cache_dir = Path(settings.SKILL_STORAGE_PATH) / "_local_cache" / user_id / new_skill_name
+    if old_local_cache_dir.exists():
+        new_local_cache_dir.parent.mkdir(parents=True, exist_ok=True)
+        shutil.move(str(old_local_cache_dir), str(new_local_cache_dir))
+
+
 def list_archive_versions(user_id: str, skill_name: str) -> list[str]:
     """List all archive versions for a specific skill."""
     logger.debug(f"[ARCHIVE_LIST_VERSIONS] user_id={user_id}, skill_name={skill_name}")

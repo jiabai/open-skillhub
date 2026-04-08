@@ -44,6 +44,38 @@ async def test_skill_visibility_filters_list(client):
     assert "private-skill" not in other_names
 
 
+@pytest.mark.asyncio
+async def test_team_visible_skill_files_are_readable_by_peer(client):
+    token_owner = await sso_login(client, email="files-owner@example.com", username="files-owner", enterprise_id="ent-1", team_id="team-1", role="member")
+    token_peer = await sso_login(client, email="files-peer@example.com", username="files-peer", enterprise_id="ent-1", team_id="team-1", role="member")
+
+    headers_owner = {"Authorization": f"Bearer {token_owner}"}
+    created = await client.post(
+        "/api/v1/skills",
+        json={"name": "team-files-skill", "description": "desc", "visibility": "team"},
+        headers=headers_owner,
+    )
+    assert created.status_code == 201
+    skill_id = created.json()["id"]
+
+    uploaded = await client.post(
+        "/api/v1/skills/upload",
+        headers=headers_owner,
+        data={"skill_uuid": skill_id},
+        files={"file": ("README.md", b"shared content", "text/markdown")},
+    )
+    assert uploaded.status_code == 201
+
+    headers_peer = {"Authorization": f"Bearer {token_peer}"}
+    listed = await client.get(f"/api/v1/skills/{skill_id}/files", headers=headers_peer)
+    assert listed.status_code == 200
+    assert "README.md" in listed.json()
+
+    content = await client.get(f"/api/v1/skills/{skill_id}/files/README.md", headers=headers_peer)
+    assert content.status_code == 200
+    assert content.text == "shared content"
+
+
 def test_public_skill_visible_when_rbac_disabled(monkeypatch):
     monkeypatch.setattr("backend.core.security.rbac.settings.ENABLE_SKILL_VISIBILITY", True)
     monkeypatch.setattr("backend.core.security.rbac.settings.ENABLE_RBAC", False)

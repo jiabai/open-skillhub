@@ -9,7 +9,7 @@ from fastapi.security import OAuth2PasswordBearer
 from loguru import logger
 
 from backend.config.settings import settings
-from backend.core.deps import require_permission
+from backend.core.deps import require_permission, require_skill_download_access
 from backend.core.security.jwt_utils import decode_token
 from backend.core.utils.skill_storage import MAX_FILE_SIZE, MAX_TOTAL_SIZE
 from backend.db.session import get_async_session
@@ -598,7 +598,7 @@ async def upload_skill_file(
 async def download_skill(
     request: Request,
     payload: SkillDownloadRequest,
-    current_user=Depends(require_permission("skill.download")),
+    current_user=Depends(require_skill_download_access()),
     session=Depends(get_async_session),
 ):
     service = SkillService(SkillRepository(session), SkillVersionRepository(session))

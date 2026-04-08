@@ -139,7 +139,7 @@ application.mount("/sse", McpAppProxy(get_sse_app))   # SSE 传输
 | `skill.update` | 更新 Skill | member |
 | `skill.delete` | 删除 Skill | member |
 | `skill.upload` | 上传文件 | member |
-| `skill.download` | 下载 Skill 包 | member |
+| `skill.download` | 下载 Skill 包 | admin |
 | `skill.execute` | 执行 Skill | member |
 | `audit.read` | 读取审计日志 | admin |
 | `audit.export` | 导出审计日志 | admin |

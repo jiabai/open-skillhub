@@ -11,7 +11,7 @@ from flowllm.core.schema import ToolCall
 from backend.config.settings import settings
 from backend.core.metrics.tool_call_metrics import record_tool_call
 from backend.core.security.rbac import has_permission, is_skill_visible
-from backend.core.utils.command_whitelist import validate_command
+from backend.core.utils.command_whitelist import get_command_policy
 from backend.core.utils.process_exec import split_command_args
 from backend.core.utils.skill_storage import get_skill_versions_dir, tool_error_payload
 from backend.core.utils.user_context import get_current_user_id
@@ -151,9 +151,17 @@ class ExecuteSkillOp(BaseAsyncToolOp):
                         tool_error_payload("Skill entrypoint not configured", "SKILL_EXECUTION_NOT_CONFIGURED")
                     )
                     return
-                is_valid, error_msg = validate_command(command)
-                if not is_valid:
+                policy, error_msg = get_command_policy(command)
+                if policy is None:
                     self._set_output(tool_error_payload(error_msg, "COMMAND_BLOCKED"))
+                    return
+                if policy.category != "local_script":
+                    self._set_output(
+                        tool_error_payload(
+                            "Skill entrypoint must be a local script command",
+                            "COMMAND_BLOCKED",
+                        )
+                    )
                     return
                 try:
                     command_args = split_command_args(command)

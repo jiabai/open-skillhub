@@ -225,6 +225,8 @@ class SkillService:
             if existing and existing.id != skill.id:
                 raise SkillError(SkillErrorCode.SKILL_ALREADY_EXISTS)
             if not self.is_reference_skill(skill):
+                from backend.core.utils.skill_archive import rename_archives_for_skill
+
                 old_dir = get_user_skill_dir(user.id, skill.name)
                 new_dir = get_user_skill_dir(user.id, new_name)
                 if old_dir.exists():
@@ -232,6 +234,7 @@ class SkillService:
                     old_dir.rename(new_dir)
                 else:
                     new_dir.mkdir(parents=True, exist_ok=True)
+                rename_archives_for_skill(user.id, skill.name, new_name)
                 fields["skill_dir"] = str(new_dir)
         return await self.skill_repo.update(skill, **fields)
 
@@ -274,7 +277,7 @@ class SkillService:
                 if item.is_file():
                     files.append(str(item.relative_to(version_dir)).replace("\\", "/"))
             return files
-        return list_files(user.id, skill.name)
+        return list_files(self._storage_owner_id(skill), skill.name)
 
     async def read_skill_file(self, user: User, skill_id: str, file_path: str) -> str:
         skill = await self.get_skill(user, skill_id)
@@ -289,7 +292,7 @@ class SkillService:
                 raise SkillError(SkillErrorCode.INVALID_FILE_PATH)
         else:
             base_dir = Path(settings.SKILL_STORAGE_PATH)
-            safe_path = get_safe_skill_path(base_dir, user.id, skill.name, file_path)
+            safe_path = get_safe_skill_path(base_dir, self._storage_owner_id(skill), skill.name, file_path)
         if not safe_path:
             raise SkillError(SkillErrorCode.INVALID_FILE_PATH)
         if not safe_path.exists() or not safe_path.is_file():
@@ -352,6 +355,10 @@ class SkillService:
     def _ensure_owner(user: User, skill: Skill) -> None:
         if skill.user_id != user.id:
             raise SkillError(SkillErrorCode.SKILL_NOT_FOUND)
+
+    @staticmethod
+    def _storage_owner_id(skill: Skill) -> str:
+        return str(skill.user_id)
 
     @staticmethod
     def _parse_frontmatter(content: str) -> dict:

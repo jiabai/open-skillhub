@@ -19,8 +19,12 @@ Usage Example:
 from fastapi import Depends, HTTPException
 from starlette import status
 
+from backend.config.settings import settings
 from backend.core.middleware.auth import get_current_active_user
 from backend.core.security.rbac import has_permission
+from backend.db.session import get_async_session
+from backend.repositories.skill import SkillRepository
+from backend.schemas.skill_download import SkillDownloadRequest
 
 
 def require_permission(permission: str):
@@ -72,3 +76,64 @@ def require_permission(permission: str):
         return current_user
 
     return _permission_checker
+
+
+def require_management_access():
+    """
+    Create a FastAPI dependency for management-only endpoints.
+
+    Management endpoints remain protected even when RBAC is disabled. When
+    ENABLE_RBAC is false, the management surface is intentionally unavailable.
+    When RBAC is enabled, only admin-role or superuser accounts may proceed.
+    """
+
+    async def _management_checker(
+        current_user=Depends(get_current_active_user),
+    ):
+        if not settings.ENABLE_RBAC:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Management access requires RBAC",
+            )
+        if current_user.is_superuser or (current_user.role or "").strip() == "admin":
+            return current_user
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Permission denied",
+        )
+
+    return _management_checker
+
+
+def require_skill_download_access():
+    """
+    Create a FastAPI dependency for skill download authorization.
+
+    When RBAC is enabled, the standard `skill.download` permission applies.
+    When RBAC is disabled, downloading is limited to skills owned by the
+    authenticated user, preserving self-service private-space downloads without
+    reopening broad source export access.
+    """
+
+    async def _download_checker(
+        payload: SkillDownloadRequest,
+        current_user=Depends(get_current_active_user),
+        session=Depends(get_async_session),
+    ):
+        if settings.ENABLE_RBAC:
+            if has_permission(current_user, "skill.download"):
+                return current_user
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Permission denied",
+            )
+
+        skill = await SkillRepository(session).get_by_id(payload.skill_uuid)
+        if skill and skill.user_id == current_user.id:
+            return current_user
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Permission denied",
+        )
+
+    return _download_checker

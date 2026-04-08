@@ -21,7 +21,7 @@ from flowllm.core.schema import ToolCall
 
 from backend.config.settings import settings
 from backend.core.metrics.tool_call_metrics import record_tool_call
-from backend.core.utils.command_whitelist import validate_command
+from backend.core.utils.command_whitelist import get_command_policy
 from backend.core.utils.process_exec import split_command_args
 from backend.core.utils.skill_storage import tool_error_payload, validate_skill_name
 from backend.core.utils.user_context import get_current_user_id
@@ -55,6 +55,34 @@ def truncate_output(output: str, max_bytes: int | None = None) -> str:
     if _execution_control is None:
         return output
     return _execution_control.truncate_output(output, max_bytes=max_bytes)
+
+
+_SAFE_ENV_KEYS = {
+    "PATH",
+    "HOME",
+    "USERPROFILE",
+    "TMP",
+    "TEMP",
+    "SYSTEMROOT",
+    "WINDIR",
+    "COMSPEC",
+    "PATHEXT",
+    "LANG",
+    "LC_ALL",
+    "PYTHONIOENCODING",
+    "PYTHONUTF8",
+}
+
+
+def _build_subprocess_env() -> dict[str, str]:
+    env: dict[str, str] = {}
+    for key in _SAFE_ENV_KEYS:
+        value = os.environ.get(key)
+        if value:
+            env[key] = value
+    env.setdefault("PYTHONIOENCODING", "utf-8")
+    env.setdefault("PYTHONUTF8", "1")
+    return env
 
 
 async def _is_skill_active(skill_name: str, user_id: str | None) -> bool:
@@ -230,8 +258,8 @@ class RunShellCommandOp(BaseAsyncToolOp):
                     self.set_output(tool_error_payload("Execution concurrency limit exceeded", "CONCURRENCY_LIMIT"))
                     return
 
-            is_valid, error_msg = validate_command(command)
-            if not is_valid:
+            policy, error_msg = get_command_policy(command)
+            if policy is None:
                 self.set_output(tool_error_payload(error_msg, "COMMAND_BLOCKED"))
                 return
             try:
@@ -239,6 +267,7 @@ class RunShellCommandOp(BaseAsyncToolOp):
             except ValueError as exc:
                 self.set_output(tool_error_payload(str(exc), "COMMAND_BLOCKED"))
                 return
+            logger.debug(f"run_shell_command policy={policy.category} command={command}")
 
             if self.auto_install_deps:
                 if "py" in command:
@@ -276,7 +305,7 @@ class RunShellCommandOp(BaseAsyncToolOp):
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
                 cwd=str(work_dir),
-                env={"PATH": os.environ.get("PATH", "")} if settings.ENABLE_SANDBOX_EXECUTION else os.environ.copy(),
+                env=_build_subprocess_env(),
             )
 
             timeout_seconds = max(1, int(settings.SKILL_EXECUTION_TIMEOUT_SECONDS))

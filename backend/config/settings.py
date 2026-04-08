@@ -85,7 +85,7 @@ class Settings(BaseSettings):
     ENABLE_CACHE_OFFLINE_FALLBACK: bool = True
     ENABLE_SANDBOX_EXECUTION: bool = False
     ENABLE_RESOURCE_QUOTA: bool = False
-    ENABLE_NETWORK_EGRESS_CONTROL: bool = False
+    ENABLE_NETWORK_EGRESS_CONTROL: bool = True
     ENABLE_RATE_LIMIT: bool = True
     ENABLE_METRICS: bool = True
     ENABLE_DEPRECATION_HEADERS: bool = True
@@ -143,7 +143,7 @@ class Settings(BaseSettings):
     @model_validator(mode="after")
     def validate_cors_origins(self):
         if not self.DEBUG and (not self.CORS_ORIGINS or "*" in self.CORS_ORIGINS):
-            raise ValueError("生产环境 CORS_ORIGINS 必须显式配置且不能包含通配符 '*'")
+            raise ValueError("CORS_ORIGINS must be explicitly configured and cannot contain '*' in production")
         return self
 
     @field_validator("RBAC_ROLE_PERMISSIONS", mode="before")
@@ -205,7 +205,7 @@ class Settings(BaseSettings):
     @classmethod
     def validate_secret_key(cls, v):
         if len(v) < 32:
-            raise ValueError("SECRET_KEY 长度必须至少 32 字符")
+            raise ValueError("SECRET_KEY must be at least 32 characters long")
         return v
 
     @field_validator("DATABASE_POOL_SIZE", "DATABASE_MAX_OVERFLOW")
@@ -213,9 +213,9 @@ class Settings(BaseSettings):
     def validate_pool_settings(cls, v, info: ValidationInfo):
         field_name = info.field_name
         if v < 1:
-            raise ValueError(f"{field_name} 必须至少为 1")
+            raise ValueError(f"{field_name} must be at least 1")
         if v > 100:
-            raise ValueError(f"{field_name} 不能超过 100")
+            raise ValueError(f"{field_name} cannot be greater than 100")
         return v
 
     @field_validator("DATABASE_POOL_TIMEOUT", "DATABASE_POOL_RECYCLE")
@@ -223,18 +223,18 @@ class Settings(BaseSettings):
     def validate_timeout_settings(cls, v, info: ValidationInfo):
         field_name = info.field_name
         if v < 1:
-            raise ValueError(f"{field_name} 必须至少为 1 秒")
+            raise ValueError(f"{field_name} must be at least 1 second")
         if v > 3600:
-            raise ValueError(f"{field_name} 不能超过 3600 秒")
+            raise ValueError(f"{field_name} cannot be greater than 3600 seconds")
         return v
 
     @field_validator("METRICS_RETENTION_DAYS")
     @classmethod
     def validate_metrics_retention_days(cls, v):
         if v < 1:
-            raise ValueError("METRICS_RETENTION_DAYS 必须至少为 1 天")
+            raise ValueError("METRICS_RETENTION_DAYS must be at least 1 day")
         if v > 3650:
-            raise ValueError("METRICS_RETENTION_DAYS 不能超过 3650 天")
+            raise ValueError("METRICS_RETENTION_DAYS cannot be greater than 3650 days")
         return v
 
     @field_validator("SKILL_VERSION_BUMP_STRATEGY")
@@ -242,7 +242,7 @@ class Settings(BaseSettings):
     def validate_skill_version_bump_strategy(cls, v):
         value = str(v).strip().lower()
         if value not in {"patch", "minor"}:
-            raise ValueError("SKILL_VERSION_BUMP_STRATEGY 仅支持 patch 或 minor")
+            raise ValueError("SKILL_VERSION_BUMP_STRATEGY must be either 'patch' or 'minor'")
         return value
 
     model_config = SettingsConfigDict(env_file=str(_ENV_FILE), case_sensitive=True)

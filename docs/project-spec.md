@@ -1284,6 +1284,7 @@ class DeprecationNotifier:
 - 仅对具备可见性权限的用户开放
 - 需要 RBAC 权限：`skill.download`
 - **安全提示**：`skill.download` 默认仅授予 `admin` 角色。此权限允许下载完整技能源码，属于高敏感权限，建议仅在确有需要时通过 `RBAC_ROLE_PERMISSIONS` 配置单独授予。
+- **RBAC 关闭时的特例**：不再按角色矩阵判断，但也不会向所有已登录用户开放。当前实现仅允许下载**自己名下的 Skill 记录**，以保留私有空间自助下载能力。
 
 #### GET `/api/v1/audit/logs`
 

@@ -3,7 +3,7 @@ from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, status
 
 from backend.config.settings import settings
-from backend.core.deps import require_permission
+from backend.core.deps import require_management_access
 from backend.db.session import get_async_session
 from backend.repositories.audit_log import AuditLogRepository
 from backend.schemas.audit import AuditLogExportRequest, AuditLogExportResponse, AuditLogListResponse
@@ -33,7 +33,7 @@ async def list_audit_logs(
     end: str | None = None,
     skip: int = 0,
     limit: int = 100,
-    current_user=Depends(require_permission("audit.read")),
+    current_user=Depends(require_management_access()),
     session=Depends(get_async_session),
 ):
     if not settings.ENABLE_AUDIT_LOG:
@@ -53,7 +53,7 @@ async def list_audit_logs(
 @router.post("/logs/export", response_model=AuditLogExportResponse)
 async def export_audit_logs(
     payload: AuditLogExportRequest,
-    current_user=Depends(require_permission("audit.export")),
+    current_user=Depends(require_management_access()),
     session=Depends(get_async_session),
 ):
     if not settings.ENABLE_AUDIT_EXPORT:

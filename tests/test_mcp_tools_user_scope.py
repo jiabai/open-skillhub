@@ -1,6 +1,7 @@
 import asyncio
 import json
 import importlib.util
+import os
 import sys
 from pathlib import Path
 from types import ModuleType
@@ -317,3 +318,42 @@ def test_run_shell_command_uses_user_scoped_workdir(tmp_path, monkeypatch):
     expected_dir = str(tmp_path / "user-4" / "skill_cmd")
     assert captured["cwd"] == expected_dir
     assert captured["args"] == ["python", "-c", "print(1)"]
+
+
+def test_run_shell_command_strips_sensitive_environment(tmp_path, monkeypatch):
+    user_context = load_user_context()
+    command_whitelist = load_command_whitelist()
+    process_exec = load_process_exec()
+    install_mcp_package_stubs(monkeypatch, user_context, command_whitelist)
+    monkeypatch.setitem(sys.modules, "backend.core.utils.process_exec", process_exec)
+    install_flowllm_stubs(tmp_path, monkeypatch)
+
+    write_skill(tmp_path / "user-5", "skill_env", "user", "body")
+    module_path = Path(__file__).resolve().parents[1] / "backend" / "core" / "tools" / "run_shell_command_op.py"
+    module = load_module("backend.core.tools.run_shell_command_op", module_path)
+
+    monkeypatch.setenv("SECRET_KEY", "super-secret")
+    monkeypatch.setenv("PATH", os.environ.get("PATH", ""))
+
+    captured = {}
+
+    async def fake_create_subprocess_exec(*args, **kwargs):
+        captured["env"] = kwargs.get("env", {})
+
+        class Proc:
+            returncode = 0
+
+            async def communicate(self):
+                return b"ok", b""
+
+        return Proc()
+
+    module.asyncio.create_subprocess_exec = fake_create_subprocess_exec
+
+    user_context.set_current_user_id("user-5")
+    op = module.RunShellCommandOp(auto_install_deps=False)
+    op.input_dict = {"skill_name": "skill_env", "command": 'python -c "print(1)"'}
+    asyncio.run(op.async_execute())
+
+    assert "SECRET_KEY" not in captured["env"]
+    assert "PATH" in captured["env"]

@@ -48,7 +48,7 @@
 - 本清单中的“可见性”默认指 `企业级 / 团队级 / 个人级` 三层模型，字段口径与 `project-spec.md` 保持一致（`visible`）
 - 本清单中的“权限”默认指 RBAC 权限点（`resource.action`）与可见性规则的联合判定
 - 示例值统一使用：`visible ∈ {enterprise, team, private}`
-- RBAC 示例统一使用：`admin=*`、`member=skill.list/skill.read/skill.create/skill.update/skill.delete/skill.upload/skill.download/skill.execute`、`viewer=skill.list/skill.read/skill.download`
+- RBAC 示例统一使用：`admin=*`、`member=skill.list/skill.read/skill.create/skill.update/skill.delete/skill.upload/skill.execute`、`viewer=skill.list/skill.read`
 - `- [x]` 仅表示“该检查项通过”，对应 `project-spec.md` 的“✅ 已实现”
 - `- [ ]` 表示“未通过或待确认”，对应 `project-spec.md` 的“🔵 部分实现 / ⬜ 未实现”，需结合项内备注判定
 

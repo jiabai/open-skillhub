@@ -250,6 +250,56 @@ async def test_execute_skill_runs_entrypoint(async_session, tmp_path, monkeypatc
 
 
 @pytest.mark.asyncio
+async def test_execute_skill_blocks_package_manager_entrypoint(async_session, tmp_path, monkeypatch):
+    monkeypatch.setenv("SKILL_STORAGE_PATH", str(tmp_path))
+    _install_flowllm_stubs(tmp_path, monkeypatch)
+    from backend.db import session as db_session
+
+    monkeypatch.setattr(db_session, "get_async_session", lambda: _override_session(async_session))
+    user = User(email="pkg@example.com", username="pkg", hashed_password="x")
+    async_session.add(user)
+    await async_session.commit()
+    await async_session.refresh(user)
+    skill = Skill(
+        user_id=user.id,
+        name="skillpkg",
+        description="desc",
+        tags=[],
+        skill_dir=str(get_user_skill_dir(user.id, "skillpkg")),
+        current_version="1.0.0",
+    )
+    async_session.add(skill)
+    await async_session.commit()
+    await async_session.refresh(skill)
+    version = SkillVersion(
+        skill_id=skill.id,
+        version="1.0.0",
+        description="desc",
+        dependencies=[],
+        dependency_spec={"schema_version": 1},
+        dependency_spec_version="1",
+        metadata_json={"name": "skillpkg", "description": "desc", "version": "1.0.0"},
+    )
+    async_session.add(version)
+    await async_session.commit()
+    version_dir = get_skill_versions_dir(user.id, skill.name) / "1.0.0"
+    version_dir.mkdir(parents=True, exist_ok=True)
+    (version_dir / "SKILL.md").write_text(
+        "---\nname: skillpkg\ndescription: desc\ncommand: pip install requests\n---\nbody",
+        encoding="utf-8",
+    )
+    set_current_user_id(str(user.id))
+    from backend.core.tools.execute_skill_op import ExecuteSkillOp
+
+    op = ExecuteSkillOp()
+    op.input_dict = {"skill_uuid": skill.id, "version": "1.0.0"}
+    await op.async_execute()
+    payload = json.loads(op._output)
+    assert payload["code"] == "COMMAND_BLOCKED"
+    assert "local script command" in payload["detail"].lower()
+
+
+@pytest.mark.asyncio
 async def test_skill_detail_resource_reference_uses_public_source(async_session, tmp_path, monkeypatch):
     monkeypatch.setenv("SKILL_STORAGE_PATH", str(tmp_path))
     _install_flowllm_stubs(tmp_path, monkeypatch)
@@ -428,3 +478,33 @@ async def test_mcp_authorize_accepts_jwt(async_session, monkeypatch):
 
     authorized = await mcp_module._authorize_mcp_request(scope, receive, send)
     assert authorized is True
+
+
+@pytest.mark.asyncio
+async def test_mcp_authorize_rejects_revoked_jwt(async_session, monkeypatch):
+    user = User(email="revoked@example.com", username="revoked", hashed_password="x")
+    async_session.add(user)
+    await async_session.commit()
+    await async_session.refresh(user)
+    token = create_access_token(str(user.id), token_version=user.jwt_token_version)
+    user.jwt_token_version += 1
+    await async_session.commit()
+    from backend.api import mcp as mcp_module
+    from backend.db import session as db_session
+
+    monkeypatch.setattr(db_session, "get_async_session", lambda: _override_session(async_session))
+    monkeypatch.setattr(mcp_module, "get_async_session", lambda: _override_session(async_session))
+    scope = {"type": "http", "headers": [(b"authorization", f"Bearer {token}".encode())]}
+
+    async def receive():
+        return {"type": "http.request"}
+
+    sent_messages = []
+
+    async def send(message):
+        sent_messages.append(message)
+
+    authorized = await mcp_module._authorize_mcp_request(scope, receive, send)
+    assert authorized is False
+    body = next(message for message in sent_messages if message["type"] == "http.response.body")
+    assert b"TOKEN_REVOKED" in body["body"]

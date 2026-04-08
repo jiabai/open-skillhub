@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 
 from backend.config.settings import settings
-from backend.core.deps import require_permission
+from backend.core.deps import require_management_access
 from backend.core.middleware.auth import get_current_active_user
 from backend.db.session import get_async_session
 from backend.repositories.audit_log import AuditLogRepository
@@ -35,7 +35,7 @@ async def list_users(
     skip: int = 0,
     limit: int = 100,
     q: str | None = None,
-    current_user=Depends(require_permission("user.manage")),
+    current_user=Depends(require_management_access()),
     session=Depends(get_async_session),
 ):
     user_repo = UserRepository(session)
@@ -129,7 +129,7 @@ async def update_identity(
     request: Request,
     user_id: str,
     payload: UserIdentityUpdate,
-    current_user=Depends(require_permission("user.manage")),
+    current_user=Depends(require_management_access()),
     session=Depends(get_async_session),
 ):
     user_repo = UserRepository(session)

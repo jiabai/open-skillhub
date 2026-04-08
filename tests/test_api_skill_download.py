@@ -373,7 +373,7 @@ async def test_skill_download_applies_download_specific_rate_limit(client, tmp_p
 
 
 @pytest.mark.asyncio
-async def test_public_skill_download_allowed_for_visible_public_skill(client, async_session, tmp_path, monkeypatch):
+async def test_public_skill_download_denied_when_rbac_disabled(client, async_session, tmp_path, monkeypatch):
     monkeypatch.setenv("SKILL_STORAGE_PATH", str(tmp_path))
     monkeypatch.setattr(settings, "SKILL_STORAGE_PATH", str(tmp_path))
     monkeypatch.setattr(settings, "ENABLE_RBAC", False)
@@ -398,21 +398,14 @@ async def test_public_skill_download_allowed_for_visible_public_skill(client, as
             headers=headers,
         )
 
-        assert response.status_code == 200
-        payload = response.json()
-        assert payload["skill_uuid"] == public_skill.id
-        assert payload["version"] == "1.2.4"
-        assert payload["encryption_enabled"] is False
-
-        files = _decode_download_archive(payload)
-        assert files["reference.md"] == "public reference v124"
-        assert "version: 1.2.4" in files["SKILL.md"]
+        assert response.status_code == 403
+        assert response.json()["detail"] == "Permission denied"
     finally:
         settings.ENABLE_SKILL_DOWNLOAD_ENCRYPTION = original_encryption
 
 
 @pytest.mark.asyncio
-async def test_reference_skill_download_uses_pinned_public_version(client, async_session, tmp_path, monkeypatch):
+async def test_reference_skill_download_uses_pinned_public_version_when_owned_and_rbac_disabled(client, async_session, tmp_path, monkeypatch):
     monkeypatch.setenv("SKILL_STORAGE_PATH", str(tmp_path))
     monkeypatch.setattr(settings, "SKILL_STORAGE_PATH", str(tmp_path))
     monkeypatch.setattr(settings, "ENABLE_RBAC", False)
@@ -456,3 +449,33 @@ async def test_reference_skill_download_uses_pinned_public_version(client, async
         assert "1.2.4" not in files["SKILL.md"]
     finally:
         settings.ENABLE_SKILL_DOWNLOAD_ENCRYPTION = original_encryption
+
+
+@pytest.mark.asyncio
+async def test_owned_private_skill_download_allowed_when_rbac_disabled(client, tmp_path, monkeypatch):
+    monkeypatch.setenv("SKILL_STORAGE_PATH", str(tmp_path))
+    monkeypatch.setattr(settings, "SKILL_STORAGE_PATH", str(tmp_path))
+    monkeypatch.setattr(settings, "ENABLE_RBAC", False)
+    access = await sso_login(
+        client,
+        email="private-download@example.com",
+        username="privatedownloaduser",
+        enterprise_id="test-ent",
+        team_id="test-team",
+        role="member",
+    )
+    headers = {"Authorization": f"Bearer {access}"}
+    skill_id = await _create_uploaded_skill(
+        client,
+        headers,
+        "skilldl-private",
+        extra_files={"reference.md": "owned private content"},
+    )
+
+    response = await client.post(
+        "/api/v1/skills/download",
+        json={"skill_uuid": skill_id, "version": "1.0.0"},
+        headers=headers,
+    )
+
+    assert response.status_code == 200

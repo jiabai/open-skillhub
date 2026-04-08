@@ -3,7 +3,7 @@ from datetime import datetime, timedelta, timezone
 from fastapi import APIRouter, Depends
 
 from backend.config.settings import settings
-from backend.core.deps import require_permission
+from backend.core.deps import require_management_access, require_permission
 from backend.core.permissions import Permission
 from backend.db.session import get_async_session
 from backend.repositories.request_metric import RequestMetricRepository
@@ -43,7 +43,7 @@ async def get_dashboard_overview(
 @router.post("/metrics/cleanup", response_model=MetricsCleanupResponse)
 async def cleanup_metrics(
     payload: MetricsCleanupRequest | None = None,
-    current_user=Depends(require_permission(Permission.METRICS_MANAGE)),
+    current_user=Depends(require_management_access()),
     session=Depends(get_async_session),
 ):
     retention_days = (
@@ -65,7 +65,7 @@ async def cleanup_metrics(
 
 @router.post("/metrics/reset-24h", response_model=MetricsReset24hResponse)
 async def reset_metrics_24h(
-    current_user=Depends(require_permission(Permission.METRICS_MANAGE)),
+    current_user=Depends(require_management_access()),
     session=Depends(get_async_session),
 ):
     window_end = datetime.now(timezone.utc)

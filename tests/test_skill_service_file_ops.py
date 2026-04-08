@@ -260,6 +260,41 @@ class TestSkillServiceSkillOperations:
 
         mock_skill_repo.update.assert_called_once()
 
+    @pytest.mark.asyncio
+    async def test_pin_reference_version_replaces_existing_pin(
+        self, mock_skill_repo, mock_version_repo, test_user
+    ):
+        reference_skill = MagicMock(spec=Skill)
+        reference_skill.id = "ref-skill-id"
+        reference_skill.name = "reference-skill"
+        reference_skill.user_id = test_user.id
+        reference_skill.visibility = "private"
+        reference_skill.source_skill_id = "public-skill-id"
+        reference_skill.pinned_version = "1.2.3"
+        reference_skill.current_version = None
+        reference_skill.is_active = True
+
+        source_skill = MagicMock(spec=Skill)
+        source_skill.id = "public-skill-id"
+        source_skill.user_id = "system"
+        source_skill.name = "public-skill"
+        source_skill.visibility = "public"
+        source_skill.current_version = "1.2.4"
+        source_skill.is_active = True
+
+        version_record = MagicMock(spec=SkillVersion)
+        version_record.version = "1.2.4"
+
+        mock_skill_repo.get_by_id = AsyncMock(side_effect=[reference_skill, source_skill])
+        mock_skill_repo.update = AsyncMock(return_value=reference_skill)
+        mock_version_repo.get_by_version = AsyncMock(return_value=version_record)
+
+        service = SkillService(mock_skill_repo, mock_version_repo)
+        await service.pin_reference_version(test_user, "ref-skill-id", "1.2.4")
+
+        mock_version_repo.get_by_version.assert_called_once_with("public-skill-id", "1.2.4")
+        mock_skill_repo.update.assert_called_once_with(reference_skill, pinned_version="1.2.4")
+
 
 class TestSkillServiceListSkills:
     """测试技能列表"""

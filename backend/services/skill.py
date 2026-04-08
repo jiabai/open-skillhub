@@ -670,7 +670,12 @@ class SkillService:
         self._ensure_owner(user, skill)
         if not self.is_reference_skill(skill):
             raise ValueError("Skill not found")
-        _, normalized, _ = await self._resolve_version_and_record(skill, version)
+        normalized = self._validate_version(version)
+        source_skill = await self._resolve_source_skill(skill)
+        repo = self._require_version_repo()
+        record = await repo.get_by_version(source_skill.id, normalized)
+        if not record:
+            raise ValueError("Version not found")
         return await self.skill_repo.update(skill, pinned_version=normalized)
 
     async def unpin_reference_version(self, user: User, skill_id: str) -> Skill:

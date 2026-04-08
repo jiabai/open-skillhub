@@ -1030,6 +1030,51 @@ async def test_reference_skill_read_only_and_pin_unpin(client, async_session, tm
 
 
 @pytest.mark.asyncio
+async def test_reference_skill_repin_updates_to_new_version(client, async_session, tmp_path, monkeypatch):
+    monkeypatch.setenv("SKILL_STORAGE_PATH", str(tmp_path))
+    monkeypatch.setattr(settings, "ENABLE_SKILL_VISIBILITY", True)
+    monkeypatch.setattr(settings, "ENABLE_RBAC", False)
+    public_skill = await _create_public_skill(async_session, tmp_path)
+    version_dir = get_skill_versions_dir(SYSTEM_USER_ID, "public-skill")
+    second_version_dir = version_dir / "1.2.4"
+    second_version_dir.mkdir(parents=True, exist_ok=True)
+    (second_version_dir / "SKILL.md").write_text(
+        "---\nname: public-skill\nversion: 1.2.4\ndescription: Public skill description\n---\nbody v1.2.4",
+        encoding="utf-8",
+    )
+    async_session.add(
+        SkillVersion(
+            skill_id=public_skill.id,
+            version="1.2.4",
+            description="Public skill description",
+            dependencies=["requests"],
+            metadata_json={},
+        )
+    )
+    public_skill.current_version = "1.2.4"
+    await async_session.commit()
+
+    headers = await _register_and_login(client, "repin@example.com", "repin-user")
+    created = await client.post(
+        f"/api/v1/skills/{public_skill.id}/reference",
+        json={"name": "public-repin-reference", "pinned_version": "1.2.3"},
+        headers=headers,
+    )
+    assert created.status_code == 201
+    reference_id = created.json()["id"]
+    assert created.json()["pinned_version"] == "1.2.3"
+
+    repinned = await client.put(
+        f"/api/v1/skills/{reference_id}/pin",
+        json={"version": "1.2.4"},
+        headers=headers,
+    )
+    assert repinned.status_code == 200
+    assert repinned.json()["pinned_version"] == "1.2.4"
+    assert repinned.json()["resolved_version"] == "1.2.4"
+
+
+@pytest.mark.asyncio
 async def test_clone_public_skill_and_mark_public_list_flags(client, async_session, tmp_path, monkeypatch):
     monkeypatch.setattr(settings, "SKILL_STORAGE_PATH", str(tmp_path))
     monkeypatch.setattr(settings, "ENABLE_RBAC", False)

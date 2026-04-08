@@ -312,7 +312,7 @@ class TestSkillServiceSkillOperations:
         existing_reference = MagicMock(spec=Skill)
         existing_reference.id = "ref-existing"
 
-        mock_skill_repo.get_by_id = AsyncMock(return_value=source_skill)
+        mock_skill_repo.get_public_by_id = AsyncMock(return_value=source_skill)
         mock_skill_repo.get_reference_by_source = AsyncMock(return_value=existing_reference)
         mock_skill_repo.get_by_name = AsyncMock(return_value=None)
 
@@ -367,7 +367,8 @@ class TestSkillServiceSkillOperations:
         (source_dir / "SKILL.md").write_text("---\nname: public-skill\nversion: 1.2.3\n---\nbody", encoding="utf-8")
         (source_dir / "reference.md").write_text("public reference", encoding="utf-8")
 
-        mock_skill_repo.get_by_id = AsyncMock(side_effect=[source_skill, clone_skill])
+        mock_skill_repo.get_public_by_id = AsyncMock(return_value=source_skill)
+        mock_skill_repo.get_by_id = AsyncMock(return_value=clone_skill)
         mock_skill_repo.get_by_name = AsyncMock(return_value=None)
         mock_skill_repo.create = AsyncMock(return_value=clone_skill)
         mock_skill_repo.delete = AsyncMock(return_value=True)
@@ -665,7 +666,7 @@ class TestSkillServicePublicReferenceClone:
         (source_dir / "SKILL.md").write_text("---\nname: public-skill\nversion: 1.2.3\n---\nbody", encoding="utf-8")
         (source_dir / "reference.md").write_text("public reference", encoding="utf-8")
 
-        mock_skill_repo.get_by_id = AsyncMock(return_value=source_skill)
+        mock_skill_repo.get_public_by_id = AsyncMock(return_value=source_skill)
         mock_skill_repo.get_by_name = AsyncMock(return_value=None)
         mock_skill_repo.create = AsyncMock(return_value=clone_skill)
         mock_skill_repo.update = AsyncMock(return_value=clone_skill)

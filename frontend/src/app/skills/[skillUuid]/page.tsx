@@ -70,11 +70,16 @@ export default function SkillDetailPage({ params }: SkillDetailProps) {
     }
     setSaving(true)
     try {
-      const updated = await api.updateSkill(skill.id, {
-        name,
-        description,
-        visible: featureFlags.enableSkillVisibility ? visible : undefined
-      })
+      const updated = await api.updateSkill(
+        skill.id,
+        isReference
+          ? { name }
+          : {
+              name,
+              description,
+              visible: featureFlags.enableSkillVisibility ? visible : undefined
+            }
+      )
       setSkill(updated)
       success("Skill 已保存")
     } catch (err) {
@@ -272,7 +277,11 @@ export default function SkillDetailPage({ params }: SkillDetailProps) {
             </Card>
           </TabsContent>
           <TabsContent value="versions">
-            <VersionsTab skillUuid={params.skillUuid} />
+            <VersionsTab
+              skillUuid={params.skillUuid}
+              skill={skill}
+              onSkillUpdated={(updatedSkill) => setSkill(updatedSkill)}
+            />
           </TabsContent>
           <TabsContent value="settings">
             <Card>
@@ -312,7 +321,7 @@ export default function SkillDetailPage({ params }: SkillDetailProps) {
                   </div>
                 )}
                 <div className="flex flex-wrap gap-2">
-                  <Button onClick={handleSave} disabled={saving || !!isReference}>
+                  <Button onClick={handleSave} disabled={saving}>
                     <Save className="h-4 w-4" />
                     {saving ? "保存中..." : "保存修改"}
                   </Button>

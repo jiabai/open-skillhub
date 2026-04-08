@@ -17,7 +17,7 @@ const replaceMock = vi.fn()
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ replace: replaceMock }),
-  usePathname: () => "/"
+  usePathname: () => "/",
 }))
 
 const publicSkillsPayload = {
@@ -136,8 +136,28 @@ describe("console pages", () => {
   })
 
   it("renders skills list", async () => {
+    vi.mocked(api.listSkills).mockResolvedValueOnce({
+      items: [
+        {
+          id: "ref-1",
+          user_id: "user-1",
+          name: "Starter Skill Ref",
+          description: "Public starter",
+          source_skill_id: "public-1",
+          pinned_version: null,
+          resolved_version: "1.2.3",
+          skill_kind: "reference",
+          is_reference_read_only: true,
+          is_active: true,
+        },
+      ],
+      total: 1,
+    } as any)
+
     render(<SkillsPage />)
     expect(await screen.findByRole("heading", { name: "Skills" })).toBeInTheDocument()
+    expect(await screen.findByText("Source public-1")).toBeInTheDocument()
+    expect(await screen.findByText("Following latest")).toBeInTheDocument()
   })
 
   it("renders public skills list", async () => {
@@ -250,6 +270,123 @@ describe("console pages", () => {
     render(<SkillDetailPage params={{ skillUuid: "demo" }} />)
     expect(await screen.findByRole("heading")).toBeInTheDocument()
     expect(await screen.findAllByRole("tab")).not.toHaveLength(0)
+  })
+
+  it("allows reference rename and pin controls without rollback", async () => {
+    vi.mocked(api.getSkill).mockResolvedValueOnce({
+      id: "ref-1",
+      user_id: "user-1",
+      name: "Starter Skill Ref",
+      description: "Public starter",
+      visible: "private",
+      source_skill_id: "public-1",
+      pinned_version: null,
+      resolved_version: "1.2.3",
+      skill_kind: "reference",
+      is_reference_read_only: true,
+      current_version: null,
+      is_active: true,
+      created_at: "2026-04-08T00:00:00Z",
+      updated_at: "2026-04-08T00:00:00Z",
+    } as any)
+    vi.mocked(api.listSkillFiles).mockResolvedValueOnce(["SKILL.md"])
+    vi.mocked(api.listSkillVersions).mockResolvedValueOnce({
+      items: [
+        {
+          version: "1.2.3",
+          description: "Public starter",
+          dependencies: [],
+          dependency_spec: {},
+          metadata: {},
+          created_at: "2026-04-08T00:00:00Z",
+        },
+      ],
+    } as any)
+    vi.mocked(api.getSkillVersion).mockResolvedValueOnce({
+      version: "1.2.3",
+      description: "Public starter",
+      dependencies: [],
+      dependency_spec: {},
+      metadata: {},
+      created_at: "2026-04-08T00:00:00Z",
+    } as any)
+    vi.mocked(api.pinReferenceSkillVersion).mockResolvedValueOnce({
+      id: "ref-1",
+      user_id: "user-1",
+      name: "Starter Skill Ref",
+      description: "Public starter",
+      visible: "private",
+      source_skill_id: "public-1",
+      pinned_version: "1.2.3",
+      resolved_version: "1.2.3",
+      skill_kind: "reference",
+      is_reference_read_only: true,
+      current_version: null,
+      is_active: true,
+      created_at: "2026-04-08T00:00:00Z",
+      updated_at: "2026-04-08T00:00:00Z",
+    } as any)
+    vi.mocked(api.unpinReferenceSkillVersion).mockResolvedValueOnce({
+      id: "ref-1",
+      user_id: "user-1",
+      name: "Starter Skill Ref",
+      description: "Public starter",
+      visible: "private",
+      source_skill_id: "public-1",
+      pinned_version: null,
+      resolved_version: "1.2.4",
+      skill_kind: "reference",
+      is_reference_read_only: true,
+      current_version: null,
+      is_active: true,
+      created_at: "2026-04-08T00:00:00Z",
+      updated_at: "2026-04-08T00:00:00Z",
+    } as any)
+    vi.mocked(api.updateSkill).mockResolvedValueOnce({
+      id: "ref-1",
+      user_id: "user-1",
+      name: "Renamed Ref",
+      description: "Public starter",
+      visible: "private",
+      source_skill_id: "public-1",
+      pinned_version: null,
+      resolved_version: "1.2.3",
+      skill_kind: "reference",
+      is_reference_read_only: true,
+      current_version: null,
+      is_active: true,
+      created_at: "2026-04-08T00:00:00Z",
+      updated_at: "2026-04-08T00:00:00Z",
+    } as any)
+
+    render(<SkillDetailPage params={{ skillUuid: "ref-1" }} />)
+    await screen.findByText("Starter Skill Ref")
+
+    const settingsTab = screen.getByRole("tab", { name: "设置" })
+    fireEvent.mouseDown(settingsTab)
+    fireEvent.click(settingsTab)
+    const nameInput = (await screen.findByDisplayValue("Starter Skill Ref")) as HTMLInputElement
+    fireEvent.change(nameInput, { target: { value: "Renamed Ref" } })
+    fireEvent.click(screen.getByRole("button", { name: "保存修改" }))
+    await waitFor(() => {
+      expect(api.updateSkill).toHaveBeenCalledWith("ref-1", { name: "Renamed Ref" })
+    })
+
+    const versionsTab = screen.getByRole("tab", { name: "版本" })
+    fireEvent.mouseDown(versionsTab)
+    fireEvent.click(versionsTab)
+    fireEvent.click(await screen.findByText("1.2.3"))
+    expect(screen.queryByRole("button", { name: /回滚/ })).not.toBeInTheDocument()
+
+    fireEvent.click(await screen.findByRole("button", { name: "Pin to 1.2.3" }))
+    await waitFor(() => {
+      expect(api.pinReferenceSkillVersion).toHaveBeenCalledWith("ref-1", "1.2.3")
+    })
+
+    fireEvent.click(await screen.findByRole("button", { name: "Follow latest" }))
+    await waitFor(() => {
+      expect(api.unpinReferenceSkillVersion).toHaveBeenCalledWith("ref-1")
+    })
   })
 
   it("renders tokens page", async () => {

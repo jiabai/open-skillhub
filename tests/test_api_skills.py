@@ -3,6 +3,7 @@ import zipfile
 from pathlib import Path
 
 import pytest
+from sqlalchemy import select
 
 from backend.config.settings import settings
 from backend.core.utils.skill_storage import (
@@ -1068,3 +1069,42 @@ async def test_clone_public_skill_and_mark_public_list_flags(client, async_sessi
     assert item["id"] == public_skill.id
     assert item["has_reference"] is True
     assert item["has_clone"] is True
+
+
+@pytest.mark.asyncio
+async def test_reference_and_clone_reject_non_public_skill(client, async_session, monkeypatch):
+    monkeypatch.setattr(settings, "ENABLE_RBAC", False)
+    monkeypatch.setattr(settings, "ENABLE_SKILL_VISIBILITY", True)
+    headers = await _register_and_login(client, "private-source-user@example.com", "private-source-user")
+
+    owner = await async_session.execute(select(User).where(User.email == "private-source-user@example.com"))
+    owner_user = owner.scalar_one()
+    private_skill = Skill(
+        user_id=owner_user.id,
+        name="private-source-skill",
+        description="Private source",
+        tags=[],
+        visibility="private",
+        skill_dir="",
+        current_version=None,
+        is_active=True,
+    )
+    async_session.add(private_skill)
+    await async_session.commit()
+    await async_session.refresh(private_skill)
+
+    referenced = await client.post(
+        f"/api/v1/skills/{private_skill.id}/reference",
+        json={"name": "should-not-work"},
+        headers=headers,
+    )
+    assert referenced.status_code == 400
+    assert referenced.json()["code"] == "SKILL_NOT_PUBLIC"
+
+    cloned = await client.post(
+        f"/api/v1/skills/{private_skill.id}/clone",
+        json={"name": "should-not-clone", "visible": "private"},
+        headers=headers,
+    )
+    assert cloned.status_code == 400
+    assert cloned.json()["code"] == "SKILL_NOT_PUBLIC"

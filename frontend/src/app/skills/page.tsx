@@ -134,6 +134,11 @@ export default function SkillsPage() {
         {skills.map((skill) => {
           const skillUuid = skill.id
           const isReference = skill.skill_kind === "reference" || skill.is_reference_read_only
+          const referenceStateLabel = isReference
+            ? skill.pinned_version
+              ? `Locked v${skill.pinned_version}`
+              : "Following latest"
+            : null
           const kindLabel =
             skill.skill_kind === "reference"
               ? "Reference"
@@ -147,6 +152,9 @@ export default function SkillsPage() {
             <CardHeader className="flex flex-row items-start justify-between gap-4">
               <div className="flex flex-col gap-2">
                 <CardTitle>{skill.name}</CardTitle>
+                {isReference && skill.source_skill_id ? (
+                  <p className="text-xs text-muted-foreground">Source {skill.source_skill_id}</p>
+                ) : null}
                 <CardDescription>{skill.description || "暂无描述"}</CardDescription>
                 <div className="flex flex-wrap gap-2">
                   <Badge variant={skill.is_active ? "accent" : "muted"}>
@@ -154,7 +162,7 @@ export default function SkillsPage() {
                   </Badge>
                   <Badge variant="muted">{kindLabel}</Badge>
                   {skill.resolved_version ? <Badge variant="outline">v{skill.resolved_version}</Badge> : null}
-                  {skill.pinned_version ? <Badge variant="outline">Pinned {skill.pinned_version}</Badge> : null}
+                  {referenceStateLabel ? <Badge variant="outline">{referenceStateLabel}</Badge> : null}
                   <Badge variant="outline">id: {skill.id.slice(0, 8)}</Badge>
                 </div>
               </div>

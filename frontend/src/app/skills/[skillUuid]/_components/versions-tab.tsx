@@ -7,7 +7,7 @@ import { GitCompare, Loader2, RotateCcw, Package, FileCode, Clock, ListTree, Dow
 
 import { api } from "@/lib/api"
 import { buildSkillDownloadArtifact, getDownloadErrorMessage } from "@/lib/skill-download"
-import type { SkillVersion, SkillVersionDiff, SkillInstallInstructions } from "@/types"
+import type { Skill, SkillVersion, SkillVersionDiff, SkillInstallInstructions } from "@/types"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -33,9 +33,11 @@ import {
 
 type VersionsTabProps = {
   skillUuid: string
+  skill: Skill
+  onSkillUpdated?: (skill: Skill) => void
 }
 
-export function VersionsTab({ skillUuid }: VersionsTabProps) {
+export function VersionsTab({ skillUuid, skill, onSkillUpdated }: VersionsTabProps) {
   const [versions, setVersions] = useState<SkillVersion[]>([])
   const [selectedVersions, setSelectedVersions] = useState<string[]>([])
   const [diffResult, setDiffResult] = useState<SkillVersionDiff | null>(null)
@@ -55,10 +57,12 @@ export function VersionsTab({ skillUuid }: VersionsTabProps) {
   const [installError, setInstallError] = useState<string | null>(null)
   const [showInstall, setShowInstall] = useState(false)
   const [copied, setCopied] = useState(false)
+  const [pinLoading, setPinLoading] = useState(false)
 
   // 下载状态
   const [downloadLoading, setDownloadLoading] = useState(false)
   const downloadControllerRef = useRef<AbortController | null>(null)
+  const isReference = skill.skill_kind === "reference" || skill.is_reference_read_only
 
   const fetchVersions = useCallback(async () => {
     setLoading(true)
@@ -239,6 +243,32 @@ export function VersionsTab({ skillUuid }: VersionsTabProps) {
     downloadControllerRef.current = null
     setDownloadLoading(false)
   }, [])
+
+  const handlePinVersion = async (version: string) => {
+    setPinLoading(true)
+    setError(null)
+    try {
+      const updated = await api.pinReferenceSkillVersion(skillUuid, version)
+      onSkillUpdated?.(updated)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Pin failed")
+    } finally {
+      setPinLoading(false)
+    }
+  }
+
+  const handleUnpinVersion = async () => {
+    setPinLoading(true)
+    setError(null)
+    try {
+      const updated = await api.unpinReferenceSkillVersion(skillUuid)
+      onSkillUpdated?.(updated)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unpin failed")
+    } finally {
+      setPinLoading(false)
+    }
+  }
 
   const renderVersionList = () => {
     if (loading) {
@@ -490,6 +520,28 @@ export function VersionsTab({ skillUuid }: VersionsTabProps) {
 
           {/* 操作按钮组 */}
           <div className="flex flex-wrap gap-2">
+            {isReference ? (
+              <>
+                <Button
+                  variant="outline"
+                  onClick={() => handlePinVersion(version.version)}
+                  disabled={pinLoading || skill.pinned_version === version.version}
+                >
+                  {pinLoading && skill.pinned_version !== version.version ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : null}
+                  {skill.pinned_version === version.version ? `Pinned ${version.version}` : `Pin to ${version.version}`}
+                </Button>
+                <Button
+                  variant="secondary"
+                  onClick={handleUnpinVersion}
+                  disabled={pinLoading || !skill.pinned_version}
+                >
+                  {pinLoading && skill.pinned_version ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                  Follow latest
+                </Button>
+              </>
+            ) : null}
             {/* 安装说明按钮 */}
             <Button
               variant="outline"
@@ -521,7 +573,7 @@ export function VersionsTab({ skillUuid }: VersionsTabProps) {
             )}
 
             {/* 回滚确认对话框 */}
-            <AlertDialog>
+            {!isReference ? <AlertDialog>
               <AlertDialogTrigger asChild>
                 <Button variant="outline">
                   <RotateCcw className="mr-2 h-4 w-4" />
@@ -546,7 +598,7 @@ export function VersionsTab({ skillUuid }: VersionsTabProps) {
                   </AlertDialogAction>
                 </AlertDialogFooter>
               </AlertDialogContent>
-            </AlertDialog>
+            </AlertDialog> : null}
           </div>
 
           {/* 安装说明弹窗 */}
@@ -709,7 +761,7 @@ export function VersionsTab({ skillUuid }: VersionsTabProps) {
                   </div>
                 </div>
               )}
-              <Button
+              {!isReference ? <Button
                 variant="outline"
                 onClick={() => handleRollback(diffResult.from_version)}
                 disabled={rollbackLoading}
@@ -720,7 +772,7 @@ export function VersionsTab({ skillUuid }: VersionsTabProps) {
                   <RotateCcw className="mr-2 h-4 w-4" />
                 )}
                 回滚到 {diffResult.from_version}
-              </Button>
+              </Button> : null}
             </>
           )}
         </CardContent>

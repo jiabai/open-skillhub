@@ -537,7 +537,7 @@ class TestSkillServicePublicReferenceClone:
         (source_dir / "SKILL.md").write_text("---\nname: public-skill\nversion: 1.2.3\n---\nbody", encoding="utf-8")
         (source_dir / "reference.md").write_text("public reference", encoding="utf-8")
 
-        mock_skill_repo.get_public_by_id = AsyncMock(return_value=source_skill)
+        mock_skill_repo.get_by_id = AsyncMock(return_value=source_skill)
         mock_skill_repo.get_by_name = AsyncMock(return_value=None)
         mock_skill_repo.create = AsyncMock(return_value=clone_skill)
         mock_skill_repo.update = AsyncMock(return_value=clone_skill)
@@ -561,3 +561,31 @@ class TestSkillServicePublicReferenceClone:
         clone_version_dir = get_skill_versions_dir(test_user.id, clone_skill.name) / "1.0.0"
         assert (clone_current_dir / "reference.md").read_text(encoding="utf-8") == "public reference"
         assert (clone_version_dir / "reference.md").read_text(encoding="utf-8") == "public reference"
+
+    @pytest.mark.asyncio
+    async def test_update_reference_name_does_not_create_local_directory(
+        self, mock_skill_repo, mock_version_repo, test_user, tmp_path, monkeypatch
+    ):
+        monkeypatch.setattr(settings, "SKILL_STORAGE_PATH", str(tmp_path))
+
+        reference_skill = MagicMock(spec=Skill)
+        reference_skill.id = "reference-skill-id"
+        reference_skill.name = "public-skill-ref"
+        reference_skill.user_id = test_user.id
+        reference_skill.source_skill_id = "public-source-id"
+        reference_skill.skill_dir = ""
+        reference_skill.visibility = "private"
+        reference_skill.is_active = True
+
+        mock_skill_repo.get_by_id = AsyncMock(return_value=reference_skill)
+        mock_skill_repo.get_by_name = AsyncMock(return_value=None)
+        mock_skill_repo.update = AsyncMock(return_value=reference_skill)
+
+        service = SkillService(mock_skill_repo, mock_version_repo)
+        await service.update_skill(test_user, reference_skill.id, name="renamed-reference")
+
+        update_call = mock_skill_repo.update.await_args
+        assert update_call.args[0] is reference_skill
+        assert update_call.kwargs["name"] == "renamed-reference"
+        assert "skill_dir" not in update_call.kwargs
+        assert not get_user_skill_dir(test_user.id, "renamed-reference").exists()

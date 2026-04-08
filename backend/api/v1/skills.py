@@ -55,6 +55,16 @@ def _handle_skill_value_error(exc: ValueError) -> HTTPException:
             status_code=status.HTTP_404_NOT_FOUND,
             detail={"detail": "Public skills disabled", "code": "PUBLIC_SKILLS_DISABLED"},
         )
+    if detail == "SKILL_NOT_FOUND":
+        return HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"detail": "Skill not found", "code": "SKILL_NOT_FOUND"},
+        )
+    if detail == "SKILL_NOT_PUBLIC":
+        return HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={"detail": "Skill is not public", "code": "SKILL_NOT_PUBLIC"},
+        )
     if detail == "REFERENCE_SKILL_READ_ONLY":
         return HTTPException(
             status_code=status.HTTP_409_CONFLICT,

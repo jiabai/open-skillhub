@@ -226,14 +226,15 @@ class SkillService:
             existing = await self.skill_repo.get_by_name(user.id, new_name)
             if existing and existing.id != skill.id:
                 raise ValueError("Skill already exists")
-            old_dir = get_user_skill_dir(user.id, skill.name)
-            new_dir = get_user_skill_dir(user.id, new_name)
-            if old_dir.exists():
-                new_dir.parent.mkdir(parents=True, exist_ok=True)
-                old_dir.rename(new_dir)
-            else:
-                new_dir.mkdir(parents=True, exist_ok=True)
-            fields["skill_dir"] = str(new_dir)
+            if not self.is_reference_skill(skill):
+                old_dir = get_user_skill_dir(user.id, skill.name)
+                new_dir = get_user_skill_dir(user.id, new_name)
+                if old_dir.exists():
+                    new_dir.parent.mkdir(parents=True, exist_ok=True)
+                    old_dir.rename(new_dir)
+                else:
+                    new_dir.mkdir(parents=True, exist_ok=True)
+                fields["skill_dir"] = str(new_dir)
         return await self.skill_repo.update(skill, **fields)
 
     async def deactivate_skill(self, user: User, skill_id: str) -> Skill:
@@ -564,7 +565,16 @@ class SkillService:
         self._assert_public_features_enabled()
         skill = await self.skill_repo.get_public_by_id(skill_id)
         if not skill or not skill.is_active:
-            raise ValueError("Skill not found")
+            raise ValueError("SKILL_NOT_FOUND")
+        return skill
+
+    async def _get_public_source_skill(self, skill_id: str) -> Skill:
+        self._assert_public_features_enabled()
+        skill = await self.skill_repo.get_by_id(skill_id)
+        if not skill or not skill.is_active:
+            raise ValueError("SKILL_NOT_FOUND")
+        if not self.is_public_skill(skill):
+            raise ValueError("SKILL_NOT_PUBLIC")
         return skill
 
     async def create_reference_skill(
@@ -575,7 +585,7 @@ class SkillService:
         pinned_version: str | None = None,
     ) -> Skill:
         self._assert_public_features_enabled()
-        source_skill = await self.get_public_skill(public_skill_id)
+        source_skill = await self._get_public_source_skill(public_skill_id)
         valid, error = validate_skill_name(name)
         if not valid:
             raise ValueError(error)
@@ -608,7 +618,7 @@ class SkillService:
     ) -> dict:
         self._assert_public_features_enabled()
         repo = self._require_version_repo()
-        source_skill = await self.get_public_skill(public_skill_id)
+        source_skill = await self._get_public_source_skill(public_skill_id)
         _, resolved_version, source_record, source_version_dir = await self.resolve_version_dir(source_skill)
         skill = await self.create_skill(
             user,

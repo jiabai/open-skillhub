@@ -33,7 +33,7 @@ data/skills/      # Skill file storage (per-user isolated)
 
 ```bash
 pip install -e ".[dev]"                    # Install with dev deps
-uvicorn backend.api_app:app --port 8000    # Start API server
+uvicorn backend.api_app:app --port 8001    # Start API server
 alembic upgrade head                        # Run all DB migrations
 pytest                                     # Run all tests
 pytest tests/path/to/file.py               # Run single test file
@@ -62,11 +62,12 @@ docker compose logs -f                      # View logs
 docker compose down                         # Stop services
 ```
 
-| Service    | Port | Description              |
-|------------|------|--------------------------|
-| Frontend   | 80   | Next.js web console      |
-| API        | 8001 | FastAPI backend          |
-| PostgreSQL | 5432 | Database (internal)      |
+| Service    | Port | Description                      |
+|------------|------|----------------------------------|
+| Frontend   | 80   | Next.js web console              |
+| API        | 8001 | FastAPI backend                  |
+
+> Default Docker setup uses SQLite. Add a `db` service for PostgreSQL — see `docs/deployment.md`.
 
 ## Architecture
 
@@ -114,7 +115,7 @@ Request → API Router → Service → Repository → DB (SQLAlchemy async)
 └─────────────────────────┼────────────────────────────────┘
                           ▼
               ┌──────────────────────┐
-              │  SQLite (dev) / PG(prod)  │
+              │  SQLite (default) / PostgreSQL (prod)  │
               └──────────────────────┘
 ```
 
@@ -129,7 +130,7 @@ Request → API Router → Service → Repository → DB (SQLAlchemy async)
 
 - Next.js 14 App Router with shadcn/ui + Tailwind CSS
 - API client at `frontend/src/lib/api.ts` (supports JWT refresh)
-- Key pages: `/` (dashboard), `/skills`, `/tokens`, `/profile`, `/security`, `/audit`, `/admin/users`
+- Key pages: `/` (dashboard), `/skills`, `/public-skills`, `/tokens`, `/profile`, `/security`, `/audit`, `/admin/users`, `/register`
 - Feature flags in `frontend/src/lib/feature-flags.ts`
 
 ## Conventions

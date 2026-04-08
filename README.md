@@ -41,8 +41,9 @@
 ### Prerequisites
 
 - **Python 3.10+**
-- **PostgreSQL 14+** (production)
 - **Node.js 18+** (frontend, optional)
+
+> **Database**: SQLite is used by default (zero-config). PostgreSQL 14+ is recommended for production — see [Deployment Guide](docs/deployment.md) for details.
 
 ### One-Command Docker Setup
 
@@ -50,6 +51,8 @@
 git clone https://github.com/zouyingcao/open-skillhub.git
 cd open-skillhub
 cp backend/.env.example backend/.env
+# Edit backend/.env — at minimum, change SECRET_KEY to a random 32+ char string
+# Example: python -c "import secrets; print(secrets.token_urlsafe(32))"
 docker compose up -d --build
 ```
 
@@ -68,13 +71,13 @@ pip install -e ".[dev]"
 
 # 3. Configure environment
 cp backend/.env.example backend/.env
-# Edit backend/.env with your settings
+# Edit backend/.env — at minimum, change SECRET_KEY to a random 32+ char string
 
 # 4. Initialize database
 alembic upgrade head
 
 # 5. Start server
-uvicorn backend.api_app:app --host 0.0.0.0 --port 8000
+uvicorn backend.api_app:app --host 0.0.0.0 --port 8001
 ```
 
 ---
@@ -93,13 +96,16 @@ Upload ZIP → Parse SKILL.md → Version Control → Activate → MCP Discovery
      └────────────────── Rollback / Deactivate ←────────────────────┘
 ```
 
-### Enterprise-Grade Security
+### Enterprise-Grade Security (Feature Flags)
 
-- **RBAC**: Role-based access control with fine-grained permissions
-- **Organization Model**: Enterprise → Team → User hierarchy
-- **Audit Logging**: Full operation trail with export capability
-- **SSO Integration**: JWT-based SSO with LDAP support
-- **Email Verification**: OTP login and verification codes
+The following features are controlled by feature flags and disabled by default. Enable them via environment variables in `backend/.env`.
+
+- **RBAC** (`ENABLE_RBAC`): Role-based access control with fine-grained permissions
+- **Organization Model** (`ENABLE_ORG_MODEL`): Enterprise → Team → User hierarchy
+- **Audit Logging** (`ENABLE_AUDIT_LOG`): Full operation trail with export capability
+- **SSO Integration** (`ENABLE_SSO`): JWT-based SSO authentication
+- **LDAP** (`ENABLE_LDAP`): LDAP directory authentication
+- **Email Verification** (`ENABLE_EMAIL_OTP_LOGIN`): OTP login and verification codes (enabled by default)
 
 ### MCP Integration (7 Tools)
 
@@ -111,8 +117,8 @@ Your AI agent can discover and execute skills via standard MCP protocol:
 | `load_skill` | Load skill instructions (SKILL.md) |
 | `read_reference_file` | Read reference files within skills |
 | `run_shell_command` | Execute shell commands (whitelist-controlled) |
-| `skill_list_resource` | Resource endpoint for skill listing |
-| `skill_detail_resource` | Resource endpoint for skill details |
+| `skill_list_resource` | MCP resource: list available skills |
+| `skill_detail_resource` | MCP resource: get skill details |
 | `execute_skill` | Execute skill with RBAC checks |
 
 ---
@@ -127,15 +133,15 @@ graph TB
     end
 
     subgraph Docker["Docker Network"]
-        Frontend["Frontend<br/>Next.js :3000"]
+        Frontend["Frontend<br/>Next.js :3000 → :80"]
         API["API Server<br/>FastAPI :8001"]
-        DB[(PostgreSQL<br/>:5432)]
+        DB[(SQLite / PostgreSQL)]
         Storage["Skill Storage<br/>/data/skills"]
     end
 
     Browser -->|HTTP :80| Frontend
     Frontend -->|Proxy| API
-    AIAgent -->|MCP HTTP/SSE| API
+    AIAgent -->|MCP HTTP/SSE :8001| API
     API --> DB
     API --> Storage
 
@@ -147,7 +153,7 @@ graph TB
     style Storage fill:#334155,stroke:#475569,color:#f472b6
 ```
 
-All external traffic enters through Frontend (port 80), which proxies API requests internally.
+All external traffic enters through Frontend (port 80), which proxies API requests internally. AI agents can also connect directly to the API server (port 8001) via MCP protocol.
 
 ---
 
@@ -219,9 +225,9 @@ Each user's directory is fully isolated — users can only access their own skil
 | Service | Port | Description | Access |
 |---------|------|-------------|--------|
 | **Frontend** | 80 | Web Console (Next.js) | Public |
-| **API Server** | 8001 | Backend API (FastAPI) | Internal |
-| **PostgreSQL** | 5432 | Database | Internal |
-| **Adminer** | 18080 | Database Admin UI | Internal |
+| **API Server** | 8001 | Backend API (FastAPI) | Public (MCP) |
+
+> **Note**: The default Docker setup uses SQLite (no separate database service). To use PostgreSQL, add a `db` service to `docker-compose.yml` — see [Deployment Guide](docs/deployment.md).
 
 ---
 
@@ -233,6 +239,7 @@ Each user's directory is fully isolated — users can only access their own skil
 | [Deployment Guide](docs/deployment.md) | Production setup instructions |
 | [MCP Tools](docs/tools.md) | Tool specifications & usage |
 | [Frontend Design](docs/frontend-design/) | UI/UX design specs |
+| [User Runtime Environment](docs/user-runtime-environment/) | Runtime environment design docs |
 
 ---
 
@@ -244,8 +251,11 @@ Each user's directory is fully isolated — users can only access their own skil
 - `POST /api/v1/auth/verification-code` - Send email code
 - `POST /api/v1/auth/register` - User registration
 - `POST /api/v1/auth/login` - User login
+- `POST /api/v1/auth/refresh` - Refresh access token
+- `POST /api/v1/auth/sso/prepare` - Prepare SSO authentication
 - `POST /api/v1/auth/sso/login` - SSO authentication
 - `POST /api/v1/auth/ldap/login` - LDAP authentication
+- `POST /api/v1/auth/logout` - User logout
 
 </details>
 
@@ -253,18 +263,52 @@ Each user's directory is fully isolated — users can only access their own skil
 <summary><strong>Skill Management</strong></summary>
 
 - `GET /api/v1/skills` - List all skills
+- `GET /api/v1/skills/public` - List public skills
+- `GET /api/v1/skills/public/{id}` - Get public skill details
+- `GET /api/v1/skills/cache-policy` - Get skill cache policy
 - `POST /api/v1/skills` - Create new skill
 - `POST /api/v1/skills/upload` - Upload skill ZIP
+- `POST /api/v1/skills/download` - Download skill package (encrypted)
+- `GET /api/v1/skills/{id}` - Get skill details
+- `PUT /api/v1/skills/{id}` - Update skill
+- `DELETE /api/v1/skills/{id}` - Delete skill
+- `POST /api/v1/skills/{id}/reference` - Add reference file
+- `POST /api/v1/skills/{id}/clone` - Clone skill
+- `PUT /api/v1/skills/{id}/pin` - Pin skill
+- `PUT /api/v1/skills/{id}/unpin` - Unpin skill
+- `POST /api/v1/skills/{id}/activate` - Activate skill
+- `POST /api/v1/skills/{id}/deactivate` - Deactivate skill
 - `GET /api/v1/skills/{id}/versions` - Version history
-- `POST /api/v1/skills/{id}/versions/{version}/rollback` - Rollback
-- `POST /api/v1/skills/{id}/activate|deactivate` - Toggle status
+- `GET /api/v1/skills/{id}/versions/diff` - Version diff
+- `GET /api/v1/skills/{id}/versions/{version}` - Get specific version
+- `GET /api/v1/skills/{id}/versions/{version}/install-instructions` - Install instructions
+- `POST /api/v1/skills/{id}/versions/{version}/rollback` - Rollback to version
+- `GET /api/v1/skills/{id}/files` - List skill files
+- `GET /api/v1/skills/{id}/files/{path}` - Read skill file
 
 </details>
 
 <details>
-<summary><strong>Tokens & Audit</strong></summary>
+<summary><strong>Tokens</strong></summary>
 
-- `GET/POST /api/v1/tokens` - Manage API tokens
+- `GET /api/v1/tokens` - List API tokens
+- `POST /api/v1/tokens` - Create API token
+- `DELETE /api/v1/tokens/{id}` - Revoke API token
+
+</details>
+
+<details>
+<summary><strong>Dashboard</strong></summary>
+
+- `GET /api/v1/dashboard/overview` - Dashboard overview stats
+- `POST /api/v1/dashboard/metrics/cleanup` - Cleanup old metrics
+- `POST /api/v1/dashboard/metrics/reset-24h` - Reset 24h metrics
+
+</details>
+
+<details>
+<summary><strong>Audit</strong></summary>
+
 - `GET /api/v1/audit/logs` - Query audit logs
 - `POST /api/v1/audit/logs/export` - Export logs
 
@@ -278,12 +322,14 @@ For full API docs, visit `/docs` when running the server (FastAPI auto-generated
 
 | Layer | Technology |
 |-------|-----------|
-| Backend | Python 3.10+, FastAPI, SQLAlchemy (async) |
-| Database | PostgreSQL 14+ (via asyncpg) |
-| Frontend | Next.js 14+, TypeScript, Tailwind CSS |
-| Auth | JWT (PyJWT), OTP email verification |
+| Backend | Python 3.10+, FastAPI, SQLAlchemy (async), FlowLLM |
+| Database | SQLite (default) / PostgreSQL 14+ (via asyncpg) |
+| Frontend | Next.js 14, TypeScript, Tailwind CSS, shadcn/ui |
+| Auth | JWT (PyJWT), OTP email verification, SSO, LDAP |
+| Storage | Local filesystem / S3 (boto3) |
 | Deployment | Docker Compose, Nginx reverse proxy |
 | Protocol | MCP (HTTP + SSE) |
+| Logging | Loguru |
 
 ---
 

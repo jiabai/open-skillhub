@@ -41,8 +41,9 @@
 ### 环境要求
 
 - **Python 3.10+**
-- **PostgreSQL 14+**（生产环境）
 - **Node.js 18+**（前端，可选）
+
+> **数据库**：默认使用 SQLite（零配置开箱即用）。生产环境推荐 PostgreSQL 14+，详见[部署指南](docs/deployment.md)。
 
 ### 一键 Docker 部署（推荐）
 
@@ -50,6 +51,8 @@
 git clone https://github.com/zouyingcao/open-skillhub.git
 cd open-skillhub
 cp backend/.env.example backend/.env
+# 编辑 backend/.env — 至少需要修改 SECRET_KEY 为 32 位以上的随机字符串
+# 示例：python -c "import secrets; print(secrets.token_urlsafe(32))"
 docker compose up -d --build
 ```
 
@@ -68,13 +71,13 @@ pip install -e ".[dev]"
 
 # 3. 配置环境变量
 cp backend/.env.example backend/.env
-# 编辑 backend/.env 填入你的配置
+# 编辑 backend/.env — 至少需要修改 SECRET_KEY 为 32 位以上的随机字符串
 
 # 4. 初始化数据库
 alembic upgrade head
 
 # 5. 启动服务
-uvicorn backend.api_app:app --host 0.0.0.0 --port 8000
+uvicorn backend.api_app:app --host 0.0.0.0 --port 8001
 ```
 
 ---
@@ -93,13 +96,16 @@ uvicorn backend.api_app:app --host 0.0.0.0 --port 8000
      └──────────────── 回滚 / 停用 ←───────────────────┘
 ```
 
-### 企业级安全保障
+### 企业级安全保障（功能开关）
 
-- **RBAC 权限控制** — 基于角色的细粒度权限管理
-- **组织架构模型** — 企业 → 团队 → 用户三级层级
-- **审计日志** — 完整操作记录，支持导出
-- **SSO 单点登录** — 基于 JWT 的 SSO，支持 LDAP
-- **邮箱验证** — OTP 登录 + 验证码校验
+以下功能通过环境变量中的功能开关控制，默认关闭。在 `backend/.env` 中启用对应开关即可开启。
+
+- **RBAC** (`ENABLE_RBAC`) — 基于角色的细粒度权限管理
+- **组织架构模型** (`ENABLE_ORG_MODEL`) — 企业 → 团队 → 用户三级层级
+- **审计日志** (`ENABLE_AUDIT_LOG`) — 完整操作记录，支持导出
+- **SSO 单点登录** (`ENABLE_SSO`) — 基于 JWT 的 SSO 认证
+- **LDAP** (`ENABLE_LDAP`) — LDAP 目录认证
+- **邮箱验证** (`ENABLE_EMAIL_OTP_LOGIN`) — OTP 登录 + 验证码校验（默认启用）
 
 ### MCP 集成（7 个工具）
 
@@ -111,8 +117,8 @@ AI Agent 通过标准 MCP 协议自动发现和执行技能：
 | `load_skill` | 加载技能指令（SKILL.md） |
 | `read_reference_file` | 读取技能内参考文件 |
 | `run_shell_command` | 执行 Shell 命令（白名单控制） |
-| `skill_list_resource` | 资源端点：技能列表 |
-| `skill_detail_resource` | 资源端点：技能详情 |
+| `skill_list_resource` | MCP 资源：技能列表 |
+| `skill_detail_resource` | MCP 资源：技能详情 |
 | `execute_skill` | 执行技能（含 RBAC 检查） |
 
 ---
@@ -127,15 +133,15 @@ graph TB
     end
 
     subgraph Docker["Docker 网络"]
-        Frontend["前端<br/>Next.js :3000"]
+        Frontend["前端<br/>Next.js :3000 → :80"]
         API["API 服务<br/>FastAPI :8001"]
-        DB[(PostgreSQL<br/>:5432)]
+        DB[(SQLite / PostgreSQL)]
         Storage["技能存储<br/>/data/skills"]
     end
 
     Browser -->|HTTP :80| Frontend
     Frontend -->|代理转发| API
-    AIAgent -->|MCP HTTP/SSE| API
+    AIAgent -->|MCP HTTP/SSE :8001| API
     API --> DB
     API --> Storage
 
@@ -147,7 +153,7 @@ graph TB
     style Storage fill:#334155,stroke:#475569,color:#f472b6
 ```
 
-所有外部流量通过前端（端口 80）进入，由前端内部代理转发 API 请求。
+所有外部流量通过前端（端口 80）进入，由前端内部代理转发 API 请求。AI Agent 也可直接通过 MCP 协议连接 API 服务（端口 8001）。
 
 ---
 
@@ -219,9 +225,9 @@ sequenceDiagram
 | 服务 | 端口 | 说明 | 访问范围 |
 |------|------|------|---------|
 | **前端** | 80 | Web 控制台 (Next.js) | 对外开放 |
-| **API 服务** | 8001 | 后端 API (FastAPI) | 仅内网 |
-| **PostgreSQL** | 5432 | 数据库 | 仅内网 |
-| **Adminer** | 18080 | 数据库管理界面 | 仅内网 |
+| **API 服务** | 8001 | 后端 API (FastAPI) | 对外开放（MCP） |
+
+> **注意**：默认 Docker 部署使用 SQLite，无需额外数据库服务。如需使用 PostgreSQL，请在 `docker-compose.yml` 中添加 `db` 服务，详见[部署指南](docs/deployment.md)。
 
 ---
 
@@ -233,6 +239,7 @@ sequenceDiagram
 | [部署指南](docs/deployment.md) | 生产环境部署教程 |
 | [MCP 工具文档](docs/tools.md) | 工具规格与使用说明 |
 | [前端设计规范](docs/frontend-design/) | UI/UX 设计规格 |
+| [用户运行时环境](docs/user-runtime-environment/) | 运行时环境设计文档 |
 
 ---
 
@@ -244,8 +251,11 @@ sequenceDiagram
 - `POST /api/v1/auth/verification-code` — 发送邮箱验证码
 - `POST /api/v1/auth/register` — 用户注册
 - `POST /api/v1/auth/login` — 用户登录
+- `POST /api/v1/auth/refresh` — 刷新访问令牌
+- `POST /api/v1/auth/sso/prepare` — 准备 SSO 认证
 - `POST /api/v1/auth/sso/login` — SSO 认证
 - `POST /api/v1/auth/ldap/login` — LDAP 登录
+- `POST /api/v1/auth/logout` — 用户登出
 
 </details>
 
@@ -253,18 +263,52 @@ sequenceDiagram
 <summary><strong>技能管理</strong></summary>
 
 - `GET /api/v1/skills` — 获取技能列表
+- `GET /api/v1/skills/public` — 获取公开技能列表
+- `GET /api/v1/skills/public/{id}` — 获取公开技能详情
+- `GET /api/v1/skills/cache-policy` — 获取技能缓存策略
 - `POST /api/v1/skills` — 创建新技能
 - `POST /api/v1/skills/upload` — 上传技能 ZIP 包
+- `POST /api/v1/skills/download` — 下载技能包（加密）
+- `GET /api/v1/skills/{id}` — 获取技能详情
+- `PUT /api/v1/skills/{id}` — 更新技能
+- `DELETE /api/v1/skills/{id}` — 删除技能
+- `POST /api/v1/skills/{id}/reference` — 添加参考文件
+- `POST /api/v1/skills/{id}/clone` — 克隆技能
+- `PUT /api/v1/skills/{id}/pin` — 置顶技能
+- `PUT /api/v1/skills/{id}/unpin` — 取消置顶
+- `POST /api/v1/skills/{id}/activate` — 启用技能
+- `POST /api/v1/skills/{id}/deactivate` — 停用技能
 - `GET /api/v1/skills/{id}/versions` — 版本历史
+- `GET /api/v1/skills/{id}/versions/diff` — 版本差异对比
+- `GET /api/v1/skills/{id}/versions/{version}` — 获取指定版本
+- `GET /api/v1/skills/{id}/versions/{version}/install-instructions` — 安装说明
 - `POST /api/v1/skills/{id}/versions/{version}/rollback` — 版本回滚
-- `POST /api/v1/skills/{id}/activate|deactivate` — 启用/停用
+- `GET /api/v1/skills/{id}/files` — 列出技能文件
+- `GET /api/v1/skills/{id}/files/{path}` — 读取技能文件
 
 </details>
 
 <details>
-<summary><strong>Token 与审计</strong></summary>
+<summary><strong>Token 管理</strong></summary>
 
-- `GET/POST /api/v1/tokens` — 管理 API Token
+- `GET /api/v1/tokens` — 获取 Token 列表
+- `POST /api/v1/tokens` — 创建 API Token
+- `DELETE /api/v1/tokens/{id}` — 撤销 API Token
+
+</details>
+
+<details>
+<summary><strong>仪表盘</strong></summary>
+
+- `GET /api/v1/dashboard/overview` — 仪表盘概览统计
+- `POST /api/v1/dashboard/metrics/cleanup` — 清理历史指标
+- `POST /api/v1/dashboard/metrics/reset-24h` — 重置 24 小时指标
+
+</details>
+
+<details>
+<summary><strong>审计日志</strong></summary>
+
 - `GET /api/v1/audit/logs` — 查询审计日志
 - `POST /api/v1/audit/logs/export` — 导出日志
 
@@ -278,12 +322,14 @@ sequenceDiagram
 
 | 层面 | 技术 |
 |------|------|
-| 后端 | Python 3.10+, FastAPI, SQLAlchemy (async) |
-| 数据库 | PostgreSQL 14+ (asyncpg) |
-| 前端 | Next.js 14+, TypeScript, Tailwind CSS |
-| 认证 | JWT (PyJWT), OTP 邮箱验证 |
+| 后端 | Python 3.10+, FastAPI, SQLAlchemy (async), FlowLLM |
+| 数据库 | SQLite（默认）/ PostgreSQL 14+ (asyncpg) |
+| 前端 | Next.js 14, TypeScript, Tailwind CSS, shadcn/ui |
+| 认证 | JWT (PyJWT), OTP 邮箱验证, SSO, LDAP |
+| 存储 | 本地文件系统 / S3 (boto3) |
 | 部署 | Docker Compose, Nginx 反向代理 |
 | 协议 | MCP (HTTP + SSE) |
+| 日志 | Loguru |
 
 ---
 

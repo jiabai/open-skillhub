@@ -4,6 +4,7 @@ from sqlalchemy import String, and_, cast, func, or_, select
 
 from backend.config.settings import settings
 from backend.models.skill import Skill
+from backend.models.skill_version import SkillVersion
 from backend.repositories.base import BaseRepository
 
 
@@ -75,6 +76,35 @@ class SkillRepository(BaseRepository):
             ).limit(1)
         )
         return result.scalars().first()
+
+    async def list_reference_source_ids(self, user_id: str) -> set[str]:
+        result = await self.session.execute(
+            select(Skill.source_skill_id).where(
+                Skill.user_id == user_id,
+                Skill.source_skill_id.is_not(None),
+            )
+        )
+        return {value for value in result.scalars().all() if value}
+
+    async def list_cloned_source_ids(self, user_id: str) -> set[str]:
+        result = await self.session.execute(
+            select(SkillVersion.metadata_json).join(
+                Skill,
+                SkillVersion.skill_id == Skill.id,
+            ).where(
+                Skill.user_id == user_id,
+                Skill.current_version.is_not(None),
+                Skill.current_version == SkillVersion.version,
+            )
+        )
+        source_ids: set[str] = set()
+        for metadata in result.scalars().all():
+            if not isinstance(metadata, dict):
+                continue
+            source_skill_id = metadata.get("cloned_from_skill_id")
+            if isinstance(source_skill_id, str) and source_skill_id.strip():
+                source_ids.add(source_skill_id)
+        return source_ids
 
     async def list_by_user(
         self,

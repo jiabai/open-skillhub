@@ -83,7 +83,7 @@ Acceptance:
 
 ### 5. Remove `has_clone` / `has_reference` scalability issues
 
-Status: `in_progress`
+Status: `completed`
 
 Problem:
 - Public list uses a `limit=500` scan and per-row lookups.

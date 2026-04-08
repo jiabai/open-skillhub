@@ -133,23 +133,19 @@ async def _serialize_skill(service: SkillService, skill) -> SkillResponse:
     return SkillResponse.model_validate(payload)
 
 
-async def _serialize_public_skill(service: SkillService, skill, current_user, session) -> PublicSkillListItem:
+async def _serialize_public_skill(
+    service: SkillService,
+    skill,
+    reference_source_ids: set[str] | None = None,
+    clone_source_ids: set[str] | None = None,
+) -> PublicSkillListItem:
     payload = (await _serialize_skill(service, skill)).model_dump(by_alias=True)
     payload["has_reference"] = False
     payload["has_clone"] = False
-    if current_user:
-        repo = SkillRepository(session)
-        reference = await repo.get_reference_by_source(current_user.id, skill.id)
-        payload["has_reference"] = reference is not None
-        owned_skills = await repo.list_by_user(current_user.id, limit=500, include_inactive=True)
-        for owned_skill in owned_skills:
-            if await service.is_clone_skill(owned_skill):
-                version_repo = service._require_version_repo()
-                if owned_skill.current_version:
-                    record = await version_repo.get_by_version(owned_skill.id, owned_skill.current_version)
-                    if record and (record.metadata_json or {}).get("cloned_from_skill_id") == skill.id:
-                        payload["has_clone"] = True
-                        break
+    if reference_source_ids is not None:
+        payload["has_reference"] = skill.id in reference_source_ids
+    if clone_source_ids is not None:
+        payload["has_clone"] = skill.id in clone_source_ids
     return PublicSkillListItem.model_validate(payload)
 
 
@@ -246,7 +242,16 @@ async def list_public_skills(
         total = await service.count_public_skills(query=q)
     except ValueError as exc:
         raise _handle_skill_value_error(exc) from exc
-    items = [await _serialize_public_skill(service, skill, current_user, session) for skill in skills]
+    reference_source_ids: set[str] | None = None
+    clone_source_ids: set[str] | None = None
+    if current_user:
+        repo = SkillRepository(session)
+        reference_source_ids = await repo.list_reference_source_ids(current_user.id)
+        clone_source_ids = await repo.list_cloned_source_ids(current_user.id)
+    items = [
+        await _serialize_public_skill(service, skill, reference_source_ids, clone_source_ids)
+        for skill in skills
+    ]
     return PublicSkillListResponse(items=items, total=total)
 
 

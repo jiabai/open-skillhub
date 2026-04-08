@@ -1184,6 +1184,63 @@ async def test_clone_public_skill_and_mark_public_list_flags(client, async_sessi
 
 
 @pytest.mark.asyncio
+async def test_public_list_marks_clone_beyond_500_owned_skills(client, async_session, tmp_path, monkeypatch):
+    monkeypatch.setattr(settings, "SKILL_STORAGE_PATH", str(tmp_path))
+    monkeypatch.setattr(settings, "ENABLE_RBAC", False)
+    monkeypatch.setattr(settings, "ENABLE_SKILL_VISIBILITY", True)
+    public_skill = await _create_public_skill(async_session, tmp_path)
+    headers = await _register_and_login(client, "clone-cap@example.com", "clone-cap-user")
+
+    owner = await async_session.execute(select(User).where(User.email == "clone-cap@example.com"))
+    owner_user = owner.scalar_one()
+
+    filler_skills = [
+        Skill(
+            user_id=owner_user.id,
+            name=f"owned-skill-{index:03d}",
+            description="filler",
+            tags=[],
+            visibility="private",
+            skill_dir="",
+            current_version=None,
+            is_active=True,
+        )
+        for index in range(501)
+    ]
+    async_session.add_all(filler_skills)
+    await async_session.flush()
+
+    clone_skill = Skill(
+        user_id=owner_user.id,
+        name="late-clone-skill",
+        description="clone",
+        tags=[],
+        visibility="private",
+        skill_dir="",
+        current_version="1.0.0",
+        is_active=True,
+    )
+    async_session.add(clone_skill)
+    await async_session.flush()
+    async_session.add(
+        SkillVersion(
+            skill_id=clone_skill.id,
+            version="1.0.0",
+            description="clone",
+            dependencies=[],
+            metadata_json={"cloned_from_skill_id": public_skill.id, "cloned_from_version": "1.2.3"},
+        )
+    )
+    await async_session.commit()
+
+    listed = await client.get("/api/v1/skills/public", headers=headers)
+    assert listed.status_code == 200
+    item = listed.json()["items"][0]
+    assert item["id"] == public_skill.id
+    assert item["has_clone"] is True
+
+
+@pytest.mark.asyncio
 async def test_reference_and_clone_do_not_leak_private_skill_existence(client, async_session, monkeypatch):
     monkeypatch.setattr(settings, "ENABLE_RBAC", False)
     monkeypatch.setattr(settings, "ENABLE_SKILL_VISIBILITY", True)

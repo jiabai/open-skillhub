@@ -7,6 +7,7 @@ from typing import Any
 import pytest
 from sqlalchemy import select
 
+from backend.config.settings import settings
 from backend.core.security.jwt_utils import create_access_token
 from backend.core.utils.user_context import set_current_user_id
 from backend.core.utils.skill_storage import get_skill_versions_dir, get_user_skill_dir
@@ -246,6 +247,161 @@ async def test_execute_skill_runs_entrypoint(async_session, tmp_path, monkeypatc
         )
     )
     assert result.scalar_one_or_none() is not None
+
+
+@pytest.mark.asyncio
+async def test_skill_detail_resource_reference_uses_public_source(async_session, tmp_path, monkeypatch):
+    monkeypatch.setenv("SKILL_STORAGE_PATH", str(tmp_path))
+    _install_flowllm_stubs(tmp_path, monkeypatch)
+    from backend.db import session as db_session
+
+    monkeypatch.setattr(db_session, "get_async_session", lambda: _override_session(async_session))
+    monkeypatch.setattr(settings, "ENABLE_SKILL_VISIBILITY", True)
+    monkeypatch.setattr(settings, "ENABLE_RBAC", False)
+
+    user = User(email="ref@example.com", username="ref", hashed_password="x")
+    async_session.add(user)
+    await async_session.commit()
+    await async_session.refresh(user)
+
+    public_skill = Skill(
+        user_id="00000000-0000-0000-0000-000000000001",
+        name="public-skill",
+        description="public desc",
+        tags=["public"],
+        visibility="public",
+        skill_dir=str(get_user_skill_dir("00000000-0000-0000-0000-000000000001", "public-skill")),
+        current_version="1.2.3",
+        is_active=True,
+    )
+    async_session.add(public_skill)
+    await async_session.commit()
+    await async_session.refresh(public_skill)
+
+    reference_skill = Skill(
+        user_id=user.id,
+        name="public-skill-ref",
+        description="ref desc",
+        tags=["public"],
+        visibility="private",
+        source_skill_id=public_skill.id,
+        pinned_version="1.2.3",
+        skill_dir="",
+        current_version=None,
+        is_active=True,
+    )
+    async_session.add(reference_skill)
+    await async_session.commit()
+    await async_session.refresh(reference_skill)
+
+    version = SkillVersion(
+        skill_id=public_skill.id,
+        version="1.2.3",
+        description="public desc",
+        dependencies=["requests"],
+        dependency_spec={"schema_version": 1},
+        dependency_spec_version="1",
+        metadata_json={"name": "public-skill", "description": "public desc", "version": "1.2.3"},
+    )
+    async_session.add(version)
+    await async_session.commit()
+
+    version_dir = get_skill_versions_dir(public_skill.user_id, public_skill.name) / "1.2.3"
+    version_dir.mkdir(parents=True, exist_ok=True)
+    (version_dir / "SKILL.md").write_text(
+        "---\nname: public-skill\ndescription: public desc\nparameters:\n  type: object\n---\nbody",
+        encoding="utf-8",
+    )
+    (version_dir / "reference.md").write_text("from public source", encoding="utf-8")
+
+    set_current_user_id(str(user.id))
+    from backend.core.tools.skill_resource_ops import SkillDetailResourceOp
+
+    detail_op = SkillDetailResourceOp()
+    detail_op.input_dict = {"skill_uuid": reference_skill.id}
+    await detail_op.async_execute()
+    payload = json.loads(detail_op._output)
+    detail = json.loads(payload["contents"][0]["text"])
+    assert detail["skill_id"] == reference_skill.id
+    assert detail["version"] == "1.2.3"
+    assert detail["author"] == public_skill.user_id
+    assert detail["dependencies"] == ["requests"]
+
+
+@pytest.mark.asyncio
+async def test_skill_detail_resource_reference_source_unavailable(async_session, tmp_path, monkeypatch):
+    monkeypatch.setenv("SKILL_STORAGE_PATH", str(tmp_path))
+    _install_flowllm_stubs(tmp_path, monkeypatch)
+    from backend.db import session as db_session
+
+    monkeypatch.setattr(db_session, "get_async_session", lambda: _override_session(async_session))
+    user = User(email="missing@example.com", username="missing", hashed_password="x")
+    async_session.add(user)
+    await async_session.commit()
+    await async_session.refresh(user)
+
+    reference_skill = Skill(
+        user_id=user.id,
+        name="broken-ref",
+        description="broken",
+        tags=[],
+        visibility="private",
+        source_skill_id="missing-source-id",
+        pinned_version="1.2.3",
+        skill_dir="",
+        current_version=None,
+        is_active=True,
+    )
+    async_session.add(reference_skill)
+    await async_session.commit()
+    await async_session.refresh(reference_skill)
+
+    set_current_user_id(str(user.id))
+    from backend.core.tools.skill_resource_ops import SkillDetailResourceOp
+
+    detail_op = SkillDetailResourceOp()
+    detail_op.input_dict = {"skill_uuid": reference_skill.id}
+    await detail_op.async_execute()
+    payload = json.loads(detail_op._output)
+    assert payload["code"] == "SOURCE_SKILL_UNAVAILABLE"
+
+
+@pytest.mark.asyncio
+async def test_execute_skill_reference_source_unavailable(async_session, tmp_path, monkeypatch):
+    monkeypatch.setenv("SKILL_STORAGE_PATH", str(tmp_path))
+    _install_flowllm_stubs(tmp_path, monkeypatch)
+    from backend.db import session as db_session
+
+    monkeypatch.setattr(db_session, "get_async_session", lambda: _override_session(async_session))
+    user = User(email="exec-ref@example.com", username="exec-ref", hashed_password="x")
+    async_session.add(user)
+    await async_session.commit()
+    await async_session.refresh(user)
+
+    reference_skill = Skill(
+        user_id=user.id,
+        name="broken-exec-ref",
+        description="broken",
+        tags=[],
+        visibility="private",
+        source_skill_id="missing-source-id",
+        pinned_version="1.2.3",
+        skill_dir="",
+        current_version=None,
+        is_active=True,
+    )
+    async_session.add(reference_skill)
+    await async_session.commit()
+    await async_session.refresh(reference_skill)
+
+    set_current_user_id(str(user.id))
+    from backend.core.tools.execute_skill_op import ExecuteSkillOp
+
+    op = ExecuteSkillOp()
+    op.input_dict = {"skill_uuid": reference_skill.id}
+    await op.async_execute()
+    payload = json.loads(op._output)
+    assert payload["code"] == "SOURCE_SKILL_UNAVAILABLE"
 
 
 @pytest.mark.asyncio

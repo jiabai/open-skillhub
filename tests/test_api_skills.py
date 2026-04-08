@@ -1,9 +1,82 @@
 import io
 import zipfile
+from pathlib import Path
 
 import pytest
 
 from backend.config.settings import settings
+from backend.core.utils.skill_storage import (
+    SYSTEM_USER_ID,
+    create_skill_dir,
+    get_skill_versions_dir,
+)
+from backend.models.skill import Skill
+from backend.models.skill_version import SkillVersion
+from backend.models.user import User
+
+
+async def _register_and_login(client, email: str, username: str) -> dict[str, str]:
+    await client.post(
+        "/api/v1/auth/verification-code",
+        json={"email": email, "purpose": "register"},
+    )
+    await client.post(
+        "/api/v1/auth/register",
+        json={"email": email, "username": username, "code": "123456"},
+    )
+    await client.post(
+        "/api/v1/auth/verification-code",
+        json={"email": email, "purpose": "login"},
+    )
+    login = await client.post(
+        "/api/v1/auth/login",
+        json={"email": email, "code": "123456"},
+    )
+    access = login.json()["access_token"]
+    return {"Authorization": f"Bearer {access}"}
+
+
+async def _create_public_skill(async_session, tmp_path: Path) -> Skill:
+    system_user = User(
+        id=SYSTEM_USER_ID,
+        email="system@example.com",
+        username="system",
+        hashed_password="!",
+        is_active=True,
+        is_superuser=True,
+        role="admin",
+    )
+    async_session.add(system_user)
+    public_skill = Skill(
+        user_id=SYSTEM_USER_ID,
+        name="public-skill",
+        description="Public skill description",
+        tags=["public", "starter"],
+        visibility="public",
+        skill_dir=str(create_skill_dir(SYSTEM_USER_ID, "public-skill")),
+        current_version="1.2.3",
+        is_active=True,
+    )
+    async_session.add(public_skill)
+    await async_session.flush()
+    version_record = SkillVersion(
+        skill_id=public_skill.id,
+        version="1.2.3",
+        description="Public skill description",
+        dependencies=["requests"],
+        metadata_json={},
+    )
+    async_session.add(version_record)
+    await async_session.commit()
+
+    version_dir = get_skill_versions_dir(SYSTEM_USER_ID, "public-skill") / "1.2.3"
+    version_dir.mkdir(parents=True, exist_ok=True)
+    (version_dir / "SKILL.md").write_text(
+        "---\nname: public-skill\nversion: 1.2.3\ndescription: Public skill description\n---\nbody",
+        encoding="utf-8",
+    )
+    (version_dir / "reference.md").write_text("public reference", encoding="utf-8")
+    return public_skill
 
 
 @pytest.mark.asyncio
@@ -194,8 +267,8 @@ async def test_skill_upload_rejects_oversized_file_before_full_read(client, tmp_
         files=files,
         headers=headers,
     )
-    assert response.status_code == 400
-    assert response.json()["detail"] == "File too large"
+    assert response.status_code == 413
+    assert response.json()["detail"] == "File exceeds maximum size limit"
 
 
 @pytest.mark.asyncio
@@ -868,3 +941,130 @@ async def test_skill_dependency_spec_frontmatter_yaml(client, tmp_path, monkeypa
     assert payload["commands"] == ["poetry install"]
     assert payload["dependency_spec"]["python"]["manager"] == "poetry"
     assert "git" in payload["dependency_spec"]["system"]["packages"]
+
+
+@pytest.mark.asyncio
+async def test_public_skill_list_and_detail(client, async_session, tmp_path, monkeypatch):
+    monkeypatch.setattr(settings, "SKILL_STORAGE_PATH", str(tmp_path))
+    monkeypatch.setattr(settings, "ENABLE_RBAC", False)
+    monkeypatch.setattr(settings, "ENABLE_SKILL_VISIBILITY", True)
+    public_skill = await _create_public_skill(async_session, tmp_path)
+
+    listed = await client.get("/api/v1/skills/public")
+    assert listed.status_code == 200
+    payload = listed.json()
+    assert payload["total"] == 1
+    assert payload["items"][0]["id"] == public_skill.id
+    assert payload["items"][0]["skill_kind"] == "public"
+    assert payload["items"][0]["resolved_version"] == "1.2.3"
+    assert payload["items"][0]["has_reference"] is False
+    assert payload["items"][0]["has_clone"] is False
+
+    detail = await client.get(f"/api/v1/skills/public/{public_skill.id}")
+    assert detail.status_code == 200
+    detail_payload = detail.json()
+    assert detail_payload["id"] == public_skill.id
+    assert detail_payload["visible"] == "public"
+    assert detail_payload["skill_kind"] == "public"
+    assert detail_payload["resolved_version"] == "1.2.3"
+
+
+@pytest.mark.asyncio
+async def test_reference_skill_read_only_and_pin_unpin(client, async_session, tmp_path, monkeypatch):
+    monkeypatch.setattr(settings, "SKILL_STORAGE_PATH", str(tmp_path))
+    monkeypatch.setattr(settings, "ENABLE_RBAC", False)
+    monkeypatch.setattr(settings, "ENABLE_SKILL_VISIBILITY", True)
+    public_skill = await _create_public_skill(async_session, tmp_path)
+    headers = await _register_and_login(client, "reference-user@example.com", "reference-user")
+
+    created = await client.post(
+        f"/api/v1/skills/{public_skill.id}/reference",
+        json={"name": "public-skill-ref"},
+        headers=headers,
+    )
+    assert created.status_code == 201
+    created_payload = created.json()
+    reference_id = created_payload["id"]
+    assert created_payload["skill_kind"] == "reference"
+    assert created_payload["is_reference_read_only"] is True
+    assert created_payload["resolved_version"] == "1.2.3"
+    assert created_payload["pinned_version"] is None
+    assert created_payload["source_skill_id"] == public_skill.id
+
+    files = await client.get(f"/api/v1/skills/{reference_id}/files", headers=headers)
+    assert files.status_code == 200
+    assert "SKILL.md" in files.json()
+    content = await client.get(f"/api/v1/skills/{reference_id}/files/reference.md", headers=headers)
+    assert content.status_code == 200
+    assert content.text == "public reference"
+
+    updated = await client.put(
+        f"/api/v1/skills/{reference_id}",
+        json={"description": "should fail"},
+        headers=headers,
+    )
+    assert updated.status_code == 409
+    assert updated.json()["code"] == "REFERENCE_SKILL_READ_ONLY"
+
+    uploaded = await client.post(
+        "/api/v1/skills/upload",
+        data={"skill_uuid": reference_id},
+        files={"file": ("extra.md", b"nope", "text/markdown")},
+        headers=headers,
+    )
+    assert uploaded.status_code == 409
+    assert uploaded.json()["code"] == "REFERENCE_SKILL_READ_ONLY"
+
+    pinned = await client.put(
+        f"/api/v1/skills/{reference_id}/pin",
+        json={"version": "1.2.3"},
+        headers=headers,
+    )
+    assert pinned.status_code == 200
+    assert pinned.json()["pinned_version"] == "1.2.3"
+
+    unpinned = await client.put(f"/api/v1/skills/{reference_id}/unpin", headers=headers)
+    assert unpinned.status_code == 200
+    assert unpinned.json()["pinned_version"] is None
+
+
+@pytest.mark.asyncio
+async def test_clone_public_skill_and_mark_public_list_flags(client, async_session, tmp_path, monkeypatch):
+    monkeypatch.setattr(settings, "SKILL_STORAGE_PATH", str(tmp_path))
+    monkeypatch.setattr(settings, "ENABLE_RBAC", False)
+    monkeypatch.setattr(settings, "ENABLE_SKILL_VISIBILITY", True)
+    public_skill = await _create_public_skill(async_session, tmp_path)
+    headers = await _register_and_login(client, "clone-user@example.com", "clone-user")
+
+    cloned = await client.post(
+        f"/api/v1/skills/{public_skill.id}/clone",
+        json={"name": "public-skill-clone", "visible": "private"},
+        headers=headers,
+    )
+    assert cloned.status_code == 201
+    clone_payload = cloned.json()
+    clone_id = clone_payload["id"]
+    assert clone_payload["skill_kind"] == "clone"
+    assert clone_payload["resolved_version"] == "1.0.0"
+    assert clone_payload["is_reference_read_only"] is False
+
+    clone_files = await client.get(f"/api/v1/skills/{clone_id}/files", headers=headers)
+    assert clone_files.status_code == 200
+    assert "reference.md" in clone_files.json()
+    clone_content = await client.get(f"/api/v1/skills/{clone_id}/files/reference.md", headers=headers)
+    assert clone_content.status_code == 200
+    assert clone_content.text == "public reference"
+
+    referenced = await client.post(
+        f"/api/v1/skills/{public_skill.id}/reference",
+        json={"name": "public-skill-ref-2"},
+        headers=headers,
+    )
+    assert referenced.status_code == 201
+
+    listed = await client.get("/api/v1/skills/public", headers=headers)
+    assert listed.status_code == 200
+    item = listed.json()["items"][0]
+    assert item["id"] == public_skill.id
+    assert item["has_reference"] is True
+    assert item["has_clone"] is True

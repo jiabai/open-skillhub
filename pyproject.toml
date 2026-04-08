@@ -92,6 +92,15 @@ Repository = "https://github.com/zouyingcao/open-skillhub"
 [project.scripts]
 skillhub-mcp = "backend.main:main"
 
+[tool.pytest.ini_options]
+tmp_path_retention_policy = "failed"
+testpaths = ["tests"]
+filterwarnings = [
+    "ignore:Please use `import python_multipart` instead\\.:PendingDeprecationWarning",
+    "ignore:tagMap is deprecated\\. Please use TAG_MAP instead\\.:DeprecationWarning",
+    "ignore:typeMap is deprecated\\. Please use TYPE_MAP instead\\.:DeprecationWarning",
+]
+
 [tool.mypy]
 plugins = ["pydantic.mypy"]
 python_version = "3.10"

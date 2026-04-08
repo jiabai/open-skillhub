@@ -77,6 +77,17 @@ def _handle_skill_value_error(exc: ValueError) -> HTTPException:
         )
     if detail == "Invalid visibility":
         return HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=detail)
+    # Input validation errors - 400/413 for client-side issues
+    if "Filename contains invalid characters" in detail:
+        return HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={"detail": detail, "code": "INVALID_FILENAME"},
+        )
+    if detail == "File too large":
+        return HTTPException(
+            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            detail={"detail": "File exceeds maximum size limit", "code": "FILE_TOO_LARGE"},
+        )
     return HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=detail)
 
 
@@ -726,7 +737,7 @@ async def list_skill_files(
     current_user=Depends(require_permission("skill.read")),
     session=Depends(get_async_session),
 ):
-    service = SkillService(SkillRepository(session))
+    service = SkillService(SkillRepository(session), SkillVersionRepository(session))
     try:
         files = await service.list_skill_files(current_user, skill_uuid)
     except ValueError as exc:

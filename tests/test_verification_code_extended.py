@@ -19,6 +19,7 @@ from backend.models.verification_code import VerificationCode
 def mock_session():
     """Mock database session"""
     session = AsyncMock()
+    session.add = MagicMock()
     return session
 
 

@@ -13,7 +13,20 @@ def upgrade() -> None:
         "users",
         sa.Column("jwt_token_version", sa.Integer(), nullable=False, server_default="0"),
     )
-    _op.alter_column("users", "jwt_token_version", server_default=None)
+    if _op.get_context().dialect.name == "sqlite":
+        with _op.batch_alter_table("users", schema=None) as batch_op:
+            batch_op.alter_column(
+                "jwt_token_version",
+                existing_type=sa.Integer(),
+                server_default=None,
+            )
+    else:
+        _op.alter_column(
+            "users",
+            "jwt_token_version",
+            existing_type=sa.Integer(),
+            server_default=None,
+        )
 
 
 def downgrade() -> None:

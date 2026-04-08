@@ -1,9 +1,10 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Copy, Loader2, Search, Sparkles } from "lucide-react"
+import { Copy, Download, Loader2, Search, Sparkles } from "lucide-react"
 
 import { api } from "@/lib/api"
+import { buildSkillDownloadArtifact, getDownloadErrorMessage } from "@/lib/skill-download"
 import type { Skill } from "@/types"
 import { useToast } from "@/hooks/use-toast"
 import { Badge } from "@/components/ui/badge"
@@ -17,6 +18,7 @@ export default function PublicSkillsPage() {
   const [skills, setSkills] = useState<Skill[]>([])
   const [status, setStatus] = useState<"idle" | "loading" | "error">("loading")
   const [error, setError] = useState<string | null>(null)
+  const [downloadingSkillId, setDownloadingSkillId] = useState<string | null>(null)
 
   const loadSkills = async (search?: string) => {
     setStatus("loading")
@@ -56,6 +58,33 @@ export default function PublicSkillsPage() {
       showError("Unable to clone skill", {
         description: err instanceof Error ? err.message : "Unknown error",
       })
+    }
+  }
+
+  const handleDownload = async (skill: Skill) => {
+    setDownloadingSkillId(skill.id)
+    try {
+      const result = await api.downloadSkillRaw({ skill_uuid: skill.id, version: skill.resolved_version })
+      const artifact = buildSkillDownloadArtifact(result.payload, skill.id, result.rawText)
+      if (artifact.confirmMessage && !window.confirm(artifact.confirmMessage)) {
+        return
+      }
+      const blob = new Blob([artifact.content], { type: artifact.contentType })
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement("a")
+      link.href = url
+      link.download = artifact.filename
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      URL.revokeObjectURL(url)
+      success("Public skill download started")
+    } catch (err) {
+      showError("Unable to download skill", {
+        description: getDownloadErrorMessage(err),
+      })
+    } finally {
+      setDownloadingSkillId(null)
     }
   }
 
@@ -136,6 +165,10 @@ export default function PublicSkillsPage() {
                 </div>
               </div>
               <div className="flex gap-2">
+                <Button variant="outline" onClick={() => handleDownload(skill)} disabled={downloadingSkillId === skill.id}>
+                  <Download className="mr-2 h-4 w-4" />
+                  Download
+                </Button>
                 <Button variant="secondary" onClick={() => handleReference(skill)} disabled={skill.has_reference}>
                   Add Reference
                 </Button>

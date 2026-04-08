@@ -426,3 +426,138 @@ pandas~=1.3.0
         decrypted = AESGCM(key).decrypt(nonce, ciphertext, None)
 
         assert decrypted == payload
+
+
+class TestSkillServicePublicReferenceClone:
+    @pytest.mark.asyncio
+    async def test_resolve_version_dir_reference_uses_public_source(
+        self, mock_skill_repo, mock_version_repo, test_user, tmp_path, monkeypatch
+    ):
+        monkeypatch.setattr(settings, "SKILL_STORAGE_PATH", str(tmp_path))
+
+        source_skill = MagicMock(spec=Skill)
+        source_skill.id = "public-skill-id"
+        source_skill.name = "public-skill"
+        source_skill.user_id = "system-user"
+        source_skill.current_version = "1.2.3"
+        source_skill.is_active = True
+        source_skill.visibility = "public"
+
+        reference_skill = MagicMock(spec=Skill)
+        reference_skill.id = "reference-skill-id"
+        reference_skill.name = "public-skill-ref"
+        reference_skill.user_id = test_user.id
+        reference_skill.current_version = None
+        reference_skill.source_skill_id = source_skill.id
+        reference_skill.pinned_version = "1.2.3"
+        reference_skill.is_active = True
+        reference_skill.visibility = "private"
+
+        version_record = MagicMock(spec=SkillVersion)
+        version_record.version = "1.2.3"
+
+        source_dir = get_skill_versions_dir(source_skill.user_id, source_skill.name) / "1.2.3"
+        source_dir.mkdir(parents=True, exist_ok=True)
+        (source_dir / "reference.md").write_text("public reference", encoding="utf-8")
+
+        mock_skill_repo.get_by_id = AsyncMock(return_value=source_skill)
+        mock_version_repo.get_by_version = AsyncMock(return_value=version_record)
+
+        service = SkillService(mock_skill_repo, mock_version_repo)
+        resolved_source, resolved_version, _, version_dir = await service.resolve_version_dir(reference_skill)
+
+        assert resolved_source.id == source_skill.id
+        assert resolved_version == "1.2.3"
+        assert version_dir == source_dir
+
+    @pytest.mark.asyncio
+    async def test_resolve_version_dir_reference_source_unavailable(
+        self, mock_skill_repo, mock_version_repo, test_user
+    ):
+        reference_skill = MagicMock(spec=Skill)
+        reference_skill.id = "reference-skill-id"
+        reference_skill.name = "public-skill-ref"
+        reference_skill.user_id = test_user.id
+        reference_skill.source_skill_id = "missing-source"
+        reference_skill.pinned_version = None
+        reference_skill.current_version = None
+        reference_skill.is_active = True
+        reference_skill.visibility = "private"
+
+        mock_skill_repo.get_by_id = AsyncMock(return_value=None)
+
+        service = SkillService(mock_skill_repo, mock_version_repo)
+        with pytest.raises(ValueError, match="SOURCE_SKILL_UNAVAILABLE"):
+            await service.resolve_version_dir(reference_skill)
+
+    @pytest.mark.asyncio
+    async def test_clone_public_skill_copies_files_and_sets_clone_metadata(
+        self, mock_skill_repo, mock_version_repo, test_user, tmp_path, monkeypatch
+    ):
+        monkeypatch.setattr(settings, "SKILL_STORAGE_PATH", str(tmp_path))
+        monkeypatch.setattr(settings, "ENABLE_SKILL_VISIBILITY", True)
+        monkeypatch.setattr(settings, "ENABLE_RBAC", False)
+
+        source_skill = MagicMock(spec=Skill)
+        source_skill.id = "public-skill-id"
+        source_skill.name = "public-skill"
+        source_skill.user_id = "system-user"
+        source_skill.description = "Public skill description"
+        source_skill.tags = ["public", "starter"]
+        source_skill.current_version = "1.2.3"
+        source_skill.source_skill_id = None
+        source_skill.is_active = True
+        source_skill.visibility = "public"
+
+        clone_skill = MagicMock(spec=Skill)
+        clone_skill.id = "clone-skill-id"
+        clone_skill.name = "public-skill-copy"
+        clone_skill.user_id = test_user.id
+        clone_skill.description = source_skill.description
+        clone_skill.tags = list(source_skill.tags)
+        clone_skill.current_version = None
+        clone_skill.is_active = True
+        clone_skill.visibility = "private"
+        clone_skill.source_skill_id = None
+
+        source_record = MagicMock(spec=SkillVersion)
+        source_record.version = "1.2.3"
+        source_record.description = "Public skill description"
+        source_record.dependencies = ["requests"]
+        source_record.dependency_spec = {}
+        source_record.dependency_spec_version = None
+        source_record.metadata_json = {"existing": "value"}
+
+        created_record = MagicMock(spec=SkillVersion)
+        created_record.version = "1.0.0"
+        created_record.description = source_record.description
+
+        source_dir = get_skill_versions_dir(source_skill.user_id, source_skill.name) / "1.2.3"
+        source_dir.mkdir(parents=True, exist_ok=True)
+        (source_dir / "SKILL.md").write_text("---\nname: public-skill\nversion: 1.2.3\n---\nbody", encoding="utf-8")
+        (source_dir / "reference.md").write_text("public reference", encoding="utf-8")
+
+        mock_skill_repo.get_public_by_id = AsyncMock(return_value=source_skill)
+        mock_skill_repo.get_by_name = AsyncMock(return_value=None)
+        mock_skill_repo.create = AsyncMock(return_value=clone_skill)
+        mock_skill_repo.update = AsyncMock(return_value=clone_skill)
+        mock_version_repo.get_by_version = AsyncMock(side_effect=lambda skill_id, version: source_record if skill_id == source_skill.id and version == "1.2.3" else None)
+        mock_version_repo.create_version = AsyncMock(return_value=created_record)
+
+        service = SkillService(mock_skill_repo, mock_version_repo)
+        result = await service.clone_public_skill(test_user, source_skill.id, clone_skill.name, "private")
+
+        assert result["skill"].id == clone_skill.id
+        assert result["version"] == "1.0.0"
+
+        create_call = mock_version_repo.create_version.await_args.kwargs
+        assert create_call["skill_id"] == clone_skill.id
+        assert create_call["version"] == "1.0.0"
+        assert create_call["metadata"]["existing"] == "value"
+        assert create_call["metadata"]["cloned_from_skill_id"] == source_skill.id
+        assert create_call["metadata"]["cloned_from_version"] == "1.2.3"
+
+        clone_current_dir = get_user_skill_dir(test_user.id, clone_skill.name)
+        clone_version_dir = get_skill_versions_dir(test_user.id, clone_skill.name) / "1.0.0"
+        assert (clone_current_dir / "reference.md").read_text(encoding="utf-8") == "public reference"
+        assert (clone_version_dir / "reference.md").read_text(encoding="utf-8") == "public reference"

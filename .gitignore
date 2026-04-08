@@ -62,6 +62,7 @@ frontend/.next/
 *.pyc
 *.pyo
 .pytest_cache/
+.pytest_tmp/
 .coverage
 coverage.json
 coverage.xml

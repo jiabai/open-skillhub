@@ -3,9 +3,16 @@ import hashlib
 import io
 import zipfile
 from datetime import datetime, timezone
+from pathlib import Path
 
 import pytest
 from sso_helpers import sso_login
+
+from backend.config.settings import settings
+from backend.core.utils.skill_storage import SYSTEM_USER_ID, create_skill_dir, get_skill_versions_dir
+from backend.models.skill import Skill
+from backend.models.skill_version import SkillVersion
+from backend.models.user import User
 
 
 async def _create_uploaded_skill(client, headers, name: str, version: str = "1.0.0", extra_files: dict[str, bytes | str] | None = None):
@@ -29,6 +36,81 @@ async def _create_uploaded_skill(client, headers, name: str, version: str = "1.0
     )
     assert upload.status_code == 201
     return skill_id
+
+
+async def _create_public_skill(async_session, name: str = "public-download-skill") -> Skill:
+    system_user = await async_session.get(User, SYSTEM_USER_ID)
+    if system_user is None:
+        system_user = User(
+            id=SYSTEM_USER_ID,
+            email="system@local.invalid",
+            username="__system__",
+            hashed_password="!",
+            is_active=False,
+            is_superuser=True,
+            role="admin",
+            status="inactive",
+        )
+        async_session.add(system_user)
+        await async_session.flush()
+
+    public_skill = Skill(
+        user_id=SYSTEM_USER_ID,
+        name=name,
+        description="Public download skill",
+        tags=["public"],
+        visibility="public",
+        skill_dir=str(create_skill_dir(SYSTEM_USER_ID, name)),
+        current_version="1.2.4",
+        is_active=True,
+    )
+    async_session.add(public_skill)
+    await async_session.flush()
+
+    version_123_dir = get_skill_versions_dir(SYSTEM_USER_ID, name) / "1.2.3"
+    version_123_dir.mkdir(parents=True, exist_ok=True)
+    (version_123_dir / "SKILL.md").write_text(
+        f"---\nname: {name}\nversion: 1.2.3\n---\npublic body v123",
+        encoding="utf-8",
+    )
+    (version_123_dir / "reference.md").write_text("public reference v123", encoding="utf-8")
+
+    version_124_dir = get_skill_versions_dir(SYSTEM_USER_ID, name) / "1.2.4"
+    version_124_dir.mkdir(parents=True, exist_ok=True)
+    (version_124_dir / "SKILL.md").write_text(
+        f"---\nname: {name}\nversion: 1.2.4\n---\npublic body v124",
+        encoding="utf-8",
+    )
+    (version_124_dir / "reference.md").write_text("public reference v124", encoding="utf-8")
+
+    async_session.add_all(
+        [
+            SkillVersion(
+                skill_id=public_skill.id,
+                version="1.2.3",
+                description="Public download skill",
+                dependencies=[],
+            ),
+            SkillVersion(
+                skill_id=public_skill.id,
+                version="1.2.4",
+                description="Public download skill",
+                dependencies=[],
+            ),
+        ]
+    )
+    await async_session.commit()
+    await async_session.refresh(public_skill)
+    return public_skill
+
+
+def _decode_download_archive(payload: dict) -> dict[str, str]:
+    archive_bytes = base64.b64decode(payload["encrypted_code"])
+    with zipfile.ZipFile(io.BytesIO(archive_bytes), "r") as archive:
+        return {
+            name: archive.read(name).decode("utf-8", errors="replace")
+            for name in archive.namelist()
+        }
 
 
 @pytest.mark.asyncio
@@ -288,3 +370,89 @@ async def test_skill_download_applies_download_specific_rate_limit(client, tmp_p
     payload = second.json()
     assert payload["code"] == "RATE_LIMIT_EXCEEDED"
     assert payload["detail"] == "Too many download requests. Please try again later."
+
+
+@pytest.mark.asyncio
+async def test_public_skill_download_allowed_for_visible_public_skill(client, async_session, tmp_path, monkeypatch):
+    monkeypatch.setenv("SKILL_STORAGE_PATH", str(tmp_path))
+    monkeypatch.setattr(settings, "SKILL_STORAGE_PATH", str(tmp_path))
+    monkeypatch.setattr(settings, "ENABLE_RBAC", False)
+    monkeypatch.setattr(settings, "ENABLE_SKILL_VISIBILITY", True)
+    original_encryption = settings.ENABLE_SKILL_DOWNLOAD_ENCRYPTION
+    settings.ENABLE_SKILL_DOWNLOAD_ENCRYPTION = False
+    try:
+        public_skill = await _create_public_skill(async_session)
+        access = await sso_login(
+            client,
+            email="public-download@example.com",
+            username="publicdownloaduser",
+            enterprise_id="test-ent",
+            team_id="test-team",
+            role="member",
+        )
+        headers = {"Authorization": f"Bearer {access}"}
+
+        response = await client.post(
+            "/api/v1/skills/download",
+            json={"skill_uuid": public_skill.id},
+            headers=headers,
+        )
+
+        assert response.status_code == 200
+        payload = response.json()
+        assert payload["skill_uuid"] == public_skill.id
+        assert payload["version"] == "1.2.4"
+        assert payload["encryption_enabled"] is False
+
+        files = _decode_download_archive(payload)
+        assert files["reference.md"] == "public reference v124"
+        assert "version: 1.2.4" in files["SKILL.md"]
+    finally:
+        settings.ENABLE_SKILL_DOWNLOAD_ENCRYPTION = original_encryption
+
+
+@pytest.mark.asyncio
+async def test_reference_skill_download_uses_pinned_public_version(client, async_session, tmp_path, monkeypatch):
+    monkeypatch.setenv("SKILL_STORAGE_PATH", str(tmp_path))
+    monkeypatch.setattr(settings, "SKILL_STORAGE_PATH", str(tmp_path))
+    monkeypatch.setattr(settings, "ENABLE_RBAC", False)
+    monkeypatch.setattr(settings, "ENABLE_SKILL_VISIBILITY", True)
+    original_encryption = settings.ENABLE_SKILL_DOWNLOAD_ENCRYPTION
+    settings.ENABLE_SKILL_DOWNLOAD_ENCRYPTION = False
+    try:
+        public_skill = await _create_public_skill(async_session, name="public-download-reference-skill")
+        access = await sso_login(
+            client,
+            email="reference-download@example.com",
+            username="referencedownloaduser",
+            enterprise_id="test-ent",
+            team_id="test-team",
+            role="member",
+        )
+        headers = {"Authorization": f"Bearer {access}"}
+
+        created = await client.post(
+            f"/api/v1/skills/{public_skill.id}/reference",
+            json={"name": "public-download-reference", "pinned_version": "1.2.3"},
+            headers=headers,
+        )
+        assert created.status_code == 201
+        reference_id = created.json()["id"]
+
+        response = await client.post(
+            "/api/v1/skills/download",
+            json={"skill_uuid": reference_id},
+            headers=headers,
+        )
+
+        assert response.status_code == 200
+        payload = response.json()
+        assert payload["skill_uuid"] == reference_id
+        assert payload["version"] == "1.2.3"
+
+        files = _decode_download_archive(payload)
+        assert files["reference.md"] == "public reference v123"
+        assert "version: 1.2.3" in files["SKILL.md"]
+        assert "1.2.4" not in files["SKILL.md"]
+    finally:
+        settings.ENABLE_SKILL_DOWNLOAD_ENCRYPTION = original_encryption

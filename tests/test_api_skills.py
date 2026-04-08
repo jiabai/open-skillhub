@@ -11,6 +11,7 @@ from backend.core.utils.skill_storage import (
     create_skill_dir,
     get_skill_versions_dir,
 )
+from backend.models.audit_log import AuditLog
 from backend.models.skill import Skill
 from backend.models.skill_version import SkillVersion
 from backend.models.user import User
@@ -1184,6 +1185,92 @@ async def test_clone_public_skill_and_mark_public_list_flags(client, async_sessi
 
 
 @pytest.mark.asyncio
+async def test_clone_remains_clone_after_followup_version_upload(client, async_session, tmp_path, monkeypatch):
+    monkeypatch.setattr(settings, "SKILL_STORAGE_PATH", str(tmp_path))
+    monkeypatch.setattr(settings, "ENABLE_RBAC", False)
+    monkeypatch.setattr(settings, "ENABLE_SKILL_VISIBILITY", True)
+    public_skill = await _create_public_skill(async_session, tmp_path)
+    headers = await _register_and_login(client, "clone-followup@example.com", "clone-followup")
+
+    cloned = await client.post(
+        f"/api/v1/skills/{public_skill.id}/clone",
+        json={"name": "public-skill-clone-followup", "visible": "private"},
+        headers=headers,
+    )
+    assert cloned.status_code == 201
+    clone_id = cloned.json()["id"]
+
+    second = io.BytesIO()
+    with zipfile.ZipFile(second, "w", zipfile.ZIP_DEFLATED) as archive:
+        archive.writestr("SKILL.md", "---\nname: public-skill-clone-followup\nversion: 1.1.0\n---\nsecond")
+        archive.writestr("reference.md", "second")
+    second.seek(0)
+    uploaded = await client.post(
+        "/api/v1/skills/upload",
+        data={"skill_uuid": clone_id},
+        files={"file": ("skill.zip", second.read(), "application/zip")},
+        headers=headers,
+    )
+    assert uploaded.status_code == 201
+
+    detail = await client.get(f"/api/v1/skills/{clone_id}", headers=headers)
+    assert detail.status_code == 200
+    assert detail.json()["skill_kind"] == "clone"
+
+    listed = await client.get("/api/v1/skills/public", headers=headers)
+    assert listed.status_code == 200
+    item = listed.json()["items"][0]
+    assert item["id"] == public_skill.id
+    assert item["has_clone"] is True
+
+
+@pytest.mark.asyncio
+async def test_clone_audit_log_records_source_version(client, async_session, tmp_path, monkeypatch):
+    monkeypatch.setattr(settings, "SKILL_STORAGE_PATH", str(tmp_path))
+    monkeypatch.setattr(settings, "ENABLE_RBAC", False)
+    monkeypatch.setattr(settings, "ENABLE_SKILL_VISIBILITY", True)
+    monkeypatch.setattr(settings, "ENABLE_AUDIT_LOG", True)
+    public_skill = await _create_public_skill(async_session, tmp_path)
+    headers = await _register_and_login(client, "clone-audit@example.com", "clone-audit")
+
+    cloned = await client.post(
+        f"/api/v1/skills/{public_skill.id}/clone",
+        json={"name": "public-skill-clone-audit", "visible": "private"},
+        headers=headers,
+    )
+    assert cloned.status_code == 201
+
+    result = await async_session.execute(
+        select(AuditLog).where(AuditLog.action == "skill.clone").order_by(AuditLog.timestamp.desc())
+    )
+    audit_log = result.scalars().first()
+    assert audit_log is not None
+    assert audit_log.details["source_skill_id"] == public_skill.id
+    assert audit_log.details["source_version"] == "1.2.3"
+    assert audit_log.details["version"] == "1.0.0"
+
+
+@pytest.mark.asyncio
+async def test_upload_zip_create_skill_invalid_visibility_returns_400(client, tmp_path, monkeypatch):
+    monkeypatch.setenv("SKILL_STORAGE_PATH", str(tmp_path))
+    headers = await _register_and_login(client, "zip-invalid-visible@example.com", "zip-invalid-visible")
+
+    buffer = io.BytesIO()
+    with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as archive:
+        archive.writestr("SKILL.md", "---\nname: skill-invalid-visible\ndescription: desc\nversion: 1.0.0\n---\nbody")
+    buffer.seek(0)
+
+    response = await client.post(
+        "/api/v1/skills/upload",
+        data={"visibility": "invalid"},
+        files={"file": ("skill.zip", buffer.read(), "application/zip")},
+        headers=headers,
+    )
+    assert response.status_code == 400
+    assert response.json()["detail"] == "Invalid visibility"
+
+
+@pytest.mark.asyncio
 async def test_public_list_marks_clone_beyond_500_owned_skills(client, async_session, tmp_path, monkeypatch):
     monkeypatch.setattr(settings, "SKILL_STORAGE_PATH", str(tmp_path))
     monkeypatch.setattr(settings, "ENABLE_RBAC", False)
@@ -1238,6 +1325,50 @@ async def test_public_list_marks_clone_beyond_500_owned_skills(client, async_ses
     item = listed.json()["items"][0]
     assert item["id"] == public_skill.id
     assert item["has_clone"] is True
+
+
+@pytest.mark.asyncio
+async def test_invalid_version_returns_400_not_404(client, tmp_path, monkeypatch):
+    monkeypatch.setenv("SKILL_STORAGE_PATH", str(tmp_path))
+    headers = await _register_and_login(client, "invalid-version@example.com", "invalid-version")
+    created = await client.post(
+        "/api/v1/skills",
+        json={"name": "skill-invalid-version", "description": "desc"},
+        headers=headers,
+    )
+    assert created.status_code == 201
+    skill_id = created.json()["id"]
+
+    response = await client.get(f"/api/v1/skills/{skill_id}/versions/invalid%20version!", headers=headers)
+    assert response.status_code == 400
+    assert response.json()["detail"] == "Invalid version"
+
+
+@pytest.mark.asyncio
+async def test_zip_without_skill_md_returns_400_not_404(client, tmp_path, monkeypatch):
+    monkeypatch.setenv("SKILL_STORAGE_PATH", str(tmp_path))
+    headers = await _register_and_login(client, "missing-skill-md@example.com", "missing-skill-md")
+    created = await client.post(
+        "/api/v1/skills",
+        json={"name": "skill-missing-md", "description": "desc"},
+        headers=headers,
+    )
+    assert created.status_code == 201
+    skill_id = created.json()["id"]
+
+    buffer = io.BytesIO()
+    with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as archive:
+        archive.writestr("reference.md", "missing skill doc")
+    buffer.seek(0)
+
+    response = await client.post(
+        "/api/v1/skills/upload",
+        data={"skill_uuid": skill_id},
+        files={"file": ("skill.zip", buffer.read(), "application/zip")},
+        headers=headers,
+    )
+    assert response.status_code == 400
+    assert response.json()["detail"] == "SKILL.md not found"
 
 
 @pytest.mark.asyncio

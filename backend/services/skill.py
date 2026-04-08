@@ -1,8 +1,7 @@
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 import base64
 import difflib
 import hashlib
-import io
 import json
 import os
 from pathlib import Path
@@ -23,7 +22,6 @@ from backend.core.utils.skill_storage import (
     MAX_FILES_PER_SKILL,
     MAX_FILE_SIZE,
     MAX_TOTAL_SIZE,
-    SYSTEM_USER_ID,
     clear_skill_current_dir,
     create_skill_dir,
     delete_skill_dir,
@@ -39,21 +37,15 @@ from backend.core.utils.skill_archive import (
     bump_patch_version,
     delete_archives_for_skill,
     list_archive_versions,
-    load_archive,
-    save_archive,
     save_archive_from_path,
 )
 from backend.models.skill import Skill
 from backend.models.user import User
 from backend.repositories.skill import SkillRepository
 from backend.repositories.skill_version import SkillVersionRepository
-
-
-class DownloadTooLargeError(ValueError):
-    def __init__(self, size_bytes: int, limit_bytes: int):
-        super().__init__("DOWNLOAD_TOO_LARGE")
-        self.size_bytes = size_bytes
-        self.limit_bytes = limit_bytes
+from backend.services.skill_clone import CloneCreationResult, SkillCloneService
+from backend.services.skill_download import SkillDownloadService
+from backend.services.skill_errors import DownloadTooLargeError, SkillError, SkillErrorCode
 
 
 class SkillService:
@@ -62,6 +54,8 @@ class SkillService:
     def __init__(self, skill_repo: SkillRepository, version_repo: SkillVersionRepository | None = None):
         self.skill_repo = skill_repo
         self.version_repo = version_repo
+        self.clone_service = SkillCloneService(skill_repo, version_repo) if version_repo else None
+        self.download_service = SkillDownloadService(self._encrypt_payload, self._checksum_payload)
 
     async def list_skills(
         self,
@@ -84,9 +78,9 @@ class SkillService:
     async def get_skill(self, user: User, skill_id: str) -> Skill:
         skill = await self.skill_repo.get_by_id(skill_id)
         if not skill:
-            raise ValueError("Skill not found")
+            raise SkillError(SkillErrorCode.SKILL_NOT_FOUND)
         if not is_skill_visible(user, skill):
-            raise ValueError("Skill not found")
+            raise SkillError(SkillErrorCode.SKILL_NOT_FOUND)
         return skill
 
     @staticmethod
@@ -105,12 +99,14 @@ class SkillService:
     async def is_clone_skill(self, skill: Skill) -> bool:
         if self.is_reference_skill(skill) or self.is_public_skill(skill):
             return False
-        if not skill.current_version or not self.version_repo:
+        if not self.clone_service:
             return False
-        record = await self.version_repo.get_by_version(skill.id, skill.current_version)
-        if not record:
-            return False
-        return bool((record.metadata_json or {}).get("cloned_from_skill_id"))
+        return self.clone_service.has_clone_origin(skill) or bool(await self.clone_service.get_clone_origin_metadata(skill))
+
+    async def _get_clone_origin_metadata(self, skill: Skill) -> dict[str, str]:
+        if not self.clone_service:
+            return {}
+        return await self.clone_service.get_clone_origin_metadata(skill)
 
     async def skill_kind(self, skill: Skill) -> str:
         if self.is_reference_skill(skill):
@@ -124,19 +120,19 @@ class SkillService:
     @staticmethod
     def _assert_public_features_enabled() -> None:
         if not SkillService.public_features_enabled():
-            raise ValueError("PUBLIC_SKILLS_DISABLED")
+            raise SkillError(SkillErrorCode.PUBLIC_SKILLS_DISABLED)
 
     @staticmethod
     def _ensure_not_reference(skill: Skill) -> None:
         if SkillService.is_reference_skill(skill):
-            raise ValueError("REFERENCE_SKILL_READ_ONLY")
+            raise SkillError(SkillErrorCode.REFERENCE_SKILL_READ_ONLY)
 
     async def _resolve_source_skill(self, skill: Skill) -> Skill:
         if not skill.source_skill_id:
             return skill
         source_skill = await self.skill_repo.get_by_id(skill.source_skill_id)
         if not source_skill or not self.is_public_skill(source_skill) or not source_skill.is_active:
-            raise ValueError("SOURCE_SKILL_UNAVAILABLE")
+            raise SkillError(SkillErrorCode.SOURCE_SKILL_UNAVAILABLE)
         return source_skill
 
     async def _resolve_version_and_record(
@@ -156,11 +152,11 @@ class SkillService:
             if versions:
                 version = versions[0].version
         if not version:
-            raise ValueError("Version not found")
+            raise SkillError(SkillErrorCode.VERSION_NOT_FOUND)
         version = self._validate_version(version)
         record = await repo.get_by_version(source_skill.id, version)
         if not record:
-            raise ValueError("Version not found")
+            raise SkillError(SkillErrorCode.VERSION_NOT_FOUND)
         return source_skill, version, record
 
     async def resolve_version_dir(
@@ -171,7 +167,7 @@ class SkillService:
         source_skill, version, record = await self._resolve_version_and_record(skill, requested_version)
         version_dir = get_skill_versions_dir(source_skill.user_id, source_skill.name) / version
         if not version_dir.exists():
-            raise ValueError("Version files not found")
+            raise SkillError(SkillErrorCode.VERSION_FILES_NOT_FOUND)
         return source_skill, version, record, version_dir
 
     async def create_skill(
@@ -181,16 +177,17 @@ class SkillService:
         description: str,
         tags: list[str] | None = None,
         visibility: str | None = None,
+        commit: bool = True,
     ) -> Skill:
         valid, error = validate_skill_name(name)
         if not valid:
-            raise ValueError(error)
+            raise SkillError(SkillErrorCode.INVALID_SKILL_NAME, error)
         if await self.skill_repo.get_by_name(user.id, name):
-            raise ValueError("Skill already exists")
+            raise SkillError(SkillErrorCode.SKILL_ALREADY_EXISTS)
         tags = tags or []
         visibility_value = (visibility or settings.DEFAULT_SKILL_VISIBILITY or "private").strip().lower()
         if visibility_value not in {"private", "team", "enterprise"}:
-            raise ValueError("Invalid visibility")
+            raise SkillError(SkillErrorCode.INVALID_VISIBILITY)
         path = create_skill_dir(user.id, name)
         return await self.skill_repo.create(
             user_id=user.id,
@@ -201,6 +198,7 @@ class SkillService:
             enterprise_id=user.enterprise_id,
             team_id=user.team_id,
             skill_dir=str(path),
+            commit=commit,
         )
 
     async def update_skill(self, user: User, skill_id: str, **fields) -> Skill:
@@ -209,12 +207,12 @@ class SkillService:
         if self.is_reference_skill(skill):
             disallowed = {"description", "tags", "visibility"}
             if any(key in fields for key in disallowed):
-                raise ValueError("REFERENCE_SKILL_READ_ONLY")
+                raise SkillError(SkillErrorCode.REFERENCE_SKILL_READ_ONLY)
         visibility = fields.get("visibility")
         if visibility is not None:
             normalized = str(visibility).strip().lower()
             if normalized not in {"private", "team", "enterprise"}:
-                raise ValueError("Invalid visibility")
+                raise SkillError(SkillErrorCode.INVALID_VISIBILITY)
             fields["visibility"] = normalized
         new_name = fields.get("name")
         if new_name is None:
@@ -222,10 +220,10 @@ class SkillService:
         elif new_name != skill.name:
             valid, error = validate_skill_name(new_name)
             if not valid:
-                raise ValueError(error)
+                raise SkillError(SkillErrorCode.INVALID_SKILL_NAME, error)
             existing = await self.skill_repo.get_by_name(user.id, new_name)
             if existing and existing.id != skill.id:
-                raise ValueError("Skill already exists")
+                raise SkillError(SkillErrorCode.SKILL_ALREADY_EXISTS)
             if not self.is_reference_skill(skill):
                 old_dir = get_user_skill_dir(user.id, skill.name)
                 new_dir = get_user_skill_dir(user.id, new_name)
@@ -285,17 +283,17 @@ class SkillService:
             _, _, _, version_dir = await self.resolve_version_dir(skill)
             valid, error = validate_file_path(file_path)
             if not valid:
-                raise ValueError(error)
+                raise SkillError(SkillErrorCode.INVALID_FILE_PATH, error)
             safe_path = (version_dir / file_path).resolve()
             if not safe_path.is_relative_to(version_dir.resolve()):
-                raise ValueError("Invalid file path")
+                raise SkillError(SkillErrorCode.INVALID_FILE_PATH)
         else:
             base_dir = Path(settings.SKILL_STORAGE_PATH)
             safe_path = get_safe_skill_path(base_dir, user.id, skill.name, file_path)
         if not safe_path:
-            raise ValueError("Invalid file path")
+            raise SkillError(SkillErrorCode.INVALID_FILE_PATH)
         if not safe_path.exists() or not safe_path.is_file():
-            raise ValueError("File not found")
+            raise SkillError(SkillErrorCode.FILE_NOT_FOUND)
         return safe_path.read_text(encoding="utf-8", errors="replace")
 
     async def upload_file(self, user: User, skill_id: str, filename: str, content: bytes) -> str:
@@ -318,12 +316,12 @@ class SkillService:
         self._ensure_not_reference(skill)
         valid, error = validate_filename(filename)
         if not valid:
-            raise ValueError(error)
+            raise SkillError(SkillErrorCode.INVALID_FILENAME, error)
         if content_size > MAX_FILE_SIZE:
-            raise ValueError("File too large")
+            raise SkillError(SkillErrorCode.FILE_TOO_LARGE)
         existing = list_files(user.id, skill.name)
         if len(existing) >= MAX_FILES_PER_SKILL:
-            raise ValueError("Too many files in skill")
+            raise SkillError(SkillErrorCode.TOO_MANY_FILES)
         skill_dir = get_user_skill_dir(user.id, skill.name)
         total_size = 0
         for rel_path in existing:
@@ -331,29 +329,29 @@ class SkillService:
             if file_path.exists() and file_path.is_file():
                 total_size += file_path.stat().st_size
         if total_size + content_size > MAX_TOTAL_SIZE:
-            raise ValueError("Total skill size limit exceeded")
+            raise SkillError(SkillErrorCode.TOTAL_SKILL_SIZE_LIMIT_EXCEEDED)
         base_dir = Path(settings.SKILL_STORAGE_PATH)
         safe_path = get_safe_skill_path(base_dir, user.id, skill.name, filename)
         if not safe_path:
-            raise ValueError("Invalid file path")
+            raise SkillError(SkillErrorCode.INVALID_FILE_PATH)
         safe_path.parent.mkdir(parents=True, exist_ok=True)
         shutil.copyfile(source_path, safe_path)
         return filename
 
     def _require_version_repo(self) -> SkillVersionRepository:
         if not self.version_repo:
-            raise ValueError("Version repository not configured")
+            raise SkillError(SkillErrorCode.VERSION_REPOSITORY_NOT_CONFIGURED)
         return self.version_repo
 
     @staticmethod
     def _ensure_active(skill: Skill) -> None:
         if not skill.is_active:
-            raise ValueError("SKILL_DEACTIVATED")
+            raise SkillError(SkillErrorCode.SKILL_DEACTIVATED)
 
     @staticmethod
     def _ensure_owner(user: User, skill: Skill) -> None:
         if skill.user_id != user.id:
-            raise ValueError("Skill not found")
+            raise SkillError(SkillErrorCode.SKILL_NOT_FOUND)
 
     @staticmethod
     def _parse_frontmatter(content: str) -> dict:
@@ -378,17 +376,17 @@ class SkillService:
     def _validate_version(version: str) -> str:
         normalized = str(version or "").strip()
         if not normalized:
-            raise ValueError("Invalid version")
+            raise SkillError(SkillErrorCode.INVALID_VERSION)
         if len(normalized) > 100:
-            raise ValueError("Invalid version")
+            raise SkillError(SkillErrorCode.INVALID_VERSION)
         if normalized.startswith("."):
-            raise ValueError("Invalid version")
+            raise SkillError(SkillErrorCode.INVALID_VERSION)
         if "/" in normalized or "\\" in normalized:
-            raise ValueError("Invalid version")
+            raise SkillError(SkillErrorCode.INVALID_VERSION)
         if ".." in normalized or normalized in {".", ".."}:
-            raise ValueError("Invalid version")
+            raise SkillError(SkillErrorCode.INVALID_VERSION)
         if not re.fullmatch(r"[a-zA-Z0-9_\-\.]+", normalized):
-            raise ValueError("Invalid version")
+            raise SkillError(SkillErrorCode.INVALID_VERSION)
         return normalized
 
     @staticmethod
@@ -565,14 +563,14 @@ class SkillService:
         self._assert_public_features_enabled()
         skill = await self.skill_repo.get_public_by_id(skill_id)
         if not skill or not skill.is_active:
-            raise ValueError("SKILL_NOT_FOUND")
+            raise SkillError(SkillErrorCode.SKILL_NOT_FOUND)
         return skill
 
     async def _get_public_source_skill(self, skill_id: str) -> Skill:
         self._assert_public_features_enabled()
         skill = await self.skill_repo.get_public_by_id(skill_id)
         if not skill or not skill.is_active:
-            raise ValueError("SKILL_NOT_FOUND")
+            raise SkillError(SkillErrorCode.SKILL_NOT_FOUND)
         return skill
 
     async def create_reference_skill(
@@ -586,12 +584,12 @@ class SkillService:
         source_skill = await self._get_public_source_skill(public_skill_id)
         valid, error = validate_skill_name(name)
         if not valid:
-            raise ValueError(error)
+            raise SkillError(SkillErrorCode.INVALID_SKILL_NAME, error)
         existing_reference = await self.skill_repo.get_reference_by_source(user.id, source_skill.id)
         if existing_reference:
-            raise ValueError("REFERENCE_ALREADY_EXISTS")
+            raise SkillError(SkillErrorCode.REFERENCE_ALREADY_EXISTS)
         if await self.skill_repo.get_by_name(user.id, name):
-            raise ValueError("Skill already exists")
+            raise SkillError(SkillErrorCode.SKILL_ALREADY_EXISTS)
         pinned_value = None
         if pinned_version:
             _, pinned_value, _ = await self._resolve_version_and_record(source_skill, pinned_version)
@@ -616,100 +614,47 @@ class SkillService:
         public_skill_id: str,
         name: str,
         visibility: str = "private",
-    ) -> dict:
+    ) -> CloneCreationResult:
         self._assert_public_features_enabled()
-        repo = self._require_version_repo()
+        if not self.clone_service:
+            raise SkillError(SkillErrorCode.VERSION_REPOSITORY_NOT_CONFIGURED)
         source_skill = await self._get_public_source_skill(public_skill_id)
-        _, resolved_version, source_record, source_version_dir = await self.resolve_version_dir(source_skill)
-        skill = None
-        try:
-            skill = await self.create_skill(
-                user,
-                name,
-                source_skill.description,
-                tags=list(source_skill.tags or []),
-                visibility=visibility,
-            )
-            version = "1.0.0"
-            version_dir = get_skill_versions_dir(skill.user_id, skill.name) / version
-            version_dir.mkdir(parents=True, exist_ok=True)
-            for entry_path in source_version_dir.rglob("*"):
-                if not entry_path.is_file():
-                    continue
-                relative = entry_path.relative_to(source_version_dir)
-                target = version_dir / relative
-                target.parent.mkdir(parents=True, exist_ok=True)
-                shutil.copy2(entry_path, target)
-            clear_skill_current_dir(skill.user_id, skill.name)
-            root_dir = get_user_skill_dir(skill.user_id, skill.name)
-            for entry_path in version_dir.rglob("*"):
-                if not entry_path.is_file():
-                    continue
-                relative = entry_path.relative_to(version_dir)
-                target = root_dir / relative
-                target.parent.mkdir(parents=True, exist_ok=True)
-                shutil.copy2(entry_path, target)
-            metadata = dict(source_record.metadata_json or {})
-            metadata["cloned_from_skill_id"] = source_skill.id
-            metadata["cloned_from_version"] = resolved_version
-            record = await repo.create_version(
-                skill_id=skill.id,
-                version=version,
-                description=source_record.description,
-                dependencies=list(source_record.dependencies or []),
-                dependency_spec=dict(source_record.dependency_spec or {}),
-                dependency_spec_version=source_record.dependency_spec_version,
-                metadata=metadata,
-            )
-            await self.skill_repo.update(skill, current_version=version, description=record.description, is_active=True)
-            return {
-                "skill": skill,
-                "version": record.version,
-                "current_version": version,
-            }
-        except Exception:
-            if skill is not None:
-                try:
-                    await self.skill_repo.session.rollback()
-                except Exception:
-                    pass
-                try:
-                    persisted_skill = await self.skill_repo.get_by_id(skill.id)
-                    if persisted_skill:
-                        await self.skill_repo.delete(persisted_skill)
-                except Exception:
-                    logger.exception("Failed to delete partially created cloned skill")
-                try:
-                    delete_skill_dir(skill.user_id, skill.name)
-                except Exception:
-                    logger.exception("Failed to clean up partially created cloned skill directory")
-            raise
+        _, _resolved_version, source_record, source_version_dir = await self.resolve_version_dir(source_skill)
+        return await self.clone_service.create_clone(
+            user=user,
+            source_skill=source_skill,
+            source_record=source_record,
+            source_version_dir=source_version_dir,
+            create_skill=self.create_skill,
+            visibility=visibility,
+            name=name,
+        )
 
     async def pin_reference_version(self, user: User, skill_id: str, version: str) -> Skill:
         skill = await self.get_skill(user, skill_id)
         self._ensure_owner(user, skill)
         if not self.is_reference_skill(skill):
-            raise ValueError("Skill not found")
+            raise SkillError(SkillErrorCode.SKILL_NOT_FOUND)
         normalized = self._validate_version(version)
         source_skill = await self._resolve_source_skill(skill)
         repo = self._require_version_repo()
         record = await repo.get_by_version(source_skill.id, normalized)
         if not record:
-            raise ValueError("Version not found")
+            raise SkillError(SkillErrorCode.VERSION_NOT_FOUND)
         return await self.skill_repo.update(skill, pinned_version=normalized)
 
     async def unpin_reference_version(self, user: User, skill_id: str) -> Skill:
         skill = await self.get_skill(user, skill_id)
         self._ensure_owner(user, skill)
         if not self.is_reference_skill(skill):
-            raise ValueError("Skill not found")
+            raise SkillError(SkillErrorCode.SKILL_NOT_FOUND)
         return await self.skill_repo.update(skill, pinned_version=None)
 
     async def resolved_version_for_skill(self, skill: Skill) -> str | None:
         try:
             _, version, _ = await self._resolve_version_and_record(skill)
             return version
-        except ValueError:
+        except SkillError:
             return None
 
     async def list_versions(self, user: User, skill_id: str):
@@ -725,51 +670,21 @@ class SkillService:
         source_skill = await self._resolve_source_skill(skill)
         record = await repo.get_by_version(source_skill.id, version)
         if not record:
-            raise ValueError("Version not found")
+            raise SkillError(SkillErrorCode.VERSION_NOT_FOUND)
         return record
 
     async def download_skill(self, user: User, skill_id: str, version: str | None = None) -> dict:
         skill = await self.get_skill(user, skill_id)
         self._ensure_active(skill)
         source_skill, target_version, _record, version_dir = await self.resolve_version_dir(skill, version)
-        archive_bytes = await load_archive(source_skill.user_id, source_skill.name, target_version)
-        if archive_bytes is None:
-            buffer = io.BytesIO()
-            with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as archive:
-                for file_path in version_dir.rglob("*"):
-                    if not file_path.is_file():
-                        continue
-                    relative = file_path.relative_to(version_dir)
-                    archive.write(file_path, arcname=relative.as_posix())
-            archive_bytes = buffer.getvalue()
-            await save_archive(source_skill.user_id, source_skill.name, target_version, archive_bytes)
-        archive_size_bytes = len(archive_bytes)
-        if archive_size_bytes > settings.SKILL_DOWNLOAD_MAX_ARCHIVE_BYTES:
-            raise DownloadTooLargeError(archive_size_bytes, settings.SKILL_DOWNLOAD_MAX_ARCHIVE_BYTES)
-        if settings.ENABLE_SKILL_DOWNLOAD_ENCRYPTION:
-            encrypted_code, checksum = self._encrypt_payload(archive_bytes)
-        else:
-            encrypted_code = base64.b64encode(archive_bytes).decode("utf-8")
-            checksum = self._checksum_payload(archive_bytes)
-        expires_at = datetime.now(timezone.utc) + timedelta(hours=1)
-        encryption_enabled = settings.ENABLE_SKILL_DOWNLOAD_ENCRYPTION
-        filename_suffix = ".encrypted.json" if encryption_enabled else ".json"
-        return {
-            "skill_uuid": skill.id,
-            "version": target_version,
-            "encrypted_code": encrypted_code,
-            "checksum": checksum,
-            "expires_at": expires_at,
-            "cache_ttl_seconds": settings.SKILL_CACHE_TTL_SECONDS,
-            "archive_size_bytes": archive_size_bytes,
-            "encryption_enabled": encryption_enabled,
-            "download_filename": f"skill-{skill.id[:8]}-{target_version}{filename_suffix}",
-            "decryption_hint": (
-                "This download is encrypted and requires the official decryption tool before use."
-                if encryption_enabled
-                else None
-            ),
-        }
+        return await self.download_service.build_download_payload(
+            skill_id=skill.id,
+            skill_uuid=skill.id,
+            target_version=target_version,
+            version_dir=version_dir,
+            source_user_id=source_skill.user_id,
+            source_skill_name=source_skill.name,
+        )
 
     async def get_install_instructions(self, user: User, skill_id: str, version: str) -> dict:
         skill = await self.get_skill(user, skill_id)
@@ -827,9 +742,9 @@ class SkillService:
         from_dir = (base_dir / from_version).resolve()
         to_dir = (base_dir / to_version).resolve()
         if not from_dir.is_relative_to(base_resolved) or not to_dir.is_relative_to(base_resolved):
-            raise ValueError("Invalid version")
+            raise SkillError(SkillErrorCode.INVALID_VERSION)
         if not from_dir.exists() or not to_dir.exists():
-            raise ValueError("Version files not found")
+            raise SkillError(SkillErrorCode.VERSION_FILES_NOT_FOUND)
         from_files = {
             str(path.relative_to(from_dir)).replace("\\", "/")
             for path in from_dir.rglob("*")
@@ -873,14 +788,14 @@ class SkillService:
         version = self._validate_version(version)
         record = await repo.get_by_version(skill.id, version)
         if not record:
-            raise ValueError("Version not found")
+            raise SkillError(SkillErrorCode.VERSION_NOT_FOUND)
         base_dir = get_skill_versions_dir(user.id, skill.name)
         base_resolved = base_dir.resolve()
         version_dir = (base_dir / version).resolve()
         if not version_dir.is_relative_to(base_resolved):
-            raise ValueError("Invalid version")
+            raise SkillError(SkillErrorCode.INVALID_VERSION)
         if not version_dir.exists():
-            raise ValueError("Version files not found")
+            raise SkillError(SkillErrorCode.VERSION_FILES_NOT_FOUND)
         clear_skill_current_dir(user.id, skill.name)
         root_dir = get_user_skill_dir(user.id, skill.name)
         for file_path in version_dir.rglob("*"):
@@ -923,37 +838,37 @@ class SkillService:
         self._ensure_not_reference(skill)
         logger.debug(f"[UPLOAD_ZIP] Found skill: name={skill.name}")
         if not filename.lower().endswith(".zip"):
-            raise ValueError("Invalid zip file")
+            raise SkillError(SkillErrorCode.INVALID_ZIP_FILE)
         try:
             archive = zipfile.ZipFile(archive_path)
         except zipfile.BadZipFile as exc:
             logger.error(f"[UPLOAD_ZIP] Invalid zip file: {str(exc)}")
-            raise ValueError("Invalid zip file") from exc
+            raise SkillError(SkillErrorCode.INVALID_ZIP_FILE) from exc
         with archive:
             entries = [info for info in archive.infolist() if not info.is_dir()]
             logger.debug(f"[UPLOAD_ZIP] Found {len(entries)} files in zip")
             if not entries:
-                raise ValueError("Zip is empty")
+                raise SkillError(SkillErrorCode.ZIP_EMPTY)
             if len(entries) > MAX_FILES_PER_SKILL:
-                raise ValueError("Too many files in skill")
+                raise SkillError(SkillErrorCode.TOO_MANY_FILES)
             total_size = sum(info.file_size for info in entries)
             logger.debug(f"[UPLOAD_ZIP] Total file size: {total_size} bytes")
             if total_size > MAX_TOTAL_SIZE:
-                raise ValueError("Total skill size limit exceeded")
+                raise SkillError(SkillErrorCode.TOTAL_SKILL_SIZE_LIMIT_EXCEEDED)
             for info in entries:
                 if info.file_size > MAX_FILE_SIZE:
-                    raise ValueError("File too large")
+                    raise SkillError(SkillErrorCode.FILE_TOO_LARGE)
                 file_path = info.filename.replace("\\", "/").lstrip("/")
                 valid, error = validate_file_path(file_path)
                 if not valid:
-                    raise ValueError(error)
+                    raise SkillError(SkillErrorCode.INVALID_FILE_PATH, error)
             skill_md = next(
                 (info for info in entries if info.filename.replace("\\", "/").lstrip("/") == "SKILL.md"),
                 None,
             )
             if not skill_md:
                 logger.error(f"[UPLOAD_ZIP] SKILL.md not found in zip")
-                raise ValueError("SKILL.md not found")
+                raise SkillError(SkillErrorCode.SKILL_MD_NOT_FOUND)
             logger.debug(f"[UPLOAD_ZIP] Found SKILL.md")
             skill_md_content = archive.read(skill_md).decode("utf-8", errors="replace")
             frontmatter = self._parse_frontmatter(skill_md_content)
@@ -962,7 +877,7 @@ class SkillService:
                 try:
                     parsed = json.loads(metadata_text)
                 except json.JSONDecodeError as exc:
-                    raise ValueError("Invalid metadata") from exc
+                    raise SkillError(SkillErrorCode.INVALID_METADATA) from exc
                 if isinstance(parsed, dict):
                     metadata = parsed
             version = str(metadata.get("version") or frontmatter.get("version") or "").strip()
@@ -1014,9 +929,9 @@ class SkillService:
             base_resolved = base_dir.resolve()
             version_dir = (base_dir / version).resolve()
             if not version_dir.is_relative_to(base_resolved):
-                raise ValueError("Invalid version")
+                raise SkillError(SkillErrorCode.INVALID_VERSION)
             if version_dir.exists():
-                raise ValueError("Version already exists")
+                raise SkillError(SkillErrorCode.VERSION_ALREADY_EXISTS)
             logger.debug(f"[UPLOAD_ZIP] Creating version directory: {version_dir}")
             version_dir.mkdir(parents=True, exist_ok=True)
             logger.debug(f"[UPLOAD_ZIP] Extracting {len(entries)} files to version directory")
@@ -1036,6 +951,14 @@ class SkillService:
                 target.parent.mkdir(parents=True, exist_ok=True)
                 shutil.copy2(entry_path, target)
             logger.debug(f"[UPLOAD_ZIP] Creating version record, version={version}")
+            version_metadata = {
+                "name": metadata.get("name") or frontmatter.get("name") or skill.name,
+                "description": description,
+                "version": version,
+                "dependencies": dependencies,
+                "dependency_spec": dependency_spec,
+            }
+            version_metadata.update(await self._get_clone_origin_metadata(skill))
             record = await repo.create_version(
                 skill_id=skill.id,
                 version=version,
@@ -1043,13 +966,7 @@ class SkillService:
                 dependencies=dependencies,
                 dependency_spec=dependency_spec,
                 dependency_spec_version=dependency_spec_version,
-                metadata={
-                    "name": metadata.get("name") or frontmatter.get("name") or skill.name,
-                    "description": description,
-                    "version": version,
-                    "dependencies": dependencies,
-                    "dependency_spec": dependency_spec,
-                },
+                metadata=version_metadata,
             )
             await self.skill_repo.update(skill, current_version=version, description=description, is_active=True)
             logger.debug(f"[UPLOAD_ZIP] Saving archive, version={version}")
@@ -1085,49 +1002,49 @@ class SkillService:
         archive_size = archive_path.stat().st_size if archive_path.exists() else 0
         logger.debug(f"[UPLOAD_ZIP_CREATE] user_id={user.id}, filename={filename}, content_size={archive_size} bytes")
         if not filename.lower().endswith(".zip"):
-            raise ValueError("Invalid zip file")
+            raise SkillError(SkillErrorCode.INVALID_ZIP_FILE)
         try:
             archive = zipfile.ZipFile(archive_path)
         except zipfile.BadZipFile as exc:
             logger.error(f"[UPLOAD_ZIP_CREATE] Invalid zip file: {str(exc)}")
-            raise ValueError("Invalid zip file") from exc
+            raise SkillError(SkillErrorCode.INVALID_ZIP_FILE) from exc
         with archive:
             entries = [info for info in archive.infolist() if not info.is_dir()]
             logger.debug(f"[UPLOAD_ZIP_CREATE] Found {len(entries)} files in zip")
             if not entries:
-                raise ValueError("Zip is empty")
+                raise SkillError(SkillErrorCode.ZIP_EMPTY)
             if len(entries) > MAX_FILES_PER_SKILL:
-                raise ValueError("Too many files in skill")
+                raise SkillError(SkillErrorCode.TOO_MANY_FILES)
             total_size = sum(info.file_size for info in entries)
             logger.debug(f"[UPLOAD_ZIP_CREATE] Total file size: {total_size} bytes")
             if total_size > MAX_TOTAL_SIZE:
-                raise ValueError("Total skill size limit exceeded")
+                raise SkillError(SkillErrorCode.TOTAL_SKILL_SIZE_LIMIT_EXCEEDED)
             for info in entries:
                 if info.file_size > MAX_FILE_SIZE:
-                    raise ValueError("File too large")
+                    raise SkillError(SkillErrorCode.FILE_TOO_LARGE)
                 file_path = info.filename.replace("\\", "/").lstrip("/")
                 valid, error = validate_file_path(file_path)
                 if not valid:
-                    raise ValueError(error)
+                    raise SkillError(SkillErrorCode.INVALID_FILE_PATH, error)
             skill_md = next(
                 (info for info in entries if info.filename.replace("\\", "/").lstrip("/") == "SKILL.md"),
                 None,
             )
             if not skill_md:
                 logger.error(f"[UPLOAD_ZIP_CREATE] SKILL.md not found in zip")
-                raise ValueError("SKILL.md not found in zip")
+                raise SkillError(SkillErrorCode.SKILL_MD_NOT_FOUND_IN_ZIP)
             logger.debug(f"[UPLOAD_ZIP_CREATE] Found SKILL.md")
             skill_md_content = archive.read(skill_md).decode("utf-8", errors="replace")
             frontmatter = self._parse_frontmatter(skill_md_content)
             name = str(frontmatter.get("name") or "").strip()
             logger.debug(f"[UPLOAD_ZIP_CREATE] Parsed skill name: {name}")
             if not name:
-                raise ValueError("Skill name not found in SKILL.md frontmatter")
+                raise SkillError(SkillErrorCode.SKILL_MD_NAME_MISSING)
             valid, error = validate_skill_name(name)
             if not valid:
-                raise ValueError(error)
+                raise SkillError(SkillErrorCode.INVALID_SKILL_NAME, error)
             if await self.skill_repo.get_by_name(user.id, name):
-                raise ValueError(f"Skill '{name}' already exists")
+                raise SkillError(SkillErrorCode.SKILL_ALREADY_EXISTS, f"Skill '{name}' already exists")
             orphan_versions = list_archive_versions(user.id, name)
             logger.debug(f"[UPLOAD_ZIP_CREATE] Found orphan versions: {orphan_versions}")
             if orphan_versions:
@@ -1145,7 +1062,7 @@ class SkillService:
                         if new_parts <= latest_parts:
                             version = bump_patch_version(latest_orphan)
                             logger.debug(f"[UPLOAD_ZIP_CREATE] Bumped version: {version}")
-                    except ValueError:
+                    except (ValueError, SkillError):
                         version = bump_patch_version(latest_orphan)
                         logger.debug(f"[UPLOAD_ZIP_CREATE] Bumped version (invalid original): {version}")
             else:
@@ -1158,7 +1075,7 @@ class SkillService:
             description = str(frontmatter.get("description") or "").strip()
             visibility_value = (visibility or "private").strip().lower()
             if visibility_value not in {"private", "team", "enterprise"}:
-                visibility_value = "private"
+                raise SkillError(SkillErrorCode.INVALID_VISIBILITY)
             skill = await self.create_skill(user, name, description, visibility=visibility_value)
             existing = await repo.get_by_version(skill.id, version)
             if existing:
@@ -1200,9 +1117,9 @@ class SkillService:
             base_resolved = base_dir.resolve()
             version_dir = (base_dir / version).resolve()
             if not version_dir.is_relative_to(base_resolved):
-                raise ValueError("Invalid version")
+                raise SkillError(SkillErrorCode.INVALID_VERSION)
             if version_dir.exists():
-                raise ValueError("Version already exists")
+                raise SkillError(SkillErrorCode.VERSION_ALREADY_EXISTS)
             logger.debug(f"[UPLOAD_ZIP_CREATE] Creating version directory: {version_dir}")
             version_dir.mkdir(parents=True, exist_ok=True)
             logger.debug(f"[UPLOAD_ZIP_CREATE] Extracting {len(entries)} files to version directory")

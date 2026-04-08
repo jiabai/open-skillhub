@@ -20,6 +20,7 @@ from backend.models.skill_version import SkillVersion
 from backend.repositories.skill import SkillRepository
 from backend.repositories.skill_version import SkillVersionRepository
 from backend.services.skill import SkillService
+from backend.services.skill_errors import SkillError, SkillErrorCode
 
 
 @pytest.fixture
@@ -187,8 +188,10 @@ class TestSkillServiceSkillOperations:
         mock_skill_repo.get_by_name = AsyncMock(return_value=test_skill)
         service = SkillService(mock_skill_repo, None)
 
-        with pytest.raises(ValueError, match="Skill already exists"):
+        with pytest.raises(SkillError) as exc_info:
             await service.create_skill(test_user, "test-skill", "description")
+        assert exc_info.value.code == SkillErrorCode.SKILL_ALREADY_EXISTS
+        assert exc_info.value.detail == "Skill already exists"
 
     @pytest.mark.asyncio
     async def test_create_skill_invalid_name(
@@ -386,7 +389,7 @@ class TestSkillServiceSkillOperations:
             await service.clone_public_skill(test_user, source_skill.id, clone_skill.name, "private")
 
         mock_session.rollback.assert_awaited()
-        mock_skill_repo.delete.assert_awaited_once_with(clone_skill)
+        mock_skill_repo.delete.assert_not_awaited()
         assert not get_user_skill_dir(test_user.id, clone_skill.name).exists()
 
 
@@ -444,8 +447,10 @@ class TestSkillServiceGetSkill:
         mock_skill_repo.get_by_id = AsyncMock(return_value=None)
         service = SkillService(mock_skill_repo, None)
 
-        with pytest.raises(ValueError, match="Skill not found"):
+        with pytest.raises(SkillError) as exc_info:
             await service.get_skill(test_user, "non-existent-id")
+        assert exc_info.value.code == SkillErrorCode.SKILL_NOT_FOUND
+        assert exc_info.value.detail == "Skill not found"
 
 
 class TestSkillServiceReadFile:
@@ -487,8 +492,10 @@ class TestSkillServiceReadFile:
 
         service = SkillService(mock_skill_repo, None)
 
-        with pytest.raises(ValueError, match="File not found"):
+        with pytest.raises(SkillError) as exc_info:
             await service.read_skill_file(test_user, "skill-uuid-123", "nonexistent.txt")
+        assert exc_info.value.code == SkillErrorCode.FILE_NOT_FOUND
+        assert exc_info.value.detail == "File not found"
 
 
 class TestSkillServiceStaticMethods:
@@ -670,14 +677,18 @@ class TestSkillServicePublicReferenceClone:
         mock_skill_repo.get_by_name = AsyncMock(return_value=None)
         mock_skill_repo.create = AsyncMock(return_value=clone_skill)
         mock_skill_repo.update = AsyncMock(return_value=clone_skill)
+        mock_session = AsyncMock()
+        mock_skill_repo.session = mock_session
         mock_version_repo.get_by_version = AsyncMock(side_effect=lambda skill_id, version: source_record if skill_id == source_skill.id and version == "1.2.3" else None)
         mock_version_repo.create_version = AsyncMock(return_value=created_record)
 
         service = SkillService(mock_skill_repo, mock_version_repo)
         result = await service.clone_public_skill(test_user, source_skill.id, clone_skill.name, "private")
 
-        assert result["skill"].id == clone_skill.id
-        assert result["version"] == "1.0.0"
+        assert result.skill.id == clone_skill.id
+        assert result.version == "1.0.0"
+        assert result.source_version == "1.2.3"
+        mock_session.commit.assert_awaited_once()
 
         create_call = mock_version_repo.create_version.await_args.kwargs
         assert create_call["skill_id"] == clone_skill.id
@@ -690,6 +701,132 @@ class TestSkillServicePublicReferenceClone:
         clone_version_dir = get_skill_versions_dir(test_user.id, clone_skill.name) / "1.0.0"
         assert (clone_current_dir / "reference.md").read_text(encoding="utf-8") == "public reference"
         assert (clone_version_dir / "reference.md").read_text(encoding="utf-8") == "public reference"
+
+    @pytest.mark.asyncio
+    async def test_is_clone_skill_uses_historical_clone_metadata(
+        self, mock_skill_repo, mock_version_repo, test_user
+    ):
+        clone_skill = MagicMock(spec=Skill)
+        clone_skill.id = "clone-skill-id"
+        clone_skill.name = "public-skill-copy"
+        clone_skill.user_id = test_user.id
+        clone_skill.current_version = "1.1.0"
+        clone_skill.visibility = "private"
+        clone_skill.source_skill_id = None
+
+        latest_record = MagicMock(spec=SkillVersion)
+        latest_record.version = "1.1.0"
+        latest_record.metadata_json = {}
+
+        original_clone_record = MagicMock(spec=SkillVersion)
+        original_clone_record.version = "1.0.0"
+        original_clone_record.metadata_json = {
+            "cloned_from_skill_id": "public-skill-id",
+            "cloned_from_version": "1.2.3",
+        }
+
+        mock_version_repo.list_by_skill = AsyncMock(return_value=[latest_record, original_clone_record])
+
+        service = SkillService(mock_skill_repo, mock_version_repo)
+        assert await service.is_clone_skill(clone_skill) is True
+
+    @pytest.mark.asyncio
+    async def test_get_clone_origin_metadata_uses_historical_clone_metadata(
+        self, mock_skill_repo, mock_version_repo, test_user
+    ):
+        clone_skill = MagicMock(spec=Skill)
+        clone_skill.id = "clone-skill-id"
+        clone_skill.name = "public-skill-copy"
+        clone_skill.user_id = test_user.id
+        clone_skill.current_version = "1.1.0"
+        clone_skill.visibility = "private"
+        clone_skill.source_skill_id = None
+
+        latest_record = MagicMock(spec=SkillVersion)
+        latest_record.version = "1.1.0"
+        latest_record.metadata_json = {}
+
+        original_clone_record = MagicMock(spec=SkillVersion)
+        original_clone_record.version = "1.0.0"
+        original_clone_record.metadata_json = {
+            "cloned_from_skill_id": "public-skill-id",
+            "cloned_from_version": "1.2.3",
+        }
+
+        mock_version_repo.list_by_skill = AsyncMock(return_value=[latest_record, original_clone_record])
+
+        service = SkillService(mock_skill_repo, mock_version_repo)
+        assert await service._get_clone_origin_metadata(clone_skill) == {
+            "cloned_from_skill_id": "public-skill-id",
+            "cloned_from_version": "1.2.3",
+        }
+
+    @pytest.mark.asyncio
+    async def test_clone_public_skill_uses_single_transaction_without_intermediate_commits(
+        self, mock_skill_repo, mock_version_repo, test_user, tmp_path, monkeypatch
+    ):
+        monkeypatch.setattr(settings, "SKILL_STORAGE_PATH", str(tmp_path))
+        monkeypatch.setattr(settings, "ENABLE_SKILL_VISIBILITY", True)
+        monkeypatch.setattr(settings, "ENABLE_RBAC", False)
+
+        source_skill = MagicMock(spec=Skill)
+        source_skill.id = "public-skill-id"
+        source_skill.name = "public-skill"
+        source_skill.user_id = "system-user"
+        source_skill.description = "Public skill description"
+        source_skill.tags = ["public"]
+        source_skill.current_version = "1.2.3"
+        source_skill.source_skill_id = None
+        source_skill.is_active = True
+        source_skill.visibility = "public"
+
+        clone_skill = MagicMock(spec=Skill)
+        clone_skill.id = "clone-skill-id"
+        clone_skill.name = "public-skill-copy"
+        clone_skill.user_id = test_user.id
+        clone_skill.description = source_skill.description
+        clone_skill.tags = list(source_skill.tags)
+        clone_skill.current_version = None
+        clone_skill.is_active = True
+        clone_skill.visibility = "private"
+        clone_skill.source_skill_id = None
+
+        source_record = MagicMock(spec=SkillVersion)
+        source_record.version = "1.2.3"
+        source_record.description = source_skill.description
+        source_record.dependencies = []
+        source_record.dependency_spec = {}
+        source_record.dependency_spec_version = None
+        source_record.metadata_json = {}
+
+        created_record = MagicMock(spec=SkillVersion)
+        created_record.version = "1.0.0"
+        created_record.description = source_skill.description
+
+        source_dir = get_skill_versions_dir(source_skill.user_id, source_skill.name) / "1.2.3"
+        source_dir.mkdir(parents=True, exist_ok=True)
+        (source_dir / "SKILL.md").write_text("---\nname: public-skill\nversion: 1.2.3\n---\nbody", encoding="utf-8")
+
+        mock_skill_repo.get_public_by_id = AsyncMock(return_value=source_skill)
+        mock_skill_repo.get_by_name = AsyncMock(return_value=None)
+        mock_skill_repo.create = AsyncMock(return_value=clone_skill)
+        mock_skill_repo.update = AsyncMock(return_value=clone_skill)
+        mock_version_repo.get_by_version = AsyncMock(
+            side_effect=lambda skill_id, version: source_record if skill_id == source_skill.id and version == "1.2.3" else None
+        )
+        mock_version_repo.create_version = AsyncMock(return_value=created_record)
+
+        mock_session = AsyncMock()
+        mock_skill_repo.session = mock_session
+
+        service = SkillService(mock_skill_repo, mock_version_repo)
+        result = await service.clone_public_skill(test_user, source_skill.id, clone_skill.name, "private")
+
+        assert result.skill.id == clone_skill.id
+        mock_session.commit.assert_awaited_once()
+        assert mock_skill_repo.create.await_args.kwargs["commit"] is False
+        assert mock_version_repo.create_version.await_args.kwargs["commit"] is False
+        assert mock_skill_repo.update.await_args.kwargs["commit"] is False
 
     @pytest.mark.asyncio
     async def test_update_reference_name_does_not_create_local_directory(

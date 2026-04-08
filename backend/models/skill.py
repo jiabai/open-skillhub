@@ -24,13 +24,31 @@ class Skill(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         index=True,
     )
     pinned_version: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    cloned_from_skill_id: Mapped[str | None] = mapped_column(
+        String(36),
+        ForeignKey("skills.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    cloned_from_version: Mapped[str | None] = mapped_column(String(50), nullable=True)
     skill_dir: Mapped[str] = mapped_column(String(500))
     current_version: Mapped[str | None] = mapped_column(String(50), nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     cache_revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     user = relationship("User", back_populates="skills")
-    source_skill = relationship("Skill", remote_side="Skill.id", uselist=False)
+    source_skill = relationship(
+        "Skill",
+        remote_side="Skill.id",
+        uselist=False,
+        foreign_keys=[source_skill_id],
+    )
+    cloned_from_skill = relationship(
+        "Skill",
+        remote_side="Skill.id",
+        uselist=False,
+        foreign_keys=[cloned_from_skill_id],
+    )
     versions = relationship(
         "SkillVersion",
         back_populates="skill",

@@ -1,368 +1,250 @@
 # 不开启 RBAC 情况下用户上传 Skill 的完整流程
 
-基于代码分析，以下是完整的上传流程：
+> 本文档聚焦上传操作的端到端流程。权限模型和完整功能列表请参考 [feature-list-without-rbac.md](./feature-list-without-rbac.md)。
 
-## 一、整体架构流程图
+---
+
+## 目录
+
+- [整体流程](#整体流程)
+- [三种上传模式](#三种上传模式)
+- [端到端时序](#端到端时序)
+- [存储结构](#存储结构)
+- [安全限制](#安全限制)
+- [错误码速查](#错误码速查)
+
+---
+
+## 整体流程
+
+```mermaid
+flowchart TD
+    A["客户端 POST /api/v1/skills/upload"] --> B["JWT 认证"]
+    B --> C["RBAC 检查: skill.upload"]
+    
+    C -->|"ENABLE_RBAC=False"| D["直接放行 ✅"]
+    C -->|"ENABLE_RBAC=True"| D2{"角色有权限?"}
+    D2 -->|"是"| D
+    D2 -->|"否"| DENY["403 Permission Denied"]
+    
+    D --> E["流式写入临时文件<br/>(64KB chunks, 边收边校验)"]
+    E --> F{是 ZIP 文件?}
+    
+    F -->|"✅ ZIP"| G{提供了 skill_uuid?}
+    F -->|"❌ 非ZIP"| H["模式C: 单文件上传"]
+    
+    G -->|"无 uuid"| I["模式A: ZIP 新建 Skill"]
+    G -->|"有 uuid"| J["模式B: ZIP 更新已有 Skill"]
+    
+    I --> K["校验 ZIP → 解析 SKILL.md<br/>→ 创建 Skill + Version 记录<br/>→ 解压文件 + 保存归档"]
+    J --> L["校验所有权 → 解析版本号<br/>→ 创建 Version 记录<br/>→ 解压文件 + 保存归档"]
+    H --> M["校验 skill_uuid + 扩展名白名单<br/>→ 复制文件到工作目录<br/>（不创建新版本）"]
+    
+    K --> N["可选: 写审计日志"]
+    L --> N
+    M --> N
+    
+    N --> O["201 Created + 响应数据"]
+
+    style I fill:#e3f2fd,stroke:#1565c0
+    style J fill:#fff8e1,stroke:#f9a825
+    style H fill:#fce4ec,stroke:#c62828
+```
+
+**RBAC 关闭后的简化路径**：客户端携带有效 JWT → 通过认证 → 权限检查直接放行 → 进入业务逻辑。唯一被跳过的是角色/权限矩阵校验，JWT 认证本身始终生效。
+
+---
+
+## 三种上传模式
+
+上传接口 `POST /api/v1/skills/upload` 接受 `multipart/form-data`，根据文件类型和参数组合走三条路径。
+
+### 模式 A：ZIP 新建 Skill
+
+**条件**：上传 `.zip` 文件，且不提供 `skill_uuid`。
+
+这是"从零创建一个新 Skill"的标准方式。系统会做以下事情：
+
+1. **校验 ZIP** — 确保非空、文件数不超过 50、总大小不超过 100MB
+2. **解析 SKILL.md** — ZIP 内必须包含此文件。系统从 YAML frontmatter 提取：
+   - `name`（必填）：Skill 名称
+   - `description`：描述信息
+   - `version`：版本号（默认 `1.0.0`）
+   - `dependencies` / `dependency_spec`：依赖声明
+3. **自动检测依赖类型** — 发现 `pyproject.toml`/`requirements.txt` 视为 Python，发现 `package.json` 视为 Node
+4. **写入数据库** — 创建 Skill 记录 + Version 记录
+5. **写入文件系统** — 解压到工作目录和版本快照目录，保存原始 ZIP 到归档目录
+6. **校验名称唯一性** — 同一用户下不允许重名
+
+### 模式 B：ZIP 更新已有 Skill
+
+**条件**：上传 `.zip` 文件，且提供 `skill_uuid`。
+
+这是给已有 Skill 发布新版本的方式。与模式 A 的区别：
+
+- **所有权校验**：调用 `_ensure_owner()` 检查 `skill.user_id == current_user.id`，非所有者会被拒绝
+- **版本冲突处理**：如果 SKILL.md 中的版本号与已有版本重复，自动递增 patch 号（如 `1.0.0` → `1.0.1`）
+- **元数据覆盖**：支持通过 `metadata` 参数覆盖 version/description，不修改 SKILL.md 也能控制版本号
+
+### 模式 C：单文件追加
+
+**条件**：上传非 ZIP 文件，且提供 `skill_uuid`。
+
+这是往已有 Skill 中追加单个文件的方式，最轻量但限制也最多：
+
+- **必须提供** `skill_uuid`，否则返回 400
+- 单文件大小不超过 10MB
+- 文件扩展名必须在白名单内（33 种，包括 `.py`、`.md`、`.json`、`.yaml` 等）
+- 不创建新版本号，文件直接复制到 Skill 的当前工作目录
+
+### 三种模式速查
+
+| | 模式 A — ZIP 新建 | 模式 B — ZIP 更新 | 模式 C — 单文件追加 |
+|---|---|---|---|
+| **触发条件** | ZIP + 无 skill_uuid | ZIP + 有 skill_uuid | 非 ZIP + 有 skill_uuid |
+| **是否需要 SKILL.md** | 必须包含 | 可选（metadata 可替代） | 不需要 |
+| **是否创建版本** | 是（v1.0.0） | 是（递增版本号） | 否 |
+| **所有权检查** | 不涉及 | 必须是 Skill 所有者 | 必须是 Skill 所有者 |
+| **大小限制** | 100MB（ZIP 总量） | 100MB（ZIP 总量） | 10MB（单文件） |
+| **文件数限制** | ≤50 | ≤50 | 受已有文件数+1 ≤50 约束 |
+
+---
+
+## 端到端时序
 
 ```mermaid
 sequenceDiagram
     participant C as 客户端
-    participant R as API Router<br/>(api/v1/skills.py:197)
-    participant D as Auth Middleware<br/>(core/deps.py)
-    participant RB as RBAC Check<br/>(core/security/rbac.py)
-    participant S as SkillService<br/>(services/skill.py)
-    participant DB as Database
-    participant FS as File System
+    participant R as API Router
+    participant M as 认证中间件
+    participant S as SkillService
+    participant FS as 文件系统
+    participant DB as 数据库
 
-    C->>R: POST /api/v1/skills/upload
-    R->>D: require_permission("skill.upload")
-    D->>D: get_current_active_user() (JWT验证)
-    D->>RB: has_permission(user, "skill.upload")
-    
-    Note over RB: ENABLE_RBAC=False<br/>直接返回 True ✅
-    
-    RB-->>D: 返回 user 对象
-    D-->>R: 注入 current_user
-    
-    R->>S: upload_zip_from_path() 或<br/>upload_file_from_path()
-    S->>FS: 写入临时文件
-    S->>S: 验证文件 (ZIP/普通文件)
-    
-    alt ZIP 文件 + 有 skill_uuid
-        S->>S: 更新已有 Skill 版本
-    else ZIP 文件 + 无 skill_uuid
-        S->>DB: 创建新 Skill 记录
-        S->>FS: 解压到版本目录
-    else 普通文件
-        S->>FS: 复制到 Skill 目录
+    C->>R: POST /skills/upload (multipart/form-data)
+    R->>M: require_permission("skill.upload")
+    Note over M: ENABLE_RBAC=False → 直接放行
+    M-->>R: 注入 current_user
+
+    R->>R: 流式写入临时文件<br/>(64KB chunks, 边收边校验大小)
+
+    alt 模式A: ZIP + 无 skill_uuid
+        R->>S: upload_zip_create_skill_from_path()
+        S->>S: 校验 ZIP 合法性
+        S->>S: 解析 SKILL.md frontmatter
+        S->>DB: INSERT skills + INSERT versions
+        S->>FS: 解压到 work_dir + _versions/{ver}/
+        S->>FS: 保存 _archives/{user}/{name}/{ver}.zip
+    else 模式B: ZIP + 有 skill_uuid
+        R->>S: upload_zip_from_path()
+        S->>S: _ensure_owner() 校验所有权
+        S->>DB: 查询已有 Skill
+        S->>S: 解析 version, 冲突则递增 patch
+        S->>FS: 解压到新版本目录
+        S->>DB: INSERT version 记录
+        S->>FS: 追加归档
+    else 模式C: 非 ZIP
+        R->>S: upload_file_from_path()
+        S->>S: 校验 skill_uuid 必填 + 扩展名白名单
+        S->>FS: 复制到 work_dir（不创建版本）
     end
-    
-    S->>DB: 保存 Version 记录
-    S->>FS: 保存归档文件
-    R-->>C: 201 Created + 响应数据
+
+    Note over R: ENABLE_AUDIT_LOG=True 时写入审计日志
+    R-->>C: 201 Created + Skill 信息 JSON
 ```
 
 ---
 
-## 二、关键代码路径详解
+## 存储结构
 
-### 1. 入口：API 路由层
+以用户 `user-abc` 的 Skill `my-analyzer` 版本 `1.2.0` 为例：
 
-**文件**: `backend/api/v1/skills.py:197-279`
-
-```python
-@router.post("/upload", status_code=status.HTTP_201_CREATED)
-async def upload_skill_file(
-    request: Request,
-    file: UploadFile = File(...),
-    skill_uuid: str | None = Form(None),
-    visibility: str = Form("private"),
-    metadata: str | None = Form(None),
-    current_user=Depends(require_permission("skill.upload")),  # ← 权限检查点
-    session=Depends(get_async_session),
-):
+```
+data/
+├── skills/
+│   └── user-abc/
+│       └── my-analyzer/              ← 当前工作目录（最新版本文件展开）
+│           ├── SKILL.md
+│           ├── main.py
+│           ├── requirements.txt
+│           └── _versions/
+│               ├── 1.0.0/            ← 版本快照
+│               │   ├── SKILL.md
+│               │   ├── main.py
+│               │   └── requirements.txt
+│               └── 1.2.0/            ← 版本快照
+│                   ├── SKILL.md
+│                   ├── main.py
+│                   └── requirements.txt
+└── _archives/
+    └── user-abc/
+        └── my-analyzer/
+            ├── 1.0.0.zip            ← 原始上传包备份
+            └── 1.2.0.zip
 ```
 
-**请求参数**：
+三个位置各司其职：
 
-| 参数 | 类型 | 必填 | 说明 |
-|------|------|------|------|
-| `file` | UploadFile | ✅ | 上传的文件 |
-| `skill_uuid` | string | ❌ | 已有 Skill UUID（ZIP 可选，非 ZIP 必须） |
-| `visibility` | string | ❌ | 可见性：private/team/enterprise |
-| `metadata` | string | ❌ | JSON 格式的额外元数据 |
+- **工作目录**（`my-analyzer/`）：存放当前版本的文件，前端浏览和执行时读取此处
+- **版本快照**（`_versions/`）：每个版本创建时留存的只读副本，回滚和下载时使用
+- **归档目录**（`_archives/`）：保存用户上传的原始 ZIP 包，用于下载时直接打包返回
 
 ---
 
-### 2. RBAC 权限检查（核心！）
+## 安全限制
 
-**文件**: `backend/core/security/rbac.py:43-50`
+以下安全机制在 RBAC 关闭时**仍然完全生效**：
 
-```python
-def has_permission(user: User, permission: str) -> bool:
-    if not settings.ENABLE_RBAC:   # ← 默认为 False！
-        return True                 # ← 直接放行，不检查任何权限！
-    if user.is_superuser:
-        return True
-    role = (user.role or settings.DEFAULT_ROLE or "member").strip()
-    permissions = get_role_permissions().get(role, set())
-    return "*" in permissions or permission in permissions
-```
+| 限制项 | 值 | 触发后果 | 实现位置 |
+|--------|-----|----------|----------|
+| 单文件大小 | 10 MB | 413 FILE_TOO_LARGE | `skill_storage.py` |
+| Skill 总大小 | 100 MB | 400 TOTAL_SKILL_SIZE_LIMIT_EXCEEDED | `skill_storage.py` |
+| 文件数量上限 | 50 个 | 400 TOO_MANY_FILES | `skill_storage.py` |
+| 文件扩展名 | 33 种白名单 | 400 INVALID_FILENAME | `skill_storage.py` |
+| 路径遍历防护 | 拦截 `../` | 400 INVALID_FILE_PATH | `skill_storage.py` |
+| Skill 名称格式 | 字母数字+连字符 | 400 INVALID_SKILL_NAME | `skill_storage.py` |
+| 所有权验证 | `_ensure_owner()` | 403 权限不足 | `services/skill.py` |
 
-**关键配置项** (`backend/config/settings.py:75`)：
-```python
-ENABLE_RBAC: bool = False  # ← 默认关闭！
-```
-
-**权限常量定义** (`backend/core/permissions.py:25-64`)：
-
-```python
-class Permission:
-    SKILL_LIST: str = "skill.list"
-    SKILL_READ: str = "skill.read"
-    SKILL_CREATE: str = "skill.create"
-    SKILL_UPDATE: str = "skill.update"
-    SKILL_DELETE: str = "skill.delete"
-    SKILL_UPLOAD: str = "skill.upload"
-    SKILL_EXECUTE: str = "skill.execute"
-    SKILL_DOWNLOAD: str = "skill.download"
-```
-
-**角色权限矩阵** (`backend/core/permissions.py:8-21`)：
-
-| Permission | Admin | Member | Viewer |
-|------------|-------|--------|--------|
-| skill.list | ✅ | ✅ | ✅ |
-| skill.read | ✅ | ✅ | ✅ |
-| skill.create | ✅ | ✅ | ❌ |
-| skill.update | ✅ | ✅ | ❌ |
-| skill.delete | ✅ | ✅ | ❌ |
-| skill.upload | ✅ | ✅ | ❌ |
-| skill.execute | ✅ | ✅ | ❌ |
-| skill.download | ✅ | ❌ | ❌ |
-
-> 注：RBAC 关闭时，上述矩阵完全失效，所有权限检查均返回 `True`。
-
-**`require_permission` 依赖注入** (`backend/core/deps.py:26-74`)：
-
-```python
-def require_permission(permission: str):
-    async def _permission_checker(current_user=Depends(get_current_active_user)):
-        if not has_permission(current_user, permission):
-            raise HTTPException(status_code=403, detail="Permission denied")
-        return current_user
-    return _permission_checker
-```
-
-**结论**：当 RBAC 关闭时：
-- 所有 `require_permission()` 检查都会直接通过
-- 不校验用户角色（admin/member/viewer）
-- 不校验用户是否为 `is_superuser`
-- 只需要**有效的 JWT 认证**即可访问任何接口
-- `require_permission("")` 会抛 ValueError（入参校验），但正常路由不会触发此分支
+RBAC 关闭后被跳过的检查：
+- 角色权限验证（admin/member/viewer）
+- 细粒度操作授权（如 RBAC 开启时 viewer 无 `skill.upload` 权限）
 
 ---
 
-### 3. JWT 认证流程（仍然生效）
+## 错误码速查
 
-即使 RBAC 关闭，JWT 认证**必须通过**：
-
-**文件链路**：
-```
-core/deps.py:63-72  →  core/middleware/auth.py:31-34  →  core/middleware/auth.py:12-28
-```
-
-```python
-# Step 1: 从 Authorization 头提取 JWT Token
-async def get_current_user(token: str = Depends(oauth2_scheme), ...):
-    payload = decode_token(token)           # 验证签名和过期时间
-    user = await repo.get_by_id(user_id)    # 从数据库加载用户
-    if not user.is_active:                  # 检查用户状态
-        raise HTTPException(403, "Inactive user")
-    return user
-```
-
----
-
-### 4. 业务逻辑分支
-
-**文件**: `backend/api/v1/skills.py:219-278`
-
-```mermaid
-flowchart TD
-    A[接收上传请求] --> B{是 ZIP 文件?}
-    
-    B -->|是| C{提供 skill_uuid?}
-    B -->|否| D[要求必须提供 skill_uuid]
-    
-    C -->|有| E[upload_zip_from_path<br/>更新现有 Skill]
-    C -->|无| F[upload_zip_create_skill_from_path<br/>创建新 Skill]
-    
-    D --> G[upload_file_from_path<br/>上传单个文件到现有 Skill]
-    
-    E --> H[解析 SKILL.md frontmatter]
-    F --> H
-    G --> I[验证文件名和大小限制]
-    
-    H --> J[提取版本号/依赖声明]
-    J --> K[创建 Version 记录]
-    I --> L[复制到 Skill 目录]
-    
-    K --> M[保存归档 ZIP]
-    L --> N[返回响应]
-    M --> N
-```
+| 场景 | HTTP 状态码 | 错误码 |
+|------|------------|--------|
+| ZIP 文件为空 | 400 | `ZIP_EMPTY` |
+| ZIP 内缺少 SKILL.md | 400 | `SKILL_MD_NOT_FOUND_IN_ZIP` |
+| SKILL.md 缺少 name 字段 | 400 | `SKILL_MD_NAME_MISSING` |
+| 非法 ZIP 格式 | 400 | `INVALID_ZIP_FILE` |
+| Skill 名称已被占用 | 409 | `SKILL_ALREADY_EXISTS` |
+| 非法 Skill 名称 | 400 | `INVALID_SKILL_NAME` |
+| 文件名含非法字符 | 400 | `INVALID_FILENAME` |
+| 文件过大 | 413 | `FILE_TOO_LARGE` |
+| 文件数超限 | 400 | `TOO_MANY_FILES` |
+| Skill 总大小超限 | 400 | `TOTAL_SKILL_SIZE_LIMIT_EXCEEDED` |
+| 版本号已存在 | 400 | `VERSION_ALREADY_EXISTS` |
+| 非 ZIP 上传缺少 skill_uuid | 400 | 请求参数错误 |
+| Reference Skill 尝试上传 | 409 | `REFERENCE_SKILL_READ_ONLY` |
 
 ---
 
-## 三、三种上传模式详解
+## 配置开关
 
-### 模式 1：ZIP 上传 + 新建 Skill（无 skill_uuid）
-
-**调用函数**: `SkillService.upload_zip_create_skill_from_path()`  
-**文件位置**: `backend/services/skill.py:798-972`
-
-**执行步骤**：
-
-1. 验证 ZIP 合法性（非空、文件数 ≤50、总大小 ≤100MB）
-2. **强制要求** ZIP 内包含 `SKILL.md` 文件
-3. 解析 `SKILL.md` 的 YAML frontmatter 获取：
-   - `name`: Skill 名称（必填）
-   - `description`: 描述信息
-   - `version`: 版本号（可选，默认 `1.0.0`）
-   - `dependencies`: 依赖列表
-   - `dependency_spec`: 依赖规范（Python/Node）
-4. 校验 Skill 名称唯一性
-5. 自动检测依赖类型：
-   - Python: 检测 `pyproject.toml` / `requirements.txt` / `environment.yml`
-   - Node: 检测 `package.json`
-6. 创建数据库记录：
-   ```sql
-   INSERT INTO skills (id, user_id, name, description, visibility, ...)
-   INSERT INTO skill_versions (skill_id, version, dependencies, ...)
-   ```
-7. 文件系统操作：
-   ```
-   {SKILL_STORAGE_PATH}/{user_id}/{skill_name}/          # 当前版本工作目录
-   {SKILL_STORAGE_PATH}/{user_id}/{skill_name}/_versions/{version}/  # 版本快照
-   {SKILL_STORAGE_PATH}/_archives/{user_id}/{skill_name}/{version}.zip  # 归档
-   ```
-
----
-
-### 模式 2：ZIP 上传 + 更新现有 Skill（有 skill_uuid）
-
-**调用函数**: `SkillService.upload_zip_from_path()`  
-**文件位置**: `backend/services/skill.py:632-783`
-
-**与模式 1 的区别**：
-- 需要先验证 `skill.user_id == current_user.id`（所有权检查）
-- 支持从 metadata 参数或 SKILL.md 覆盖 version/description
-- 如果版本号已存在，自动递增 patch 版本（如 `1.0.0` → `1.0.1`）
-
----
-
-### 模式 3：单个文件上传（非 ZIP）
-
-**调用函数**: `SkillService.upload_file_from_path()`  
-**文件位置**: `backend/services/skill.py:188-220`
-
-**限制条件**：
-- **必须提供** `skill_uuid`
-- 单文件大小 ≤10MB
-- 总 Skill 大小 ≤100MB
-- 文件数 ≤50
-- 文件扩展名必须在白名单内（`.py`, `.md`, `.json` 等 33 种）
-
----
-
-## 四、不开启 RBAC 时的安全边界
-
-虽然 RBAC 关闭，但以下安全机制**仍然生效**：
-
-| 安全层 | 状态 | 实现位置 |
-|--------|------|----------|
-| JWT 认证 | ✅ 生效 | `core/middleware/auth.py` |
-| 用户活跃状态检查 | ✅ 生效 | `auth.py:32-33` |
-| Token 版本校验 | ✅ 生效 | `auth.py:26-27` (防重放攻击) |
-| 文件大小限制 | ✅ 生效 | `skill_storage.py:19-20` (单文件10MB/总计100MB) |
-| 路径遍历防护 | ✅ 生效 | `skill_storage.py:150-153, 176-179` |
-| 文件扩展名白名单 | ✅ 生效 | `skill_storage.py:10-17` |
-| 所有权验证 | ✅ 生效 | `services/skill.py:233-235` (_ensure_owner) |
-| Skill 名称格式校验 | ✅ 生效 | `skill_storage.py:25-38` |
-
-**被跳过的检查**：
-- ❌ 角色权限验证（admin/member/viewer）
-- ❌ 细粒度操作授权（如 `skill.download` 仅 admin 可用）
-
----
-
-## 五、配置开关汇总
-
-影响上传行为的关键配置（`backend/.env`）：
+影响上传行为的配置项（`backend/.env`）：
 
 ```env
-# RBAC 相关（默认 False）
 ENABLE_RBAC=False              # 关闭后所有权限检查放行
-DEFAULT_ROLE=member            # 无实际作用（RBAC 关闭时）
-
-# Skill 可见性相关
+DEFAULT_ROLE=member            # RBAC 关闭时不生效
 ENABLE_SKILL_VISIBILITY=False  # 关闭后只能看到自己的 Skills
-DEFAULT_SKILL_VISIBILITY=private
-
-# 存储限制
 SKILL_STORAGE_PATH=/data/skills
-# （代码中硬编码：MAX_FILE_SIZE=10MB, MAX_TOTAL_SIZE=100MB, MAX_FILES=50）
-
-# 归档存储
-SKILL_ARCHIVE_BACKEND=local     # local 或 s3
+SKILL_ARCHIVE_BACKEND=local    # 归档存储后端：local 或 s3
+ENABLE_AUDIT_LOG=False         # 开启后记录上传审计事件
 ```
 
----
-
-## 六、完整请求响应流程图
-
-```
-请求 POST /api/v1/skills/upload
-         │
-         ▼
-   JWT 认证 (get_current_active_user)  ← 始终生效
-         │
-         ▼
-   require_permission("skill.upload")
-         │
-         ▼                              ← ENABLE_RBAC = False
-   has_permission(user, "skill.upload")
-         │
-         └───────── 直接 return True    ← 跳过角色/权限矩阵
-         │
-         ▼
-   upload_skill_file() API handler
-         │
-    ┌────┴──────────────────────────────────────────┐
-    │                                               │
-    ▼ 是 .zip?                                      ▼
-   ┌──────┐                                    不是 .zip
-   │有skill_uuid?                                ▼
-   └──┬───┘                             必须有 skill_uuid
-    否 ▼         是                     否则返回 400
-   ┌─────────┐  ┌──────────────────────┐
-   │创建新Skill│  │ 更新已有 Skill       │
-   │L798-972 │  │ upload_zip_from_path │
-   └────┬────┘  │ L632-783            │
-        │       └──────┬───────────────┘
-        │              │
-        │              ▼
-        │       upload_file_from_path (L188-220)
-        │              │
-        ▼              ▼
-   写入 {SKILL_STORAGE_PATH}/{user_id}/{skill_name}/
-              │
-              ▼
-         (可选) 写入审计日志 (ENABLE_AUDIT_LOG=True)
-              │
-              ▼
-         201 Created + JSON 响应
-```
-
----
-
-## 七、总结
-
-**不开启 RBAC 时，上传流程简化为**：
-
-```
-客户端携带有效 JWT → 通过认证 → 直接进入业务逻辑 → 上传成功
-```
-
-**核心特点**：
-1. 任何已认证用户都可以上传 Skill（无需特定角色）
-2. 仍需通过 JWT 认证和基本数据校验
-3. 所有权机制保护用户间数据隔离（只能操作自己的 Skill）
-4. 文件系统安全措施完全生效
-
-**关键安全边界**：
-- JWT 认证是**唯一的入口屏障** — 如果用户没有有效 token，请求在 `get_current_active_user` 阶段即被拒绝
-- `_ensure_owner` 检查（`services/skill.py:233-235`）是**唯一的应用层保护** — 确保用户只能修改自己拥有的 Skill，与 RBAC 无关
-- 所有文件存储安全机制（路径遍历防护、扩展名白名单、大小限制）与 RBAC 无关，始终生效
-- 审计日志仅在 `ENABLE_AUDIT_LOG=True` 时记录，默认 `False`
+存储限制为硬编码（不可通过配置修改）：
+- `MAX_FILE_SIZE = 10MB`
+- `MAX_TOTAL_SIZE = 100MB`
+- `MAX_FILES = 50`

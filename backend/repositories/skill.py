@@ -88,17 +88,21 @@ class SkillRepository(BaseRepository):
 
     async def list_cloned_source_ids(self, user_id: str) -> set[str]:
         result = await self.session.execute(
+            select(Skill.cloned_from_skill_id).where(
+                Skill.user_id == user_id,
+            )
+        )
+        source_ids = {value for value in result.scalars().all() if isinstance(value, str) and value.strip()}
+        legacy_result = await self.session.execute(
             select(SkillVersion.metadata_json).join(
                 Skill,
                 SkillVersion.skill_id == Skill.id,
             ).where(
                 Skill.user_id == user_id,
-                Skill.current_version.is_not(None),
-                Skill.current_version == SkillVersion.version,
+                Skill.cloned_from_skill_id.is_(None),
             )
         )
-        source_ids: set[str] = set()
-        for metadata in result.scalars().all():
+        for metadata in legacy_result.scalars().all():
             if not isinstance(metadata, dict):
                 continue
             source_skill_id = metadata.get("cloned_from_skill_id")
@@ -246,20 +250,26 @@ class SkillRepository(BaseRepository):
         result = await self.session.execute(stmt)
         return int(result.scalar_one())
 
-    async def create(self, model: Any = Skill, **data: Any) -> Skill:
+    async def create(self, model: Any = Skill, commit: bool = True, **data: Any) -> Skill:
         skill = Skill(**data)
         self.session.add(skill)
-        await self.session.commit()
+        await self.session.flush()
+        if commit:
+            await self.session.commit()
         await self.session.refresh(skill)
         return skill
 
-    async def update(self, db_obj: Any, **data: Any) -> Skill:
+    async def update(self, db_obj: Any, commit: bool = True, **data: Any) -> Skill:
         for key, value in data.items():
             setattr(db_obj, key, value)
-        await self.session.commit()
+        await self.session.flush()
+        if commit:
+            await self.session.commit()
         await self.session.refresh(db_obj)
         return db_obj
 
-    async def delete(self, db_obj: Skill) -> None:
+    async def delete(self, db_obj: Skill, commit: bool = True) -> None:
         await self.session.delete(db_obj)
-        await self.session.commit()
+        await self.session.flush()
+        if commit:
+            await self.session.commit()

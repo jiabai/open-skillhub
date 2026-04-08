@@ -31,6 +31,7 @@ class SkillVersionRepository(BaseRepository):
         dependency_spec: dict,
         dependency_spec_version: str | None,
         metadata: dict,
+        commit: bool = True,
     ) -> SkillVersion:
         record = SkillVersion(
             skill_id=skill_id,
@@ -42,6 +43,8 @@ class SkillVersionRepository(BaseRepository):
             metadata_json=metadata,
         )
         self.session.add(record)
-        await self.session.commit()
+        await self.session.flush()
+        if commit:
+            await self.session.commit()
         await self.session.refresh(record)
         return record

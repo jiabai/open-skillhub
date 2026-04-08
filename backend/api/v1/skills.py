@@ -34,6 +34,7 @@ from backend.schemas.skill import (
 from backend.schemas.skill_version import SkillVersionListResponse, SkillVersionResponse
 from backend.services.audit import AuditService
 from backend.services.skill import DownloadTooLargeError, SkillService
+from backend.services.skill_errors import SkillError, SkillErrorCode
 
 
 router = APIRouter()
@@ -43,62 +44,86 @@ _download_rate_limit_state: dict[str, list[float]] = {}
 optional_oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login", auto_error=False)
 
 
+_SKILL_ERROR_RESPONSES: dict[SkillErrorCode, tuple[int, bool]] = {
+    SkillErrorCode.SKILL_DEACTIVATED: (status.HTTP_410_GONE, True),
+    SkillErrorCode.PUBLIC_SKILLS_DISABLED: (status.HTTP_404_NOT_FOUND, True),
+    SkillErrorCode.SKILL_NOT_FOUND: (status.HTTP_404_NOT_FOUND, True),
+    SkillErrorCode.FILE_NOT_FOUND: (status.HTTP_404_NOT_FOUND, False),
+    SkillErrorCode.VERSION_FILES_NOT_FOUND: (status.HTTP_404_NOT_FOUND, False),
+    SkillErrorCode.REFERENCE_SKILL_READ_ONLY: (status.HTTP_409_CONFLICT, True),
+    SkillErrorCode.REFERENCE_ALREADY_EXISTS: (status.HTTP_409_CONFLICT, True),
+    SkillErrorCode.SOURCE_SKILL_UNAVAILABLE: (status.HTTP_409_CONFLICT, True),
+    SkillErrorCode.SKILL_ALREADY_EXISTS: (status.HTTP_409_CONFLICT, True),
+    SkillErrorCode.INVALID_FILENAME: (status.HTTP_400_BAD_REQUEST, True),
+    SkillErrorCode.INVALID_FILE_PATH: (status.HTTP_400_BAD_REQUEST, False),
+    SkillErrorCode.INVALID_METADATA: (status.HTTP_400_BAD_REQUEST, False),
+    SkillErrorCode.INVALID_SKILL_NAME: (status.HTTP_400_BAD_REQUEST, False),
+    SkillErrorCode.INVALID_VERSION: (status.HTTP_400_BAD_REQUEST, False),
+    SkillErrorCode.INVALID_VISIBILITY: (status.HTTP_400_BAD_REQUEST, False),
+    SkillErrorCode.INVALID_ZIP_FILE: (status.HTTP_400_BAD_REQUEST, False),
+    SkillErrorCode.SKILL_MD_NAME_MISSING: (status.HTTP_400_BAD_REQUEST, False),
+    SkillErrorCode.SKILL_MD_NOT_FOUND: (status.HTTP_400_BAD_REQUEST, False),
+    SkillErrorCode.SKILL_MD_NOT_FOUND_IN_ZIP: (status.HTTP_400_BAD_REQUEST, False),
+    SkillErrorCode.TOO_MANY_FILES: (status.HTTP_400_BAD_REQUEST, False),
+    SkillErrorCode.TOTAL_SKILL_SIZE_LIMIT_EXCEEDED: (status.HTTP_400_BAD_REQUEST, False),
+    SkillErrorCode.VERSION_ALREADY_EXISTS: (status.HTTP_400_BAD_REQUEST, False),
+    SkillErrorCode.VERSION_NOT_FOUND: (status.HTTP_404_NOT_FOUND, True),
+    SkillErrorCode.ZIP_EMPTY: (status.HTTP_400_BAD_REQUEST, False),
+}
+
+
+def _build_http_exception(status_code: int, detail: str, code: str | None = None, structured: bool = False) -> HTTPException:
+    if structured and code:
+        return HTTPException(status_code=status_code, detail={"detail": detail, "code": code})
+    return HTTPException(status_code=status_code, detail=detail)
+
+
 def _handle_skill_value_error(exc: ValueError) -> HTTPException:
+    if isinstance(exc, SkillError):
+        if exc.code == SkillErrorCode.FILE_TOO_LARGE:
+            return _build_http_exception(
+                status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+                "File exceeds maximum size limit",
+                code=SkillErrorCode.FILE_TOO_LARGE.value,
+                structured=True,
+            )
+        status_code, structured = _SKILL_ERROR_RESPONSES.get(exc.code, (status.HTTP_400_BAD_REQUEST, False))
+        return _build_http_exception(status_code, exc.detail, code=exc.code.value, structured=structured)
+
     detail = str(exc)
-    if detail == "SKILL_DEACTIVATED":
-        return HTTPException(
-            status_code=status.HTTP_410_GONE,
-            detail={"detail": "Skill deactivated", "code": "SKILL_DEACTIVATED"},
-        )
-    if detail == "PUBLIC_SKILLS_DISABLED":
-        return HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail={"detail": "Public skills disabled", "code": "PUBLIC_SKILLS_DISABLED"},
-        )
-    if detail == "SKILL_NOT_FOUND":
-        return HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail={"detail": "Skill not found", "code": "SKILL_NOT_FOUND"},
-        )
-    if detail == "REFERENCE_SKILL_READ_ONLY":
-        return HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail={"detail": "Reference skill is read only", "code": "REFERENCE_SKILL_READ_ONLY"},
-        )
-    if detail == "REFERENCE_ALREADY_EXISTS":
-        return HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail={"detail": "Reference skill already exists", "code": "REFERENCE_ALREADY_EXISTS"},
-        )
-    if detail == "SOURCE_SKILL_UNAVAILABLE":
-        return HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail={"detail": "Source skill unavailable", "code": "SOURCE_SKILL_UNAVAILABLE"},
-        )
-    if detail == "Skill already exists":
-        return HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail={"detail": detail, "code": "SKILL_ALREADY_EXISTS"},
-        )
-    if detail == "Version not found":
-        return HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail={"detail": detail, "code": "VERSION_NOT_FOUND"},
-        )
-    if detail == "Invalid visibility":
-        return HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=detail)
-    # Input validation errors - 400/413 for client-side issues
     if "Filename contains invalid characters" in detail:
-        return HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail={"detail": detail, "code": "INVALID_FILENAME"},
+        return _build_http_exception(
+            status.HTTP_400_BAD_REQUEST,
+            detail,
+            code=SkillErrorCode.INVALID_FILENAME.value,
+            structured=True,
         )
     if detail == "File too large":
-        return HTTPException(
-            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
-            detail={"detail": "File exceeds maximum size limit", "code": "FILE_TOO_LARGE"},
+        return _build_http_exception(
+            status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            "File exceeds maximum size limit",
+            code=SkillErrorCode.FILE_TOO_LARGE.value,
+            structured=True,
         )
-    return HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=detail)
+    if detail == "Skill already exists":
+        return _build_http_exception(
+            status.HTTP_409_CONFLICT,
+            detail,
+            code=SkillErrorCode.SKILL_ALREADY_EXISTS.value,
+            structured=True,
+        )
+    if detail == "Version not found":
+        return _build_http_exception(
+            status.HTTP_404_NOT_FOUND,
+            detail,
+            code=SkillErrorCode.VERSION_NOT_FOUND.value,
+            structured=True,
+        )
+    if detail in {"File not found", "Version files not found"}:
+        return _build_http_exception(status.HTTP_404_NOT_FOUND, detail)
+    if detail == "Invalid visibility":
+        return _build_http_exception(status.HTTP_400_BAD_REQUEST, detail)
+    return _build_http_exception(status.HTTP_400_BAD_REQUEST, detail)
 
 
 async def get_optional_current_user(
@@ -285,7 +310,7 @@ async def create_skill(
     current_user=Depends(require_permission("skill.create")),
     session=Depends(get_async_session),
 ):
-    service = SkillService(SkillRepository(session))
+    service = SkillService(SkillRepository(session), SkillVersionRepository(session))
     try:
         skill = await service.create_skill(
             current_user,
@@ -314,7 +339,7 @@ async def get_skill(
     current_user=Depends(require_permission("skill.read")),
     session=Depends(get_async_session),
 ):
-    service = SkillService(SkillRepository(session))
+    service = SkillService(SkillRepository(session), SkillVersionRepository(session))
     try:
         skill = await service.get_skill(current_user, skill_uuid)
     except ValueError as exc:
@@ -330,7 +355,7 @@ async def update_skill(
     current_user=Depends(require_permission("skill.update")),
     session=Depends(get_async_session),
 ):
-    service = SkillService(SkillRepository(session))
+    service = SkillService(SkillRepository(session), SkillVersionRepository(session))
     fields = payload.model_dump(exclude_unset=True)
     visible = fields.pop("visible", None)
     if visible is not None:
@@ -422,12 +447,16 @@ async def clone_public_skill(
         await audit_service.create_event(
             actor_id=current_user.id,
             action="skill.clone",
-            target=result["skill"].id,
+            target=result.skill.id,
             ip=request.client.host if request and request.client else "",
             user_agent=request.headers.get("user-agent", ""),
-            metadata={"source_skill_id": public_uuid, "version": result["version"]},
+            metadata={
+                "source_skill_id": public_uuid,
+                "source_version": result.source_version,
+                "version": result.version,
+            },
         )
-    return await _serialize_skill(service, result["skill"])
+    return await _serialize_skill(service, result.skill)
 
 
 @router.put("/{skill_uuid}/pin", response_model=SkillResponse)

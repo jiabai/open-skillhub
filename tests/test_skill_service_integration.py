@@ -21,6 +21,7 @@ from backend.models.skill_version import SkillVersion
 from backend.repositories.skill import SkillRepository
 from backend.repositories.skill_version import SkillVersionRepository
 from backend.services.skill import SkillService
+from backend.services.skill_errors import SkillError, SkillErrorCode
 
 
 def create_test_zip(
@@ -85,6 +86,8 @@ def test_skill(test_user):
     skill.is_active = True
     skill.current_version = None
     skill.visibility = "private"
+    skill.source_skill_id = None
+    skill.cloned_from_skill_id = None
     return skill
 
 
@@ -99,8 +102,9 @@ class TestSkillServiceUploadZip:
         mock_skill_repo.get_by_id = AsyncMock(return_value=test_skill)
         service = SkillService(mock_skill_repo, mock_version_repo)
 
-        with pytest.raises(ValueError, match="Invalid zip file"):
+        with pytest.raises(SkillError) as exc_info:
             await service.upload_zip(test_user, "skill-uuid-123", "test.tar", b"content")
+        assert exc_info.value.code == SkillErrorCode.INVALID_ZIP_FILE
 
     @pytest.mark.asyncio
     async def test_upload_zip_bad_zip(
@@ -110,8 +114,9 @@ class TestSkillServiceUploadZip:
         mock_skill_repo.get_by_id = AsyncMock(return_value=test_skill)
         service = SkillService(mock_skill_repo, mock_version_repo)
 
-        with pytest.raises(ValueError, match="Invalid zip file"):
+        with pytest.raises(SkillError) as exc_info:
             await service.upload_zip(test_user, "skill-uuid-123", "test.zip", b"not a zip")
+        assert exc_info.value.code == SkillErrorCode.INVALID_ZIP_FILE
 
     @pytest.mark.asyncio
     async def test_upload_zip_empty(
@@ -127,8 +132,9 @@ class TestSkillServiceUploadZip:
             pass
         empty_zip = buffer.getvalue()
 
-        with pytest.raises(ValueError, match="Zip is empty"):
+        with pytest.raises(SkillError) as exc_info:
             await service.upload_zip(test_user, "skill-uuid-123", "test.zip", empty_zip)
+        assert exc_info.value.code == SkillErrorCode.ZIP_EMPTY
 
     @pytest.mark.asyncio
     async def test_upload_zip_missing_skill_md(
@@ -141,8 +147,9 @@ class TestSkillServiceUploadZip:
         # Create ZIP without SKILL.md
         zip_content = create_test_zip({"main.py": "print('hello')"}, include_skill_md=False)
 
-        with pytest.raises(ValueError, match="SKILL.md not found"):
+        with pytest.raises(SkillError) as exc_info:
             await service.upload_zip(test_user, "skill-uuid-123", "test.zip", zip_content)
+        assert exc_info.value.code == SkillErrorCode.SKILL_MD_NOT_FOUND
 
     @pytest.mark.asyncio
     async def test_upload_zip_invalid_metadata(
@@ -154,7 +161,7 @@ class TestSkillServiceUploadZip:
 
         zip_content = create_test_zip({"main.py": "print('hello')"})
 
-        with pytest.raises(ValueError, match="Invalid metadata"):
+        with pytest.raises(SkillError) as exc_info:
             await service.upload_zip(
                 test_user,
                 "skill-uuid-123",
@@ -162,6 +169,7 @@ class TestSkillServiceUploadZip:
                 zip_content,
                 metadata_text="not valid json",
             )
+        assert exc_info.value.code == SkillErrorCode.INVALID_METADATA
 
     @pytest.mark.asyncio
     async def test_upload_zip_not_owner(
@@ -177,8 +185,9 @@ class TestSkillServiceUploadZip:
         service = SkillService(mock_skill_repo, mock_version_repo)
         zip_content = create_test_zip({"main.py": "print('hello')"})
 
-        with pytest.raises(ValueError, match="Skill not found"):
+        with pytest.raises(SkillError) as exc_info:
             await service.upload_zip(test_user, "skill-uuid-123", "test.zip", zip_content)
+        assert exc_info.value.code == SkillErrorCode.SKILL_NOT_FOUND
 
 
 class TestSkillServiceDownload:
@@ -192,8 +201,9 @@ class TestSkillServiceDownload:
         mock_skill_repo.get_by_id = AsyncMock(return_value=test_skill)
         service = SkillService(mock_skill_repo, None)
 
-        with pytest.raises(ValueError, match="Version repository not configured"):
+        with pytest.raises(SkillError) as exc_info:
             await service.download_skill(test_user, "skill-uuid-123")
+        assert exc_info.value.code == SkillErrorCode.VERSION_REPOSITORY_NOT_CONFIGURED
 
     @pytest.mark.asyncio
     async def test_download_skill_deactivated(
@@ -204,8 +214,9 @@ class TestSkillServiceDownload:
         mock_skill_repo.get_by_id = AsyncMock(return_value=test_skill)
         service = SkillService(mock_skill_repo, mock_version_repo)
 
-        with pytest.raises(ValueError, match="SKILL_DEACTIVATED"):
+        with pytest.raises(SkillError) as exc_info:
             await service.download_skill(test_user, "skill-uuid-123")
+        assert exc_info.value.code == SkillErrorCode.SKILL_DEACTIVATED
 
     @pytest.mark.asyncio
     async def test_download_skill_version_not_found(
@@ -217,8 +228,9 @@ class TestSkillServiceDownload:
         mock_version_repo.list_by_skill = AsyncMock(return_value=[])
         service = SkillService(mock_skill_repo, mock_version_repo)
 
-        with pytest.raises(ValueError, match="Version not found"):
+        with pytest.raises(SkillError) as exc_info:
             await service.download_skill(test_user, "skill-uuid-123")
+        assert exc_info.value.code == SkillErrorCode.VERSION_NOT_FOUND
 
     @pytest.mark.asyncio
     async def test_download_skill_specific_version_not_found(
@@ -229,8 +241,9 @@ class TestSkillServiceDownload:
         mock_version_repo.get_by_version = AsyncMock(return_value=None)
         service = SkillService(mock_skill_repo, mock_version_repo)
 
-        with pytest.raises(ValueError, match="Version not found"):
+        with pytest.raises(SkillError) as exc_info:
             await service.download_skill(test_user, "skill-uuid-123", version="99.0.0")
+        assert exc_info.value.code == SkillErrorCode.VERSION_NOT_FOUND
 
 
 class TestSkillServiceDiffVersions:
@@ -245,8 +258,9 @@ class TestSkillServiceDiffVersions:
         mock_skill_repo.get_by_id = AsyncMock(return_value=test_skill)
         service = SkillService(mock_skill_repo, None)
 
-        with pytest.raises(ValueError, match="SKILL_DEACTIVATED"):
+        with pytest.raises(SkillError) as exc_info:
             await service.diff_versions(test_user, "skill-uuid-123", "1.0.0", "2.0.0")
+        assert exc_info.value.code == SkillErrorCode.SKILL_DEACTIVATED
 
     @pytest.mark.asyncio
     async def test_diff_versions_invalid_version(
@@ -256,8 +270,9 @@ class TestSkillServiceDiffVersions:
         mock_skill_repo.get_by_id = AsyncMock(return_value=test_skill)
         service = SkillService(mock_skill_repo, None)
 
-        with pytest.raises(ValueError, match="Invalid version"):
+        with pytest.raises(SkillError) as exc_info:
             await service.diff_versions(test_user, "skill-uuid-123", "../etc", "2.0.0")
+        assert exc_info.value.code == SkillErrorCode.INVALID_VERSION
 
 
 class TestSkillServiceRollbackVersion:
@@ -272,8 +287,9 @@ class TestSkillServiceRollbackVersion:
         mock_skill_repo.get_by_id = AsyncMock(return_value=test_skill)
         service = SkillService(mock_skill_repo, mock_version_repo)
 
-        with pytest.raises(ValueError, match="Skill not found"):
+        with pytest.raises(SkillError) as exc_info:
             await service.rollback_version(test_user, "skill-uuid-123", "1.0.0")
+        assert exc_info.value.code == SkillErrorCode.SKILL_NOT_FOUND
 
     @pytest.mark.asyncio
     async def test_rollback_version_not_found(
@@ -284,8 +300,9 @@ class TestSkillServiceRollbackVersion:
         mock_version_repo.get_by_version = AsyncMock(return_value=None)
         service = SkillService(mock_skill_repo, mock_version_repo)
 
-        with pytest.raises(ValueError, match="Version not found"):
+        with pytest.raises(SkillError) as exc_info:
             await service.rollback_version(test_user, "skill-uuid-123", "99.0.0")
+        assert exc_info.value.code == SkillErrorCode.VERSION_NOT_FOUND
 
 
 class TestSkillServiceInstallInstructions:
@@ -345,8 +362,9 @@ class TestSkillServiceInstallInstructions:
         mock_skill_repo.get_by_id = AsyncMock(return_value=test_skill)
         service = SkillService(mock_skill_repo, mock_version_repo)
 
-        with pytest.raises(ValueError, match="SKILL_DEACTIVATED"):
+        with pytest.raises(SkillError) as exc_info:
             await service.get_install_instructions(test_user, "skill-uuid-123", "1.0.0")
+        assert exc_info.value.code == SkillErrorCode.SKILL_DEACTIVATED
 
     @pytest.mark.asyncio
     async def test_get_install_instructions_version_not_found(
@@ -357,8 +375,9 @@ class TestSkillServiceInstallInstructions:
         mock_version_repo.get_by_version = AsyncMock(return_value=None)
         service = SkillService(mock_skill_repo, mock_version_repo)
 
-        with pytest.raises(ValueError, match="Version not found"):
+        with pytest.raises(SkillError) as exc_info:
             await service.get_install_instructions(test_user, "skill-uuid-123", "99.0.0")
+        assert exc_info.value.code == SkillErrorCode.VERSION_NOT_FOUND
 
 
 class TestSkillServiceListVersions:
@@ -388,8 +407,9 @@ class TestSkillServiceListVersions:
         mock_skill_repo.get_by_id = AsyncMock(return_value=test_skill)
         service = SkillService(mock_skill_repo, None)
 
-        with pytest.raises(ValueError, match="Version repository not configured"):
+        with pytest.raises(SkillError) as exc_info:
             await service.list_versions(test_user, "skill-uuid-123")
+        assert exc_info.value.code == SkillErrorCode.VERSION_REPOSITORY_NOT_CONFIGURED
 
 
 class TestSkillServiceDeactivateActivate:
@@ -404,8 +424,9 @@ class TestSkillServiceDeactivateActivate:
         mock_skill_repo.get_by_id = AsyncMock(return_value=test_skill)
         service = SkillService(mock_skill_repo, None)
 
-        with pytest.raises(ValueError, match="Skill not found"):
+        with pytest.raises(SkillError) as exc_info:
             await service.deactivate_skill(test_user, "skill-uuid-123")
+        assert exc_info.value.code == SkillErrorCode.SKILL_NOT_FOUND
 
     @pytest.mark.asyncio
     async def test_activate_skill_not_owner(
@@ -416,8 +437,9 @@ class TestSkillServiceDeactivateActivate:
         mock_skill_repo.get_by_id = AsyncMock(return_value=test_skill)
         service = SkillService(mock_skill_repo, None)
 
-        with pytest.raises(ValueError, match="Skill not found"):
+        with pytest.raises(SkillError) as exc_info:
             await service.activate_skill(test_user, "skill-uuid-123")
+        assert exc_info.value.code == SkillErrorCode.SKILL_NOT_FOUND
 
 
 class TestSkillServiceNextVersion:
@@ -467,8 +489,9 @@ class TestSkillServiceFileOperations:
         mock_skill_repo.get_by_id = AsyncMock(return_value=test_skill)
         service = SkillService(mock_skill_repo, None)
 
-        with pytest.raises(ValueError, match="Invalid file path"):
+        with pytest.raises(SkillError) as exc_info:
             await service.read_skill_file(test_user, "skill-uuid-123", "../../../etc/passwd")
+        assert exc_info.value.code == SkillErrorCode.INVALID_FILE_PATH
 
     @pytest.mark.asyncio
     async def test_list_skill_files_deactivated(
@@ -479,8 +502,9 @@ class TestSkillServiceFileOperations:
         mock_skill_repo.get_by_id = AsyncMock(return_value=test_skill)
         service = SkillService(mock_skill_repo, None)
 
-        with pytest.raises(ValueError, match="SKILL_DEACTIVATED"):
+        with pytest.raises(SkillError) as exc_info:
             await service.list_skill_files(test_user, "skill-uuid-123")
+        assert exc_info.value.code == SkillErrorCode.SKILL_DEACTIVATED
 
     @pytest.mark.asyncio
     async def test_upload_file_too_large(
@@ -494,8 +518,9 @@ class TestSkillServiceFileOperations:
 
         large_content = b"x" * (MAX_FILE_SIZE + 1)
 
-        with pytest.raises(ValueError, match="File too large"):
+        with pytest.raises(SkillError) as exc_info:
             await service.upload_file(test_user, "skill-uuid-123", "large.txt", large_content)
+        assert exc_info.value.code == SkillErrorCode.FILE_TOO_LARGE
 
 
 class TestSkillServiceVisibility:
@@ -509,8 +534,9 @@ class TestSkillServiceVisibility:
         mock_skill_repo.get_by_id = AsyncMock(return_value=test_skill)
         service = SkillService(mock_skill_repo, None)
 
-        with pytest.raises(ValueError, match="Invalid visibility"):
+        with pytest.raises(SkillError) as exc_info:
             await service.update_skill(test_user, "skill-uuid-123", visibility="invalid")
+        assert exc_info.value.code == SkillErrorCode.INVALID_VISIBILITY
 
     @pytest.mark.asyncio
     async def test_create_skill_invalid_visibility(
@@ -520,5 +546,18 @@ class TestSkillServiceVisibility:
         mock_skill_repo.get_by_name = AsyncMock(return_value=None)
         service = SkillService(mock_skill_repo, None)
 
-        with pytest.raises(ValueError, match="Invalid visibility"):
+        with pytest.raises(SkillError) as exc_info:
             await service.create_skill(test_user, "test-skill", "desc", visibility="invalid")
+        assert exc_info.value.code == SkillErrorCode.INVALID_VISIBILITY
+
+    @pytest.mark.asyncio
+    async def test_upload_zip_create_skill_invalid_visibility(
+        self, mock_skill_repo, mock_version_repo, test_user
+    ):
+        mock_skill_repo.get_by_name = AsyncMock(return_value=None)
+        service = SkillService(mock_skill_repo, mock_version_repo)
+        zip_content = create_test_zip({"main.py": "print('hello')"})
+
+        with pytest.raises(SkillError) as exc_info:
+            await service.upload_zip_create_skill(test_user, "test.zip", zip_content, visibility="invalid")
+        assert exc_info.value.code == SkillErrorCode.INVALID_VISIBILITY

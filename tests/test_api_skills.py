@@ -1184,7 +1184,7 @@ async def test_clone_public_skill_and_mark_public_list_flags(client, async_sessi
 
 
 @pytest.mark.asyncio
-async def test_reference_and_clone_reject_non_public_skill(client, async_session, monkeypatch):
+async def test_reference_and_clone_do_not_leak_private_skill_existence(client, async_session, monkeypatch):
     monkeypatch.setattr(settings, "ENABLE_RBAC", False)
     monkeypatch.setattr(settings, "ENABLE_SKILL_VISIBILITY", True)
     headers = await _register_and_login(client, "private-source-user@example.com", "private-source-user")
@@ -1210,13 +1210,21 @@ async def test_reference_and_clone_reject_non_public_skill(client, async_session
         json={"name": "should-not-work"},
         headers=headers,
     )
-    assert referenced.status_code == 400
-    assert referenced.json()["code"] == "SKILL_NOT_PUBLIC"
+    assert referenced.status_code == 404
+    assert referenced.json()["code"] == "SKILL_NOT_FOUND"
 
     cloned = await client.post(
         f"/api/v1/skills/{private_skill.id}/clone",
         json={"name": "should-not-clone", "visible": "private"},
         headers=headers,
     )
-    assert cloned.status_code == 400
-    assert cloned.json()["code"] == "SKILL_NOT_PUBLIC"
+    assert cloned.status_code == 404
+    assert cloned.json()["code"] == "SKILL_NOT_FOUND"
+
+    missing_reference = await client.post(
+        "/api/v1/skills/00000000-0000-0000-0000-000000000099/reference",
+        json={"name": "missing-source"},
+        headers=headers,
+    )
+    assert missing_reference.status_code == 404
+    assert missing_reference.json()["code"] == "SKILL_NOT_FOUND"

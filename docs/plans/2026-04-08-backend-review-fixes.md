@@ -68,7 +68,7 @@ Acceptance:
 
 ### 4. Remove public-source enumeration leak
 
-Status: `in_progress`
+Status: `completed`
 
 Problem:
 - API currently distinguishes `SKILL_NOT_FOUND` and `SKILL_NOT_PUBLIC` for arbitrary skill UUIDs.
@@ -83,7 +83,7 @@ Acceptance:
 
 ### 5. Remove `has_clone` / `has_reference` scalability issues
 
-Status: `pending`
+Status: `in_progress`
 
 Problem:
 - Public list uses a `limit=500` scan and per-row lookups.

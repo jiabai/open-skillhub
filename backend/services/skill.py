@@ -570,11 +570,9 @@ class SkillService:
 
     async def _get_public_source_skill(self, skill_id: str) -> Skill:
         self._assert_public_features_enabled()
-        skill = await self.skill_repo.get_by_id(skill_id)
+        skill = await self.skill_repo.get_public_by_id(skill_id)
         if not skill or not skill.is_active:
             raise ValueError("SKILL_NOT_FOUND")
-        if not self.is_public_skill(skill):
-            raise ValueError("SKILL_NOT_PUBLIC")
         return skill
 
     async def create_reference_skill(

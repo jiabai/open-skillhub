@@ -329,7 +329,7 @@ class TestSkillServiceInstallInstructions:
         result = await service.get_install_instructions(test_user, "skill-uuid-123", "1.0.0")
 
         assert result["ecosystem"] == "python"
-        assert "pip install" in result["commands"][0]
+        assert "uv pip install" in result["commands"][0]
 
     @pytest.mark.asyncio
     async def test_get_install_instructions_node(

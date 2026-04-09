@@ -12,7 +12,7 @@ parent: user-runtime-environment
 用户在部署依赖过程中执行 Skill，可能导致：
 - 执行失败：venv 未完全创建时，找不到 python 解释器
 - 依赖缺失：Skill 需要的包正在安装中，导入失败
-- pip 锁冲突：pip install 时文件锁定，执行时无法读取
+- uv 锁冲突：`uv pip install` / `uv sync` 时文件锁定，执行时无法读取
 - 状态不一致：`installed_dependencies` 更新滞后
 
 ### 设计方案：用户级操作锁（含超时机制）
@@ -118,7 +118,7 @@ runtime_temp_path: str | None     # 上传临时目录路径
 
 | lock_reason 值 | 含义 | 超时配置 |
 |----------------|------|----------|
-| `Deploying dependencies` | 正在部署依赖（pip install 执行中） | `install_timeout_seconds` |
+| `Deploying dependencies` | 正在部署依赖（`uv sync` / `uv pip install` 执行中） | `install_timeout_seconds` |
 | `Creating virtual environment` | 正在创建虚拟环境（venv 创建执行中） | `venv_creation_timeout_seconds` |
 | `Waiting for conflict resolution` | 等待用户确认依赖冲突（无后台进程，纯等待用户操作） | `lock_wait_timeout_seconds` |
 | `Waiting for dependency preview confirmation` | 等待用户确认依赖预览（无后台进程，纯等待用户操作） | `lock_wait_timeout_seconds` |
@@ -208,7 +208,7 @@ def get_timeout_for_reason(reason: str | None) -> int:
 
 `Deploying dependencies`、`Creating virtual environment`、`Restoring dependencies`、`Rolling back version` 这四个值对应的是**有活跃后台进程正在执行 I/O 操作**的状态。在此状态下：
 
-- pip install / venv 创建 / 依赖恢复等子进程正在运行
+- uv 安装 / venv 创建 / 依赖恢复等子进程正在运行
 - 这些进程正在修改文件系统（写入 .whl 文件到 site-packages、创建 venv 目录结构等）
 - 如果在进程运行期间强制超时解锁，后续请求可能在**半完成的环境**中执行脚本
 - 典型后果：import 缺失模块、版本冲突、venv 目录结构损坏

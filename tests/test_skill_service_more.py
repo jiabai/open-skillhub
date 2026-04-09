@@ -212,8 +212,8 @@ class TestSkillServiceInstallInstructionsPaths:
         result = await service.get_install_instructions(test_user, "skill-123", "1.0.0")
 
         assert "commands" in result
-        # Should have pip install commands as fallback
-        assert any("pip install" in cmd for cmd in result["commands"])
+        # Should have uv install commands as fallback
+        assert any("uv pip install" in cmd for cmd in result["commands"])
 
 
 class TestSkillServiceVersionIncrement:

@@ -1996,7 +1996,7 @@ NEXT_PUBLIC_API_BASE_URL=http://localhost:8000
 | `psutil` | >=5.9.0 | 系统监控 |
 | `boto3` | >=1.34.0 | S3/MinIO 归档后端 |
 | `ldap3` | >=2.9.1 | LDAP/AD 登录 |
-| `pipreqs` | 未固定（按安装解析） | 依赖推断辅助 |
+| `uv` | 未固定（按安装解析） | Python 依赖管理与执行 |
 
 ### 8.2 开发依赖
 
@@ -2040,7 +2040,7 @@ dependencies = [
     "psutil>=5.9.0",
     "boto3>=1.34.0",
     "ldap3>=2.9.1",
-    "pipreqs",
+    "uv",
 ]
 
 [project.optional-dependencies]

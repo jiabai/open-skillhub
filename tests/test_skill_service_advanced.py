@@ -68,6 +68,7 @@ def test_skill(test_user):
     skill.name = "test-skill"
     skill.description = "Test"
     skill.user_id = test_user.id
+    skill.source_skill_id = None
     skill.is_active = True
     skill.current_version = None
     skill.visibility = "private"
@@ -99,7 +100,7 @@ class TestSkillServiceUploadZipAdvanced:
         })
 
         with patch.object(settings, 'SKILL_STORAGE_PATH', '/tmp/test-skills'):
-            with patch('backend.services.skill.save_archive', new_callable=AsyncMock):
+            with patch('backend.services.skill.save_archive_from_path', new_callable=AsyncMock):
                 with patch('backend.services.skill.get_skill_versions_dir') as mock_dir:
                     mock_dir.return_value = Path('/tmp/test-skills/versions')
 
@@ -137,7 +138,7 @@ class TestSkillServiceUploadZipAdvanced:
         })
 
         with patch.object(settings, 'SKILL_STORAGE_PATH', '/tmp/test-skills'):
-            with patch('backend.services.skill.save_archive', new_callable=AsyncMock):
+            with patch('backend.services.skill.save_archive_from_path', new_callable=AsyncMock):
                 with patch('backend.services.skill.get_skill_versions_dir') as mock_dir:
                     mock_dir.return_value = Path('/tmp/test-skills/versions')
 
@@ -174,16 +175,16 @@ name: test-skill
 version: 1.0.0
 dependency_spec:
   python:
-    manager: pip
+    manager: uv
     requirements:
       - requests>=2.0.0
 ---
 # Test
-"""
+        """
         zip_content = create_test_zip({"main.py": "pass"}, skill_md)
 
         with patch.object(settings, 'SKILL_STORAGE_PATH', '/tmp/test-skills'):
-            with patch('backend.services.skill.save_archive', new_callable=AsyncMock):
+            with patch('backend.services.skill.save_archive_from_path', new_callable=AsyncMock):
                 with patch('backend.services.skill.get_skill_versions_dir') as mock_dir:
                     mock_dir.return_value = Path('/tmp/test-skills/versions')
 
@@ -219,7 +220,7 @@ dependency_spec:
         zip_content = create_test_zip({"main.py": "pass"})
 
         with patch.object(settings, 'SKILL_STORAGE_PATH', '/tmp/test-skills'):
-            with patch('backend.services.skill.save_archive', new_callable=AsyncMock):
+            with patch('backend.services.skill.save_archive_from_path', new_callable=AsyncMock):
                 with patch('backend.services.skill.get_skill_versions_dir') as mock_dir:
                     mock_dir.return_value = Path('/tmp/test-skills/versions')
 
@@ -234,6 +235,7 @@ dependency_spec:
                                     )
 
         # Version should be auto-incremented
+        assert result["version"] == "1.0.1"
 
 
 class TestSkillServiceDownloadAdvanced:
@@ -253,15 +255,20 @@ class TestSkillServiceDownloadAdvanced:
         mock_version_repo.list_by_skill = AsyncMock(return_value=[version_record])
 
         service = SkillService(mock_skill_repo, mock_version_repo)
+        service.download_service.build_download_payload = AsyncMock(
+            return_value={
+                "skill_uuid": "skill-uuid",
+                "version": "1.0.0",
+                "encrypted_code": base64.b64encode(b"test archive content").decode("utf-8"),
+                "checksum": "sha256:test",
+            }
+        )
+        service.resolve_version_dir = AsyncMock(
+            return_value=(test_skill, "1.0.0", version_record, Path("/tmp/versions/1.0.0"))
+        )
 
-        # Create mock archive
-        archive_content = b"test archive content"
-
-        with patch('backend.services.skill.load_archive', new_callable=AsyncMock) as mock_load:
-            mock_load.return_value = archive_content
-
-            with patch.object(settings, 'ENABLE_SKILL_DOWNLOAD_ENCRYPTION', True):
-                result = await service.download_skill(test_user, "skill-uuid")
+        with patch.object(settings, 'ENABLE_SKILL_DOWNLOAD_ENCRYPTION', True):
+            result = await service.download_skill(test_user, "skill-uuid")
 
         assert "encrypted_code" in result
         assert "checksum" in result
@@ -280,14 +287,20 @@ class TestSkillServiceDownloadAdvanced:
         mock_version_repo.get_by_version = AsyncMock(return_value=version_record)
 
         service = SkillService(mock_skill_repo, mock_version_repo)
+        service.download_service.build_download_payload = AsyncMock(
+            return_value={
+                "skill_uuid": "skill-uuid",
+                "version": "1.0.0",
+                "encrypted_code": base64.b64encode(b"test archive content").decode("utf-8"),
+                "checksum": "sha256:test",
+            }
+        )
+        service.resolve_version_dir = AsyncMock(
+            return_value=(test_skill, "1.0.0", version_record, Path("/tmp/versions/1.0.0"))
+        )
 
-        archive_content = b"test archive content"
-
-        with patch('backend.services.skill.load_archive', new_callable=AsyncMock) as mock_load:
-            mock_load.return_value = archive_content
-
-            with patch.object(settings, 'ENABLE_SKILL_DOWNLOAD_ENCRYPTION', False):
-                result = await service.download_skill(test_user, "skill-uuid")
+        with patch.object(settings, 'ENABLE_SKILL_DOWNLOAD_ENCRYPTION', False):
+            result = await service.download_skill(test_user, "skill-uuid")
 
         assert "encrypted_code" in result
         assert "checksum" in result
@@ -363,16 +376,16 @@ class TestSkillServiceInstallInstructionsAdvanced:
     """高级安装指令测试"""
 
     @pytest.mark.asyncio
-    async def test_get_install_instructions_pip(
+    async def test_get_install_instructions_uv_requirements_file(
         self, mock_skill_repo, mock_version_repo, test_user, test_skill
     ):
-        """测试 pip 安装指令"""
+        """测试 uv requirements.txt 安装指令"""
         mock_skill_repo.get_by_id = AsyncMock(return_value=test_skill)
 
         version_record = MagicMock()
         version_record.dependency_spec = {
             "python": {
-                "manager": "pip",
+                "manager": "uv",
                 "requirements": ["requests>=2.0.0"],
                 "files": ["requirements.txt"]
             }
@@ -384,31 +397,31 @@ class TestSkillServiceInstallInstructionsAdvanced:
         result = await service.get_install_instructions(test_user, "skill-uuid", "1.0.0")
 
         assert result["ecosystem"] == "python"
-        assert "pip install" in result["commands"][0]
+        assert "uv pip install" in result["commands"][0]
 
     @pytest.mark.asyncio
-    async def test_get_install_instructions_poetry(
+    async def test_get_install_instructions_uv_inline_requirements(
         self, mock_skill_repo, mock_version_repo, test_user, test_skill
     ):
-        """测试 poetry 安装指令"""
+        """测试 uv 内联依赖安装指令"""
         mock_skill_repo.get_by_id = AsyncMock(return_value=test_skill)
 
         version_record = MagicMock()
         version_record.dependency_spec = {
             "python": {
-                "manager": "poetry",
-                "requirements": [],
+                "manager": "uv",
+                "requirements": ["requests==2.31.0"],
                 "files": []
             }
         }
-        version_record.dependencies = []
+        version_record.dependencies = ["requests==2.31.0"]
         mock_version_repo.get_by_version = AsyncMock(return_value=version_record)
 
         service = SkillService(mock_skill_repo, mock_version_repo)
         result = await service.get_install_instructions(test_user, "skill-uuid", "1.0.0")
 
         assert result["ecosystem"] == "python"
-        assert "poetry install" in result["commands"]
+        assert result["commands"] == ["uv pip install requests==2.31.0"]
 
     @pytest.mark.asyncio
     async def test_get_install_instructions_npm(

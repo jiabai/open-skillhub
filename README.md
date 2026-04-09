@@ -62,23 +62,25 @@ docker compose up -d --build
 
 ```bash
 # 1. Create virtual environment
-python -m venv .venv
+uv venv
 source .venv/bin/activate  # Linux/macOS
 # .venv\Scripts\activate   # Windows
 
 # 2. Install dependencies
-pip install -e ".[dev]"
+uv sync --locked --extra dev
 
 # 3. Configure environment
 cp backend/.env.example backend/.env
 # Edit backend/.env — at minimum, change SECRET_KEY to a random 32+ char string
 
 # 4. Initialize database
-alembic upgrade head
+uv run alembic -c backend/alembic.ini upgrade head
 
 # 5. Start server
-uvicorn backend.api_app:app --host 0.0.0.0 --port 8001
+uv run uvicorn backend.api_app:app --host 0.0.0.0 --port 8001
 ```
+
+For local development, the repository default is a project-local `.venv`. If you want `uv` to use a machine-level environment such as `D:\Code\.venv` on Windows, set `UV_PROJECT_ENVIRONMENT` locally before running `uv sync`; do not commit that machine-specific path into the repository.
 
 ---
 

@@ -923,7 +923,7 @@ async def test_skill_dependency_spec_frontmatter_yaml(client, tmp_path, monkeypa
     with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as archive:
         archive.writestr(
             "SKILL.md",
-            "---\nname: skillyaml\ndescription: dep\nversion: 2.0.0\ndependency_spec:\n  schema_version: 1\n  python:\n    manager: poetry\n    requirements:\n      - requests==2.31.0\n    files: []\n  system:\n    packages:\n      - git\n    notes: needed\n---\nbody",
+            "---\nname: skillyaml\ndescription: dep\nversion: 2.0.0\ndependency_spec:\n  schema_version: 1\n  python:\n    manager: uv\n    requirements:\n      - requests==2.31.0\n    files: []\n  system:\n    packages:\n      - git\n    notes: needed\n---\nbody",
         )
     buffer.seek(0)
     uploaded = await client.post(
@@ -940,9 +940,54 @@ async def test_skill_dependency_spec_frontmatter_yaml(client, tmp_path, monkeypa
     assert response.status_code == 200
     payload = response.json()
     assert payload["ecosystem"] == "python"
-    assert payload["commands"] == ["poetry install"]
-    assert payload["dependency_spec"]["python"]["manager"] == "poetry"
+    assert payload["commands"] == ["uv pip install requests==2.31.0"]
+    assert payload["dependency_spec"]["python"]["manager"] == "uv"
     assert "git" in payload["dependency_spec"]["system"]["packages"]
+
+
+@pytest.mark.asyncio
+async def test_skill_dependency_spec_frontmatter_rejects_non_uv_manager(client, tmp_path, monkeypatch):
+    monkeypatch.setenv("SKILL_STORAGE_PATH", str(tmp_path))
+    await client.post(
+        "/api/v1/auth/verification-code",
+        json={"email": "yaml2@example.com", "purpose": "register"},
+    )
+    await client.post(
+        "/api/v1/auth/register",
+        json={"email": "yaml2@example.com", "username": "yamluser2", "code": "123456"},
+    )
+    await client.post(
+        "/api/v1/auth/verification-code",
+        json={"email": "yaml2@example.com", "purpose": "login"},
+    )
+    login = await client.post(
+        "/api/v1/auth/login",
+        json={"email": "yaml2@example.com", "code": "123456"},
+    )
+    access = login.json()["access_token"]
+    headers = {"Authorization": f"Bearer {access}"}
+    created = await client.post(
+        "/api/v1/skills",
+        json={"name": "skillyaml2", "description": "desc"},
+        headers=headers,
+    )
+    skill_id = created.json()["id"]
+    buffer = io.BytesIO()
+    with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as archive:
+        archive.writestr(
+            "SKILL.md",
+            "---\nname: skillyaml2\ndescription: dep\nversion: 2.0.0\ndependency_spec:\n  schema_version: 1\n  python:\n    manager: poetry\n    requirements:\n      - requests==2.31.0\n    files: []\n---\nbody",
+        )
+    buffer.seek(0)
+    uploaded = await client.post(
+        "/api/v1/skills/upload",
+        data={"skill_uuid": skill_id},
+        files={"file": ("skill.zip", buffer.read(), "application/zip")},
+        headers=headers,
+    )
+    assert uploaded.status_code == 400
+    payload = uploaded.json()
+    assert "manager" in payload["detail"].lower()
 
 
 @pytest.mark.asyncio

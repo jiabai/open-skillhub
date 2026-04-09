@@ -38,7 +38,7 @@ graph TD
         P -->|取消| S[解锁]
         Q -->|确认| R
         Q -->|取消| S
-        R --> T[pip install]
+        R --> T[uv sync / uv pip install]
         T -->|成功| U[install_status = ready]
         T -->|失败| V[install_status = failed]
         U --> W[解锁]
@@ -102,7 +102,7 @@ graph TD
 #### 关键设计点
 
 - **全程无锁**：上传不涉及 venv 操作，不需要加锁
-- **不安装依赖**：仅解析依赖声明，不执行 pip install
+- **不安装依赖**：仅解析依赖声明，不执行 `uv sync` / `uv pip install`
 - **安全扫描仍在上传阶段**：高风险脚本尽早拦截
 - **install_status=pending**：明确告知用户需要部署才能使用
 
@@ -128,7 +128,7 @@ graph TD
 | 7c | 用户取消（确认前阶段） | 调用 `POST /deploy/cancel` 接口释放锁，`install_status` 保持 `pending` 不变 | 无锁 |
 | 8 | 用户确认 | 冲突：允许升级 / 无冲突：确认安装（调用 `POST /deploy/confirm` 或 `POST /deploy/resolve-conflict`） | 已锁 |
 | 9 | 保存依赖快照 | `save_dependency_snapshot(is_auto=True)` | 已锁 |
-| 10 | 执行 pip install | 逐个安装依赖 | 已锁 |
+| 10 | 执行 `uv sync` / `uv pip install` | 逐个安装依赖 | 已锁 |
 | 11a | 安装成功 | 更新 `installed_dependencies` | 已锁 |
 | 11b | 安装失败 | 回滚已安装的包 | 已锁 |
 | 12 | 更新 install_status | 成功 → `ready`，失败 → `failed` | 已锁 |

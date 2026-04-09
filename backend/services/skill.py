@@ -449,6 +449,25 @@ class SkillService:
         return None
 
     @staticmethod
+    def _normalize_explicit_dependency_spec(spec: dict) -> dict:
+        normalized = dict(spec)
+        python_spec = normalized.get("python")
+        if not isinstance(python_spec, dict):
+            return normalized
+
+        manager = str(python_spec.get("manager") or "uv").strip().lower()
+        if manager != "uv":
+            raise SkillError(
+                SkillErrorCode.INVALID_METADATA,
+                "dependency_spec.python.manager must be 'uv'",
+            )
+
+        normalized_python = dict(python_spec)
+        normalized_python["manager"] = "uv"
+        normalized["python"] = normalized_python
+        return normalized
+
+    @staticmethod
     def _parse_semver(version: str) -> tuple[str, int, int, int] | None:
         match = re.fullmatch(r"(v)?(\d+)\.(\d+)\.(\d+)", version)
         if not match:
@@ -509,45 +528,46 @@ class SkillService:
             if parsed:
                 deps = parsed
             python_spec = {
-                "manager": "pip",
+                "manager": "uv",
                 "requirements": deps,
                 "files": ["requirements.txt"],
             }
-        elif "environment.yml" in entry_names:
-            python_spec = {
-                "manager": "conda",
-                "requirements": deps,
-                "files": ["environment.yml"],
-            }
         if not python_spec and deps:
             python_spec = {
-                "manager": "pip",
+                "manager": "uv",
                 "requirements": deps,
                 "files": [],
             }
         return python_spec, deps
 
     @staticmethod
-    def _build_python_commands(manager: str, requirements: list[str], files: list[str]) -> list[str]:
+    def _clean_dependency_items(items: object) -> list[str]:
+        if not isinstance(items, list):
+            return []
+        return [str(item) for item in items if str(item).strip()]
+
+    @staticmethod
+    def _build_uv_pip_install_command(requirements: list[str]) -> str | None:
+        quoted_requirements = [quote_shell_arg(item) for item in requirements if item.strip()]
+        if not quoted_requirements:
+            return None
+        return "uv pip install " + " ".join(quoted_requirements)
+
+    @classmethod
+    def _build_python_commands(cls, manager: str, requirements: list[str], files: list[str]) -> list[str]:
         commands: list[str] = []
-        quoted_requirements = [quote_shell_arg(str(item)) for item in requirements if str(item).strip()]
-        if manager == "pip":
-            if "requirements.txt" in files:
-                commands.append("pip install -r requirements.txt")
-            if quoted_requirements:
-                commands.append("pip install " + " ".join(quoted_requirements))
-        elif manager == "poetry":
-            commands.append("poetry install")
-        elif manager == "uv":
-            if "pyproject.toml" in files:
-                commands.append("uv sync")
-            elif "requirements.txt" in files:
-                commands.append("uv pip install -r requirements.txt")
-            if quoted_requirements:
-                commands.append("uv pip install " + " ".join(quoted_requirements))
-        elif manager == "conda":
-            if "environment.yml" in files:
-                commands.append("conda env create -f environment.yml")
+        # Explicit specs are normalized at ingest; keep a uv fallback here for direct callers and legacy records.
+        manager = (manager or "uv").strip().lower()
+        if manager not in {"uv", "pip"}:
+            return commands
+        if "pyproject.toml" in files:
+            commands.append("uv sync")
+        elif "requirements.txt" in files:
+            commands.append("uv pip install -r requirements.txt")
+        else:
+            inline_install = cls._build_uv_pip_install_command(requirements)
+            if inline_install:
+                commands.append(inline_install)
         return commands
 
     @staticmethod
@@ -709,9 +729,9 @@ class SkillService:
             node_spec = dependency_spec.get("node")
             if isinstance(python_spec, dict):
                 ecosystem = "python"
-                requirements = [str(item) for item in python_spec.get("requirements", []) if str(item).strip()]
-                files = [str(item) for item in python_spec.get("files", []) if str(item).strip()]
-                manager = str(python_spec.get("manager") or "pip")
+                requirements = self._clean_dependency_items(python_spec.get("requirements"))
+                files = self._clean_dependency_items(python_spec.get("files"))
+                manager = str(python_spec.get("manager") or "uv")
                 if requirements:
                     dependencies = requirements
                     requirements_text = "\n".join(requirements)
@@ -724,10 +744,9 @@ class SkillService:
                 dependencies = []
                 requirements_text = ""
         if not commands and dependencies:
-            commands = [
-                "pip install " + " ".join(quote_shell_arg(str(item)) for item in dependencies if str(item).strip()),
-                "pip install -r requirements.txt",
-            ]
+            inline_install = self._build_uv_pip_install_command(dependencies)
+            if inline_install:
+                commands = [inline_install]
         return {
             "strategy": "client",
             "dependencies": dependencies,
@@ -905,7 +924,7 @@ class SkillService:
             dependency_spec: dict
             dependency_spec_version: str | None
             if explicit_dependency_spec is not None:
-                dependency_spec = explicit_dependency_spec
+                dependency_spec = self._normalize_explicit_dependency_spec(explicit_dependency_spec)
                 dependency_spec_version = str(dependency_spec.get("schema_version") or "1")
             else:
                 dependency_spec = {"schema_version": 1}
@@ -1092,7 +1111,7 @@ class SkillService:
             dependency_spec: dict
             dependency_spec_version: str | None
             if explicit_dependency_spec is not None:
-                dependency_spec = explicit_dependency_spec
+                dependency_spec = self._normalize_explicit_dependency_spec(explicit_dependency_spec)
                 dependency_spec_version = str(dependency_spec.get("schema_version") or "1")
             else:
                 dependency_spec = {"schema_version": 1}

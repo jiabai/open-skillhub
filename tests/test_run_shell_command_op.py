@@ -39,11 +39,42 @@ def test_command_whitelist_allows_package_install_when_network_control_enabled(m
     from backend.config import settings as settings_module
 
     monkeypatch.setattr(settings_module.settings, "ENABLE_NETWORK_EGRESS_CONTROL", True, raising=False)
-    policy, message = get_command_policy("pip install requests")
+    policy, message = get_command_policy("uv pip install requests")
     assert policy is not None
     assert policy.category == "package_manager"
     assert policy.allows_network is True
     assert message == "OK"
+
+
+def test_command_whitelist_allows_uv_run():
+    policy, message = get_command_policy("uv run python script.py")
+    assert policy is not None
+    assert policy.category == "local_script"
+    assert policy.allows_network is True
+    assert message == "OK"
+
+
+def test_command_whitelist_allows_uv_run_network_egress_when_enabled(monkeypatch):
+    from backend.config import settings as settings_module
+
+    monkeypatch.setattr(settings_module.settings, "ENABLE_NETWORK_EGRESS_CONTROL", True, raising=False)
+    policy, message = get_command_policy('uv run python -c "import urllib.request; urllib.request.urlopen(\'https://example.com\')"')
+    assert policy is not None
+    assert policy.category == "local_script"
+    assert policy.allows_network is True
+    assert message == "OK"
+
+
+def test_command_whitelist_blocks_uv_run_pip_install():
+    allowed, message = validate_command("uv run pip install requests")
+    assert allowed is False
+    assert "not allowed" in message.lower()
+
+
+def test_command_whitelist_blocks_pip_install():
+    allowed, message = validate_command("pip install requests")
+    assert allowed is False
+    assert "not allowed" in message.lower()
 
 
 def test_command_whitelist_blocks_npm_run_script_shortcut():

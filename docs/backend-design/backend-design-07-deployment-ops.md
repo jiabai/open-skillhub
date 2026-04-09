@@ -15,16 +15,19 @@ WORKDIR /app
 
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
+ENV UV_PROJECT_ENVIRONMENT=/app/.venv
+ENV PATH="/app/.venv/bin:$PATH"
 
-COPY pyproject.toml LICENSE README.md README_ZH.md /app/
+COPY --from=ghcr.io/astral-sh/uv:0.11.3 /uv /uvx /bin/
+
+COPY pyproject.toml uv.lock LICENSE README.md README_ZH.md /app/
 COPY backend /app/backend
 
-RUN pip install --no-cache-dir --upgrade pip \
-    && pip install --no-cache-dir .
+RUN uv sync --locked --no-dev
 
 EXPOSE 8000
 
-CMD ["sh", "-c", "alembic -c backend/alembic.ini upgrade head && uvicorn backend.api_app:app --host 0.0.0.0 --port 8000"]
+CMD ["sh", "-c", "uv run alembic -c backend/alembic.ini upgrade head && uv run uvicorn backend.api_app:app --host 0.0.0.0 --port 8000"]
 ```
 
 ### 1.2 Docker Compose 服务

@@ -298,7 +298,7 @@ class Skill(UUIDPrimaryKeyMixin, TimestampMixin, Base):
            ▼                     ▼
   ┌─────────────────────────────────────────────────┐
   │ 10. 安装新依赖                                   │
-  │    - pip install [packages]                     │
+  │    - uv pip install [packages]                  │
   │    - 更新 installed_dependencies                │
   │    - 更新 venv_last_used_at                     │
   └────────┬────────────────────────────────────────┘
@@ -682,7 +682,7 @@ MCP Client 调用 execute_skill
 用户在安装依赖过程中执行其他 Skill，可能导致：
 - 执行失败：venv 未完全创建时，找不到 python 解释器
 - 依赖缺失：Skill 需要的包正在安装中，导入失败
-- pip 锁冲突：pip install 时文件锁定，执行时无法读取
+- uv 锁冲突：`uv pip install` / `uv sync` 时文件锁定，执行时无法读取
 - 状态不一致：`installed_dependencies` 更新滞后
 
 ### 设计方案：用户级操作锁（含超时机制）

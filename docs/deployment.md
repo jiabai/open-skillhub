@@ -244,10 +244,10 @@ docker compose exec api sh
 
 ```bash
 # Python 环境
-python -m venv .venv
+uv venv
 source .venv/bin/activate  # Linux/macOS
 # .venv\Scripts\activate   # Windows
-pip install -e ".[dev]"
+uv sync --locked --extra dev
 
 # Node.js 环境（如需前端）
 cd frontend
@@ -283,7 +283,7 @@ psql -U postgres -c "GRANT ALL PRIVILEGES ON DATABASE skillhub TO skillhub;"
 
 ```bash
 # 执行迁移
-alembic upgrade head
+uv run alembic -c backend/alembic.ini upgrade head
 ```
 
 ### 4. 准备数据目录
@@ -298,7 +298,7 @@ chmod 755 ./data/skills
 **后端 API：**
 
 ```bash
-uvicorn backend.api_app:app --host 0.0.0.0 --port 8000
+uv run uvicorn backend.api_app:app --host 0.0.0.0 --port 8000
 ```
 
 **前端控制台：**
@@ -501,7 +501,7 @@ SQLite 数据库会在首次启动时自动创建，无需手动创建。如果�
 ls -la ./data
 
 # 进入容器手动初始化
-docker compose exec api sh -c "alembic upgrade head"
+docker compose exec api sh -c "uv run alembic -c backend/alembic.ini upgrade head"
 ```
 
 ### 3. CORS 报错

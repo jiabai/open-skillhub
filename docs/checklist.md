@@ -75,7 +75,7 @@
   - [x] PyYAML >= 6.0
   - [x] boto3 >= 1.34.0
   - [x] ldap3 >= 2.9.1
-  - [x] pipreqs
+- [x] uv
   - [x] alembic
   - [x] httpx
 

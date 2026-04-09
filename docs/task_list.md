@@ -386,7 +386,7 @@ Phase 6 (测试)
    - 引入 `dependency_spec`（JSON）作为权威结构，支持多生态并行声明
    - 推荐结构（示例）：
      - `schema_version: 1`
-     - `python`: `{ manager: "pip"|"poetry"|"uv"|"conda", requirements: [...], files: [...] }`
+     - `python`: `{ manager: "uv", requirements: [...], files: [...] }`
      - `node`: `{ manager: "npm"|"pnpm"|"yarn", package_json: {...}, lockfile: "package-lock.json" }`
      - `system`: `{ packages: [...], notes: "..." }`
    - 兼容策略：原有 `dependencies: [..]` 视为 `python.manager="pip"` 的 requirements 简写
@@ -407,10 +407,10 @@ Phase 6 (测试)
    - `GET install-instructions` 按生态返回：
      - `strategy=client`
      - `ecosystem="python"|"node"|...`
-     - `commands`：面向执行器的推荐命令（如 `pip install -r requirements.txt` / `npm ci`）
+     - `commands`：面向执行器的推荐命令（如 `uv sync` / `uv pip install -r requirements.txt` / `npm ci`）
      - `manifests`：依赖清单原文或 JSON（用于执行器生成环境）
 6. **客户端/执行器对接约定（C 端实现）**
-   - 按 `dependency_spec` 选择隔离环境策略（venv/uv/conda/node_modules）
+   - 按 `dependency_spec` 选择隔离环境策略（uv/node_modules）
    - 以 `skill_id@version` 为粒度缓存环境；版本变更或策略变更需重建
 7. **验收与测试（改代码时的检查项）**
    - ZIP 上传：不同生态依赖声明能被解析并持久化到 SkillVersion

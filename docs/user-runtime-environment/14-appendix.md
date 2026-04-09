@@ -209,7 +209,7 @@ async def delete_skill(
     为什么需要加锁？
     ────────────────
     如果不加锁直接删除 Skill 文件，可能发生以下竞态：
-      - 部署流程正在 pip install 到该 Skill 的目录 → 删除导致安装中断 / 文件残留
+      - 部署流程正在 `uv sync` / `uv pip install` 到该 Skill 的目录 → 删除导致安装中断 / 文件残留
       - 执行流程正在从该 Skill 目录读取脚本 → 删除导致 FileNotFoundError
       - 依赖恢复正在写入该 Skill 的依赖快照 → 删除导致数据不一致
 

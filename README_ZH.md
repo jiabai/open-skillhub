@@ -62,23 +62,25 @@ docker compose up -d --build
 
 ```bash
 # 1. 创建虚拟环境
-python -m venv .venv
+uv venv
 source .venv/bin/activate  # Linux/macOS
 # .venv\Scripts\activate   # Windows
 
 # 2. 安装依赖
-pip install -e ".[dev]"
+uv sync --locked --extra dev
 
 # 3. 配置环境变量
 cp backend/.env.example backend/.env
 # 编辑 backend/.env — 至少需要修改 SECRET_KEY 为 32 位以上的随机字符串
 
 # 4. 初始化数据库
-alembic upgrade head
+uv run alembic -c backend/alembic.ini upgrade head
 
 # 5. 启动服务
-uvicorn backend.api_app:app --host 0.0.0.0 --port 8001
+uv run uvicorn backend.api_app:app --host 0.0.0.0 --port 8001
 ```
+
+浠撳簱榛樿浣跨敤椤圭洰鍐?`.venv`锛岃繖鏇撮€傚悎 Linux 閮ㄧ讲銆丏ocker 鍜?CI銆傚鏋滀綘鍦?Windows 鏈哄櫒涓婂笇鏈涘鐢?`D:\Code\.venv` 杩欑鏈哄櫒绾ц櫄鎷熺幆澧冿紝璇峰彧鍦ㄦ湰鍦拌缃?`UV_PROJECT_ENVIRONMENT`锛屼笉瑕佹妸璇ョ粷瀵硅矾寰勫啓鍏ヤ粨搴撱€?
 
 ---
 

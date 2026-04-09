@@ -249,7 +249,7 @@ parent: user-runtime-environment
 |--------|------|------|---------|
 | `RUNTIME_NOT_LOCKED` | 409 | 运行时环境当前未被锁定 | 用户未持有锁（可能已被超时自动释放或已取消过） |
 | `DEPLOY_ALREADY_STARTED` | 409 | 部署已经开始，无法取消 | install_status 已变为 installing（pip 已在后台运行） |
-| `INVALID_LOCK_STATE` | 409 | 当前锁定状态不允许取消 | lock_reason 不属于"等待用户确认"类（如正在 pip install 中） |
+| `INVALID_LOCK_STATE` | 409 | 当前锁定状态不允许取消 | lock_reason 不属于"等待用户确认"类（如正在 `uv sync` / `uv pip install` 中） |
 | `SKILL_NOT_FOUND` | 404 | Skill 不存在 | - |
 
 **错误响应示例 — 部署已开始**：

@@ -74,16 +74,7 @@ def clear_skill_current_dir(user_id: str, skill_name: str) -> None:
     for child in list(path.iterdir()):
         if child == versions_dir:
             continue
-        if child.is_file():
-            child.unlink()
-            continue
-        for sub in child.rglob("*"):
-            if sub.is_file():
-                sub.unlink()
-        for sub in sorted(child.rglob("*"), reverse=True):
-            if sub.is_dir():
-                sub.rmdir()
-        child.rmdir()
+        _remove_path_tree(child)
     logger.debug(f"[STORAGE_CLEAR] Completed")
 
 
@@ -100,13 +91,7 @@ def delete_skill_dir(user_id: str, skill_name: str) -> None:
     if not path.exists():
         logger.debug(f"[STORAGE_DELETE_DIR] Directory does not exist")
         return
-    for child in path.rglob("*"):
-        if child.is_file():
-            child.unlink()
-    for child in sorted(path.rglob("*"), reverse=True):
-        if child.is_dir():
-            child.rmdir()
-    path.rmdir()
+    _remove_path_tree(path)
     logger.debug(f"[STORAGE_DELETE_DIR] Completed")
 
 
@@ -184,3 +169,16 @@ def get_safe_skill_path(base_dir: Path, user_id: str, skill_name: str, file_path
     if not target.is_relative_to(base_resolved):
         return None
     return target
+
+
+def _remove_path_tree(path: Path) -> None:
+    if path.is_file():
+        path.unlink()
+        return
+    for child in path.rglob("*"):
+        if child.is_file():
+            child.unlink()
+    for child in sorted(path.rglob("*"), reverse=True):
+        if child.is_dir():
+            child.rmdir()
+    path.rmdir()

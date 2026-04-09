@@ -16,6 +16,8 @@ Usage Example:
         ...
 """
 
+import inspect
+
 from fastapi import Depends, HTTPException
 from starlette import status
 
@@ -59,15 +61,20 @@ def require_permission(permission: str):
             return await service.get_skill(current_user, skill_uuid)
     """
     # P3: Input validation - ensure permission is a non-empty string
-    if not permission or not isinstance(permission, str):
+    if not isinstance(permission, str) or not permission.strip():
         raise ValueError(
             f"Permission must be a non-empty string, got: {permission!r}"
         )
+    permission = permission.strip()
 
     async def _permission_checker(
         current_user=Depends(get_current_active_user),
     ):
         """Check if the current user has the required permission."""
+        if hasattr(current_user, "dependency") and hasattr(current_user, "use_cache"):
+            current_user = get_current_active_user()
+        while inspect.isawaitable(current_user):
+            current_user = await current_user
         if not has_permission(current_user, permission):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,

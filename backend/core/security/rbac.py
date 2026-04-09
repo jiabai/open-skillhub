@@ -17,7 +17,7 @@ _DEFAULT_ROLE_PERMISSIONS = {
         "skill.upload",
         "skill.execute",
     ],
-    "viewer": ["dashboard.read", "skill.list", "skill.read"],
+    "viewer": ["skill.list", "skill.read"],
 }
 
 
@@ -46,7 +46,8 @@ def has_permission(user: User, permission: str) -> bool:
     if user.is_superuser:
         return True
     role = (user.role or settings.DEFAULT_ROLE or "member").strip()
-    permissions = get_role_permissions().get(role, set())
+    permissions_by_role = get_role_permissions()
+    permissions = permissions_by_role.get(role) or permissions_by_role.get("member", set())
     return "*" in permissions or permission in permissions
 
 

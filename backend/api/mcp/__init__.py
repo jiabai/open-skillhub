@@ -1,4 +1,5 @@
 import asyncio
+from contextlib import AsyncExitStack
 from collections.abc import Callable
 from datetime import datetime, timezone
 from pathlib import Path
@@ -34,6 +35,7 @@ _mcp_service: Any | None = None
 _initialized = False
 _init_lock = asyncio.Lock()
 _init_error: Exception | None = None
+_lifespan_stack: AsyncExitStack | None = None
 
 
 def _error_payload(detail: object, code: str) -> dict:
@@ -137,6 +139,23 @@ def _build_fallback_app() -> Starlette:
     )
 
 
+async def _start_app_lifespans(*apps: Any) -> None:
+    global _lifespan_stack
+    if _lifespan_stack is not None:
+        return
+    stack = AsyncExitStack()
+    try:
+        for app in apps:
+            router = getattr(app, "router", None)
+            lifespan_context = getattr(router, "lifespan_context", None) if router else None
+            if lifespan_context:
+                await stack.enter_async_context(lifespan_context(app))
+    except Exception:
+        await stack.aclose()
+        raise
+    _lifespan_stack = stack
+
+
 async def ensure_mcp_initialized() -> None:
     global _initialized
     global _mcp_app
@@ -153,7 +172,7 @@ async def ensure_mcp_initialized() -> None:
             from flowllm.core.service.mcp_service import MCPService
 
             from backend.core.app import SkillHubMcpApp
-            import backend.core.tools
+            import backend.core.tools  # noqa: F401
         except Exception as exc:
             _init_error = exc
             fallback = _build_fallback_app()
@@ -169,8 +188,11 @@ async def ensure_mcp_initialized() -> None:
             if isinstance(flow, BaseToolFlow):
                 service.integrate_tool_flow(flow)
         _mcp_service = service
-        set_http_app(create_http_app(service.mcp))
-        set_sse_app(create_sse_app(service.mcp))
+        http_app = create_http_app(service.mcp)
+        sse_app = create_sse_app(service.mcp)
+        await _start_app_lifespans(http_app, sse_app)
+        set_http_app(http_app)
+        set_sse_app(sse_app)
         _initialized = True
 
 
@@ -178,8 +200,12 @@ async def shutdown_mcp() -> None:
     global _initialized
     global _mcp_app
     global _mcp_service
+    global _lifespan_stack
     if not _initialized:
         return
+    if _lifespan_stack is not None:
+        await _lifespan_stack.aclose()
+        _lifespan_stack = None
     if _mcp_app:
         await _mcp_app.async_stop()
     _mcp_app = None

@@ -26,7 +26,7 @@ class SkillCloneService:
 
     @staticmethod
     def has_clone_origin(skill: Skill) -> bool:
-        clone_source_skill_id = getattr(skill, "cloned_from_skill_id", None)
+        clone_source_skill_id = skill.cloned_from_skill_id
         return isinstance(clone_source_skill_id, str) and bool(clone_source_skill_id.strip())
 
     async def get_clone_origin_metadata(self, skill: Skill) -> dict[str, str]:
@@ -34,19 +34,7 @@ class SkillCloneService:
             clone_origin = {
                 "cloned_from_skill_id": str(skill.cloned_from_skill_id),
             }
-            cloned_from_version = getattr(skill, "cloned_from_version", None)
-            if isinstance(cloned_from_version, str) and cloned_from_version.strip():
-                clone_origin["cloned_from_version"] = cloned_from_version
-            return clone_origin
-
-        records = await self.version_repo.list_by_skill(skill.id)
-        for record in records:
-            metadata = record.metadata_json or {}
-            source_skill_id = metadata.get("cloned_from_skill_id")
-            if not isinstance(source_skill_id, str) or not source_skill_id.strip():
-                continue
-            clone_origin = {"cloned_from_skill_id": source_skill_id}
-            cloned_from_version = metadata.get("cloned_from_version")
+            cloned_from_version = skill.cloned_from_version
             if isinstance(cloned_from_version, str) and cloned_from_version.strip():
                 clone_origin["cloned_from_version"] = cloned_from_version
             return clone_origin

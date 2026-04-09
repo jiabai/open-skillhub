@@ -2,22 +2,16 @@ from datetime import datetime, timezone
 import base64
 import difflib
 import hashlib
-import json
 import os
 from pathlib import Path
-import re
 import shutil
 import tempfile
-import zipfile
 
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from loguru import logger
-import yaml
 
 from backend.config.settings import settings
 from backend.core.security.rbac import is_skill_visible
-from backend.core.utils.key_derivation import derive_aes256_key
-from backend.core.utils.process_exec import quote_shell_arg
 from backend.core.utils.skill_storage import (
     MAX_FILES_PER_SKILL,
     MAX_FILE_SIZE,
@@ -37,6 +31,8 @@ from backend.core.utils.skill_archive import (
     bump_patch_version,
     delete_archives_for_skill,
     list_archive_versions,
+    load_archive,  # noqa: F401
+    save_archive,  # noqa: F401
     save_archive_from_path,
 )
 from backend.models.skill import Skill
@@ -45,7 +41,27 @@ from backend.repositories.skill import SkillRepository
 from backend.repositories.skill_version import SkillVersionRepository
 from backend.services.skill_clone import CloneCreationResult, SkillCloneService
 from backend.services.skill_download import SkillDownloadService
-from backend.services.skill_errors import DownloadTooLargeError, SkillError, SkillErrorCode
+from backend.services.skill_errors import DownloadTooLargeError, SkillError, SkillErrorCode  # noqa: F401
+from backend.services.skill_support import (
+    build_encryption_key,
+    build_dependency_spec_from_archive,
+    build_node_commands,
+    build_python_commands,
+    build_uv_pip_install_command,
+    clean_dependency_items,
+    detect_python_dependency_spec,
+    next_version,
+    normalize_dependencies,
+    normalize_dependency_spec,
+    normalize_explicit_dependency_spec,
+    parse_metadata_text,
+    parse_frontmatter,
+    parse_requirements_text,
+    parse_semver,
+    read_skill_frontmatter,
+    validate_version,
+    validate_zip_archive,
+)
 
 
 class SkillService:
@@ -93,7 +109,7 @@ class SkillService:
 
     @staticmethod
     def is_reference_skill(skill: Skill) -> bool:
-        source_skill_id = getattr(skill, "source_skill_id", None)
+        source_skill_id = skill.source_skill_id
         return isinstance(source_skill_id, str) and bool(source_skill_id.strip())
 
     async def is_clone_skill(self, skill: Skill) -> bool:
@@ -101,7 +117,7 @@ class SkillService:
             return False
         if not self.clone_service:
             return False
-        return self.clone_service.has_clone_origin(skill) or bool(await self.clone_service.get_clone_origin_metadata(skill))
+        return self.clone_service.has_clone_origin(skill)
 
     async def _get_clone_origin_metadata(self, skill: Skill) -> dict[str, str]:
         if not self.clone_service:
@@ -128,9 +144,10 @@ class SkillService:
             raise SkillError(SkillErrorCode.REFERENCE_SKILL_READ_ONLY)
 
     async def _resolve_source_skill(self, skill: Skill) -> Skill:
-        if not skill.source_skill_id:
+        source_skill_id = skill.source_skill_id
+        if not isinstance(source_skill_id, str) or not source_skill_id.strip():
             return skill
-        source_skill = await self.skill_repo.get_by_id(skill.source_skill_id)
+        source_skill = await self.skill_repo.get_by_id(source_skill_id)
         if not source_skill or not self.is_public_skill(source_skill) or not source_skill.is_active:
             raise SkillError(SkillErrorCode.SOURCE_SKILL_UNAVAILABLE)
         return source_skill
@@ -362,61 +379,23 @@ class SkillService:
 
     @staticmethod
     def _parse_frontmatter(content: str) -> dict:
-        stripped = content.lstrip()
-        if not stripped.startswith("---"):
-            return {}
-        parts = stripped.split("---", 2)
-        if len(parts) < 3:
-            return {}
-        frontmatter_text = parts[1].strip()
-        if not frontmatter_text:
-            return {}
-        try:
-            parsed = yaml.safe_load(frontmatter_text)
-        except yaml.YAMLError:
-            return {}
-        if isinstance(parsed, dict):
-            return parsed
-        return {}
+        return parse_frontmatter(content)
 
     @staticmethod
     def _validate_version(version: str) -> str:
-        normalized = str(version or "").strip()
-        if not normalized:
-            raise SkillError(SkillErrorCode.INVALID_VERSION)
-        if len(normalized) > 100:
-            raise SkillError(SkillErrorCode.INVALID_VERSION)
-        if normalized.startswith("."):
-            raise SkillError(SkillErrorCode.INVALID_VERSION)
-        if "/" in normalized or "\\" in normalized:
-            raise SkillError(SkillErrorCode.INVALID_VERSION)
-        if ".." in normalized or normalized in {".", ".."}:
-            raise SkillError(SkillErrorCode.INVALID_VERSION)
-        if not re.fullmatch(r"[a-zA-Z0-9_\-\.]+", normalized):
-            raise SkillError(SkillErrorCode.INVALID_VERSION)
-        return normalized
+        return validate_version(version)
 
     @staticmethod
     def _normalize_dependencies(value: object) -> list[str]:
-        if isinstance(value, list):
-            return [str(item) for item in value]
-        if isinstance(value, str):
-            return [item.strip() for item in value.split(",") if item.strip()]
-        return []
+        return normalize_dependencies(value)
 
     @staticmethod
     def _parse_requirements_text(text: str) -> list[str]:
-        items: list[str] = []
-        for line in text.splitlines():
-            stripped = line.strip()
-            if not stripped or stripped.startswith("#"):
-                continue
-            items.append(stripped)
-        return items
+        return parse_requirements_text(text)
 
     @staticmethod
     def _build_encryption_key(value: str, purpose: str = "skill-download-encryption") -> bytes:
-        return derive_aes256_key(value, purpose)
+        return build_encryption_key(value, purpose)
 
     @staticmethod
     def _encrypt_payload(payload: bytes) -> tuple[str, str]:
@@ -437,71 +416,18 @@ class SkillService:
 
     @staticmethod
     def _normalize_dependency_spec(value: object) -> dict | None:
-        if isinstance(value, dict):
-            return value
-        if isinstance(value, str):
-            try:
-                parsed = json.loads(value)
-            except Exception:
-                return None
-            if isinstance(parsed, dict):
-                return parsed
-        return None
+        return normalize_dependency_spec(value)
 
     @staticmethod
     def _normalize_explicit_dependency_spec(spec: dict) -> dict:
-        normalized = dict(spec)
-        python_spec = normalized.get("python")
-        if not isinstance(python_spec, dict):
-            return normalized
-
-        manager = str(python_spec.get("manager") or "uv").strip().lower()
-        if manager != "uv":
-            raise SkillError(
-                SkillErrorCode.INVALID_METADATA,
-                "dependency_spec.python.manager must be 'uv'",
-            )
-
-        normalized_python = dict(python_spec)
-        normalized_python["manager"] = "uv"
-        normalized["python"] = normalized_python
-        return normalized
+        return normalize_explicit_dependency_spec(spec)
 
     @staticmethod
     def _parse_semver(version: str) -> tuple[str, int, int, int] | None:
-        match = re.fullmatch(r"(v)?(\d+)\.(\d+)\.(\d+)", version)
-        if not match:
-            return None
-        prefix = "v" if match.group(1) else ""
-        return prefix, int(match.group(2)), int(match.group(3)), int(match.group(4))
+        return parse_semver(version)
 
     async def _next_version(self, skill: Skill, repo: SkillVersionRepository) -> str:
-        candidates: list[str] = []
-        if skill.current_version:
-            candidates.append(skill.current_version)
-        versions = await repo.list_by_skill(skill.id)
-        candidates.extend([record.version for record in versions if record.version])
-        parsed_versions = [self._parse_semver(item) for item in candidates]
-        semvers = [item for item in parsed_versions if item is not None]
-        if not semvers:
-            return "1.0.0"
-        prefix, major, minor, patch = max(semvers, key=lambda item: (item[1], item[2], item[3]))
-        strategy = (settings.SKILL_VERSION_BUMP_STRATEGY or "patch").strip().lower()
-        if strategy == "minor":
-            next_major = major
-            next_minor = minor + 1
-            next_patch = 0
-            next_version = f"{prefix}{next_major}.{next_minor}.{next_patch}"
-            while await repo.get_by_version(skill.id, next_version):
-                next_minor += 1
-                next_version = f"{prefix}{next_major}.{next_minor}.{next_patch}"
-            return next_version
-        next_patch = patch + 1
-        next_version = f"{prefix}{major}.{minor}.{next_patch}"
-        while await repo.get_by_version(skill.id, next_version):
-            next_patch += 1
-            next_version = f"{prefix}{major}.{minor}.{next_patch}"
-        return next_version
+        return await next_version(skill, repo, settings.SKILL_VERSION_BUMP_STRATEGY or "patch")
 
     @staticmethod
     def _detect_python_dependency_spec(
@@ -509,74 +435,55 @@ class SkillService:
         archive,
         requirements: list[str],
     ) -> tuple[dict[str, object], list[str]]:
-        python_spec: dict[str, object] = {}
-        deps = list(requirements)
-        if "pyproject.toml" in entry_names:
-            has_uv_lock = "uv.lock" in entry_names
-            python_spec = {
-                "manager": "uv",
-                "requirements": deps,
-                "files": ["pyproject.toml"],
-                "lockfile": "uv.lock" if has_uv_lock else None,
-            }
-        elif "requirements.txt" in entry_names:
-            try:
-                requirements_text = archive.read("requirements.txt").decode("utf-8", errors="replace")
-            except Exception:
-                requirements_text = ""
-            parsed = SkillService._parse_requirements_text(requirements_text)
-            if parsed:
-                deps = parsed
-            python_spec = {
-                "manager": "uv",
-                "requirements": deps,
-                "files": ["requirements.txt"],
-            }
-        if not python_spec and deps:
-            python_spec = {
-                "manager": "uv",
-                "requirements": deps,
-                "files": [],
-            }
-        return python_spec, deps
+        return detect_python_dependency_spec(entry_names, archive, requirements)
 
     @staticmethod
     def _clean_dependency_items(items: object) -> list[str]:
-        if not isinstance(items, list):
-            return []
-        return [str(item) for item in items if str(item).strip()]
+        return clean_dependency_items(items)
 
     @staticmethod
     def _build_uv_pip_install_command(requirements: list[str]) -> str | None:
-        quoted_requirements = [quote_shell_arg(item) for item in requirements if item.strip()]
-        if not quoted_requirements:
-            return None
-        return "uv pip install " + " ".join(quoted_requirements)
+        return build_uv_pip_install_command(requirements)
 
     @classmethod
     def _build_python_commands(cls, manager: str, requirements: list[str], files: list[str]) -> list[str]:
-        commands: list[str] = []
-        # Explicit specs are normalized at ingest; keep a uv fallback here for direct callers and legacy records.
-        manager = (manager or "uv").strip().lower()
-        if manager not in {"uv", "pip"}:
-            return commands
-        if "pyproject.toml" in files:
-            commands.append("uv sync")
-        elif "requirements.txt" in files:
-            commands.append("uv pip install -r requirements.txt")
-        else:
-            inline_install = cls._build_uv_pip_install_command(requirements)
-            if inline_install:
-                commands.append(inline_install)
-        return commands
+        return build_python_commands(manager, requirements, files)
 
     @staticmethod
     def _build_node_commands(manager: str, has_lockfile: bool) -> list[str]:
-        if manager == "pnpm":
-            return ["pnpm install"]
-        if manager == "yarn":
-            return ["yarn install"]
-        return ["npm ci" if has_lockfile else "npm install"]
+        return build_node_commands(manager, has_lockfile)
+
+    @staticmethod
+    def _prepare_version_dir(user_id: str, skill_name: str, version: str) -> Path:
+        base_dir = get_skill_versions_dir(user_id, skill_name)
+        base_resolved = base_dir.resolve()
+        version_dir = (base_dir / version).resolve()
+        if not version_dir.is_relative_to(base_resolved):
+            raise SkillError(SkillErrorCode.INVALID_VERSION)
+        if version_dir.exists():
+            raise SkillError(SkillErrorCode.VERSION_ALREADY_EXISTS)
+        version_dir.mkdir(parents=True, exist_ok=True)
+        return version_dir
+
+    @staticmethod
+    def _extract_archive_to_dir(archive, entries: list[object], version_dir: Path) -> None:
+        for info in entries:
+            file_path = info.filename.replace("\\", "/").lstrip("/")
+            target = version_dir / file_path
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_bytes(archive.read(info))
+
+    @staticmethod
+    def _sync_version_dir_to_current(user_id: str, skill_name: str, version_dir: Path) -> None:
+        clear_skill_current_dir(user_id, skill_name)
+        root_dir = get_user_skill_dir(user_id, skill_name)
+        for entry_path in version_dir.rglob("*"):
+            if not entry_path.is_file():
+                continue
+            relative = entry_path.relative_to(version_dir)
+            target = root_dir / relative
+            target.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(entry_path, target)
 
     async def list_public_skills(self, skip: int = 0, limit: int = 100, query: str | None = None) -> list[Skill]:
         self._assert_public_features_enabled()
@@ -703,7 +610,9 @@ class SkillService:
     async def download_skill(self, user: User, skill_id: str, version: str | None = None) -> dict:
         skill = await self.get_skill(user, skill_id)
         self._ensure_active(skill)
-        source_skill, target_version, _record, version_dir = await self.resolve_version_dir(skill, version)
+        source_skill, target_version, _record = await self._resolve_version_and_record(skill, version)
+        version_dir = get_skill_versions_dir(source_skill.user_id, source_skill.name) / target_version
+        archive_bytes = await load_archive(source_skill.user_id, source_skill.name, target_version)
         return await self.download_service.build_download_payload(
             skill_id=skill.id,
             skill_uuid=skill.id,
@@ -711,6 +620,7 @@ class SkillService:
             version_dir=version_dir,
             source_user_id=source_skill.user_id,
             source_skill_name=source_skill.name,
+            archive_bytes=archive_bytes,
         )
 
     async def get_install_instructions(self, user: User, skill_id: str, version: str) -> dict:
@@ -844,7 +754,14 @@ class SkillService:
     ) -> dict:
         temp_path = self._write_temp_upload(content, suffix=".zip")
         try:
-            return await self.upload_zip_from_path(user, skill_id, filename, temp_path, metadata_text)
+            return await self._upload_zip_archive(
+                user,
+                skill_id,
+                filename,
+                temp_path,
+                metadata_text=metadata_text,
+                archive_bytes=content,
+            )
         finally:
             self._cleanup_temp_path(temp_path)
 
@@ -856,6 +773,17 @@ class SkillService:
         archive_path: Path,
         metadata_text: str | None = None,
     ) -> dict:
+        return await self._upload_zip_archive(user, skill_id, filename, archive_path, metadata_text=metadata_text)
+
+    async def _upload_zip_archive(
+        self,
+        user: User,
+        skill_id: str,
+        filename: str,
+        archive_path: Path,
+        metadata_text: str | None = None,
+        archive_bytes: bytes | None = None,
+    ) -> dict:
         repo = self._require_version_repo()
         archive_size = archive_path.stat().st_size if archive_path.exists() else 0
         logger.debug(f"[UPLOAD_ZIP] user_id={user.id}, skill_id={skill_id}, filename={filename}, content_size={archive_size} bytes")
@@ -863,49 +791,15 @@ class SkillService:
         self._ensure_owner(user, skill)
         self._ensure_not_reference(skill)
         logger.debug(f"[UPLOAD_ZIP] Found skill: name={skill.name}")
-        if not filename.lower().endswith(".zip"):
-            raise SkillError(SkillErrorCode.INVALID_ZIP_FILE)
-        try:
-            archive = zipfile.ZipFile(archive_path)
-        except zipfile.BadZipFile as exc:
-            logger.error(f"[UPLOAD_ZIP] Invalid zip file: {str(exc)}")
-            raise SkillError(SkillErrorCode.INVALID_ZIP_FILE) from exc
-        with archive:
-            entries = [info for info in archive.infolist() if not info.is_dir()]
+        archive_bundle = validate_zip_archive(filename, archive_path, SkillErrorCode.SKILL_MD_NOT_FOUND)
+        with archive_bundle.archive as archive:
+            entries = archive_bundle.entries
+            entry_names = archive_bundle.entry_names
             logger.debug(f"[UPLOAD_ZIP] Found {len(entries)} files in zip")
-            if not entries:
-                raise SkillError(SkillErrorCode.ZIP_EMPTY)
-            if len(entries) > MAX_FILES_PER_SKILL:
-                raise SkillError(SkillErrorCode.TOO_MANY_FILES)
-            total_size = sum(info.file_size for info in entries)
-            logger.debug(f"[UPLOAD_ZIP] Total file size: {total_size} bytes")
-            if total_size > MAX_TOTAL_SIZE:
-                raise SkillError(SkillErrorCode.TOTAL_SKILL_SIZE_LIMIT_EXCEEDED)
-            for info in entries:
-                if info.file_size > MAX_FILE_SIZE:
-                    raise SkillError(SkillErrorCode.FILE_TOO_LARGE)
-                file_path = info.filename.replace("\\", "/").lstrip("/")
-                valid, error = validate_file_path(file_path)
-                if not valid:
-                    raise SkillError(SkillErrorCode.INVALID_FILE_PATH, error)
-            skill_md = next(
-                (info for info in entries if info.filename.replace("\\", "/").lstrip("/") == "SKILL.md"),
-                None,
-            )
-            if not skill_md:
-                logger.error(f"[UPLOAD_ZIP] SKILL.md not found in zip")
-                raise SkillError(SkillErrorCode.SKILL_MD_NOT_FOUND)
+            logger.debug(f"[UPLOAD_ZIP] Total file size: {sum(info.file_size for info in entries)} bytes")
             logger.debug(f"[UPLOAD_ZIP] Found SKILL.md")
-            skill_md_content = archive.read(skill_md).decode("utf-8", errors="replace")
-            frontmatter = self._parse_frontmatter(skill_md_content)
-            metadata: dict = {}
-            if metadata_text:
-                try:
-                    parsed = json.loads(metadata_text)
-                except json.JSONDecodeError as exc:
-                    raise SkillError(SkillErrorCode.INVALID_METADATA) from exc
-                if isinstance(parsed, dict):
-                    metadata = parsed
+            frontmatter = read_skill_frontmatter(archive)
+            metadata = parse_metadata_text(metadata_text)
             version = str(metadata.get("version") or frontmatter.get("version") or "").strip()
             logger.debug(f"[UPLOAD_ZIP] Parsed version: {version}")
             if not version:
@@ -921,61 +815,18 @@ class SkillService:
             explicit_dependency_spec = self._normalize_dependency_spec(
                 metadata.get("dependency_spec") or frontmatter.get("dependency_spec")
             )
-            dependency_spec: dict
-            dependency_spec_version: str | None
-            if explicit_dependency_spec is not None:
-                dependency_spec = self._normalize_explicit_dependency_spec(explicit_dependency_spec)
-                dependency_spec_version = str(dependency_spec.get("schema_version") or "1")
-            else:
-                dependency_spec = {"schema_version": 1}
-                dependency_spec_version = "1"
-                entry_names = {info.filename.replace("\\", "/").lstrip("/") for info in entries}
-                node_spec: dict[str, object] = {}
-                python_spec, deps = self._detect_python_dependency_spec(entry_names, archive, [])
-                if deps:
-                    dependencies = deps
-                if "package.json" in entry_names:
-                    try:
-                        package_json = json.loads(archive.read("package.json").decode("utf-8", errors="replace"))
-                    except json.JSONDecodeError:
-                        package_json = {}
-                    lockfile = ""
-                    if "package-lock.json" in entry_names:
-                        lockfile = "package-lock.json"
-                    node_spec = {
-                        "manager": "npm",
-                        "package_json": package_json,
-                        "lockfile": lockfile or None,
-                    }
-                if python_spec:
-                    dependency_spec["python"] = python_spec
-                if node_spec:
-                    dependency_spec["node"] = node_spec
-            base_dir = get_skill_versions_dir(user.id, skill.name)
-            base_resolved = base_dir.resolve()
-            version_dir = (base_dir / version).resolve()
-            if not version_dir.is_relative_to(base_resolved):
-                raise SkillError(SkillErrorCode.INVALID_VERSION)
-            if version_dir.exists():
-                raise SkillError(SkillErrorCode.VERSION_ALREADY_EXISTS)
+            dependencies, dependency_spec, dependency_spec_version = build_dependency_spec_from_archive(
+                archive,
+                entry_names,
+                dependencies,
+                explicit_dependency_spec,
+            )
+            version_dir = self._prepare_version_dir(user.id, skill.name, version)
             logger.debug(f"[UPLOAD_ZIP] Creating version directory: {version_dir}")
-            version_dir.mkdir(parents=True, exist_ok=True)
             logger.debug(f"[UPLOAD_ZIP] Extracting {len(entries)} files to version directory")
-            for info in entries:
-                file_path = info.filename.replace("\\", "/").lstrip("/")
-                target = version_dir / file_path
-                target.parent.mkdir(parents=True, exist_ok=True)
-                target.write_bytes(archive.read(info))
-            clear_skill_current_dir(user.id, skill.name)
-            root_dir = get_user_skill_dir(user.id, skill.name)
-            logger.debug(f"[UPLOAD_ZIP] Copying files to current directory: {root_dir}")
-            for entry_path in version_dir.rglob("*"):
-                if not entry_path.is_file():
-                    continue
-                relative = entry_path.relative_to(version_dir)
-                target = root_dir / relative
-                target.parent.mkdir(parents=True, exist_ok=True)
-                shutil.copy2(entry_path, target)
+            self._extract_archive_to_dir(archive, entries, version_dir)
+            logger.debug(f"[UPLOAD_ZIP] Copying files to current directory: {get_user_skill_dir(user.id, skill.name)}")
+            self._sync_version_dir_to_current(user.id, skill.name, version_dir)
             logger.debug(f"[UPLOAD_ZIP] Creating version record, version={version}")
             version_metadata = {
                 "name": metadata.get("name") or frontmatter.get("name") or skill.name,
@@ -996,7 +847,7 @@ class SkillService:
             )
             await self.skill_repo.update(skill, current_version=version, description=description, is_active=True)
             logger.debug(f"[UPLOAD_ZIP] Saving archive, version={version}")
-            await save_archive_from_path(user.id, skill.name, version, archive_path)
+            await self._persist_archive(user.id, skill.name, version, archive_path, archive_bytes)
             logger.debug(f"[UPLOAD_ZIP] Success, skill_id={skill_id}, version={version}")
             return {
                 "version": record.version,
@@ -1013,7 +864,13 @@ class SkillService:
     ) -> dict:
         temp_path = self._write_temp_upload(content, suffix=".zip")
         try:
-            return await self.upload_zip_create_skill_from_path(user, filename, temp_path, visibility)
+            return await self._upload_zip_create_skill_archive(
+                user,
+                filename,
+                temp_path,
+                visibility,
+                archive_bytes=content,
+            )
         finally:
             self._cleanup_temp_path(temp_path)
 
@@ -1024,44 +881,27 @@ class SkillService:
         archive_path: Path,
         visibility: str = "private",
     ) -> dict:
+        return await self._upload_zip_create_skill_archive(user, filename, archive_path, visibility)
+
+    async def _upload_zip_create_skill_archive(
+        self,
+        user: User,
+        filename: str,
+        archive_path: Path,
+        visibility: str = "private",
+        archive_bytes: bytes | None = None,
+    ) -> dict:
         repo = self._require_version_repo()
         archive_size = archive_path.stat().st_size if archive_path.exists() else 0
         logger.debug(f"[UPLOAD_ZIP_CREATE] user_id={user.id}, filename={filename}, content_size={archive_size} bytes")
-        if not filename.lower().endswith(".zip"):
-            raise SkillError(SkillErrorCode.INVALID_ZIP_FILE)
-        try:
-            archive = zipfile.ZipFile(archive_path)
-        except zipfile.BadZipFile as exc:
-            logger.error(f"[UPLOAD_ZIP_CREATE] Invalid zip file: {str(exc)}")
-            raise SkillError(SkillErrorCode.INVALID_ZIP_FILE) from exc
-        with archive:
-            entries = [info for info in archive.infolist() if not info.is_dir()]
+        archive_bundle = validate_zip_archive(filename, archive_path, SkillErrorCode.SKILL_MD_NOT_FOUND_IN_ZIP)
+        with archive_bundle.archive as archive:
+            entries = archive_bundle.entries
+            entry_names = archive_bundle.entry_names
             logger.debug(f"[UPLOAD_ZIP_CREATE] Found {len(entries)} files in zip")
-            if not entries:
-                raise SkillError(SkillErrorCode.ZIP_EMPTY)
-            if len(entries) > MAX_FILES_PER_SKILL:
-                raise SkillError(SkillErrorCode.TOO_MANY_FILES)
-            total_size = sum(info.file_size for info in entries)
-            logger.debug(f"[UPLOAD_ZIP_CREATE] Total file size: {total_size} bytes")
-            if total_size > MAX_TOTAL_SIZE:
-                raise SkillError(SkillErrorCode.TOTAL_SKILL_SIZE_LIMIT_EXCEEDED)
-            for info in entries:
-                if info.file_size > MAX_FILE_SIZE:
-                    raise SkillError(SkillErrorCode.FILE_TOO_LARGE)
-                file_path = info.filename.replace("\\", "/").lstrip("/")
-                valid, error = validate_file_path(file_path)
-                if not valid:
-                    raise SkillError(SkillErrorCode.INVALID_FILE_PATH, error)
-            skill_md = next(
-                (info for info in entries if info.filename.replace("\\", "/").lstrip("/") == "SKILL.md"),
-                None,
-            )
-            if not skill_md:
-                logger.error(f"[UPLOAD_ZIP_CREATE] SKILL.md not found in zip")
-                raise SkillError(SkillErrorCode.SKILL_MD_NOT_FOUND_IN_ZIP)
+            logger.debug(f"[UPLOAD_ZIP_CREATE] Total file size: {sum(info.file_size for info in entries)} bytes")
             logger.debug(f"[UPLOAD_ZIP_CREATE] Found SKILL.md")
-            skill_md_content = archive.read(skill_md).decode("utf-8", errors="replace")
-            frontmatter = self._parse_frontmatter(skill_md_content)
+            frontmatter = read_skill_frontmatter(archive)
             name = str(frontmatter.get("name") or "").strip()
             logger.debug(f"[UPLOAD_ZIP_CREATE] Parsed skill name: {name}")
             if not name:
@@ -1108,62 +948,19 @@ class SkillService:
                 version = await self._next_version(skill, repo)
             dependencies = self._normalize_dependencies(frontmatter.get("dependencies"))
             explicit_dependency_spec = self._normalize_dependency_spec(frontmatter.get("dependency_spec"))
-            dependency_spec: dict
-            dependency_spec_version: str | None
-            if explicit_dependency_spec is not None:
-                dependency_spec = self._normalize_explicit_dependency_spec(explicit_dependency_spec)
-                dependency_spec_version = str(dependency_spec.get("schema_version") or "1")
-            else:
-                dependency_spec = {"schema_version": 1}
-                dependency_spec_version = "1"
-                entry_names = {info.filename.replace("\\", "/").lstrip("/") for info in entries}
-                node_spec: dict[str, object] = {}
-                python_spec, deps = self._detect_python_dependency_spec(entry_names, archive, [])
-                if deps:
-                    dependencies = deps
-                if "package.json" in entry_names:
-                    try:
-                        package_json = json.loads(archive.read("package.json").decode("utf-8", errors="replace"))
-                    except json.JSONDecodeError:
-                        package_json = {}
-                    lockfile = ""
-                    if "package-lock.json" in entry_names:
-                        lockfile = "package-lock.json"
-                    node_spec = {
-                        "manager": "npm",
-                        "package_json": package_json,
-                        "lockfile": lockfile or None,
-                    }
-                if python_spec:
-                    dependency_spec["python"] = python_spec
-                if node_spec:
-                    dependency_spec["node"] = node_spec
+            dependencies, dependency_spec, dependency_spec_version = build_dependency_spec_from_archive(
+                archive,
+                entry_names,
+                dependencies,
+                explicit_dependency_spec,
+            )
             logger.debug(f"[UPLOAD_ZIP_CREATE] Creating skill record, name={name}")
-            base_dir = get_skill_versions_dir(user.id, skill.name)
-            base_resolved = base_dir.resolve()
-            version_dir = (base_dir / version).resolve()
-            if not version_dir.is_relative_to(base_resolved):
-                raise SkillError(SkillErrorCode.INVALID_VERSION)
-            if version_dir.exists():
-                raise SkillError(SkillErrorCode.VERSION_ALREADY_EXISTS)
+            version_dir = self._prepare_version_dir(user.id, skill.name, version)
             logger.debug(f"[UPLOAD_ZIP_CREATE] Creating version directory: {version_dir}")
-            version_dir.mkdir(parents=True, exist_ok=True)
             logger.debug(f"[UPLOAD_ZIP_CREATE] Extracting {len(entries)} files to version directory")
-            for info in entries:
-                file_path = info.filename.replace("\\", "/").lstrip("/")
-                target = version_dir / file_path
-                target.parent.mkdir(parents=True, exist_ok=True)
-                target.write_bytes(archive.read(info))
-            clear_skill_current_dir(user.id, skill.name)
-            root_dir = get_user_skill_dir(user.id, skill.name)
-            logger.debug(f"[UPLOAD_ZIP_CREATE] Copying files to current directory: {root_dir}")
-            for entry_path in version_dir.rglob("*"):
-                if not entry_path.is_file():
-                    continue
-                relative = entry_path.relative_to(version_dir)
-                target = root_dir / relative
-                target.parent.mkdir(parents=True, exist_ok=True)
-                shutil.copy2(entry_path, target)
+            self._extract_archive_to_dir(archive, entries, version_dir)
+            logger.debug(f"[UPLOAD_ZIP_CREATE] Copying files to current directory: {get_user_skill_dir(user.id, skill.name)}")
+            self._sync_version_dir_to_current(user.id, skill.name, version_dir)
             logger.debug(f"[UPLOAD_ZIP_CREATE] Creating version record, version={version}")
             record = await repo.create_version(
                 skill_id=skill.id,
@@ -1182,7 +979,7 @@ class SkillService:
             )
             await self.skill_repo.update(skill, current_version=version, description=description, is_active=True)
             logger.debug(f"[UPLOAD_ZIP_CREATE] Saving archive, version={version}")
-            await save_archive_from_path(user.id, skill.name, version, archive_path)
+            await self._persist_archive(user.id, skill.name, version, archive_path, archive_bytes)
             logger.info(f"[UPLOAD_ZIP_CREATE] Success, skill_id={skill.id}, version={version}")
             return {
                 "id": skill.id,
@@ -1205,3 +1002,16 @@ class SkillService:
             path.unlink(missing_ok=True)
         except OSError:
             logger.warning(f"[UPLOAD CLEANUP] Failed to remove temp file: {path}")
+
+    @staticmethod
+    async def _persist_archive(
+        user_id: str,
+        skill_name: str,
+        version: str,
+        archive_path: Path,
+        archive_bytes: bytes | None,
+    ) -> None:
+        if archive_bytes is not None:
+            await save_archive(user_id, skill_name, version, archive_bytes)
+            return
+        await save_archive_from_path(user_id, skill_name, version, archive_path)

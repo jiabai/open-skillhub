@@ -4,11 +4,59 @@ from sqlalchemy import String, and_, cast, func, or_, select
 
 from backend.config.settings import settings
 from backend.models.skill import Skill
-from backend.models.skill_version import SkillVersion
 from backend.repositories.base import BaseRepository
 
 
 class SkillRepository(BaseRepository):
+    @staticmethod
+    def _query_filter(query: str | None):
+        if not query:
+            return None
+        pattern = f"%{query}%"
+        return or_(
+            Skill.name.ilike(pattern),
+            Skill.description.ilike(pattern),
+            cast(Skill.tags, String).ilike(pattern),
+        )
+
+    @staticmethod
+    def _visibility_filter(
+        user_id: str,
+        enterprise_id: str | None,
+        team_id: str | None,
+    ):
+        filters = [Skill.user_id == user_id]
+        if not settings.ENABLE_RBAC:
+            filters.append(Skill.visibility == "public")
+        if enterprise_id:
+            filters.append(and_(Skill.visibility == "enterprise", Skill.enterprise_id == enterprise_id))
+            if team_id:
+                filters.append(
+                    and_(
+                        Skill.visibility == "team",
+                        Skill.enterprise_id == enterprise_id,
+                        Skill.team_id == team_id,
+                    )
+                )
+        return or_(*filters)
+
+    @staticmethod
+    def _apply_active_filter(stmt, include_inactive: bool):
+        if include_inactive:
+            return stmt
+        return stmt.where(Skill.is_active.is_(True))
+
+    @classmethod
+    def _apply_query_filter(cls, stmt, query: str | None):
+        query_filter = cls._query_filter(query)
+        if query_filter is None:
+            return stmt
+        return stmt.where(query_filter)
+
+    @classmethod
+    def _apply_pagination(cls, stmt, skip: int, limit: int):
+        return stmt.offset(skip).limit(limit)
+
     async def get_by_id(self, skill_id: str) -> Skill | None:
         result = await self.session.execute(select(Skill).where(Skill.id == skill_id))
         return result.scalar_one_or_none()
@@ -38,16 +86,8 @@ class SkillRepository(BaseRepository):
             Skill.visibility == "public",
             Skill.is_active.is_(True),
         )
-        if query:
-            pattern = f"%{query}%"
-            stmt = stmt.where(
-                or_(
-                    Skill.name.ilike(pattern),
-                    Skill.description.ilike(pattern),
-                    cast(Skill.tags, String).ilike(pattern),
-                )
-            )
-        stmt = stmt.offset(skip).limit(limit)
+        stmt = self._apply_query_filter(stmt, query)
+        stmt = self._apply_pagination(stmt, skip, limit)
         result = await self.session.execute(stmt)
         return list(result.scalars().all())
 
@@ -56,16 +96,7 @@ class SkillRepository(BaseRepository):
             Skill.visibility == "public",
             Skill.is_active.is_(True),
         )
-        if query:
-            pattern = f"%{query}%"
-            stmt = stmt.where(
-                or_(
-                    Skill.name.ilike(pattern),
-                    Skill.description.ilike(pattern),
-                    cast(Skill.tags, String).ilike(pattern),
-                )
-            )
-        result = await self.session.execute(stmt)
+        result = await self.session.execute(self._apply_query_filter(stmt, query))
         return int(result.scalar_one())
 
     async def get_reference_by_source(self, user_id: str, source_skill_id: str) -> Skill | None:
@@ -92,23 +123,7 @@ class SkillRepository(BaseRepository):
                 Skill.user_id == user_id,
             )
         )
-        source_ids = {value for value in result.scalars().all() if isinstance(value, str) and value.strip()}
-        legacy_result = await self.session.execute(
-            select(SkillVersion.metadata_json).join(
-                Skill,
-                SkillVersion.skill_id == Skill.id,
-            ).where(
-                Skill.user_id == user_id,
-                Skill.cloned_from_skill_id.is_(None),
-            )
-        )
-        for metadata in legacy_result.scalars().all():
-            if not isinstance(metadata, dict):
-                continue
-            source_skill_id = metadata.get("cloned_from_skill_id")
-            if isinstance(source_skill_id, str) and source_skill_id.strip():
-                source_ids.add(source_skill_id)
-        return source_ids
+        return {value for value in result.scalars().all() if isinstance(value, str) and value.strip()}
 
     async def list_by_user(
         self,
@@ -119,35 +134,16 @@ class SkillRepository(BaseRepository):
         include_inactive: bool = False,
     ) -> list[Skill]:
         stmt = select(Skill).where(Skill.user_id == user_id)
-        if not include_inactive:
-            stmt = stmt.where(Skill.is_active.is_(True))
-        if query:
-            pattern = f"%{query}%"
-            stmt = stmt.where(
-                or_(
-                    Skill.name.ilike(pattern),
-                    Skill.description.ilike(pattern),
-                    cast(Skill.tags, String).ilike(pattern),
-                )
-            )
-        stmt = stmt.offset(skip).limit(limit)
+        stmt = self._apply_active_filter(stmt, include_inactive)
+        stmt = self._apply_query_filter(stmt, query)
+        stmt = self._apply_pagination(stmt, skip, limit)
         result = await self.session.execute(stmt)
         return list(result.scalars().all())
 
     async def count_by_user(self, user_id: str, query: str | None = None, include_inactive: bool = False) -> int:
         stmt = select(func.count()).select_from(Skill).where(Skill.user_id == user_id)
-        if not include_inactive:
-            stmt = stmt.where(Skill.is_active.is_(True))
-        if query:
-            pattern = f"%{query}%"
-            stmt = stmt.where(
-                or_(
-                    Skill.name.ilike(pattern),
-                    Skill.description.ilike(pattern),
-                    cast(Skill.tags, String).ilike(pattern),
-                )
-            )
-        result = await self.session.execute(stmt)
+        stmt = self._apply_active_filter(stmt, include_inactive)
+        result = await self.session.execute(self._apply_query_filter(stmt, query))
         return int(result.scalar_one())
 
     async def count_active_by_user(self, user_id: str) -> int:
@@ -178,34 +174,10 @@ class SkillRepository(BaseRepository):
                 include_inactive=include_inactive,
             )
         stmt = select(Skill)
-        if not include_inactive:
-            stmt = stmt.where(Skill.is_active.is_(True))
-        visibility_filters = [Skill.user_id == user_id]
-        if not settings.ENABLE_RBAC:
-            visibility_filters.append(Skill.visibility == "public")
-        if enterprise_id:
-            visibility_filters.append(
-                and_(Skill.visibility == "enterprise", Skill.enterprise_id == enterprise_id),
-            )
-            if team_id:
-                visibility_filters.append(
-                    and_(
-                        Skill.visibility == "team",
-                        Skill.enterprise_id == enterprise_id,
-                        Skill.team_id == team_id,
-                    ),
-                )
-        stmt = stmt.where(or_(*visibility_filters))
-        if query:
-            pattern = f"%{query}%"
-            stmt = stmt.where(
-                or_(
-                    Skill.name.ilike(pattern),
-                    Skill.description.ilike(pattern),
-                    cast(Skill.tags, String).ilike(pattern),
-                )
-            )
-        stmt = stmt.offset(skip).limit(limit)
+        stmt = self._apply_active_filter(stmt, include_inactive)
+        stmt = stmt.where(self._visibility_filter(user_id, enterprise_id, team_id))
+        stmt = self._apply_query_filter(stmt, query)
+        stmt = self._apply_pagination(stmt, skip, limit)
         result = await self.session.execute(stmt)
         return list(result.scalars().all())
 
@@ -220,34 +192,9 @@ class SkillRepository(BaseRepository):
         if not settings.ENABLE_SKILL_VISIBILITY:
             return await self.count_by_user(user_id, query=query, include_inactive=include_inactive)
         stmt = select(func.count()).select_from(Skill)
-        if not include_inactive:
-            stmt = stmt.where(Skill.is_active.is_(True))
-        visibility_filters = [Skill.user_id == user_id]
-        if not settings.ENABLE_RBAC:
-            visibility_filters.append(Skill.visibility == "public")
-        if enterprise_id:
-            visibility_filters.append(
-                and_(Skill.visibility == "enterprise", Skill.enterprise_id == enterprise_id),
-            )
-            if team_id:
-                visibility_filters.append(
-                    and_(
-                        Skill.visibility == "team",
-                        Skill.enterprise_id == enterprise_id,
-                        Skill.team_id == team_id,
-                    ),
-                )
-        stmt = stmt.where(or_(*visibility_filters))
-        if query:
-            pattern = f"%{query}%"
-            stmt = stmt.where(
-                or_(
-                    Skill.name.ilike(pattern),
-                    Skill.description.ilike(pattern),
-                    cast(Skill.tags, String).ilike(pattern),
-                )
-            )
-        result = await self.session.execute(stmt)
+        stmt = self._apply_active_filter(stmt, include_inactive)
+        stmt = stmt.where(self._visibility_filter(user_id, enterprise_id, team_id))
+        result = await self.session.execute(self._apply_query_filter(stmt, query))
         return int(result.scalar_one())
 
     async def create(self, model: Any = Skill, commit: bool = True, **data: Any) -> Skill:

@@ -43,6 +43,37 @@ def test_parse_cors_origins_from_string():
     assert settings.CORS_ORIGINS == ["http://a.com", "http://b.com"]
 
 
+def test_parse_cors_origins_from_json_string():
+    settings = Settings(
+        **{
+            **base_settings_kwargs(),
+            "DEBUG": True,
+            "CORS_ORIGINS": '["http://a.com","http://b.com"]',
+        },
+    )
+    assert settings.CORS_ORIGINS == ["http://a.com", "http://b.com"]
+
+
+def test_parse_deprecated_versions_from_json_string():
+    settings = Settings(
+        **{
+            **base_settings_kwargs(),
+            "DEPRECATED_VERSIONS": '["v1","v2"]',
+        },
+    )
+    assert settings.DEPRECATED_VERSIONS == {"v1", "v2"}
+
+
+def test_parse_role_permissions_from_json_string():
+    settings = Settings(
+        **{
+            **base_settings_kwargs(),
+            "RBAC_ROLE_PERMISSIONS": '{"admin":["*"],"member":["skill.read"]}',
+        },
+    )
+    assert settings.RBAC_ROLE_PERMISSIONS == {"admin": ["*"], "member": ["skill.read"]}
+
+
 def test_secret_key_too_short():
     with pytest.raises(ValidationError):
         Settings(

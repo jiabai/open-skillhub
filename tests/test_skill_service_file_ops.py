@@ -703,7 +703,7 @@ class TestSkillServicePublicReferenceClone:
         assert (clone_version_dir / "reference.md").read_text(encoding="utf-8") == "public reference"
 
     @pytest.mark.asyncio
-    async def test_is_clone_skill_uses_historical_clone_metadata(
+    async def test_is_clone_skill_uses_clone_source_columns(
         self, mock_skill_repo, mock_version_repo, test_user
     ):
         clone_skill = MagicMock(spec=Skill)
@@ -713,25 +713,14 @@ class TestSkillServicePublicReferenceClone:
         clone_skill.current_version = "1.1.0"
         clone_skill.visibility = "private"
         clone_skill.source_skill_id = None
-
-        latest_record = MagicMock(spec=SkillVersion)
-        latest_record.version = "1.1.0"
-        latest_record.metadata_json = {}
-
-        original_clone_record = MagicMock(spec=SkillVersion)
-        original_clone_record.version = "1.0.0"
-        original_clone_record.metadata_json = {
-            "cloned_from_skill_id": "public-skill-id",
-            "cloned_from_version": "1.2.3",
-        }
-
-        mock_version_repo.list_by_skill = AsyncMock(return_value=[latest_record, original_clone_record])
+        clone_skill.cloned_from_skill_id = "public-skill-id"
+        clone_skill.cloned_from_version = "1.2.3"
 
         service = SkillService(mock_skill_repo, mock_version_repo)
         assert await service.is_clone_skill(clone_skill) is True
 
     @pytest.mark.asyncio
-    async def test_get_clone_origin_metadata_uses_historical_clone_metadata(
+    async def test_get_clone_origin_metadata_uses_clone_source_columns(
         self, mock_skill_repo, mock_version_repo, test_user
     ):
         clone_skill = MagicMock(spec=Skill)
@@ -741,19 +730,8 @@ class TestSkillServicePublicReferenceClone:
         clone_skill.current_version = "1.1.0"
         clone_skill.visibility = "private"
         clone_skill.source_skill_id = None
-
-        latest_record = MagicMock(spec=SkillVersion)
-        latest_record.version = "1.1.0"
-        latest_record.metadata_json = {}
-
-        original_clone_record = MagicMock(spec=SkillVersion)
-        original_clone_record.version = "1.0.0"
-        original_clone_record.metadata_json = {
-            "cloned_from_skill_id": "public-skill-id",
-            "cloned_from_version": "1.2.3",
-        }
-
-        mock_version_repo.list_by_skill = AsyncMock(return_value=[latest_record, original_clone_record])
+        clone_skill.cloned_from_skill_id = "public-skill-id"
+        clone_skill.cloned_from_version = "1.2.3"
 
         service = SkillService(mock_skill_repo, mock_version_repo)
         assert await service._get_clone_origin_metadata(clone_skill) == {

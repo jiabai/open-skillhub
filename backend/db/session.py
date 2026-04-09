@@ -3,7 +3,7 @@ from collections.abc import AsyncGenerator
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from backend.config.settings import settings
-from backend.models.base import Base
+from backend.models.base import Base  # noqa: F401
 
 
 engine_kwargs = {

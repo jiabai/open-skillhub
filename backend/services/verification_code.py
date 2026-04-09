@@ -12,7 +12,6 @@ from loguru import logger
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.config.settings import settings
 from backend.db.session import get_async_session
 from backend.models.email_delivery_log import EmailDeliveryLog
 from backend.models.verification_code import VerificationCode

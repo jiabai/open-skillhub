@@ -1,5 +1,4 @@
 import base64
-import hashlib
 import os
 import shutil
 from pathlib import Path
@@ -14,18 +13,39 @@ from backend.core.utils.key_derivation import derive_aes256_key
 _LOCAL_CACHE_ENCRYPTION_PURPOSE = "skill-local-cache-encryption"
 
 
+def _archive_backend() -> str:
+    return (settings.SKILL_ARCHIVE_BACKEND or "local").lower()
+
+
+def _storage_root(dirname: str, user_id: str, skill_name: str) -> Path:
+    return Path(settings.SKILL_STORAGE_PATH).expanduser() / dirname / str(user_id) / str(skill_name)
+
+
 def _archive_key(user_id: str, skill_name: str, version: str) -> str:
     return f"{user_id}/{skill_name}/{version}.zip"
 
 
 def _archive_path(user_id: str, skill_name: str, version: str) -> Path:
-    base = Path(settings.SKILL_STORAGE_PATH) / "_archives" / user_id / skill_name
+    base = _storage_root("_archives", user_id, skill_name)
     return base / f"{version}.zip"
 
 
 def _local_cache_path(user_id: str, skill_name: str, version: str) -> Path:
-    base = Path(settings.SKILL_STORAGE_PATH) / "_local_cache" / user_id / skill_name
+    base = _storage_root("_local_cache", user_id, skill_name)
     return base / f"{version}.cache"
+
+
+def _archive_dir(user_id: str, skill_name: str) -> Path:
+    return _storage_root("_archives", user_id, skill_name)
+
+
+def _local_cache_dir(user_id: str, skill_name: str) -> Path:
+    return _storage_root("_local_cache", user_id, skill_name)
+
+
+def _remove_dir_if_exists(path: Path) -> None:
+    if path.exists():
+        shutil.rmtree(path)
 
 
 def _build_encryption_key(value: str) -> bytes:
@@ -119,7 +139,7 @@ def _get_s3_client():
 
 
 async def save_archive(user_id: str, skill_name: str, version: str, content: bytes) -> None:
-    backend = (settings.SKILL_ARCHIVE_BACKEND or "local").lower()
+    backend = _archive_backend()
     logger.debug(f"[ARCHIVE_SAVE] user_id={user_id}, skill_name={skill_name}, version={version}, backend={backend}, content_size={len(content)} bytes")
     if backend == "s3":
         _write_local_cache(_local_cache_path(user_id, skill_name, version), content)
@@ -138,7 +158,7 @@ async def save_archive(user_id: str, skill_name: str, version: str, content: byt
 
 
 async def save_archive_from_path(user_id: str, skill_name: str, version: str, source_path: Path) -> None:
-    backend = (settings.SKILL_ARCHIVE_BACKEND or "local").lower()
+    backend = _archive_backend()
     size = source_path.stat().st_size if source_path.exists() else 0
     logger.debug(
         f"[ARCHIVE_SAVE_PATH] user_id={user_id}, skill_name={skill_name}, "
@@ -158,7 +178,7 @@ async def save_archive_from_path(user_id: str, skill_name: str, version: str, so
 
 
 async def load_archive(user_id: str, skill_name: str, version: str) -> bytes | None:
-    backend = (settings.SKILL_ARCHIVE_BACKEND or "local").lower()
+    backend = _archive_backend()
     logger.debug(f"[ARCHIVE_LOAD] user_id={user_id}, skill_name={skill_name}, version={version}, backend={backend}")
     if backend == "s3":
         client = _get_s3_client()
@@ -188,7 +208,7 @@ async def load_archive(user_id: str, skill_name: str, version: str) -> bytes | N
 def delete_archives_for_skill(user_id: str, skill_name: str) -> None:
     """Delete all archives for a specific skill."""
     logger.info(f"[ARCHIVE_DELETE] user_id={user_id}, skill_name={skill_name}")
-    backend = (settings.SKILL_ARCHIVE_BACKEND or "local").lower()
+    backend = _archive_backend()
     if backend == "s3":
         client = _get_s3_client()
         prefix = f"{user_id}/{skill_name}/"
@@ -202,21 +222,19 @@ def delete_archives_for_skill(user_id: str, skill_name: str) -> None:
             logger.debug(f"[ARCHIVE_DELETE] Deleted {count} objects from S3, prefix={prefix}")
         except Exception as e:
             logger.error(f"[ARCHIVE_DELETE] S3 delete failed: {str(e)}", exc_info=True)
-        local_cache_dir = Path(settings.SKILL_STORAGE_PATH) / "_local_cache" / user_id / skill_name
-        if local_cache_dir.exists():
-            shutil.rmtree(local_cache_dir)
-            logger.debug(f"[ARCHIVE_DELETE] Deleted local cache directory: {local_cache_dir}")
+        local_cache_dir = _local_cache_dir(user_id, skill_name)
+        _remove_dir_if_exists(local_cache_dir)
+        logger.debug(f"[ARCHIVE_DELETE] Deleted local cache directory: {local_cache_dir}")
         return
-    archive_dir = Path(settings.SKILL_STORAGE_PATH) / "_archives" / user_id / skill_name
-    if archive_dir.exists():
-        shutil.rmtree(archive_dir)
-        logger.debug(f"[ARCHIVE_DELETE] Deleted local archive directory: {archive_dir}")
+    archive_dir = _archive_dir(user_id, skill_name)
+    _remove_dir_if_exists(archive_dir)
+    logger.debug(f"[ARCHIVE_DELETE] Deleted local archive directory: {archive_dir}")
 
 
 def rename_archives_for_skill(user_id: str, old_skill_name: str, new_skill_name: str) -> None:
     if old_skill_name == new_skill_name:
         return
-    backend = (settings.SKILL_ARCHIVE_BACKEND or "local").lower()
+    backend = _archive_backend()
     logger.info(
         f"[ARCHIVE_RENAME] user_id={user_id}, old_skill_name={old_skill_name}, "
         f"new_skill_name={new_skill_name}, backend={backend}"
@@ -236,13 +254,13 @@ def rename_archives_for_skill(user_id: str, old_skill_name: str, new_skill_name:
                     Key=new_key,
                 )
                 client.delete_object(Bucket=settings.SKILL_ARCHIVE_S3_BUCKET, Key=old_key)
-    old_archive_dir = Path(settings.SKILL_STORAGE_PATH) / "_archives" / user_id / old_skill_name
-    new_archive_dir = Path(settings.SKILL_STORAGE_PATH) / "_archives" / user_id / new_skill_name
+    old_archive_dir = _archive_dir(user_id, old_skill_name)
+    new_archive_dir = _archive_dir(user_id, new_skill_name)
     if old_archive_dir.exists():
         new_archive_dir.parent.mkdir(parents=True, exist_ok=True)
         shutil.move(str(old_archive_dir), str(new_archive_dir))
-    old_local_cache_dir = Path(settings.SKILL_STORAGE_PATH) / "_local_cache" / user_id / old_skill_name
-    new_local_cache_dir = Path(settings.SKILL_STORAGE_PATH) / "_local_cache" / user_id / new_skill_name
+    old_local_cache_dir = _local_cache_dir(user_id, old_skill_name)
+    new_local_cache_dir = _local_cache_dir(user_id, new_skill_name)
     if old_local_cache_dir.exists():
         new_local_cache_dir.parent.mkdir(parents=True, exist_ok=True)
         shutil.move(str(old_local_cache_dir), str(new_local_cache_dir))
@@ -251,7 +269,7 @@ def rename_archives_for_skill(user_id: str, old_skill_name: str, new_skill_name:
 def list_archive_versions(user_id: str, skill_name: str) -> list[str]:
     """List all archive versions for a specific skill."""
     logger.debug(f"[ARCHIVE_LIST_VERSIONS] user_id={user_id}, skill_name={skill_name}")
-    backend = (settings.SKILL_ARCHIVE_BACKEND or "local").lower()
+    backend = _archive_backend()
     if backend == "s3":
         client = _get_s3_client()
         prefix = f"{user_id}/{skill_name}/"
@@ -268,7 +286,7 @@ def list_archive_versions(user_id: str, skill_name: str) -> list[str]:
             logger.error(f"[ARCHIVE_LIST_VERSIONS] S3 list failed: {str(e)}", exc_info=True)
         logger.debug(f"[ARCHIVE_LIST_VERSIONS] Found {len(versions)} versions from S3: {versions}")
         return versions
-    archive_dir = Path(settings.SKILL_STORAGE_PATH) / "_archives" / user_id / skill_name
+    archive_dir = _archive_dir(user_id, skill_name)
     if not archive_dir.exists():
         logger.debug(f"[ARCHIVE_LIST_VERSIONS] Archive directory does not exist: {archive_dir}")
         return []

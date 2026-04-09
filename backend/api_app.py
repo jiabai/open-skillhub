@@ -1,4 +1,4 @@
-from contextlib import AsyncExitStack, asynccontextmanager
+from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -42,34 +42,48 @@ class _SlashPathMiddleware:
         await self.app(scope, receive, send)
 
 
-@asynccontextmanager
-async def lifespan(_application: FastAPI):
-    await init_db()
-    await ensure_mcp_initialized()
-    if settings.ENABLE_DEPRECATION_NOTIFIER_ON_STARTUP:
-        async for session in get_async_session():
-            notifier = DeprecationNotifier(
-                AuditLogRepository(session),
-                day_offsets=list(settings.DEPRECATION_NOTIFY_OFFSETS_DAYS),
-            )
-            await notifier.notify_upcoming_deprecation()
-            break
-    async with AsyncExitStack() as stack:
-        for mcp_app in (get_http_app(), get_sse_app()):
-            router = getattr(mcp_app, "router", None)
-            lifespan_context = getattr(router, "lifespan_context", None) if router else None
-            if lifespan_context:
-                await stack.enter_async_context(lifespan_context(mcp_app))
-        yield
-    await shutdown_mcp()
+def _utc_timestamp() -> str:
+    return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
 
 
-def create_application() -> FastAPI:
-    def _utc_timestamp() -> str:
-        return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+def _error_payload(detail: object, code: str) -> dict:
+    return {
+        "detail": detail,
+        "code": code,
+        "timestamp": _utc_timestamp(),
+    }
 
-    configure_loguru()
-    application = FastAPI(lifespan=lifespan, redirect_slashes=False)
+
+def _code_for_status(status_code: int) -> str:
+    return {
+        400: "BAD_REQUEST",
+        401: "UNAUTHORIZED",
+        403: "FORBIDDEN",
+        404: "NOT_FOUND",
+        409: "CONFLICT",
+        422: "VALIDATION_ERROR",
+    }.get(status_code, "HTTP_ERROR")
+
+
+def _error_payload_from_exception(detail: object, status_code: int) -> dict:
+    if isinstance(detail, dict) and "detail" in detail and "code" in detail:
+        payload = dict(detail)
+        if "timestamp" not in payload:
+            payload["timestamp"] = _utc_timestamp()
+        return payload
+    return _error_payload(detail, _code_for_status(status_code))
+
+
+async def _check_db_connection() -> bool:
+    try:
+        async with engine.connect() as conn:
+            await conn.execute(text("SELECT 1"))
+        return True
+    except Exception:
+        return False
+
+
+def _register_core_middleware(application: FastAPI) -> None:
     application.add_middleware(
         CORSMiddleware,
         allow_origins=settings.CORS_ORIGINS,
@@ -87,18 +101,15 @@ def create_application() -> FastAPI:
             version_sunset_date=settings.DEPRECATED_VERSION_SUNSET_DATE,
         )
     application.add_middleware(_SlashPathMiddleware, paths={"/mcp", "/sse"})
+
+
+def _register_routes(application: FastAPI) -> None:
     application.include_router(api_router, prefix="/api/v1")
     application.mount("/mcp", McpAppProxy(get_http_app))
     application.mount("/sse", McpAppProxy(get_sse_app))
 
-    async def _check_db_connection() -> bool:
-        try:
-            async with engine.connect() as conn:
-                await conn.execute(text("SELECT 1"))
-            return True
-        except Exception:
-            return False
 
+def _register_operational_endpoints(application: FastAPI) -> None:
     @application.get("/health")
     async def health():
         db_connected = await _check_db_connection()
@@ -130,31 +141,8 @@ def create_application() -> FastAPI:
             "cpu_usage_percent": psutil.cpu_percent(),
         }
 
-    def _error_payload(detail: object, code: str) -> dict:
-        return {
-            "detail": detail,
-            "code": code,
-            "timestamp": _utc_timestamp(),
-        }
 
-    def _error_payload_from_exception(detail: object, status_code: int) -> dict:
-        if isinstance(detail, dict) and "detail" in detail and "code" in detail:
-            payload = dict(detail)
-            if "timestamp" not in payload:
-                payload["timestamp"] = _utc_timestamp()
-            return payload
-        return _error_payload(detail, _code_for_status(status_code))
-
-    def _code_for_status(status_code: int) -> str:
-        return {
-            400: "BAD_REQUEST",
-            401: "UNAUTHORIZED",
-            403: "FORBIDDEN",
-            404: "NOT_FOUND",
-            409: "CONFLICT",
-            422: "VALIDATION_ERROR",
-        }.get(status_code, "HTTP_ERROR")
-
+def _register_request_size_middleware(application: FastAPI) -> None:
     @application.middleware("http")
     async def limit_skill_download_request_size(request: Request, call_next):
         if request.method == "POST" and request.url.path == "/api/v1/skills/download":
@@ -190,6 +178,8 @@ def create_application() -> FastAPI:
             request._receive = limited_receive
         return await call_next(request)
 
+
+def _register_exception_handlers(application: FastAPI) -> None:
     @application.exception_handler(HTTPException)
     async def http_exception_handler(_request: Request, exc: HTTPException):
         return JSONResponse(
@@ -211,6 +201,31 @@ def create_application() -> FastAPI:
             content=_error_payload("Internal Server Error", "INTERNAL_SERVER_ERROR"),
         )
 
+
+@asynccontextmanager
+async def lifespan(_application: FastAPI):
+    await init_db()
+    await ensure_mcp_initialized()
+    if settings.ENABLE_DEPRECATION_NOTIFIER_ON_STARTUP:
+        async for session in get_async_session():
+            notifier = DeprecationNotifier(
+                AuditLogRepository(session),
+                day_offsets=list(settings.DEPRECATION_NOTIFY_OFFSETS_DAYS),
+            )
+            await notifier.notify_upcoming_deprecation()
+            break
+    yield
+    await shutdown_mcp()
+
+
+def create_application() -> FastAPI:
+    configure_loguru()
+    application = FastAPI(lifespan=lifespan, redirect_slashes=False)
+    _register_core_middleware(application)
+    _register_routes(application)
+    _register_operational_endpoints(application)
+    _register_request_size_middleware(application)
+    _register_exception_handlers(application)
     return application
 
 

@@ -8,12 +8,13 @@ from flowllm.core.schema import ToolCall
 from backend.config.settings import settings
 from backend.core.metrics.tool_call_metrics import record_tool_call
 from backend.core.security.rbac import has_permission, is_skill_visible
-from backend.core.utils.skill_storage import get_skill_versions_dir, tool_error_payload
+from backend.core.utils.skill_storage import tool_error_payload
 from backend.core.utils.user_context import get_current_user_id
 from backend.db import session as db_session
 from backend.repositories.skill import SkillRepository
 from backend.repositories.skill_version import SkillVersionRepository
 from backend.repositories.user import UserRepository
+from backend.services.skill_errors import SkillError, SkillErrorCode
 from backend.services.skill import SkillService
 
 
@@ -164,14 +165,16 @@ class SkillDetailResourceOp(BaseAsyncToolOp):
                     source_skill, version, record, version_dir = await SkillService(
                         skill_repo, version_repo
                     ).resolve_version_dir(skill, version_input)
-                except ValueError as exc:
-                    detail = str(exc)
-                    if detail == "SOURCE_SKILL_UNAVAILABLE":
+                except SkillError as exc:
+                    if exc.code == SkillErrorCode.SOURCE_SKILL_UNAVAILABLE:
                         self._set_output(tool_error_payload("Source skill unavailable", "SOURCE_SKILL_UNAVAILABLE"))
-                    elif detail == "Version not found":
+                    elif exc.code == SkillErrorCode.VERSION_NOT_FOUND:
                         self._set_output(tool_error_payload("Version not found", "VERSION_NOT_FOUND"))
                     else:
-                        self._set_output(tool_error_payload(detail, "SKILL_NOT_FOUND"))
+                        self._set_output(tool_error_payload(exc.detail, "SKILL_NOT_FOUND"))
+                    return
+                except ValueError as exc:
+                    self._set_output(tool_error_payload(str(exc), "SKILL_NOT_FOUND"))
                     return
                 skill_md_path = version_dir / "SKILL.md"
                 metadata = {}

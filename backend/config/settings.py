@@ -1,11 +1,70 @@
 from pathlib import Path
 from typing import Any, List, cast
+import json
 
 from pydantic import ValidationInfo, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 _BACKEND_DIR = Path(__file__).resolve().parent.parent
 _ENV_FILE = _BACKEND_DIR / ".env"
+
+
+def _strip_str(value: Any) -> str | None:
+    if not isinstance(value, str):
+        return None
+    return value.strip()
+
+
+def _parse_json_collection(raw: str) -> Any | None:
+    try:
+        return json.loads(raw)
+    except Exception:
+        return None
+
+
+def _parse_string_list(value: Any) -> list[str] | Any:
+    raw = _strip_str(value)
+    if raw is None:
+        return value
+    if raw.startswith("[") and raw.endswith("]"):
+        parsed = _parse_json_collection(raw)
+        if isinstance(parsed, list):
+            return [str(item).strip() for item in parsed if str(item).strip()]
+    return [item.strip() for item in raw.split(",") if item.strip()]
+
+
+def _parse_int_list(value: Any, default: list[int]) -> list[int]:
+    raw = _strip_str(value)
+    if raw is not None:
+        if raw.startswith("[") and raw.endswith("]"):
+            parsed = _parse_json_collection(raw)
+            if isinstance(parsed, list):
+                return [int(item) for item in parsed]
+        return [int(item.strip()) for item in raw.split(",") if item.strip()]
+    if isinstance(value, list):
+        return [int(item) for item in value]
+    return default
+
+
+def _parse_json_dict(value: Any, default: dict | None = None) -> dict:
+    raw = _strip_str(value)
+    if raw is not None and raw:
+        parsed = _parse_json_collection(raw)
+        if isinstance(parsed, dict):
+            return parsed
+    if isinstance(value, dict):
+        return value
+    return {} if default is None else default
+
+
+def _parse_string_set(value: Any) -> set[str]:
+    raw = _strip_str(value)
+    if raw is not None:
+        if raw.startswith("[") and raw.endswith("]"):
+            parsed = _parse_json_collection(raw)
+            return set(parsed) if isinstance(parsed, list) else set()
+        return {item.strip() for item in raw.split(",") if item.strip()}
+    return set(value) if isinstance(value, (list, set)) else set()
 
 
 class Settings(BaseSettings):
@@ -126,19 +185,7 @@ class Settings(BaseSettings):
     @field_validator("CORS_ORIGINS", mode="before")
     @classmethod
     def parse_cors_origins(cls, v):
-        if isinstance(v, str):
-            raw = v.strip()
-            if raw.startswith("[") and raw.endswith("]"):
-                try:
-                    import json
-
-                    parsed = json.loads(raw)
-                    if isinstance(parsed, list):
-                        return [str(item).strip() for item in parsed if str(item).strip()]
-                except Exception:
-                    pass
-            return [origin.strip() for origin in raw.split(",") if origin.strip()]
-        return v
+        return _parse_string_list(v)
 
     @model_validator(mode="after")
     def validate_cors_origins(self):
@@ -149,57 +196,22 @@ class Settings(BaseSettings):
     @field_validator("RBAC_ROLE_PERMISSIONS", mode="before")
     @classmethod
     def parse_role_permissions(cls, v):
-        if isinstance(v, str):
-            raw = v.strip()
-            if raw:
-                import json
-
-                parsed = json.loads(raw)
-                if isinstance(parsed, dict):
-                    return parsed
-        return v
+        return _parse_json_dict(v, default=v if isinstance(v, dict) else {})
 
     @field_validator("DEPRECATED_ENDPOINTS", mode="before")
     @classmethod
     def parse_deprecated_endpoints(cls, v):
-        if isinstance(v, str):
-            raw = v.strip()
-            if raw:
-                import json
-
-                parsed = json.loads(raw)
-                if isinstance(parsed, dict):
-                    return parsed
-        return v if isinstance(v, dict) else {}
+        return _parse_json_dict(v)
 
     @field_validator("DEPRECATED_VERSIONS", mode="before")
     @classmethod
     def parse_deprecated_versions(cls, v):
-        if isinstance(v, str):
-            raw = v.strip()
-            if raw.startswith("[") and raw.endswith("]"):
-                import json
-
-                parsed = json.loads(raw)
-                return set(parsed) if isinstance(parsed, list) else set()
-            return set(item.strip() for item in raw.split(",") if item.strip())
-        return set(v) if isinstance(v, (list, set)) else set()
+        return _parse_string_set(v)
 
     @field_validator("DEPRECATION_NOTIFY_OFFSETS_DAYS", mode="before")
     @classmethod
     def parse_deprecation_notify_offsets_days(cls, v):
-        if isinstance(v, str):
-            raw = v.strip()
-            if raw.startswith("[") and raw.endswith("]"):
-                import json
-
-                parsed = json.loads(raw)
-                if isinstance(parsed, list):
-                    return [int(item) for item in parsed]
-            return [int(item.strip()) for item in raw.split(",") if item.strip()]
-        if isinstance(v, list):
-            return [int(item) for item in v]
-        return [90, 30, 7]
+        return _parse_int_list(v, [90, 30, 7])
 
     @field_validator("SECRET_KEY")
     @classmethod

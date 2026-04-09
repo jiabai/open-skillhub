@@ -13,7 +13,7 @@ from backend.core.metrics.tool_call_metrics import record_tool_call
 from backend.core.security.rbac import has_permission, is_skill_visible
 from backend.core.utils.command_whitelist import get_command_policy
 from backend.core.utils.process_exec import split_command_args
-from backend.core.utils.skill_storage import get_skill_versions_dir, tool_error_payload
+from backend.core.utils.skill_storage import tool_error_payload
 from backend.core.utils.user_context import get_current_user_id
 from backend.db import session as db_session
 from backend.repositories.audit_log import AuditLogRepository
@@ -21,6 +21,7 @@ from backend.repositories.skill import SkillRepository
 from backend.repositories.skill_version import SkillVersionRepository
 from backend.repositories.user import UserRepository
 from backend.services.audit import AuditService
+from backend.services.skill_errors import SkillError, SkillErrorCode
 from backend.services.skill import SkillService
 
 _execution_control: Any = None
@@ -118,14 +119,16 @@ class ExecuteSkillOp(BaseAsyncToolOp):
                     source_skill, version, _record, version_dir = await SkillService(
                         skill_repo, version_repo
                     ).resolve_version_dir(skill, version_input)
-                except ValueError as exc:
-                    detail = str(exc)
-                    if detail == "SOURCE_SKILL_UNAVAILABLE":
+                except SkillError as exc:
+                    if exc.code == SkillErrorCode.SOURCE_SKILL_UNAVAILABLE:
                         self._set_output(tool_error_payload("Source skill unavailable", "SOURCE_SKILL_UNAVAILABLE"))
-                    elif detail == "Version not found":
+                    elif exc.code == SkillErrorCode.VERSION_NOT_FOUND:
                         self._set_output(tool_error_payload("Version not found", "VERSION_NOT_FOUND"))
                     else:
-                        self._set_output(tool_error_payload(detail, "SKILL_NOT_FOUND"))
+                        self._set_output(tool_error_payload(exc.detail, "SKILL_NOT_FOUND"))
+                    return
+                except ValueError as exc:
+                    self._set_output(tool_error_payload(str(exc), "SKILL_NOT_FOUND"))
                     return
                 if settings.ENABLE_RESOURCE_QUOTA and not is_within_workdir_quota(version_dir):
                     self._set_output(tool_error_payload("Work directory quota exceeded", "QUOTA_EXCEEDED"))
@@ -153,7 +156,9 @@ class ExecuteSkillOp(BaseAsyncToolOp):
                     return
                 policy, error_msg = get_command_policy(command)
                 if policy is None:
-                    self._set_output(tool_error_payload(error_msg, "COMMAND_BLOCKED"))
+                    self._set_output(
+                        tool_error_payload("Skill entrypoint must be a local script command", "COMMAND_BLOCKED")
+                    )
                     return
                 if policy.category != "local_script":
                     self._set_output(

@@ -37,8 +37,7 @@ class AuthService:
 
     @staticmethod
     def _get_token_version(user: User) -> int:
-        value = getattr(user, "jwt_token_version", 0)
-        return value if isinstance(value, int) else 0
+        return user.jwt_token_version
 
     async def register(self, email: str, username: str, password: str | None) -> User:
         if await self.user_repo.get_by_email(email):

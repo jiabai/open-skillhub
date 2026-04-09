@@ -66,7 +66,7 @@ class SkillError(ValueError):
     def __init__(self, code: SkillErrorCode, detail: str | None = None):
         self.code = code
         self.detail = detail or _DEFAULT_MESSAGES[code]
-        super().__init__(code.value)
+        super().__init__(f"{self.code.value}: {self.detail}")
 
 
 class DownloadTooLargeError(SkillError):

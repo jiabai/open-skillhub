@@ -19,12 +19,16 @@ class SkillDownloadService:
         skill_id: str,
         skill_uuid: str,
         target_version: str,
-        version_dir: Path,
+        version_dir: Path | None,
         source_user_id: str,
         source_skill_name: str,
+        archive_bytes: bytes | None = None,
     ) -> dict:
-        archive_bytes = await load_archive(source_user_id, source_skill_name, target_version)
         if archive_bytes is None:
+            archive_bytes = await load_archive(source_user_id, source_skill_name, target_version)
+        if archive_bytes is None:
+            if version_dir is None or not version_dir.exists():
+                raise ValueError("Version files not found")
             buffer = io.BytesIO()
             with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as archive:
                 for file_path in version_dir.rglob("*"):

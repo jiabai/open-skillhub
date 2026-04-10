@@ -234,12 +234,14 @@ Clone Skill 是从公共 Skill **完整复制**出来的独立私有 Skill。复
 | 属性 | 值 |
 |------|-----|
 | `visibility` | `private`（默认） |
-| `source_skill_id` | `null`（切断关联） |
+| `source_skill_id` | `null`（不指向源 Skill） |
 | `pinned_version` | `null` |
+| `cloned_from_skill_id` | 源公共 Skill 的 ID（独立字段，非 metadata） |
+| `cloned_from_version` | 克隆时的源版本号（独立字段，非 metadata） |
 | 存储路径 | `data/skills/{user_id}/{skill_name}/`（用户自有目录） |
 | 文件来源 | 从源 Skill 复制出的独立副本 |
 
-判定逻辑：一个 Skill 既不是 Reference（`source_skill_id` 为空），也不是公共 Skill（`visibility != public`），且其首个版本的 `metadata_json` 中包含 `cloned_from_skill_id` 字段，则判定为 Clone Skill。
+判定逻辑：一个 Skill 既不是 Reference（`source_skill_id` 为空），也不是公共 Skill（`visibility != public`），且其 `cloned_from_skill_id` 字段不为空，则判定为 Clone Skill。
 
 ### 定位
 
@@ -284,9 +286,14 @@ Clone 一旦创建完成，就变成了一个完全普通的私有 Skill，支�
 
 ### 与源 Skill 的关系
 
-Clone 的来源信息仅保存在首条 Version 记录的 `metadata_json` 中，作为纯信息字段：
+Clone 的来源信息保存在 `skills` 表的独立字段中（`cloned_from_skill_id` 和 `cloned_from_version`），同时首条 Version 记录的 `metadata_json` 中也包含一份副本：
 
 ```json
+// skills 表独立字段
+cloned_from_skill_id = "原始公共Skill的UUID"
+cloned_from_version = "2.1.0"
+
+// 首条 Version 的 metadata_json 中也包含副本
 {
   "cloned_from_skill_id": "原始公共Skill的UUID",
   "cloned_from_version": "2.1.0"
@@ -433,7 +440,7 @@ flowchart TD
 CREATE TABLE skills (
     id              VARCHAR(36) PRIMARY KEY,
     user_id         VARCHAR(36) NOT NULL REFERENCES users(id),
-    name            VARCHAR(200) NOT NULL,
+    name            VARCHAR(120) NOT NULL,
     description     TEXT,
     tags            JSONB,
     visibility      VARCHAR(20) NOT NULL DEFAULT 'private',
@@ -441,6 +448,10 @@ CREATE TABLE skills (
     -- 公共 Skill / Reference 相关字段
     source_skill_id VARCHAR(36) NULL REFERENCES skills(id) ON DELETE SET NULL,
     pinned_version  VARCHAR(50) NULL,
+
+    -- Clone 相关字段
+    cloned_from_skill_id VARCHAR(36) NULL REFERENCES skills(id) ON DELETE SET NULL,
+    cloned_from_version  VARCHAR(50) NULL,
 
     skill_dir       VARCHAR(500) NOT NULL DEFAULT '',
     current_version VARCHAR(50) NULL,
@@ -450,6 +461,7 @@ CREATE TABLE skills (
 );
 
 CREATE INDEX idx_skills_source_skill_id ON skills(source_skill_id);
+CREATE INDEX idx_skills_cloned_from_skill_id ON skills(cloned_from_skill_id);
 ```
 
 ### 三种类型的数据库形态
@@ -479,6 +491,8 @@ CREATE INDEX idx_skills_source_skill_id ON skills(source_skill_id);
 │  pinned_version = '2.0.0' │  │  pinned_version = NULL     │
 │  current_version = NULL   │  │  current_version = '1.0.0' │
 │  skill_dir = ''           │  │  skill_dir 正常填充        │
+│  cloned_from_skill_id=NULL│  │  cloned_from_skill_id='aaa│
+│  cloned_from_version=NULL │  │  cloned_from_version='2.1.│
 └──────────────────────────┘  └──────────────────────────┘
 ```
 

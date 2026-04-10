@@ -8,10 +8,10 @@
 
 - [系统架构一览](#系统架构一览)
 - [功能全景](#功能全景)
-  - [认证登录](#1-认证登录-7个接口)
+  - [认证登录](#1-认证登录-8个接口)
   - [账号与用户](#2-账号与用户-7个接口)
   - [API Token](#3-api-token-3个接口)
-  - [Skill 技能包 — 核心](#4-skill-技能包--核心-22个接口)
+  - [Skill 技能包 — 核心](#4-skill-技能包--核心-23个接口)
   - [仪表盘](#5-仪表盘-3个接口-rbac关闭后1个可用)
   - [审计日志](#6-审计日志-2个接口-rbac关闭后不可用)
 - [上传机制详解](#上传机制详解)
@@ -19,6 +19,10 @@
 - [RBAC 关闭带来的权限变化](#rbac-关闭带来的权限变化)
 - [安全防护体系](#安全防护体系)
 - [配置开关速查](#配置开关速查)
+
+补充阅读：
+
+- [无 RBAC 模式下的权限模型说明](./permission-model-without-rbac.md)
 
 ---
 
@@ -33,10 +37,10 @@ graph TB
     end
 
     subgraph API 层
-        AUTH["🔐 认证模块<br/>auth (7)"]
+        AUTH["🔐 认证模块<br/>auth (8)"]
         USER["👤 用户模块<br/>users (5)"]
         TOKEN["🔑 Token 模块<br/>tokens (3)"]
-        SKILL["⚡ Skill 模块<br/>skills (22)"]
+        SKILL["⚡ Skill 模块<br/>skills (23)"]
         DASH["📊 仪表盘<br/>dashboard (3)"]
         AUDIT["📝 审计日志<br/>audit (2)"]
     end
@@ -72,7 +76,7 @@ graph TB
 
 ## 功能全景
 
-### 1. 认证登录（7 个接口）
+### 1. 认证登录（8 个接口）
 
 系统支持四种独立的认证方式，各自通过配置开关控制，可以同时启用多套。
 
@@ -105,7 +109,7 @@ flowchart LR
 | `/api/v1/auth/sso/prepare` | POST | 获取 SSO nonce 防重放 | `ENABLE_SSO=True` |
 | `/api/v1/auth/sso/login` | POST | id_token + nonce 完成认证 | `ENABLE_SSO=True` |
 
-此外还有一个 LDAP 登录入口 `POST /api/v1/auth/ldap/login`（需 `ENABLE_LDAP=True`），使用用户名 + 密码完成认证。
+此外还有一个 LDAP 登录入口 `POST /api/v1/auth/ldap/login`（需 `ENABLE_LDAP=True`），使用用户名 + 密码完成认证。此接口已计入上方总数。
 
 > **关于自动创建用户**：邮箱 OTP 登录时，如果该邮箱尚未注册，系统会自动创建一个随机用户名的账号并直接返回 Token——这是有意设计的"零摩擦"登录体验。
 
@@ -181,7 +185,7 @@ sequenceDiagram
 
 ---
 
-### 4. Skill 技能包 — 核心（22 个接口）
+### 4. Skill 技能包 — 核心（23 个接口）
 
 这是系统最核心的模块。一个 Skill 就是一个可执行的技能包，包含代码、依赖声明和描述文件（SKILL.md），类似于 npm 包或 Docker 镜像的概念。
 
@@ -298,9 +302,9 @@ graph LR
 ```
 `version` 可选——省略则下载 `current_version` 指向的版本。
 
-响应中 `files` 数组包含每个文件的 base64 内容（或加密后的密文）。如果开启了下载加密（`ENABLE_SKILL_DOWNLOAD_ENCRYPTION=true`），则每个文件独立使用 AES-256-GCM 加密。
+响应中 `encrypted_code` 字段包含整体归档的 base64 内容（未加密时为 ZIP 的 base64，加密时为 AES-256-GCM 加密后的 base64 密文）。如果开启了下载加密（`ENABLE_SKILL_DOWNLOAD_ENCRYPTION=true`），则整个归档包使用 AES-256-GCM 加密。
 
-前端拿到响应后会将其序列化为 JSON 并触发浏览器原生下载，文件名格式为 `skill-{前8位UUID}-{版本号}.json`。
+前端拿到响应后会将其序列化为 JSON 并触发浏览器原生下载，文件名格式为 `skill-{前8位UUID}-{版本号}.json`（加密时后缀为 `.encrypted.json`）。
 
 > RBAC 开启时，下载仅 admin 可用；RBAC 关闭后，下载受 `require_skill_download_access()` 守卫——**只能下载自己拥有的 Skill**（`skill.user_id == current_user.id`），非自己拥有的 Skill 返回 403。
 
@@ -622,7 +626,7 @@ ENABLE_AUDIT_EXPORT=False             # 允许导出审计数据
 
 | 维度 | 数值 |
 |------|------|
-| 总 API 接口数 | **53 个**（RBAC 关闭后 6 个管理接口返回 403，实际可用 47 个） |
+| 总 API 接口数 | **46 个**（RBAC 关闭后 6 个管理接口返回 403，实际可用 40 个） |
 | 功能模块数 | **6 大模块** |
 | 认证方式 | **4 种**（OTP / SSO / LDAP / 待扩展） |
 | Skill 类型 | **4 种**（Regular / Public / Reference / Clone） |
@@ -630,3 +634,4 @@ ENABLE_AUDIT_EXPORT=False             # 允许导出审计数据
 | 安全防护层数 | **6 层**（JWT / 接口守卫分流 / 所有权 / 文件系统 / 业务逻辑 / 可选加固） |
 | RBAC 关闭后不可用的管理接口 | **6 个**（用户列表、修改身份、审计查看/导出、指标清理/重置） |
 | RBAC 关闭后受限的接口 | **1 个**（下载仅限自己的 Skill） |
+| 总独立 API 接口数 | **46 个**（去重尾部斜杠双注册后） |

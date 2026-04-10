@@ -47,7 +47,7 @@ flowchart TD
     L -->|"版本存在"| N["从文件系统读取文件"]
     
     N --> O{"启用下载加密?<br/>ENABLE_SKILL_DOWNLOAD_ENCRYPTION"}
-    O -->|"是"| P["AES-256-GCM 加密<br/>每个文件独立加密"]
+    O -->|"是"| P["AES-256-GCM 加密<br/>整个归档包加密"]
     O -->|"否"| Q["返回原始文件内容"]
     
     P --> R["构建 SkillDownloadResponse"]
@@ -88,51 +88,45 @@ Content-Type: application/json
 ```json
 {
   "skill_uuid": "abc-123",
-  "name": "my-data-analyzer",
   "version": "1.0.0",
-  "files": [
-    {
-      "path": "main.py",
-      "content": "base64 编码的文件内容...",
-      "size": 1234
-    },
-    {
-      "path": "SKILL.md",
-      "content": "base64 编码的文件内容...",
-      "size": 567
-    }
-  ],
-  "metadata": {},
-  "encryption_enabled": false,
+  "encrypted_code": "base64 编码的归档内容...",
+  "checksum": "sha256:abc123...",
+  "expires_at": "2026-04-11T15:00:00Z",
+  "cache_ttl_seconds": 300,
   "archive_size_bytes": 5678,
-  "download_filename": "my-data-analyzer-1.0.0"
+  "encryption_enabled": false,
+  "download_filename": "skill-abc12345-1.0.0.json",
+  "decryption_hint": null
 }
 ```
 
 关键字段说明：
 
-- `files[].content` — 未加密时为原始文件的 base64 编码；加密时为 AES-256-GCM 加密后的 base64 密文
+- `encrypted_code` — 未加密时为整个 ZIP 归档包的 base64 编码；加密时为 AES-256-GCM 加密后的 base64 密文
+- `checksum` — 归档内容的 SHA-256 校验和，格式为 `sha256:{hex}`
 - `encryption_enabled` — 标识本次下载是否启用了加密
 - `archive_size_bytes` — 归档包的字节大小
-- `download_filename` — 建议的下载文件名（前端实际使用的命名是 `skill-{uuid前8位}-{version}.json`）
+- `download_filename` — 建议的下载文件名（加密时后缀为 `.encrypted.json`，非加密时为 `.json`）
+- `expires_at` — 下载链接的过期时间
+- `decryption_hint` — 加密时提示信息，非加密时为 null
 
 ---
 
 ## 下载加密
 
-当 `ENABLE_SKILL_DOWNLOAD_ENCRYPTION=True` 时，下载的每个文件都会被独立加密。
+当 `ENABLE_SKILL_DOWNLOAD_ENCRYPTION=True` 时，下载的整个归档包会被加密。
 
 ```mermaid
 flowchart LR
-    A["原始文件内容"] --> B["AES-256-GCM 加密"]
+    A["ZIP 归档包"] --> B["AES-256-GCM 加密"]
     B --> C["Base64 编码"]
-    C --> D["写入 response.files[].content"]
+    C --> D["写入 response.encrypted_code"]
     
-    KEY["SECRET_KEY + salt<br/>→ derive_aes256_key()"] --> B
+    KEY["SECRET_KEY + purpose<br/>→ build_encryption_key()"] --> B
 ```
 
-- 密钥派生：使用 `settings.SECRET_KEY` 和固定盐值 `"skill-download-encryption"` 通过 `derive_aes256_key()` 生成 256 位 AES 密钥
-- 加密方式：每个文件独立加密，互不影响
+- 密钥派生：使用 `settings.SECRET_KEY` 和固定 purpose `"skill-download-encryption"` 通过 `build_encryption_key()` 生成 256 位 AES 密钥
+- 加密方式：整个归档包作为一个整体加密，加密后 base64 编码存入 `encrypted_code` 字段
 - 前端处理：当前前端直接将 API 响应序列化为 JSON 下载，不做客户端解密。如果启用加密，下载的文件内容将是密文，需要使用共享密钥在客户端或其他工具中解密
 
 配置：
@@ -187,11 +181,11 @@ SECRET_KEY=your-secret-key              # 用于派生加密密钥
 
 ```
 1. 调用后端 API: POST /api/v1/skills/download
-2. 接收 JSON 响应（包含文件列表、元数据等）
+2. 接收 JSON 响应（包含 encrypted_code、元数据等）
 3. JSON.stringify() 序列化为格式化字符串
 4. 创建 Blob 对象 + 生成临时 Object URL
 5. 触发浏览器原生下载
-6. 文件名格式: skill-{uuid前8位}-{version}.json
+6. 文件名格式: skill-{uuid前8位}-{version}.json（加密时为 .encrypted.json）
 7. 清理临时 DOM 元素和 Object URL
 ```
 

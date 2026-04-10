@@ -92,6 +92,7 @@ Repository = "https://github.com/zouyingcao/open-skillhub"
 skillhub-mcp = "backend.main:main"
 
 [tool.pytest.ini_options]
+addopts = "-p no:cacheprovider"
 tmp_path_retention_policy = "failed"
 testpaths = ["tests"]
 filterwarnings = [

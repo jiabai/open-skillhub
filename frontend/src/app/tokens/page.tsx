@@ -3,10 +3,9 @@
 import { useEffect, useState } from "react"
 import { Copy, KeyRound, Loader2, Trash2 } from "lucide-react"
 
-import { api } from "@/lib/api"
-import { useField, createTokenNameRules } from "@/hooks/use-form-validation"
-import type { Token } from "@/types"
-import { useToast } from "@/hooks/use-toast"
+import { ModeBoundaryNote } from "@/components/app/mode-boundary-note"
+import { NextStepCard } from "@/components/app/next-step-card"
+import { PageIntro } from "@/components/app/page-intro"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -14,6 +13,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
+import { getAppMode } from "@/lib/app-mode"
+import { api } from "@/lib/api"
+import { createTokenNameRules, useField } from "@/hooks/use-form-validation"
+import type { Token } from "@/types"
+import { useToast } from "@/hooks/use-toast"
 
 export default function TokensPage() {
   const { success, error: showError } = useToast()
@@ -24,6 +28,7 @@ export default function TokensPage() {
   const [days, setDays] = useState("30")
   const [newToken, setNewToken] = useState<string | null>(null)
   const [creating, setCreating] = useState(false)
+  const appMode = getAppMode()
 
   const loadTokens = async () => {
     setStatus("loading")
@@ -34,7 +39,7 @@ export default function TokensPage() {
       setStatus("ready")
     } catch (err) {
       setStatus("error")
-      setError(err instanceof Error ? err.message : "加载失败")
+      setError(err instanceof Error ? err.message : "Failed to load tokens")
     }
   }
 
@@ -45,7 +50,7 @@ export default function TokensPage() {
   const handleCreate = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     nameField.validate()
-    if (!nameField.isValid) return
+    if (!nameField.value.trim()) return
 
     setCreating(true)
     try {
@@ -55,11 +60,11 @@ export default function TokensPage() {
       nameField.reset()
       setDays("30")
       await loadTokens()
-      success("Token 创建成功", { description: "请保存好您的 Token，它只会显示一次" })
+      success("Token created", { description: "This token is only shown once. Save it before leaving this page." })
     } catch (err) {
-      const message = err instanceof Error ? err.message : "创建失败"
+      const message = err instanceof Error ? err.message : "Creation failed"
       setError(message)
-      showError("创建失败", { description: message })
+      showError("Creation failed", { description: message })
     } finally {
       setCreating(false)
     }
@@ -69,60 +74,59 @@ export default function TokensPage() {
     try {
       await api.revokeToken(tokenId)
       await loadTokens()
-      success("Token 已撤销")
+      success("Token revoked")
     } catch (err) {
-      const message = err instanceof Error ? err.message : "撤销失败"
+      const message = err instanceof Error ? err.message : "Revoke failed"
       setError(message)
-      showError("撤销失败", { description: message })
+      showError("Revoke failed", { description: message })
     }
   }
 
   const handleCopy = async () => {
-    if (!newToken) {
-      return
-    }
+    if (!newToken) return
     await navigator.clipboard.writeText(newToken)
   }
 
   return (
     <div className="flex flex-col gap-6 3xl:gap-8">
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h1 className="font-display text-3xl 3xl:text-4xl 4k:text-5xl">API Tokens</h1>
-          <p className="text-sm 3xl:text-base text-muted-foreground">管理 MCP API Token，仅创建时展示明文。</p>
-        </div>
-      </div>
-      <div className="grid gap-4 lg:grid-cols-[1.1fr_0.9fr] 3xl:gap-6 4k:gap-8 4k:grid-cols-2">
+      <PageIntro
+        title="Tokens"
+        summary={
+          appMode === "no-rbac"
+            ? "Create tokens when you are ready to let your own client tools access the Skills visible in your workspace."
+            : "Create and manage tokens for governed access across scoped clients and automation."
+        }
+      />
+      <ModeBoundaryNote mode={appMode} />
+
+      {newToken ? (
+        <NextStepCard
+          title="Token created"
+          description="Copy the token now, then use it in your MCP or other client configuration so your client can access visible Skills."
+          href="/tokens"
+          actionLabel="Stay on Tokens"
+        />
+      ) : null}
+
+      <div className="grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
         <Card>
           <CardHeader>
-            <CardTitle>创建 Token</CardTitle>
-            <CardDescription>为 MCP 访问生成新的凭证。</CardDescription>
+            <CardTitle>Create Token</CardTitle>
+            <CardDescription>Generate a token for client access. Browser management and client access are separate steps.</CardDescription>
           </CardHeader>
           <CardContent className="flex flex-col gap-4">
             <form onSubmit={handleCreate} className="flex flex-col gap-4">
               <div className="flex flex-col gap-2">
-                <Label htmlFor="name">Token 名称</Label>
-                <Input
-                  id="name"
-                  placeholder="例如：prod-client"
-                  value={nameField.value}
-                  onChange={(event) => nameField.setValue(event.target.value)}
-                  onBlur={nameField.handleBlur}
-                />
-                {nameField.error && <p className="text-sm text-destructive">{nameField.error}</p>}
+                <Label htmlFor="name">Token name</Label>
+                <Input id="name" placeholder="for example: local-mcp-client" value={nameField.value} onChange={(event) => nameField.setValue(event.target.value)} onBlur={nameField.handleBlur} />
+                {nameField.error ? <p className="text-sm text-destructive">{nameField.error}</p> : null}
               </div>
               <div className="flex flex-col gap-2">
-                <Label htmlFor="days">有效天数</Label>
-                <Input
-                  id="days"
-                  type="number"
-                  min="1"
-                  value={days}
-                  onChange={(event) => setDays(event.target.value)}
-                />
+                <Label htmlFor="days">Valid for days</Label>
+                <Input id="days" type="number" min="1" value={days} onChange={(event) => setDays(event.target.value)} />
               </div>
               <Button type="submit" disabled={creating}>
-                {creating ? "创建中..." : "创建 Token"}
+                {creating ? "Creating..." : "Create Token"}
               </Button>
             </form>
             {newToken ? (
@@ -130,11 +134,11 @@ export default function TokensPage() {
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-2 text-sm text-foreground">
                     <KeyRound className="h-4 w-4 text-primary" />
-                    新 Token 仅展示一次
+                    New token shown only once
                   </div>
                   <Button variant="outline" size="sm" onClick={handleCopy}>
                     <Copy className="h-4 w-4" />
-                    复制
+                    Copy
                   </Button>
                 </div>
                 <Textarea className="mt-3 text-xs" value={newToken} readOnly />
@@ -142,63 +146,75 @@ export default function TokensPage() {
             ) : null}
           </CardContent>
         </Card>
-        <Card>
-          <CardHeader>
-            <CardTitle>Token 列表</CardTitle>
-            <CardDescription>管理已创建的 Token。</CardDescription>
-          </CardHeader>
-          <CardContent className="flex flex-col gap-3">
-            {status === "loading" ? (
-              <div className="flex items-center gap-3 text-sm text-muted-foreground">
-                <Loader2 className="h-4 w-4 animate-spin" />
-                正在加载
-              </div>
-            ) : null}
-            {status === "error" ? <p className="text-sm text-destructive">{error}</p> : null}
-            {status === "ready" && tokens.length === 0 ? (
-              <p className="text-sm text-muted-foreground">暂无 Token。</p>
-            ) : null}
-            {tokens.map((token) => {
-              // 计算 Token 状态
-              const isExpired = token.expires_at ? new Date(token.expires_at) < new Date() : false
-              const isRevoked = !token.is_active
-              const isActive = token.is_active && !isExpired
 
-              return (
-                <div key={token.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border bg-background px-4 py-3">
-                  <div className="flex flex-col gap-1">
-                    <p className="text-sm font-medium text-foreground">{token.name}</p>
-                    <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
-                      <Badge variant="muted">id: {token.id.slice(0, 8)}</Badge>
-                      <Badge variant={isActive ? "accent" : isExpired ? "outline" : "muted"}>
-                        {isActive ? "活跃" : isExpired ? "已过期" : "已撤销"}
-                      </Badge>
-                      {token.expires_at && <Badge variant="outline">到期：{token.expires_at.slice(0, 10)}</Badge>}
-                      {token.last_used_at && <Badge variant="outline">最后使用：{token.last_used_at.slice(0, 10)}</Badge>}
-                    </div>
-                  </div>
-                  <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                      <Button variant="destructive" size="icon">
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                      <AlertDialogHeader>
-                        <AlertDialogTitle>撤销 Token？</AlertDialogTitle>
-                        <AlertDialogDescription>撤销后该 Token 将无法访问 MCP 服务。</AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel>取消</AlertDialogCancel>
-                        <AlertDialogAction onClick={() => handleRevoke(token.id)}>确认撤销</AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
+        <div className="flex flex-col gap-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Connect Client</CardTitle>
+              <CardDescription>After creating a token, the next step is to place it in your MCP or client configuration.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3 text-sm text-muted-foreground">
+              <p>1. Create a token here.</p>
+              <p>2. Copy it immediately because you cannot reveal it again later.</p>
+              <p>3. Use it in your own client so that client can access the Skills visible in this workspace.</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader>
+              <CardTitle>Token List</CardTitle>
+              <CardDescription>Review active, expired, or revoked tokens.</CardDescription>
+            </CardHeader>
+            <CardContent className="flex flex-col gap-3">
+              {status === "loading" ? (
+                <div className="flex items-center gap-3 text-sm text-muted-foreground">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Loading
                 </div>
-              )
-            })}
-          </CardContent>
-        </Card>
+              ) : null}
+              {status === "error" ? <p className="text-sm text-destructive">{error}</p> : null}
+              {status === "ready" && tokens.length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                  No tokens yet. Without a token, client tools cannot access the Skills visible in this workspace.
+                </p>
+              ) : null}
+              {tokens.map((token) => {
+                const isExpired = token.expires_at ? new Date(token.expires_at) < new Date() : false
+                const isActive = token.is_active && !isExpired
+
+                return (
+                  <div key={token.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border bg-background px-4 py-3">
+                    <div className="flex flex-col gap-1">
+                      <p className="text-sm font-medium text-foreground">{token.name}</p>
+                      <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
+                        <Badge variant="muted">id: {token.id.slice(0, 8)}</Badge>
+                        <Badge variant={isActive ? "accent" : isExpired ? "outline" : "muted"}>{isActive ? "Active" : isExpired ? "Expired" : "Revoked"}</Badge>
+                        {token.expires_at ? <Badge variant="outline">Expires {token.expires_at.slice(0, 10)}</Badge> : null}
+                        {token.last_used_at ? <Badge variant="outline">Last used {token.last_used_at.slice(0, 10)}</Badge> : null}
+                      </div>
+                    </div>
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button variant="destructive" size="icon">
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Revoke token?</AlertDialogTitle>
+                          <AlertDialogDescription>After revocation, this token can no longer access the service.</AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancel</AlertDialogCancel>
+                          <AlertDialogAction onClick={() => handleRevoke(token.id)}>Revoke</AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  </div>
+                )
+              })}
+            </CardContent>
+          </Card>
+        </div>
       </div>
     </div>
   )

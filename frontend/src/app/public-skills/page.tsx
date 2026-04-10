@@ -3,14 +3,23 @@
 import { useEffect, useState } from "react"
 import { Copy, Download, Loader2, Search, Sparkles } from "lucide-react"
 
-import { api } from "@/lib/api"
-import { buildSkillDownloadArtifact, getDownloadErrorMessage } from "@/lib/skill-download"
-import type { Skill } from "@/types"
-import { useToast } from "@/hooks/use-toast"
+import { ModeBoundaryNote } from "@/components/app/mode-boundary-note"
+import { NextStepCard } from "@/components/app/next-step-card"
+import { PageIntro } from "@/components/app/page-intro"
+import { SkillTypeExplainer } from "@/components/app/skill-type-explainer"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
+import { getAppMode } from "@/lib/app-mode"
+import { api } from "@/lib/api"
+import { buildSkillDownloadArtifact, getDownloadErrorMessage } from "@/lib/skill-download"
+import type { Skill } from "@/types"
+import { useToast } from "@/hooks/use-toast"
+
+type NextStepState =
+  | { href: string; title: string; description: string; actionLabel: string }
+  | null
 
 export default function PublicSkillsPage() {
   const { success, error: showError } = useToast()
@@ -19,6 +28,8 @@ export default function PublicSkillsPage() {
   const [status, setStatus] = useState<"idle" | "loading" | "error">("loading")
   const [error, setError] = useState<string | null>(null)
   const [downloadingSkillId, setDownloadingSkillId] = useState<string | null>(null)
+  const [nextStep, setNextStep] = useState<NextStepState>(null)
+  const appMode = getAppMode()
 
   const loadSkills = async (search?: string) => {
     setStatus("loading")
@@ -40,6 +51,12 @@ export default function PublicSkillsPage() {
   const handleReference = async (skill: Skill) => {
     try {
       await api.referencePublicSkill(skill.id, { name: skill.name })
+      setNextStep({
+        href: "/skills",
+        title: "Reference created",
+        description: "The public Skill was added to your personal workspace. Review it in My Skills and decide later if you need a clone.",
+        actionLabel: "Go to My Skills",
+      })
       success("Public skill added to your skills")
       await loadSkills(query)
     } catch (err) {
@@ -51,7 +68,13 @@ export default function PublicSkillsPage() {
 
   const handleClone = async (skill: Skill) => {
     try {
-      await api.clonePublicSkill(skill.id, { name: `${skill.name}-copy`, visible: "private" })
+      const created = await api.clonePublicSkill(skill.id, { name: `${skill.name}-copy`, visible: "private" })
+      setNextStep({
+        href: `/skills/${created.id}`,
+        title: "Clone created",
+        description: "You now have a private editable copy. Open it next to manage files, versions, and later uploads.",
+        actionLabel: "Open cloned Skill",
+      })
       success("Public skill cloned")
       await loadSkills(query)
     } catch (err) {
@@ -64,7 +87,7 @@ export default function PublicSkillsPage() {
   const handleDownload = async (skill: Skill) => {
     setDownloadingSkillId(skill.id)
     try {
-      const result = await api.downloadSkillRaw({ skill_uuid: skill.id, version: skill.resolved_version })
+      const result = await api.downloadSkillRaw({ skill_uuid: skill.id, version: skill.resolved_version ?? undefined })
       const artifact = buildSkillDownloadArtifact(result.payload, skill.id, result.rawText)
       if (artifact.confirmMessage && !window.confirm(artifact.confirmMessage)) {
         return
@@ -80,8 +103,9 @@ export default function PublicSkillsPage() {
       URL.revokeObjectURL(url)
       success("Public skill download started")
     } catch (err) {
+      const description = getDownloadErrorMessage(err)
       showError("Unable to download skill", {
-        description: getDownloadErrorMessage(err),
+        description: appMode === "no-rbac" ? `${description}. In no-RBAC mode, downloads are limited to Skills you own directly.` : description,
       })
     } finally {
       setDownloadingSkillId(null)
@@ -90,12 +114,18 @@ export default function PublicSkillsPage() {
 
   return (
     <div className="flex flex-col gap-6 3xl:gap-8">
-      <div>
-        <h1 className="font-display text-3xl 3xl:text-4xl 4k:text-5xl">Public Skills</h1>
-        <p className="text-sm 3xl:text-base text-muted-foreground">
-          Browse system-provided skills and add them as references or private copies.
-        </p>
-      </div>
+      <PageIntro
+        title="Public Skills"
+        summary={
+          appMode === "no-rbac"
+            ? "Start here if you want to adopt a public Skill quickly. Use a reference first, clone when you need your own editable copy."
+            : "Browse reusable public Skills and bring them into your governed workspace with the right ownership model."
+        }
+      />
+      <ModeBoundaryNote mode={appMode} />
+
+      {appMode === "no-rbac" ? <SkillTypeExplainer /> : null}
+      {nextStep ? <NextStepCard {...nextStep} /> : null}
 
       <Card>
         <CardContent className="pt-6">
@@ -139,9 +169,7 @@ export default function PublicSkillsPage() {
 
       {status === "idle" && skills.length === 0 ? (
         <Card>
-          <CardContent className="py-10 text-sm text-muted-foreground">
-            No public skills found.
-          </CardContent>
+          <CardContent className="py-10 text-sm text-muted-foreground">No public skills found.</CardContent>
         </Card>
       ) : null}
 
@@ -150,12 +178,13 @@ export default function PublicSkillsPage() {
           <Card key={skill.id}>
             <CardHeader className="gap-3 md:flex-row md:items-start md:justify-between">
               <div className="space-y-2">
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                   <CardTitle>{skill.name}</CardTitle>
                   <Badge variant="accent">
                     <Sparkles className="mr-1 h-3 w-3" />
                     Public
                   </Badge>
+                  {appMode === "no-rbac" && !skill.has_reference ? <Badge variant="outline">Recommended first step: Reference</Badge> : null}
                 </div>
                 <CardDescription>{skill.description || "No description"}</CardDescription>
                 <div className="flex flex-wrap gap-2">
@@ -164,7 +193,7 @@ export default function PublicSkillsPage() {
                   {skill.has_clone ? <Badge variant="secondary">Cloned</Badge> : null}
                 </div>
               </div>
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2">
                 <Button variant="outline" onClick={() => handleDownload(skill)} disabled={downloadingSkillId === skill.id}>
                   <Download className="mr-2 h-4 w-4" />
                   Download

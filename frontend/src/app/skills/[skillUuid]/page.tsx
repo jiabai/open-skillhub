@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import { Eye, FileText, Loader2, Save, Trash2 } from "lucide-react"
 
 import { api } from "@/lib/api"
@@ -27,6 +28,7 @@ type SkillDetailProps = {
 
 export default function SkillDetailPage({ params }: SkillDetailProps) {
   const { success, error: showError } = useToast()
+  const router = useRouter()
   const [skill, setSkill] = useState<Skill | null>(null)
   const [files, setFiles] = useState<string[]>([])
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading")
@@ -56,7 +58,7 @@ export default function SkillDetailPage({ params }: SkillDetailProps) {
       setStatus("ready")
     } catch (err) {
       setStatus("error")
-      setError(err instanceof Error ? err.message : "加载失败")
+      setError(err instanceof Error ? err.message : "Failed to load Skill")
     }
   }, [params.skillUuid])
 
@@ -65,9 +67,7 @@ export default function SkillDetailPage({ params }: SkillDetailProps) {
   }, [fetchData])
 
   const handleSave = async () => {
-    if (!skill) {
-      return
-    }
+    if (!skill) return
     setSaving(true)
     try {
       const updated = await api.updateSkill(
@@ -77,31 +77,27 @@ export default function SkillDetailPage({ params }: SkillDetailProps) {
           : {
               name,
               description,
-              visible: featureFlags.enableSkillVisibility ? visible : undefined
+              visible: featureFlags.enableSkillVisibility ? visible : undefined,
             }
       )
       setSkill(updated)
-      success("Skill 已保存")
+      success("Skill saved")
     } catch (err) {
-      const message = err instanceof Error ? err.message : "保存失败"
-      showError("保存失败", { description: message })
+      const message = err instanceof Error ? err.message : "Save failed"
+      showError("Save failed", { description: message })
     } finally {
       setSaving(false)
     }
   }
 
   const handleDelete = async (deleteArchives: boolean) => {
-    if (!skill) {
-      return
-    }
+    if (!skill) return
     await api.deleteSkill(skill.id, deleteArchives)
-    window.location.href = "/skills"
+    router.replace("/skills")
   }
 
   const handlePreview = async (file: string) => {
-    if (!skill) {
-      return
-    }
+    if (!skill) return
     setPreviewOpen(true)
     setPreviewFile(file)
     setPreviewStatus("loading")
@@ -112,37 +108,42 @@ export default function SkillDetailPage({ params }: SkillDetailProps) {
       setPreviewContent(content)
       setPreviewStatus("ready")
     } catch (err) {
-      setPreviewError(err instanceof Error ? err.message : "预览失败")
+      setPreviewError(err instanceof Error ? err.message : "Preview failed")
       setPreviewStatus("error")
     }
   }
+
+  const typeSummary = !skill
+    ? ""
+    : isReference
+      ? skill.pinned_version
+        ? `Reference Skill pinned to version ${skill.pinned_version}.`
+        : "Reference Skill following the latest public source version."
+      : skill.skill_kind === "clone"
+        ? "Clone Skill with a private editable copy and its own version path."
+        : "Private Skill owned and maintained in your workspace."
 
   return (
     <div className="flex flex-col gap-6 3xl:gap-8">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="font-display text-3xl 3xl:text-4xl 4k:text-5xl">Skill 详情</h1>
-          <p className="text-sm 3xl:text-base text-muted-foreground">查看与维护 Skill 元数据与文件。</p>
+          <h1 className="font-display text-3xl 3xl:text-4xl 4k:text-5xl">Skill Detail</h1>
+          <p className="text-sm 3xl:text-base text-muted-foreground">Review type, effective version, files, and maintenance actions for this Skill.</p>
         </div>
         <Button variant="outline" asChild>
-          <Link href="/skills">返回列表</Link>
+          <Link href="/skills">Back to list</Link>
         </Button>
       </div>
 
-      {/* 状态栏 */}
-      {status === "ready" && skill && (
+      {status === "ready" && skill ? (
         <Card className={skill.is_active ? "border-accent/50 bg-accent/5" : "border-muted"}>
           <CardContent className="flex items-center justify-between py-4">
             <div className="flex items-center gap-4">
               <div className={`h-3 w-3 rounded-full ${skill.is_active ? "bg-accent" : "bg-muted-foreground"}`} />
               <div>
-                <p className="font-medium">
-                  {skill.is_active ? "已启用" : "已停用"}
-                </p>
+                <p className="font-medium">{skill.is_active ? "Active" : "Inactive"}</p>
                 <p className="text-sm text-muted-foreground">
-                  {skill.is_active
-                    ? "Skill 当前处于活跃状态，可以正常使用"
-                    : "Skill 当前处于停用状态，不可访问"}
+                  {skill.is_active ? "This Skill is available for normal use." : "This Skill is currently unavailable until reactivated."}
                 </p>
               </div>
             </div>
@@ -153,77 +154,82 @@ export default function SkillDetailPage({ params }: SkillDetailProps) {
                 try {
                   if (skill.is_active) {
                     await api.deactivateSkill(skill.id)
-                    success("Skill 已停用")
+                    success("Skill deactivated")
                   } else {
                     await api.activateSkill(skill.id)
-                    success("Skill 已启用")
+                    success("Skill activated")
                   }
                   await fetchData()
                 } catch (err) {
-                  const message = err instanceof Error ? err.message : "操作失败"
+                  const message = err instanceof Error ? err.message : "Action failed"
                   setError(message)
-                  showError("操作失败", { description: message })
+                  showError("Action failed", { description: message })
                 }
               }}
             >
-              {skill.is_active ? "停用 Skill" : "启用 Skill"}
+              {skill.is_active ? "Deactivate Skill" : "Activate Skill"}
             </Button>
           </CardContent>
         </Card>
-      )}
+      ) : null}
 
       {status === "loading" ? (
         <Card>
           <CardContent className="flex items-center gap-3 py-10 text-sm text-muted-foreground">
             <Loader2 className="h-4 w-4 animate-spin" />
-            正在加载 Skill
+            Loading Skill
           </CardContent>
         </Card>
       ) : null}
+
       {status === "error" ? (
         <Card>
           <CardContent className="py-10 text-sm text-destructive">{error}</CardContent>
         </Card>
       ) : null}
+
       {status === "ready" && skill ? (
         <Tabs defaultValue="overview">
           <TabsList>
-            <TabsTrigger value="overview">概览</TabsTrigger>
-            <TabsTrigger value="files">文件</TabsTrigger>
-            <TabsTrigger value="versions">版本</TabsTrigger>
-            <TabsTrigger value="settings">设置</TabsTrigger>
+            <TabsTrigger value="overview">Overview</TabsTrigger>
+            <TabsTrigger value="files">Files</TabsTrigger>
+            <TabsTrigger value="versions">Versions</TabsTrigger>
+            <TabsTrigger value="settings">Settings</TabsTrigger>
           </TabsList>
+
           <TabsContent value="overview">
             <Card>
               <CardHeader>
                 <CardTitle>{skill.name}</CardTitle>
-                <CardDescription>{skill.description || "暂无描述"}</CardDescription>
+                <CardDescription>{skill.description || "No description"}</CardDescription>
               </CardHeader>
-              <CardContent className="flex flex-wrap gap-2">
-                <Badge variant="muted">id: {skill.id.slice(0, 8)}</Badge>
-                {/* 可见性徽章 - 条件显示 */}
-                {featureFlags.enableSkillVisibility && skill.visible && (
-                  <Badge variant={skill.visible === "private" ? "outline" : skill.visible === "team" ? "secondary" : "accent"}>
-                    {skill.visible === "private" ? "私有" : skill.visible === "team" ? "团队" : "企业"}
-                  </Badge>
-                )}
-                {skill.skill_kind ? <Badge variant="muted">{skill.skill_kind}</Badge> : null}
-                {skill.resolved_version ? <Badge variant="outline">v{skill.resolved_version}</Badge> : null}
-                {skill.pinned_version ? <Badge variant="outline">Pinned {skill.pinned_version}</Badge> : null}
-                {!featureFlags.enableSkillVisibility && <Badge variant="outline">私有目录</Badge>}
-                <Badge variant="accent">MCP 可用</Badge>
+              <CardContent className="space-y-3">
+                <p className="text-sm text-muted-foreground">{typeSummary}</p>
+                <div className="flex flex-wrap gap-2">
+                  <Badge variant="muted">id: {skill.id.slice(0, 8)}</Badge>
+                  {featureFlags.enableSkillVisibility && skill.visible ? (
+                    <Badge variant={skill.visible === "private" ? "outline" : skill.visible === "team" ? "secondary" : "accent"}>{skill.visible}</Badge>
+                  ) : null}
+                  {skill.skill_kind ? <Badge variant="muted">{skill.skill_kind}</Badge> : null}
+                  {skill.resolved_version ? <Badge variant="outline">v{skill.resolved_version}</Badge> : null}
+                  {skill.pinned_version ? <Badge variant="outline">Pinned {skill.pinned_version}</Badge> : null}
+                  {!featureFlags.enableSkillVisibility ? <Badge variant="outline">private</Badge> : null}
+                  <Badge variant="accent">MCP Ready</Badge>
+                </div>
               </CardContent>
             </Card>
           </TabsContent>
+
           <TabsContent value="files">
             <Card>
               <CardHeader>
-                <CardTitle>文件清单</CardTitle>
-                <CardDescription>查看已上传的参考文件。</CardDescription>
+                <CardTitle>Files</CardTitle>
+                <CardDescription>Inspect files from the currently effective version for this Skill.</CardDescription>
               </CardHeader>
               <CardContent className="flex flex-col gap-3 text-sm text-muted-foreground">
+                {isReference ? <p>This reference resolves files from its public source version, so file upload and direct file edits stay disabled here.</p> : null}
                 {files.length === 0 ? (
-                  <p>暂无文件，请在创建页上传。</p>
+                  <p>No files available yet.</p>
                 ) : (
                   <ul className="flex flex-col gap-2">
                     {files.map((file) => (
@@ -231,7 +237,7 @@ export default function SkillDetailPage({ params }: SkillDetailProps) {
                         <FileText className="h-4 w-4 text-muted-foreground" />
                         <span className="flex-1 truncate">{file}</span>
                         <Button variant="outline" size="sm" onClick={() => handlePreview(file)}>
-                          预览
+                          Preview
                         </Button>
                       </li>
                     ))}
@@ -251,110 +257,95 @@ export default function SkillDetailPage({ params }: SkillDetailProps) {
                 >
                   <AlertDialogContent className="max-w-4xl">
                     <AlertDialogHeader>
-                      <AlertDialogTitle>{previewFile ? `预览 ${previewFile}` : "预览文件"}</AlertDialogTitle>
-                      <AlertDialogDescription>仅用于快速查看文本内容。</AlertDialogDescription>
+                      <AlertDialogTitle>{previewFile ? `Preview ${previewFile}` : "Preview file"}</AlertDialogTitle>
+                      <AlertDialogDescription>Use this to quickly inspect text file contents.</AlertDialogDescription>
                     </AlertDialogHeader>
                     {previewStatus === "loading" ? (
                       <div className="flex items-center gap-2 text-sm text-muted-foreground">
                         <Loader2 className="h-4 w-4 animate-spin" />
-                        正在加载内容
+                        Loading content
                       </div>
                     ) : null}
-                    {previewStatus === "error" ? (
-                      <div className="text-sm text-destructive">{previewError}</div>
-                    ) : null}
+                    {previewStatus === "error" ? <div className="text-sm text-destructive">{previewError}</div> : null}
                     {previewStatus === "ready" ? (
                       <pre className="max-h-[60vh] overflow-auto whitespace-pre-wrap rounded-md border border-border bg-muted/40 p-4 text-xs text-foreground">
-                        {previewContent || "文件为空"}
+                        {previewContent || "File is empty"}
                       </pre>
                     ) : null}
                     <AlertDialogFooter>
-                      <AlertDialogCancel>关闭</AlertDialogCancel>
+                      <AlertDialogCancel>Close</AlertDialogCancel>
                     </AlertDialogFooter>
                   </AlertDialogContent>
                 </AlertDialog>
               </CardContent>
             </Card>
           </TabsContent>
+
           <TabsContent value="versions">
-            <VersionsTab
-              skillUuid={params.skillUuid}
-              skill={skill}
-              onSkillUpdated={(updatedSkill) => setSkill(updatedSkill)}
-            />
+            <VersionsTab skillUuid={params.skillUuid} skill={skill} onSkillUpdated={(updatedSkill) => setSkill(updatedSkill)} />
           </TabsContent>
+
           <TabsContent value="settings">
             <Card>
               <CardHeader>
-                <CardTitle>设置</CardTitle>
-                <CardDescription>更新名称与描述，或删除 Skill。</CardDescription>
+                <CardTitle>Settings</CardTitle>
+                <CardDescription>Update metadata or delete this Skill. Reference Skills keep stricter edit limits.</CardDescription>
               </CardHeader>
               <CardContent className="flex flex-col gap-4">
+                {isReference ? (
+                  <p className="text-sm text-muted-foreground">
+                    This Skill is a reference to a public source. You can rename it for your workspace, but file and description changes stay restricted.
+                  </p>
+                ) : null}
                 <div className="flex flex-col gap-2">
-                  <Label htmlFor="name">Skill 名称</Label>
+                  <Label htmlFor="name">Skill name</Label>
                   <Input id="name" value={name} onChange={(event) => setName(event.target.value)} />
                 </div>
                 <div className="flex flex-col gap-2">
-                  <Label htmlFor="description">描述</Label>
+                  <Label htmlFor="description">Description</Label>
                   <Textarea id="description" value={description} onChange={(event) => setDescription(event.target.value)} disabled={!!isReference} />
                 </div>
-                {/* 可见性设置 - 条件显示 */}
-                {featureFlags.enableSkillVisibility && (
+                {featureFlags.enableSkillVisibility ? (
                   <div className="flex flex-col gap-2">
                     <Label htmlFor="visible" className="flex items-center gap-2">
                       <Eye className="h-4 w-4 text-muted-foreground" />
-                      可见性
+                      Visibility
                     </Label>
                     <Select value={visible} onValueChange={(value) => setVisible(value as EditableSkillVisible)} disabled={!!isReference}>
                       <SelectTrigger id="visible">
-                        <SelectValue placeholder="选择可见性" />
+                        <SelectValue placeholder="Choose visibility" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="private">私有</SelectItem>
-                        <SelectItem value="team">团队</SelectItem>
-                        <SelectItem value="enterprise">企业</SelectItem>
+                        <SelectItem value="private">private</SelectItem>
+                        <SelectItem value="team">team</SelectItem>
+                        <SelectItem value="enterprise">enterprise</SelectItem>
                       </SelectContent>
                     </Select>
-                    <p className="text-xs text-muted-foreground">
-                      私有：仅自己可见；团队：团队成员可见；企业：全企业可见
-                    </p>
+                    <p className="text-xs text-muted-foreground">Visibility rules only apply when the environment enables scoped visibility.</p>
                   </div>
-                )}
+                ) : null}
                 <div className="flex flex-wrap gap-2">
                   <Button onClick={handleSave} disabled={saving}>
                     <Save className="h-4 w-4" />
-                    {saving ? "保存中..." : "保存修改"}
+                    {saving ? "Saving..." : "Save changes"}
                   </Button>
                   <AlertDialog>
                     <AlertDialogTrigger asChild>
                       <Button variant="destructive">
                         <Trash2 className="h-4 w-4" />
-                        删除 Skill
+                        Delete Skill
                       </Button>
                     </AlertDialogTrigger>
                     <AlertDialogContent>
                       <AlertDialogHeader>
-                        <AlertDialogTitle>确认删除 Skill？</AlertDialogTitle>
-                        <AlertDialogDescription>请选择删除方式：</AlertDialogDescription>
+                        <AlertDialogTitle>Delete this Skill?</AlertDialogTitle>
+                        <AlertDialogDescription>Choose whether to remove only the Skill record or also delete stored archives.</AlertDialogDescription>
                       </AlertDialogHeader>
-                      <div className="flex flex-col gap-2 py-4 text-sm">
-                        <p className="text-muted-foreground">
-                          <strong>仅删除技能</strong>：保留存档，后续可重新上传同名技能（版本号将自动递增）
-                        </p>
-                        <p className="text-muted-foreground">
-                          <strong>彻底删除</strong>：同时删除存档，无法恢复
-                        </p>
-                      </div>
                       <AlertDialogFooter className="flex-col gap-2 sm:flex-row">
-                        <AlertDialogCancel>取消</AlertDialogCancel>
-                        <AlertDialogAction onClick={() => handleDelete(false)}>
-                          仅删除技能
-                        </AlertDialogAction>
-                        <AlertDialogAction
-                          onClick={() => handleDelete(true)}
-                          className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                        >
-                          彻底删除
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction onClick={() => handleDelete(false)}>Delete Skill only</AlertDialogAction>
+                        <AlertDialogAction onClick={() => handleDelete(true)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                          Delete Skill and archives
                         </AlertDialogAction>
                       </AlertDialogFooter>
                     </AlertDialogContent>

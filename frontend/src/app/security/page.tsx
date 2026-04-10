@@ -1,16 +1,28 @@
 "use client"
 
 import { useState } from "react"
-import { ShieldCheck, Trash2, Loader2 } from "lucide-react"
+import { useRouter } from "next/navigation"
+import { Loader2, ShieldCheck, Trash2 } from "lucide-react"
 
 import { api, clearTokens } from "@/lib/api"
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 
 export default function SecurityPage() {
+  const router = useRouter()
   const [deleteCode, setDeleteCode] = useState("")
   const [message, setMessage] = useState<string | null>(null)
   const [isRequestingCode, setIsRequestingCode] = useState(false)
@@ -24,9 +36,9 @@ export default function SecurityPage() {
     try {
       await api.requestDeleteAccount()
       setCodeSent(true)
-      setMessage("删除验证码已发送到您的邮箱，请查收。")
+      setMessage("Deletion verification code sent. Check your email inbox.")
     } catch (err) {
-      setError(err instanceof Error ? err.message : "请求删除验证码失败")
+      setError(err instanceof Error ? err.message : "Failed to request deletion verification code")
     } finally {
       setIsRequestingCode(false)
     }
@@ -36,9 +48,9 @@ export default function SecurityPage() {
     try {
       await api.deleteAccount({ code: deleteCode })
       clearTokens()
-      window.location.href = "/login"
+      router.replace("/login")
     } catch (err) {
-      setError(err instanceof Error ? err.message : "删除账户失败")
+      setError(err instanceof Error ? err.message : "Failed to delete account")
     }
   }
 
@@ -49,84 +61,76 @@ export default function SecurityPage() {
           <ShieldCheck className="h-5 w-5 3xl:h-6 3xl:w-6" />
         </div>
         <div>
-          <h1 className="font-display text-3xl 3xl:text-4xl 4k:text-5xl">安全设置</h1>
-          <p className="text-sm 3xl:text-base text-muted-foreground">管理账户安全与数据。</p>
+          <h1 className="font-display text-3xl 3xl:text-4xl 4k:text-5xl">Security</h1>
+          <p className="text-sm text-muted-foreground 3xl:text-base">Manage sensitive account actions and deletion controls.</p>
         </div>
       </div>
+
       <Card>
         <CardHeader>
-          <CardTitle>删除账户</CardTitle>
-          <CardDescription>此操作不可恢复，请先申请删除验证码。</CardDescription>
+          <CardTitle>Delete Account</CardTitle>
+          <CardDescription>This action cannot be undone. Request a verification code before deleting the account.</CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
           {!codeSent ? (
             <div className="flex flex-col gap-4">
               <p className="text-sm text-muted-foreground">
-                删除账户需要验证您的身份。点击下方按钮，我们将向您的注册邮箱发送删除验证码。
+                Account deletion requires an email verification step. Request the deletion code first, then confirm the action with that code.
               </p>
-              <Button
-                variant="outline"
-                onClick={handleRequestDeleteCode}
-                disabled={isRequestingCode}
-              >
+              <Button variant="outline" onClick={handleRequestDeleteCode} disabled={isRequestingCode}>
                 {isRequestingCode ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    发送中...
+                    Sending...
                   </>
                 ) : (
-                  "申请删除验证码"
+                  "Request deletion code"
                 )}
               </Button>
             </div>
           ) : (
             <div className="flex flex-col gap-4">
               <div className="flex flex-col gap-2">
-                <Label htmlFor="delete-code">删除验证码</Label>
+                <Label htmlFor="delete-code">Deletion verification code</Label>
                 <Input
                   id="delete-code"
                   type="text"
                   value={deleteCode}
                   onChange={(event) => setDeleteCode(event.target.value)}
-                  placeholder="6 位验证码"
+                  placeholder="6-digit verification code"
                   maxLength={6}
                   required
                 />
               </div>
               <div className="flex flex-col gap-2 sm:flex-row sm:gap-2">
-                <Button
-                  variant="outline"
-                  onClick={handleRequestDeleteCode}
-                  disabled={isRequestingCode}
-                  className="sm:flex-1"
-                >
+                <Button variant="outline" onClick={handleRequestDeleteCode} disabled={isRequestingCode} className="sm:flex-1">
                   {isRequestingCode ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      重发中...
+                      Resending...
                     </>
                   ) : (
-                    "重新发送"
+                    "Resend code"
                   )}
                 </Button>
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
                     <Button variant="destructive" disabled={!deleteCode} className="sm:flex-1">
                       <Trash2 className="mr-2 h-4 w-4" />
-                      删除账户
+                      Delete account
                     </Button>
                   </AlertDialogTrigger>
                   <AlertDialogContent>
                     <AlertDialogHeader>
-                      <AlertDialogTitle>确认删除账户？</AlertDialogTitle>
+                      <AlertDialogTitle>Delete account?</AlertDialogTitle>
                       <AlertDialogDescription>
-                        删除后你的 Skill 与 Token 都将失效，此操作不可恢复。
+                        After deletion, your account, Skills, and Tokens will no longer be available. This action cannot be undone.
                       </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
-                      <AlertDialogCancel>取消</AlertDialogCancel>
+                      <AlertDialogCancel>Cancel</AlertDialogCancel>
                       <AlertDialogAction onClick={handleDeleteAccount} className="bg-destructive">
-                        确认删除
+                        Confirm deletion
                       </AlertDialogAction>
                     </AlertDialogFooter>
                   </AlertDialogContent>
@@ -134,6 +138,7 @@ export default function SecurityPage() {
               </div>
             </div>
           )}
+
           {message ? <p className="text-sm text-primary">{message}</p> : null}
           {error ? <p className="text-sm text-destructive">{error}</p> : null}
         </CardContent>

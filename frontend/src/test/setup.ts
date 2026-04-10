@@ -25,6 +25,7 @@ vi.mock("@/lib/api", () => {
       getMe: vi.fn(async () => ({ username: "测试用户", email: "user@example.com", is_superuser: false })),
       updateMe: vi.fn(async () => ({})),
       changePassword: vi.fn(async () => ({})),
+      requestDeleteAccount: vi.fn(async () => ({})),
       deleteAccount: vi.fn(async () => ({})),
       listSkills: vi.fn(async () => ({ items: [], total: 0 })),
       listPublicSkills: vi.fn(async () => ({ items: [], total: 0 })),
@@ -88,6 +89,7 @@ vi.mock("@/lib/api", () => {
         commands: [],
       })),
       listSkillFiles: vi.fn(async () => []),
+      getSkillFileContent: vi.fn(async () => "# demo"),
       uploadSkillFile: vi.fn(async () => ({ filename: "SKILL.md" })),
       listTokens: vi.fn(async () => ({ items: [], total: 0 })),
       createToken: vi.fn(async () => ({ id: "token", name: "demo", token: "ask_live_demo" })),
@@ -98,6 +100,11 @@ vi.mock("@/lib/api", () => {
         success_rate: 99.5,
         success_rate_total: 20,
         success_rate_window_hours: 24
+      })),
+      getSkillCachePolicy: vi.fn(async () => ({
+        cache_ttl_seconds: 300,
+        encryption_enabled: false,
+        download_encryption_enabled: false,
       })),
       cleanupMetrics: vi.fn(async () => ({ removed: 0, retention_days: 90, cutoff: "2026-03-04T00:00:00Z" })),
       resetMetrics24h: vi.fn(async () => ({

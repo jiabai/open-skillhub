@@ -1,14 +1,15 @@
-import { fireEvent, render, waitFor } from "@testing-library/react"
+import { render, screen, waitFor } from "@testing-library/react"
 import { describe, expect, it, vi } from "vitest"
 import type { ReactNode } from "react"
 
+import { api } from "@/lib/api"
 import { AppShell } from "@/components/app/app-shell"
 
 const replaceMock = vi.fn()
 
 vi.mock("next/navigation", () => ({
   usePathname: () => "/profile",
-  useRouter: () => ({ replace: replaceMock })
+  useRouter: () => ({ replace: replaceMock }),
 }))
 
 vi.mock("@/components/ui/dropdown-menu", () => ({
@@ -20,10 +21,9 @@ vi.mock("@/components/ui/dropdown-menu", () => ({
       {children}
     </button>
   ),
-  DropdownMenuSeparator: () => <div />
+  DropdownMenuSeparator: () => <div />,
 }))
 
-// Mock AlertDialog to simplify testing
 vi.mock("@/components/ui/alert-dialog", () => ({
   AlertDialog: ({ children }: { children: ReactNode }) => <div>{children}</div>,
   AlertDialogTrigger: ({ children }: { children: ReactNode }) => <div>{children}</div>,
@@ -50,15 +50,56 @@ describe("AppShell auth guard", () => {
     })
   })
 
-  it("shows authenticated view when logged in", async () => {
-    // Set token to simulate authenticated user
-    window.localStorage.setItem(
-      "skillhub.tokens",
-      JSON.stringify({ access_token: "token", refresh_token: "refresh" })
-    )
-    const { findByRole } = render(<AppShell>content</AppShell>)
-    // Should show the workbench button (authenticated UI)
-    const workbenchButton = await findByRole("button", { name: "工作台" })
-    expect(workbenchButton).toBeInTheDocument()
+  it("clears invalid tokens and redirects to login when session validation fails", async () => {
+    replaceMock.mockClear()
+    vi.mocked(api.getMe).mockRejectedValueOnce(new Error("unauthorized"))
+    window.localStorage.setItem("skillhub.tokens", JSON.stringify({ access_token: "stale", refresh_token: "refresh" }))
+
+    render(<AppShell>content</AppShell>)
+
+    await waitFor(() => {
+      expect(replaceMock).toHaveBeenCalledWith("/login")
+    })
+    expect(window.localStorage.getItem("skillhub.tokens")).toBeNull()
+  })
+
+  it("shows no-rbac navigation when logged in", async () => {
+    process.env.NEXT_PUBLIC_ENABLE_RBAC = "false"
+    window.localStorage.setItem("skillhub.tokens", JSON.stringify({ access_token: "token", refresh_token: "refresh" }))
+
+    render(<AppShell>content</AppShell>)
+
+    expect(await screen.findByRole("button", { name: "Workbench" })).toBeInTheDocument()
+    expect(await screen.findAllByText("Public Skills")).not.toHaveLength(0)
+    expect(await screen.findAllByText("My Skills")).not.toHaveLength(0)
+    expect(await screen.findAllByText("Tokens")).not.toHaveLength(0)
+    expect(screen.queryByText("Audit")).not.toBeInTheDocument()
+    expect(screen.queryByText("Users")).not.toBeInTheDocument()
+  })
+
+  it("shows rbac navigation when rbac mode is enabled", async () => {
+    process.env.NEXT_PUBLIC_ENABLE_RBAC = "true"
+    vi.mocked(api.getMe).mockResolvedValueOnce({
+      id: "user-1",
+      email: "admin@example.com",
+      username: "admin",
+      is_active: true,
+      is_superuser: true,
+      enterprise_id: null,
+      team_id: null,
+      role: "admin",
+      status: "active",
+      created_at: "2026-04-08T00:00:00Z",
+      updated_at: "2026-04-08T00:00:00Z",
+    } as any)
+    window.localStorage.setItem("skillhub.tokens", JSON.stringify({ access_token: "token", refresh_token: "refresh" }))
+
+    render(<AppShell>content</AppShell>)
+
+    expect(await screen.findByText("Governed console")).toBeInTheDocument()
+    expect(await screen.findAllByText("Overview")).not.toHaveLength(0)
+    expect(await screen.findAllByText("Skills")).not.toHaveLength(0)
+    expect(await screen.findAllByText("Public Skills")).not.toHaveLength(0)
+    expect(screen.queryByText("My Skills")).not.toBeInTheDocument()
   })
 })

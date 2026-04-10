@@ -309,7 +309,7 @@ graph LR
 
 前端拿到响应后会将其序列化为 JSON 并触发浏览器原生下载，文件名格式为 `skill-{前8位UUID}-{版本号}.json`（加密时后缀为 `.encrypted.json`）。
 
-> RBAC 开启时，下载仅 admin 可用；RBAC 关闭后，下载受 `require_skill_download_access()` 守卫——**只能下载自己拥有的 Skill**（`skill.user_id == current_user.id`），非自己拥有的 Skill 返回 403。
+> RBAC 开启时，下载仅 admin 可用；RBAC 关闭后，下载受 `require_skill_download_access()` 守卫——**只能下载自己拥有的 Skill**（`skill.user_id == current_user.id`），非自己拥有的 Skill 返回 403。除此之外，`public` Skill 本体还会被业务层继续拦截，必须先创建 `reference` 或 `clone` 才能下载。
 
 #### 4.7 公共 Skill 衍生（4 个接口）
 

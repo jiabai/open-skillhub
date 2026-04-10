@@ -373,7 +373,7 @@ async def test_skill_download_applies_download_specific_rate_limit(client, tmp_p
 
 
 @pytest.mark.asyncio
-async def test_public_skill_download_denied_when_rbac_disabled(client, async_session, tmp_path, monkeypatch):
+async def test_public_skill_download_requires_reference_or_clone_when_rbac_disabled(client, async_session, tmp_path, monkeypatch):
     monkeypatch.setenv("SKILL_STORAGE_PATH", str(tmp_path))
     monkeypatch.setattr(settings, "SKILL_STORAGE_PATH", str(tmp_path))
     monkeypatch.setattr(settings, "ENABLE_RBAC", False)

@@ -115,6 +115,17 @@ class ExecuteSkillOp(BaseAsyncToolOp):
                 if not skill.is_active:
                     self._set_output(tool_error_payload("Skill deactivated", "SKILL_DEACTIVATED"))
                     return
+                if SkillService.is_public_skill(skill):
+                    self._set_output(
+                        tool_error_payload(
+                            (
+                                "Public skills cannot be executed directly. "
+                                "Create a reference or clone in your workspace first."
+                            ),
+                            SkillErrorCode.PUBLIC_SKILL_EXECUTION_REQUIRES_REFERENCE_OR_CLONE.value,
+                        )
+                    )
+                    return
                 try:
                     source_skill, version, _record, version_dir = await SkillService(
                         skill_repo, version_repo

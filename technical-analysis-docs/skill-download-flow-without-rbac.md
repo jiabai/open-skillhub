@@ -63,7 +63,7 @@ flowchart TD
 
 **RBAC 关闭后的关键变化**：下载权限不再是从 admin-only 变为人人可用，而是受 `require_skill_download_access()` 守卫约束——**只能下载自己拥有的 Skill**（`skill.user_id == current_user.id`）。这避免了 RBAC 关闭后任何人都能下载所有 Skill 源码的风险。
 
-**间接通道**：用户可以下载自己创建的 Reference Skill（因为 Reference 的 `user_id` 是创建者），而 Reference 的文件实际来自源公共 Skill 的目录。这意味着用户通过 Reference 可以间接获取公共 Skill 的源文件——这是有意设计的，因为用户本来就能通过文件浏览接口（`GET /skills/{uuid}/files/{path}`）读取公共 Skill 的内容。
+**间接通道**：用户可以下载自己创建的 Reference Skill（因为 Reference 的 `user_id` 是创建者），而 Reference 的文件实际来自源公共 Skill 的目录。这意味着用户通过 Reference 可以间接获取公共 Skill 的源文件——这是有意设计的，因为用户本来就能通过文件浏览接口（`GET /skills/{uuid}/files/{path}`）读取公共 Skill 的内容。与此同时，`public` Skill 本体已被业务规则明确禁止直接下载，必须先创建 `reference` 或 `clone`。
 
 ---
 

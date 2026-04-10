@@ -70,9 +70,9 @@ graph LR
 
 ### 可用操作
 
-**用户可以**：浏览列表、查看详情/文件/版本、读取文件内容、执行、通过 Reference 间接下载、创建 Reference 或 Clone。
+**用户可以**：浏览列表、查看详情/文件/版本、读取文件内容、查看安装说明、通过 Reference 间接下载、创建 Reference 或 Clone。
 
-> **下载权限说明**：RBAC 关闭后，公共 Skill 的直接下载受 `require_skill_download_access()` 限制（只能下载自己的 Skill）。但用户可以下载自己创建的 Reference Skill，而 Reference 的文件实际来自源公共 Skill——这构成了间接下载通道。RBAC 开启时仅 admin 可直接下载公共 Skill。
+> **下载权限说明**：公共 Skill 本体不能直接下载。用户如果需要下载，应先创建自己空间里的 Reference 或 Clone；其中 Reference 的文件实际来自源公共 Skill，这构成了有意保留的间接下载通道。
 
 **用户不可以**：修改任何内容（返回 `REFERENCE_SKILL_READ_ONLY`）、删除或停用、上传文件。
 
@@ -206,7 +206,7 @@ Pin 操作会验证目标版本是否存在于源 Skill，不存在则返回 `VE
 
 Reference Skill 是"半只读"实体。
 
-**允许的操作**：查看详情、列出文件、读取文件、执行、下载（RBAC 关闭时因 `user_id` 是自己而放行）、查看版本列表、版本对比 (diff)、重命名（只改 name 字段）、Pin / Unpin、删除（仅删引用记录，不影响源 Skill）。
+**允许的操作**：查看详情、列出文件、读取文件、执行、下载、查看版本列表、版本对比 (diff)、重命名（只改 name 字段）、Pin / Unpin、删除（仅删引用记录，不影响源 Skill）。
 
 **禁止的操作**：
 
@@ -425,7 +425,7 @@ flowchart TD
 | 读取文件 | `read_skill_file()` |
 | 获取安装指令 | `get_install_instructions()` |
 | 版本对比 | `diff_versions()` |
-| 执行 Skill | `execute_skill_op.py`（通过 resolve 接入） |
+| 执行 Skill | `execute_skill_op.py`（Reference / Clone 通过 resolve 接入；Public 本体不可直接执行） |
 | MCP 资源操作 | `skill_resource_ops.py`（通过 resolve 接入） |
 
 这种集中解析方式保证了：无论从哪个入口访问 Reference Skill，都能正确定位到源 Skill 的对应版本目录。

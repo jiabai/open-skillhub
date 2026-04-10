@@ -29,6 +29,8 @@ _download_rate_limit_state: dict[str, list[float]] = {}
 _SKILL_ERROR_RESPONSES: dict[SkillErrorCode, tuple[int, bool]] = {
     SkillErrorCode.SKILL_DEACTIVATED: (status.HTTP_410_GONE, True),
     SkillErrorCode.PUBLIC_SKILLS_DISABLED: (status.HTTP_404_NOT_FOUND, True),
+    SkillErrorCode.PUBLIC_SKILL_DOWNLOAD_REQUIRES_REFERENCE_OR_CLONE: (status.HTTP_409_CONFLICT, True),
+    SkillErrorCode.PUBLIC_SKILL_EXECUTION_REQUIRES_REFERENCE_OR_CLONE: (status.HTTP_409_CONFLICT, True),
     SkillErrorCode.SKILL_NOT_FOUND: (status.HTTP_404_NOT_FOUND, True),
     SkillErrorCode.FILE_NOT_FOUND: (status.HTTP_404_NOT_FOUND, False),
     SkillErrorCode.VERSION_FILES_NOT_FOUND: (status.HTTP_404_NOT_FOUND, False),

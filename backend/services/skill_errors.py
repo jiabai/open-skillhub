@@ -13,6 +13,8 @@ class SkillErrorCode(StrEnum):
     INVALID_VISIBILITY = "INVALID_VISIBILITY"
     INVALID_ZIP_FILE = "INVALID_ZIP_FILE"
     PUBLIC_SKILLS_DISABLED = "PUBLIC_SKILLS_DISABLED"
+    PUBLIC_SKILL_DOWNLOAD_REQUIRES_REFERENCE_OR_CLONE = "PUBLIC_SKILL_DOWNLOAD_REQUIRES_REFERENCE_OR_CLONE"
+    PUBLIC_SKILL_EXECUTION_REQUIRES_REFERENCE_OR_CLONE = "PUBLIC_SKILL_EXECUTION_REQUIRES_REFERENCE_OR_CLONE"
     REFERENCE_ALREADY_EXISTS = "REFERENCE_ALREADY_EXISTS"
     REFERENCE_SKILL_READ_ONLY = "REFERENCE_SKILL_READ_ONLY"
     SKILL_ALREADY_EXISTS = "SKILL_ALREADY_EXISTS"
@@ -43,6 +45,12 @@ _DEFAULT_MESSAGES: dict[SkillErrorCode, str] = {
     SkillErrorCode.INVALID_VISIBILITY: "Invalid visibility",
     SkillErrorCode.INVALID_ZIP_FILE: "Invalid zip file",
     SkillErrorCode.PUBLIC_SKILLS_DISABLED: "Public skills disabled",
+    SkillErrorCode.PUBLIC_SKILL_DOWNLOAD_REQUIRES_REFERENCE_OR_CLONE: (
+        "Public skills cannot be downloaded directly. Create a reference or clone in your workspace first."
+    ),
+    SkillErrorCode.PUBLIC_SKILL_EXECUTION_REQUIRES_REFERENCE_OR_CLONE: (
+        "Public skills cannot be executed directly. Create a reference or clone in your workspace first."
+    ),
     SkillErrorCode.REFERENCE_ALREADY_EXISTS: "Reference skill already exists",
     SkillErrorCode.REFERENCE_SKILL_READ_ONLY: "Reference skill is read only",
     SkillErrorCode.SKILL_ALREADY_EXISTS: "Skill already exists",

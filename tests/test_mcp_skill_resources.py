@@ -300,6 +300,66 @@ async def test_execute_skill_blocks_package_manager_entrypoint(async_session, tm
 
 
 @pytest.mark.asyncio
+async def test_execute_skill_blocks_public_source(async_session, tmp_path, monkeypatch):
+    monkeypatch.setenv("SKILL_STORAGE_PATH", str(tmp_path))
+    _install_flowllm_stubs(tmp_path, monkeypatch)
+    from backend.db import session as db_session
+
+    monkeypatch.setattr(db_session, "get_async_session", lambda: _override_session(async_session))
+    monkeypatch.setattr(settings, "ENABLE_SKILL_VISIBILITY", True)
+    monkeypatch.setattr(settings, "ENABLE_RBAC", False)
+
+    user = User(email="exec-public@example.com", username="exec-public", hashed_password="x")
+    async_session.add(user)
+    await async_session.commit()
+    await async_session.refresh(user)
+
+    public_skill = Skill(
+        user_id="00000000-0000-0000-0000-000000000001",
+        name="public-exec-skill",
+        description="public exec desc",
+        tags=["public"],
+        visibility="public",
+        skill_dir=str(get_user_skill_dir("00000000-0000-0000-0000-000000000001", "public-exec-skill")),
+        current_version="1.2.3",
+        is_active=True,
+    )
+    async_session.add(public_skill)
+    await async_session.commit()
+    await async_session.refresh(public_skill)
+
+    version = SkillVersion(
+        skill_id=public_skill.id,
+        version="1.2.3",
+        description="public exec desc",
+        dependencies=[],
+        dependency_spec={"schema_version": 1},
+        dependency_spec_version="1",
+        metadata_json={"name": "public-exec-skill", "description": "public exec desc", "version": "1.2.3"},
+    )
+    async_session.add(version)
+    await async_session.commit()
+
+    version_dir = get_skill_versions_dir(public_skill.user_id, public_skill.name) / "1.2.3"
+    version_dir.mkdir(parents=True, exist_ok=True)
+    (version_dir / "run.py").write_text("print('should not run')\n", encoding="utf-8")
+    (version_dir / "SKILL.md").write_text(
+        "---\nname: public-exec-skill\ndescription: public exec desc\nentrypoint: run.py\n---\nbody",
+        encoding="utf-8",
+    )
+
+    set_current_user_id(str(user.id))
+    from backend.core.tools.execute_skill_op import ExecuteSkillOp
+
+    op = ExecuteSkillOp()
+    op.input_dict = {"skill_uuid": public_skill.id}
+    await op.async_execute()
+    payload = json.loads(op._output)
+    assert payload["code"] == "PUBLIC_SKILL_EXECUTION_REQUIRES_REFERENCE_OR_CLONE"
+    assert "cannot be executed directly" in payload["detail"]
+
+
+@pytest.mark.asyncio
 async def test_skill_detail_resource_reference_uses_public_source(async_session, tmp_path, monkeypatch):
     monkeypatch.setenv("SKILL_STORAGE_PATH", str(tmp_path))
     _install_flowllm_stubs(tmp_path, monkeypatch)

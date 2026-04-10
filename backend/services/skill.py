@@ -610,6 +610,8 @@ class SkillService:
     async def download_skill(self, user: User, skill_id: str, version: str | None = None) -> dict:
         skill = await self.get_skill(user, skill_id)
         self._ensure_active(skill)
+        if self.is_public_skill(skill):
+            raise SkillError(SkillErrorCode.PUBLIC_SKILL_DOWNLOAD_REQUIRES_REFERENCE_OR_CLONE)
         source_skill, target_version, _record = await self._resolve_version_and_record(skill, version)
         version_dir = get_skill_versions_dir(source_skill.user_id, source_skill.name) / target_version
         archive_bytes = await load_archive(source_skill.user_id, source_skill.name, target_version)

@@ -245,6 +245,19 @@ class TestSkillServiceDownload:
             await service.download_skill(test_user, "skill-uuid-123", version="99.0.0")
         assert exc_info.value.code == SkillErrorCode.VERSION_NOT_FOUND
 
+    @pytest.mark.asyncio
+    async def test_download_public_skill_requires_reference_or_clone(
+        self, mock_skill_repo, mock_version_repo, test_user, test_skill
+    ):
+        test_skill.visibility = "public"
+        test_skill.current_version = "1.0.0"
+        mock_skill_repo.get_by_id = AsyncMock(return_value=test_skill)
+        service = SkillService(mock_skill_repo, mock_version_repo)
+
+        with pytest.raises(SkillError) as exc_info:
+            await service.download_skill(test_user, "skill-uuid-123")
+        assert exc_info.value.code == SkillErrorCode.PUBLIC_SKILL_DOWNLOAD_REQUIRES_REFERENCE_OR_CLONE
+
 
 class TestSkillServiceDiffVersions:
     """测试版本差异比较"""

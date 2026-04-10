@@ -23,6 +23,9 @@
 补充阅读：
 
 - [无 RBAC 模式下的权限模型说明](./permission-model-without-rbac.md)
+- [无 RBAC 模式用户操作手册](./user-guide-without-rbac.md)
+- [无 RBAC 模式下的前端页面说明](./frontend-pages-without-rbac.md)
+- [无 RBAC 模式常见问题](./faq-without-rbac.md)
 
 ---
 

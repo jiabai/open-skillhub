@@ -5,14 +5,14 @@
 <h1 align="center">Open SkillHub</h1>
 
 <p align="center">
-  <strong>面向 AI Agent 的私有化技能管理 SaaS 平台</strong>
+  <strong>面向 AI Agent 的 MCP 与服务端执行型技能管理 SaaS 平台</strong>
 </p>
 
 <p align="center">
   <a href="https://pypi.org/project/open-skillhub/"><img src="https://img.shields.io/badge/python-3.10+-blue?style=flat-square&logo=python" alt="Python 版本"></a>
   <a href="https://pypi.org/project/open-skillhub/"><img src="https://img.shields.io/pypi/v/open-skillhub.svg?style=flat-square&logo=pypi&color=green" alt="PyPI 版本"></a>
   <a href="./LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0-black?style=flat-square" alt="许可证"></a>
-  <a href="https://github.com/zouyingcao/open-skillhub"><img src="https://img.shields.io/github/stars/zouyingcao/open-skillhub?style=social" alt="GitHub Stars"></a>
+  <a href="https://github.com/jiabai/open-skillhub-mcp"><img src="https://img.shields.io/github/stars/jiabai/open-skillhub-mcp?style=social" alt="GitHub Stars"></a>
 </p>
 
 <p align="center">
@@ -23,7 +23,9 @@
 
 ## ✨ 项目简介
 
-**Open SkillHub** 是一个**私有化 Skills 管理 SaaS 平台**，专为 AI Agent 打造。它提供完整的「上传 → 管理 → 调用」闭环能力，支持多租户隔离、可视化 Web 控制台，以及原生 MCP (Model Context Protocol) HTTP/SSE 接入。
+> MCP 版：这个仓库保留服务端执行与 MCP 集成产品线。
+
+**Open SkillHub MCP** 是一个**私有化 Skills 管理 SaaS 平台**，专为 AI Agent 打造。这个版本保留原有的服务端执行模型，包括 MCP (Model Context Protocol) HTTP/SSE 接口和服务端 Skill 执行链路。
 
 ### 为什么选择 Open SkillHub？
 
@@ -48,8 +50,8 @@
 ### 一键 Docker 部署（推荐）
 
 ```bash
-git clone https://github.com/zouyingcao/open-skillhub.git
-cd open-skillhub
+git clone https://github.com/jiabai/open-skillhub-mcp.git
+cd open-skillhub-mcp
 cp backend/.env.example backend/.env
 # 编辑 backend/.env — 至少需要修改 SECRET_KEY 为 32 位以上的随机字符串
 # 示例：python -c "import secrets; print(secrets.token_urlsafe(32))"
@@ -348,3 +350,4 @@ sequenceDiagram
 <p align="center">
   <sub>为 AI 开发者社区用心构建</sub>
 </p>
+

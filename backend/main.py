@@ -1,4 +1,4 @@
-"""CLI 入口点，负责启动 FlowLLM 独立模式。
+"""CLI 入口点，负责启动 Open SkillHub MCP 版的 FlowLLM 独立模式。
 
 此模块只负责命令行入口，SkillHubMcpApp 类已移至 core/app.py。
 """
@@ -20,3 +20,4 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+

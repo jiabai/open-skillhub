@@ -5,14 +5,14 @@
 <h1 align="center">Open SkillHub</h1>
 
 <p align="center">
-  <strong>Private Skills Management Platform for AI Agents</strong>
+  <strong>MCP and Server-Execution Skills Management Platform for AI Agents</strong>
 </p>
 
 <p align="center">
   <a href="https://pypi.org/project/open-skillhub/"><img src="https://img.shields.io/badge/python-3.10+-blue?style=flat-square&logo=python" alt="Python Version"></a>
   <a href="https://pypi.org/project/open-skillhub/"><img src="https://img.shields.io/pypi/v/open-skillhub.svg?style=flat-square&logo=pypi&color=green" alt="PyPI Version"></a>
   <a href="./LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0-black?style=flat-square" alt="License"></a>
-  <a href="https://github.com/zouyingcao/open-skillhub"><img src="https://img.shields.io/github/stars/zouyingcao/open-skillhub?style=social" alt="GitHub Stars"></a>
+  <a href="https://github.com/jiabai/open-skillhub-mcp"><img src="https://img.shields.io/github/stars/jiabai/open-skillhub-mcp?style=social" alt="GitHub Stars"></a>
 </p>
 
 <p align="center">
@@ -23,7 +23,9 @@
 
 ## ✨ Overview
 
-**Open SkillHub** is a **private Skills management SaaS platform** purpose-built for AI agents. It delivers a complete "upload → manage → execute" workflow with multi-tenant isolation, a modern web console, and native MCP (Model Context Protocol) HTTP/SSE endpoints.
+> MCP Edition: this repository preserves the server-execution and MCP-integrated product line.
+
+**Open SkillHub MCP** is a **private Skills management SaaS platform** purpose-built for AI agents. This edition keeps the original server-side execution model, including MCP (Model Context Protocol) HTTP/SSE endpoints and service-side skill execution flows.
 
 ### Why Open SkillHub?
 
@@ -48,8 +50,8 @@
 ### One-Command Docker Setup
 
 ```bash
-git clone https://github.com/zouyingcao/open-skillhub.git
-cd open-skillhub
+git clone https://github.com/jiabai/open-skillhub-mcp.git
+cd open-skillhub-mcp
 cp backend/.env.example backend/.env
 # Edit backend/.env — at minimum, change SECRET_KEY to a random 32+ char string
 # Example: python -c "import secrets; print(secrets.token_urlsafe(32))"
@@ -348,3 +350,4 @@ We welcome contributions! Please feel free to submit issues and pull requests.
 <p align="center">
   <sub>Built with care for the AI developer community</sub>
 </p>
+

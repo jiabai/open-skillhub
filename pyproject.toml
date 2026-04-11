@@ -3,9 +3,9 @@ requires = ["setuptools>=61.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "open-skillhub"
+name = "open-skillhub-mcp"
 dynamic = ["version"]
-description = "A private Skills management SaaS with MCP server for AI agents."
+description = "A private Skills management SaaS with MCP and server-side skill execution for AI agents."
 authors = [
     { name = "jinli.yl", email = "jinli.yl@alibaba-inc.com" },
     { name = "caozouying.czy", email = "caozouying.czy@alibaba-inc.com" },
@@ -84,9 +84,9 @@ backend = [
 version = {attr = "backend.__version__"}
 
 [project.urls]
-Homepage = "https://github.com/zouyingcao/open-skillhub"
-Documentation = "https://github.com/zouyingcao/open-skillhub/README.md"
-Repository = "https://github.com/zouyingcao/open-skillhub"
+Homepage = "https://github.com/jiabai/open-skillhub-mcp"
+Documentation = "https://github.com/jiabai/open-skillhub-mcp/README.md"
+Repository = "https://github.com/jiabai/open-skillhub-mcp"
 
 [project.scripts]
 skillhub-mcp = "backend.main:main"
@@ -126,4 +126,5 @@ ignore_missing_imports = true
 [[tool.mypy.overrides]]
 module = ["tests.run_project_http", "tests.run_project_sse", "run_project_http", "run_project_sse"]
 ignore_errors = true
+
 

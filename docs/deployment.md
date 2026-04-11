@@ -1,6 +1,6 @@
 # 部署指南
 
-本文档提供 Open SkillHub 的完整部署说明，包括开发环境、生产环境（Docker Compose）以及低资源配置优化。
+本文档提供 Open SkillHub MCP 版的完整部署说明，包括开发环境、生产环境（Docker Compose）以及低资源配置优化。
 
 ## 目录
 
@@ -25,7 +25,7 @@
 ```bash
 # 克隆代码
 git clone <repository-url>
-cd open-skillhub
+cd open-skillhub-mcp
 
 # 配置环境变量
 cp backend/.env.example backend/.env
@@ -155,7 +155,7 @@ apt install docker-compose -y
 
 ```bash
 git clone <repository-url>
-cd open-skillhub
+cd open-skillhub-mcp
 ```
 
 ### 3. 配置环境变量
@@ -561,3 +561,4 @@ docker compose logs -f api | grep -i smtp
 ---
 
 *最后更新：2026-03-28*
+

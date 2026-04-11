@@ -70,7 +70,7 @@ def handle_skill_value_error(exc: ValueError) -> HTTPException:
     if isinstance(exc, SkillError):
         if exc.code == SkillErrorCode.FILE_TOO_LARGE:
             return _build_http_exception(
-                status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+                status.HTTP_413_CONTENT_TOO_LARGE,
                 "File exceeds maximum size limit",
                 code=SkillErrorCode.FILE_TOO_LARGE.value,
                 structured=True,
@@ -88,7 +88,7 @@ def handle_skill_value_error(exc: ValueError) -> HTTPException:
         )
     if detail == "File too large":
         return _build_http_exception(
-            status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            status.HTTP_413_CONTENT_TOO_LARGE,
             "File exceeds maximum size limit",
             code=SkillErrorCode.FILE_TOO_LARGE.value,
             structured=True,

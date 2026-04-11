@@ -227,7 +227,7 @@ class TestAuthServiceSSOLogin:
     async def test_sso_login_wrong_secret(self, mock_user_repo):
         """测试错误的密钥"""
         service = AuthService(mock_user_repo)
-        token = create_sso_token(secret="wrong-secret")
+        token = create_sso_token(secret="wrong-secret-key-at-least-32chars")
 
         with pytest.raises(Exception):
             await service.login_sso(token)

@@ -1,5 +1,6 @@
 import os
 import sys
+import tempfile
 from pathlib import Path
 from typing import AsyncGenerator
 from uuid import uuid4
@@ -10,8 +11,9 @@ import pytest
 # This must be at module level to run before pytest imports test modules
 ROOT = Path(__file__).resolve().parents[1]
 RUN_ID = uuid4().hex
-TMP_ROOT = ROOT / ".pytest_tmp" / RUN_ID
-TMP_ROOT.mkdir(exist_ok=True)
+TMP_BASE = Path(tempfile.gettempdir()) / "open-skillhub-pytest"
+TMP_ROOT = TMP_BASE / RUN_ID
+TMP_ROOT.mkdir(parents=True, exist_ok=True)
 TEST_DB_PATH = TMP_ROOT / "skillhub-test.db"
 os.environ["DATABASE_URL"] = f"sqlite+aiosqlite:///{TEST_DB_PATH.as_posix()}"
 os.environ["SECRET_KEY"] = "a" * 32
@@ -30,9 +32,11 @@ os.environ["ENABLE_AUDIT_LOG"] = "true"
 os.environ["ENABLE_AUDIT_EXPORT"] = "true"
 os.environ["ENABLE_SKILL_DOWNLOAD_ENCRYPTION"] = "true"
 os.environ["ENABLE_LOCAL_CACHE_ENCRYPTION"] = "true"
+os.environ["SKILL_STORAGE_PATH"] = str(TMP_ROOT.as_posix())
 os.environ["ENABLE_RATE_LIMIT"] = "true"
 os.environ["ENABLE_METRICS"] = "true"
-os.environ["SSO_JWT_SECRET"] = "test-sso-secret"
+os.environ["LOG_FILE"] = str(TMP_ROOT / "app.log")
+os.environ["SSO_JWT_SECRET"] = "test-sso-secret-key-at-least-32ch"
 os.environ["SSO_JWT_ISSUER"] = "test-issuer"
 os.environ["SSO_JWT_AUDIENCE"] = "skillhub"
 os.environ["RBAC_ROLE_PERMISSIONS"] = '{"admin":["*"],"member":["dashboard.read","skill.list","skill.read","skill.create","skill.update","skill.delete","skill.upload","skill.execute"],"viewer":["dashboard.read","skill.list","skill.read"]}'

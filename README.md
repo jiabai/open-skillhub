@@ -5,7 +5,7 @@
 <h1 align="center">Open SkillHub</h1>
 
 <p align="center">
-  <strong>Client-Execution Skills Management Platform for AI Agents</strong>
+  <strong>Skills Management and Distribution Platform for AI Agents</strong>
 </p>
 
 <p align="center">
@@ -23,7 +23,7 @@
 
 ## ✨ Overview
 
-**Open SkillHub** is a **private Skills management SaaS platform** purpose-built for AI agents. It focuses on the mainstream workflow of "upload → manage → download → run locally" with multi-tenant isolation, a modern web console, and REST APIs for distributing versioned skills to client-side runtimes.
+**Open SkillHub** is a **private Skills management SaaS platform** purpose-built for AI agents. It focuses on the workflow of "upload → manage → download" with multi-tenant isolation, a modern web console, and REST APIs for distributing versioned skills to client-side runtimes.
 
 ### Why Open SkillHub?
 
@@ -88,14 +88,14 @@ For local development, the repository default is a project-local `.venv`. If you
 
 ### Multi-Tenant Architecture
 
-Every user gets an isolated skill space with JWT-based authentication and API token management for controlled client downloads and local execution.
+Every user gets an isolated skill space with JWT-based authentication and API token management for controlled client downloads.
 
 ### Complete Skill Lifecycle
 
 ```
-Upload ZIP → Parse SKILL.md → Version Control → Activate → Download → Client Execution
-     ↑                                                                 |
-     └───────────────────── Rollback / Deactivate ←────────────────────┘
+Upload ZIP → Parse SKILL.md → Version Control → Activate → Download
+     ↑                                                       |
+     └───────────────────── Rollback / Deactivate ←──────────┘
 ```
 
 ### Enterprise-Grade Security (Feature Flags)
@@ -111,12 +111,12 @@ The following features are controlled by feature flags and disabled by default. 
 
 ### REST-First Skill Distribution
 
-The default product path is to manage skills centrally and execute them in the client environment:
+The default product path is to manage skills centrally and distribute them over REST:
 
 | Capability | Purpose |
 |------|---------|
 | Skill management APIs | Create, update, activate, and version skills |
-| Skill download API | Download a versioned ZIP for local execution |
+| Skill download API | Download a versioned ZIP |
 | Auth + API tokens | Control which clients can fetch which skills |
 | Web console | Browse, manage, and distribute skills |
 
@@ -152,7 +152,7 @@ graph TB
     style Storage fill:#334155,stroke:#475569,color:#f472b6
 ```
 
-All external traffic enters through Frontend (port 80), which proxies API requests internally. Client runtimes can also connect directly to the API server (port 8001) to authenticate, fetch metadata, and download skills for local execution.
+All external traffic enters through Frontend (port 80), which proxies API requests internally. Client runtimes can also connect directly to the API server (port 8001) to authenticate, fetch metadata, and download skills.
 
 ---
 
@@ -163,7 +163,7 @@ Connect your client runtime to Open SkillHub over REST:
 1. Authenticate and obtain a JWT or API token.
 2. Query the skill list and skill details.
 3. Download the desired skill version from `/api/v1/skills/download`.
-4. Unpack and execute the skill locally in the client environment.
+4. Handle the downloaded artifact in the client environment according to your own runtime policy.
 
 ### Authentication Flow
 

@@ -5,7 +5,7 @@
 <h1 align="center">Open SkillHub</h1>
 
 <p align="center">
-  <strong>面向 AI Agent 的客户端执行型技能管理 SaaS 平台</strong>
+  <strong>面向 AI Agent 的 Skills 管理与分发 SaaS 平台</strong>
 </p>
 
 <p align="center">
@@ -23,7 +23,7 @@
 
 ## ✨ 项目简介
 
-**Open SkillHub** 是一个**私有化 Skills 管理 SaaS 平台**，专为 AI Agent 打造。它聚焦主流的「上传 → 管理 → 下载 → 客户端本地执行」闭环能力，提供多租户隔离、可视化 Web 控制台，以及面向客户端运行时的 REST 分发接口。
+**Open SkillHub** 是一个**私有化 Skills 管理 SaaS 平台**，专为 AI Agent 打造。它聚焦主流的「上传 → 管理 → 下载」闭环能力，提供多租户隔离、可视化 Web 控制台，以及面向客户端运行时的 REST 分发接口。
 
 ### 为什么选择 Open SkillHub？
 
@@ -88,14 +88,14 @@ uv run uvicorn backend.api_app:app --host 0.0.0.0 --port 8001
 
 ### 多租户架构
 
-每位用户拥有独立的技能空间，基于 JWT 身份认证与 API Token 管理，安全控制客户端的 Skill 下载与本地执行。
+每位用户拥有独立的技能空间，基于 JWT 身份认证与 API Token 管理，安全控制客户端的 Skill 下载访问。
 
 ### 完整的技能生命周期
 
 ```
-上传 ZIP → 解析 SKILL.md → 版本管理 → 启用 → 下载 → 客户端执行
-     ↑                                                     |
-     └────────────────── 回滚 / 停用 ←──────────────────────┘
+上传 ZIP → 解析 SKILL.md → 版本管理 → 启用 → 下载
+     ↑                                   |
+     └────────────────── 回滚 / 停用 ←───┘
 ```
 
 ### 企业级安全保障（功能开关）
@@ -111,12 +111,12 @@ uv run uvicorn backend.api_app:app --host 0.0.0.0 --port 8001
 
 ### REST 优先的技能分发
 
-默认产品路径是集中管理 Skill，并由客户端环境自行执行：
+默认产品路径是集中管理 Skill，并通过 REST 向客户端分发：
 
 | 能力 | 用途 |
 |------|------|
 | 技能管理 API | 创建、更新、启用和版本化 Skill |
-| 技能下载 API | 下载指定版本 ZIP，供本地执行 |
+| 技能下载 API | 下载指定版本 ZIP |
 | 认证与 API Token | 控制客户端可访问的 Skill |
 | Web 控制台 | 浏览、管理和分发 Skill |
 
@@ -152,7 +152,7 @@ graph TB
     style Storage fill:#334155,stroke:#475569,color:#f472b6
 ```
 
-所有外部流量通过前端（端口 80）进入，由前端内部代理转发 API 请求。客户端运行时也可直接连接 API 服务（端口 8001），完成认证、查询 Skill 元数据并下载版本包到本地执行。
+所有外部流量通过前端（端口 80）进入，由前端内部代理转发 API 请求。客户端运行时也可直接连接 API 服务（端口 8001），完成认证、查询 Skill 元数据并下载版本包。
 
 ---
 
@@ -163,7 +163,7 @@ graph TB
 1. 认证并获取 JWT 或 API Token
 2. 查询 Skill 列表与详情
 3. 调用 `/api/v1/skills/download` 下载指定版本
-4. 在客户端本地解压并执行 Skill
+4. 在客户端本地按自身运行时策略处理已下载内容
 
 ### 认证流程
 

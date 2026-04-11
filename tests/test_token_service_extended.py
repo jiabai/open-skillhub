@@ -203,7 +203,7 @@ class TestTokenServiceValidate:
 
         test_token.is_active = True
         # expires_at without timezone - set to past time
-        test_token.expires_at = datetime.utcnow() - timedelta(hours=1)
+        test_token.expires_at = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(hours=1)
 
         mock_token_repo.get_by_hash = AsyncMock(return_value=test_token)
 

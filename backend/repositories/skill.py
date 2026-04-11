@@ -4,6 +4,7 @@ from sqlalchemy import String, and_, cast, func, or_, select
 
 from backend.config.settings import settings
 from backend.models.skill import Skill
+from backend.models.skill_version import SkillVersion
 from backend.repositories.base import BaseRepository
 
 
@@ -123,7 +124,24 @@ class SkillRepository(BaseRepository):
                 Skill.user_id == user_id,
             )
         )
-        return {value for value in result.scalars().all() if isinstance(value, str) and value.strip()}
+        clone_ids = {value for value in result.scalars().all() if isinstance(value, str) and value.strip()}
+        if clone_ids:
+            return clone_ids
+
+        # Backward compatibility for historical clone records that only stored
+        # origin metadata on the first skill version.
+        legacy_result = await self.session.execute(
+            select(SkillVersion.metadata_json)
+            .join(Skill, Skill.id == SkillVersion.skill_id)
+            .where(Skill.user_id == user_id)
+        )
+        for metadata in legacy_result.scalars().all():
+            if not isinstance(metadata, dict):
+                continue
+            cloned_from_skill_id = metadata.get("cloned_from_skill_id")
+            if isinstance(cloned_from_skill_id, str) and cloned_from_skill_id.strip():
+                clone_ids.add(cloned_from_skill_id)
+        return clone_ids
 
     async def list_by_user(
         self,

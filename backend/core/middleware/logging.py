@@ -99,8 +99,11 @@ def configure_loguru() -> None:
     log_file = str(settings.LOG_FILE).strip()
     if log_file:
         try:
-            Path(log_file).expanduser().resolve().parent.mkdir(parents=True, exist_ok=True)
-            logger.add(create_sink(log_file), level=settings.LOG_LEVEL)
+            log_path = Path(log_file).expanduser().resolve()
+            log_path.parent.mkdir(parents=True, exist_ok=True)
+            with open(log_path, "a", encoding="utf-8"):
+                pass
+            logger.add(create_sink(log_path), level=settings.LOG_LEVEL)
         except Exception:
             pass
 
@@ -109,11 +112,14 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         try:
             response = await call_next(request)
-        except Exception:
+        except Exception as exc:
+            detail = "Internal Server Error"
+            if settings.DEBUG:
+                detail = str(exc) or exc.__class__.__name__
             response = JSONResponse(
                 status_code=500,
                 content={
-                    "detail": "Internal Server Error",
+                    "detail": detail,
                     "code": "INTERNAL_SERVER_ERROR",
                     "timestamp": datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z"),
                 },

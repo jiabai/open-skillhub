@@ -209,7 +209,11 @@ class TestAuthServiceSSOLogin:
                 "iss": settings.SSO_JWT_ISSUER,
                 "aud": settings.SSO_JWT_AUDIENCE,
             }
-            wrong_token = jwt.encode(payload, "wrong-secret", algorithm=settings.SSO_JWT_ALGORITHM)
+            wrong_token = jwt.encode(
+                payload,
+                "wrong-secret-key-at-least-32chars",
+                algorithm=settings.SSO_JWT_ALGORITHM,
+            )
             await service.login_sso(wrong_token)
 
     @pytest.mark.asyncio

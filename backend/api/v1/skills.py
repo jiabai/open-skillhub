@@ -371,7 +371,7 @@ async def download_skill(
         result = await service.download_skill(current_user, payload.skill_uuid, payload.version)
     except DownloadTooLargeError as exc:
         raise HTTPException(
-            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            status_code=status.HTTP_413_CONTENT_TOO_LARGE,
             detail=f"Download too large ({exc.size_bytes // 1024 // 1024}MB). Max allowed is {exc.limit_bytes // 1024 // 1024}MB.",
         ) from exc
     except ValueError as exc:

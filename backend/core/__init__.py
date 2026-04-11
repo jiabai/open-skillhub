@@ -1,5 +1,3 @@
-"""Core building blocks of the Open SkillHub package."""
+"""Core building blocks of the REST service."""
 
-from backend.core.app import SkillHubMcpApp
-
-__all__ = ["SkillHubMcpApp"]
+__all__: list[str] = []

@@ -15,7 +15,7 @@ Usage:
 
 Permission Hierarchy:
     - Admin: All permissions (via wildcard *)
-    - Member: Read/Write/Execute/Upload (but NOT download)
+    - Member: Read/Write/Upload (but NOT download)
     - Viewer: List/Read only
 """
 
@@ -38,7 +38,6 @@ class Permission:
     │ SKILL_UPDATE     │   ✅   │   ✅   │   ❌   │
     │ SKILL_DELETE     │   ✅   │   ✅   │   ❌   │
     │ SKILL_UPLOAD     │   ✅   │   ✅   │   ❌   │
-    │ SKILL_EXECUTE    │   ✅   │   ✅   │   ❌   │
     │ SKILL_DOWNLOAD   │   ✅   │   ❌   │   ❌   │  ← Admin-only!
     ├─────────────────┼───────┼────────┼────────┤
     │ USER_MANAGE      │   ✅   │   ❌   │   ❌   │  ← Admin-only!
@@ -61,7 +60,6 @@ class Permission:
     SKILL_UPDATE: str = "skill.update"
     SKILL_DELETE: str = "skill.delete"
     SKILL_UPLOAD: str = "skill.upload"
-    SKILL_EXECUTE: str = "skill.execute"
     
     # Restricted operations (admin only)
     SKILL_DOWNLOAD: str = "skill.download"  # ⚠️ Admin-only: sensitive data export
@@ -95,7 +93,6 @@ class Permission:
             cls.SKILL_UPDATE,
             cls.SKILL_DELETE,
             cls.SKILL_UPLOAD,
-            cls.SKILL_EXECUTE,
             cls.SKILL_DOWNLOAD,
         ]
     
@@ -109,7 +106,6 @@ class Permission:
             cls.SKILL_UPDATE,
             cls.SKILL_DELETE,
             cls.SKILL_UPLOAD,
-            cls.SKILL_EXECUTE,
         ]
     
     @classmethod

@@ -40,7 +40,6 @@ class TestRolePermissionMatrix:
         ("admin", "skill.update", True),
         ("admin", "skill.delete", True),
         ("admin", "skill.upload", True),
-        ("admin", "skill.execute", True),
         ("admin", "skill.download", True),  # Admin-only permission
         ("admin", "any.custom.permission", True),  # Wildcard matches everything
         
@@ -51,7 +50,6 @@ class TestRolePermissionMatrix:
         ("member", "skill.update", True),
         ("member", "skill.delete", True),
         ("member", "skill.upload", True),
-        ("member", "skill.execute", True),
         ("member", "skill.download", False),  # NOT granted to member
         
         # Viewer permissions (most restricted)
@@ -61,7 +59,6 @@ class TestRolePermissionMatrix:
         ("viewer", "skill.update", False),
         ("viewer", "skill.delete", False),
         ("viewer", "skill.upload", False),
-        ("viewer", "skill.execute", False),
         ("viewer", "skill.download", False),
     ])
     def test_role_permission_combinations(self, role, permission, expected):
@@ -76,7 +73,6 @@ class TestRolePermissionMatrix:
         ("viewer", "skill.update"),
         ("viewer", "skill.delete"),
         ("viewer", "skill.upload"),
-        ("viewer", "skill.execute"),
         ("member", "skill.download"),
     ])
     def test_forbidden_permissions_raise_403_semantic(self, role, forbidden_permission):
@@ -86,7 +82,7 @@ class TestRolePermissionMatrix:
     
     @pytest.mark.parametrize("role,granted_permission", [
         ("admin", "skill.delete"),  # Highest privilege operation
-        ("member", "skill.execute"),  # Execution capability
+        ("member", "skill.update"),  # Standard member capability
         ("viewer", "skill.read"),  # Basic read access
     ])
     def test_granted_permissions_succeed(self, role, granted_permission):
@@ -178,7 +174,7 @@ class TestDownloadPermissionPolicy:
         assert "skill.download" not in member_perms
         # But member should have other common permissions
         assert "skill.read" in member_perms
-        assert "skill.execute" in member_perms
+        assert "skill.upload" in member_perms
     
     def test_download_not_in_viewer_defaults(self):
         """Viewer also lacks download permission (as expected)."""
@@ -270,16 +266,6 @@ class TestPermissionHierarchy:
         assert has_permission(MockUser("member"), "skill.delete") is True
         assert has_permission(MockUser("admin"), "skill.delete") is True
     
-    def test_execute_requires_member_or_higher(self):
-        """Skill execution requires member or higher (not just viewer)."""
-        assert has_permission(MockUser("viewer"), "skill.execute") is False
-        assert has_permission(MockUser("member"), "skill.execute") is True
-
-
-# ============================================================================
-# Integration-style Scenario Tests
-# ============================================================================
-
 class TestPermissionScenarios:
     """Real-world usage scenarios to validate permission system behavior."""
     
@@ -298,8 +284,7 @@ class TestPermissionScenarios:
         admin = MockUser(role="admin")
         operations = [
             "skill.list", "skill.read", "skill.create",
-            "skill.update", "skill.delete", "skill.upload",
-            "skill.execute", "skill.download"
+            "skill.update", "skill.delete", "skill.upload", "skill.download"
         ]
         for op in operations:
             assert has_permission(admin, op) is True, f"Admin should have {op}"

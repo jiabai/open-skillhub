@@ -46,7 +46,7 @@ os.environ["SSO_AUTHORIZATION_ENDPOINT"] = "https://sso.example.com/oauth2/autho
 os.environ["SSO_TOKEN_ENDPOINT"] = "https://sso.example.com/oauth2/token"
 os.environ["SSO_REDIRECT_URI"] = "http://test/api/v1/auth/sso/callback"
 os.environ["SSO_FRONTEND_CALLBACK_URL"] = "http://frontend.test/login/sso/callback"
-os.environ["RBAC_ROLE_PERMISSIONS"] = '{"admin":["*"],"member":["dashboard.read","skill.list","skill.read","skill.create","skill.update","skill.delete","skill.upload","skill.execute"],"viewer":["dashboard.read","skill.list","skill.read"]}'
+os.environ["RBAC_ROLE_PERMISSIONS"] = '{"admin":["*"],"member":["dashboard.read","skill.list","skill.read","skill.create","skill.update","skill.delete","skill.upload"],"viewer":["dashboard.read","skill.list","skill.read"]}'
 os.environ["PYTEST_DEBUG_TEMPROOT"] = str(TMP_ROOT)
 
 import pytest_asyncio

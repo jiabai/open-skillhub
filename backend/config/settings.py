@@ -159,6 +159,16 @@ class Settings(BaseSettings):
     DEFAULT_ROLE: str = "member"
     DEFAULT_USER_STATUS: str = "active"
     RBAC_ROLE_PERMISSIONS: dict = {}
+    SSO_ISSUER: str = ""
+    SSO_CLIENT_ID: str = ""
+    SSO_CLIENT_SECRET: str = ""
+    SSO_AUTHORIZATION_ENDPOINT: str = ""
+    SSO_TOKEN_ENDPOINT: str = ""
+    SSO_JWKS_URI: str = ""
+    SSO_REDIRECT_URI: str = ""
+    SSO_FRONTEND_CALLBACK_URL: str = ""
+    SSO_SCOPES: List[str] = ["openid", "email", "profile"]
+    SSO_HTTP_TIMEOUT_SECONDS: int = 10
     SSO_JWT_SECRET: str = ""
     SSO_JWT_ISSUER: str = ""
     SSO_JWT_AUDIENCE: str = ""
@@ -185,6 +195,11 @@ class Settings(BaseSettings):
     @field_validator("CORS_ORIGINS", mode="before")
     @classmethod
     def parse_cors_origins(cls, v):
+        return _parse_string_list(v)
+
+    @field_validator("SSO_SCOPES", mode="before")
+    @classmethod
+    def parse_sso_scopes(cls, v):
         return _parse_string_list(v)
 
     @model_validator(mode="after")

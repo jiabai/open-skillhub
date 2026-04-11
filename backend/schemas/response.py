@@ -26,11 +26,6 @@ class AccessTokenResponse(BaseModel):
     access_token: str
 
 
-class SSOPrepareResponse(BaseModel):
-    nonce: str
-    expires_in: int
-
-
 class DashboardOverviewResponse(BaseModel):
     active_skills: int
     available_tokens: int

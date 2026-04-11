@@ -19,6 +19,7 @@ Usage Example:
 import inspect
 
 from fastapi import Depends, HTTPException
+from fastapi.security import OAuth2PasswordBearer
 from starlette import status
 
 from backend.config.settings import settings
@@ -26,7 +27,13 @@ from backend.core.middleware.auth import get_current_active_user
 from backend.core.security.rbac import has_permission
 from backend.db.session import get_async_session
 from backend.repositories.skill import SkillRepository
+from backend.repositories.token import TokenRepository
+from backend.repositories.user import UserRepository
 from backend.schemas.skill_download import SkillDownloadRequest
+from backend.services.token import TokenService
+
+
+api_token_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/tokens", auto_error=False)
 
 
 def require_permission(permission: str):
@@ -112,6 +119,55 @@ def require_management_access():
     return _management_checker
 
 
+async def get_current_api_token_user(
+    token_value: str | None = Depends(api_token_scheme),
+    session=Depends(get_async_session),
+):
+    if not token_value:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Not authenticated",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    token_service = TokenService(TokenRepository(session), UserRepository(session))
+    try:
+        token = await token_service.validate_token(token_value)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=str(exc),
+            headers={"WWW-Authenticate": "Bearer"},
+        ) from exc
+    user = await token_service.user_repo.get_by_id(token.user_id)
+    if not user or not user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Inactive user",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    return user
+
+
+def require_api_token_permission(permission: str):
+    if not isinstance(permission, str) or not permission.strip():
+        raise ValueError(
+            f"Permission must be a non-empty string, got: {permission!r}"
+        )
+    permission = permission.strip()
+
+    async def _permission_checker(
+        current_user=Depends(get_current_api_token_user),
+    ):
+        if not has_permission(current_user, permission):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Permission denied",
+            )
+        return current_user
+
+    return _permission_checker
+
+
 def require_skill_download_access():
     """
     Create a FastAPI dependency for skill download authorization.
@@ -125,6 +181,38 @@ def require_skill_download_access():
     async def _download_checker(
         payload: SkillDownloadRequest,
         current_user=Depends(get_current_active_user),
+        session=Depends(get_async_session),
+    ):
+        if settings.ENABLE_RBAC:
+            if has_permission(current_user, "skill.download"):
+                return current_user
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Permission denied",
+            )
+
+        skill = await SkillRepository(session).get_by_id(payload.skill_uuid)
+        if skill and skill.user_id == current_user.id:
+            return current_user
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Permission denied",
+        )
+
+    return _download_checker
+
+
+def require_api_token_skill_download_access():
+    """
+    Create a FastAPI dependency for API-token-based skill downloads.
+
+    Distribution endpoints are client-facing and only accept API tokens.
+    Authorization still maps to the token owner's RBAC role and visibility.
+    """
+
+    async def _download_checker(
+        payload: SkillDownloadRequest,
+        current_user=Depends(get_current_api_token_user),
         session=Depends(get_async_session),
     ):
         if settings.ENABLE_RBAC:

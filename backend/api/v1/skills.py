@@ -4,7 +4,11 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Reques
 from loguru import logger
 
 from backend.config.settings import settings
-from backend.core.deps import require_permission, require_skill_download_access
+from backend.core.deps import (
+    require_api_token_permission,
+    require_api_token_skill_download_access,
+    require_permission,
+)
 from backend.core.utils.skill_storage import MAX_FILE_SIZE, MAX_TOTAL_SIZE
 from backend.db.session import get_async_session
 from backend.repositories.skill import SkillRepository
@@ -47,7 +51,7 @@ async def list_skills(
     limit: int = 100,
     q: str | None = None,
     include_inactive: bool = False,
-    current_user=Depends(require_permission("skill.list")),
+    current_user=Depends(require_api_token_permission("skill.list")),
     session=Depends(get_async_session),
 ):
     service = build_skill_service(session)
@@ -146,7 +150,7 @@ async def create_skill(
 @router.get("/{skill_uuid}", response_model=SkillResponse)
 async def get_skill(
     skill_uuid: str,
-    current_user=Depends(require_permission("skill.read")),
+    current_user=Depends(require_api_token_permission("skill.read")),
     session=Depends(get_async_session),
 ):
     service = build_skill_service(session)
@@ -362,7 +366,7 @@ async def upload_skill_file(
 async def download_skill(
     request: Request,
     payload: SkillDownloadRequest,
-    current_user=Depends(require_skill_download_access()),
+    current_user=Depends(require_api_token_skill_download_access()),
     session=Depends(get_async_session),
 ):
     service = build_skill_service(session)
@@ -437,7 +441,7 @@ async def activate_skill(
 @router.get("/{skill_uuid}/versions", response_model=SkillVersionListResponse)
 async def list_skill_versions(
     skill_uuid: str,
-    current_user=Depends(require_permission("skill.read")),
+    current_user=Depends(require_api_token_permission("skill.read")),
     session=Depends(get_async_session),
 ):
     service = build_skill_service(session)
@@ -469,7 +473,7 @@ async def diff_skill_versions(
 async def get_skill_version(
     skill_uuid: str,
     version: str,
-    current_user=Depends(require_permission("skill.read")),
+    current_user=Depends(require_api_token_permission("skill.read")),
     session=Depends(get_async_session),
 ):
     service = build_skill_service(session)
@@ -484,7 +488,7 @@ async def get_skill_version(
 async def get_install_instructions(
     skill_uuid: str,
     version: str,
-    current_user=Depends(require_permission("skill.read")),
+    current_user=Depends(require_api_token_permission("skill.read")),
     session=Depends(get_async_session),
 ):
     service = build_skill_service(session)

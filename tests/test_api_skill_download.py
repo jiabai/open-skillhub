@@ -6,7 +6,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 import pytest
-from sso_helpers import sso_login
+from sso_helpers import create_api_token, sso_login
 
 from backend.config.settings import settings
 from backend.core.utils.skill_storage import SYSTEM_USER_ID, create_skill_dir, get_skill_versions_dir
@@ -113,18 +113,38 @@ def _decode_download_archive(payload: dict) -> dict[str, str]:
         }
 
 
+async def _login_with_client_token(
+    client,
+    *,
+    email: str,
+    username: str,
+    enterprise_id: str = "test-ent",
+    team_id: str = "test-team",
+    role: str = "admin",
+) -> tuple[dict[str, str], dict[str, str]]:
+    access = await sso_login(
+        client,
+        email=email,
+        username=username,
+        enterprise_id=enterprise_id,
+        team_id=team_id,
+        role=role,
+    )
+    api_token = await create_api_token(client, access, name=f"{username}-client")
+    return (
+        {"Authorization": f"Bearer {access}"},
+        {"Authorization": f"Bearer {api_token}"},
+    )
+
+
 @pytest.mark.asyncio
 async def test_skill_download_returns_encrypted_payload(client, tmp_path, monkeypatch):
     monkeypatch.setenv("SKILL_STORAGE_PATH", str(tmp_path))
-    access = await sso_login(
+    headers, api_headers = await _login_with_client_token(
         client,
         email="download@example.com",
         username="downloader",
-        enterprise_id="test-ent",
-        team_id="test-team",
-        role="admin",
     )
-    headers = {"Authorization": f"Bearer {access}"}
     skill_id = await _create_uploaded_skill(
         client,
         headers,
@@ -134,7 +154,7 @@ async def test_skill_download_returns_encrypted_payload(client, tmp_path, monkey
     response = await client.post(
         "/api/v1/skills/download",
         json={"skill_uuid": skill_id, "version": "1.0.0"},
-        headers=headers,
+        headers=api_headers,
     )
     assert response.status_code == 200
     payload = response.json()
@@ -154,20 +174,17 @@ async def test_skill_download_returns_encrypted_payload(client, tmp_path, monkey
 @pytest.mark.asyncio
 async def test_skill_download_denied_without_permission(client, tmp_path, monkeypatch):
     monkeypatch.setenv("SKILL_STORAGE_PATH", str(tmp_path))
-    access = await sso_login(
+    headers, api_headers = await _login_with_client_token(
         client,
         email="nodownload@example.com",
         username="nodownloader",
-        enterprise_id="test-ent",
-        team_id="test-team",
         role="member",
     )
-    headers = {"Authorization": f"Bearer {access}"}
     skill_id = await _create_uploaded_skill(client, headers, "skilldl2")
     response = await client.post(
         "/api/v1/skills/download",
         json={"skill_uuid": skill_id, "version": "1.0.0"},
-        headers=headers,
+        headers=api_headers,
     )
     assert response.status_code == 403
 
@@ -175,15 +192,11 @@ async def test_skill_download_denied_without_permission(client, tmp_path, monkey
 @pytest.mark.asyncio
 async def test_skill_download_returns_gone_for_deactivated_skill(client, tmp_path, monkeypatch):
     monkeypatch.setenv("SKILL_STORAGE_PATH", str(tmp_path))
-    access = await sso_login(
+    headers, api_headers = await _login_with_client_token(
         client,
         email="download-deactivated@example.com",
         username="downloaddeactivated",
-        enterprise_id="test-ent",
-        team_id="test-team",
-        role="admin",
     )
-    headers = {"Authorization": f"Bearer {access}"}
     skill_id = await _create_uploaded_skill(client, headers, "skilldl3")
     deactivate_response = await client.post(
         f"/api/v1/skills/{skill_id}/deactivate",
@@ -194,7 +207,7 @@ async def test_skill_download_returns_gone_for_deactivated_skill(client, tmp_pat
     response = await client.post(
         "/api/v1/skills/download",
         json={"skill_uuid": skill_id, "version": "1.0.0"},
-        headers=headers,
+        headers=api_headers,
     )
 
     assert response.status_code == 410
@@ -208,15 +221,11 @@ async def test_skill_download_returns_safe_500_for_unexpected_error(client, tmp_
     from backend.api.v1 import skills as skills_api
 
     monkeypatch.setenv("SKILL_STORAGE_PATH", str(tmp_path))
-    access = await sso_login(
+    headers, api_headers = await _login_with_client_token(
         client,
         email="download-failure@example.com",
         username="downloadfailure",
-        enterprise_id="test-ent",
-        team_id="test-team",
-        role="admin",
     )
-    headers = {"Authorization": f"Bearer {access}"}
 
     async def broken_download_skill(self, user, skill_uuid, version=None):
         raise RuntimeError("database offline")
@@ -226,7 +235,7 @@ async def test_skill_download_returns_safe_500_for_unexpected_error(client, tmp_
     response = await client.post(
         "/api/v1/skills/download",
         json={"skill_uuid": "00000000-0000-0000-0000-000000000000", "version": "1.0.0"},
-        headers=headers,
+        headers=api_headers,
     )
 
     assert response.status_code == 500
@@ -238,20 +247,16 @@ async def test_skill_download_returns_safe_500_for_unexpected_error(client, tmp_
 
 @pytest.mark.asyncio
 async def test_skill_download_rejects_invalid_uuid(client):
-    access = await sso_login(
+    _, api_headers = await _login_with_client_token(
         client,
         email="download-invalid-uuid@example.com",
         username="downloadinvaliduuid",
-        enterprise_id="test-ent",
-        team_id="test-team",
-        role="admin",
     )
-    headers = {"Authorization": f"Bearer {access}"}
 
     response = await client.post(
         "/api/v1/skills/download",
         json={"skill_uuid": "not-a-valid-uuid", "version": "1.0.0"},
-        headers=headers,
+        headers=api_headers,
     )
 
     assert response.status_code == 422
@@ -264,22 +269,18 @@ async def test_skill_download_rejects_invalid_uuid(client):
 async def test_skill_download_rejects_oversized_request_body(client):
     from backend.config.settings import settings
 
-    access = await sso_login(
+    _, api_headers = await _login_with_client_token(
         client,
         email="download-large-request@example.com",
         username="downloadlargerequest",
-        enterprise_id="test-ent",
-        team_id="test-team",
-        role="admin",
     )
-    headers = {"Authorization": f"Bearer {access}"}
     original_limit = settings.SKILL_DOWNLOAD_MAX_REQUEST_BYTES
     settings.SKILL_DOWNLOAD_MAX_REQUEST_BYTES = 64
     try:
         response = await client.post(
             "/api/v1/skills/download",
             json={"skill_uuid": "00000000-0000-0000-0000-000000000000", "version": "v" * 256},
-            headers=headers,
+            headers=api_headers,
         )
     finally:
         settings.SKILL_DOWNLOAD_MAX_REQUEST_BYTES = original_limit
@@ -295,15 +296,11 @@ async def test_skill_download_returns_413_for_large_archives(client, tmp_path, m
     from backend.config.settings import settings
 
     monkeypatch.setenv("SKILL_STORAGE_PATH", str(tmp_path))
-    access = await sso_login(
+    headers, api_headers = await _login_with_client_token(
         client,
         email="download-large-archive@example.com",
         username="downloadlargearchive",
-        enterprise_id="test-ent",
-        team_id="test-team",
-        role="admin",
     )
-    headers = {"Authorization": f"Bearer {access}"}
     skill_id = await _create_uploaded_skill(
         client,
         headers,
@@ -316,7 +313,7 @@ async def test_skill_download_returns_413_for_large_archives(client, tmp_path, m
         response = await client.post(
             "/api/v1/skills/download",
             json={"skill_uuid": skill_id, "version": "1.0.0"},
-            headers=headers,
+            headers=api_headers,
         )
     finally:
         settings.SKILL_DOWNLOAD_MAX_ARCHIVE_BYTES = original_limit
@@ -333,15 +330,11 @@ async def test_skill_download_applies_download_specific_rate_limit(client, tmp_p
     from backend.config.settings import settings
 
     monkeypatch.setenv("SKILL_STORAGE_PATH", str(tmp_path))
-    access = await sso_login(
+    headers, api_headers = await _login_with_client_token(
         client,
         email="download-rate-limit@example.com",
         username="downloadratelimit",
-        enterprise_id="test-ent",
-        team_id="test-team",
-        role="admin",
     )
-    headers = {"Authorization": f"Bearer {access}"}
     skill_id = await _create_uploaded_skill(client, headers, "skilldl5")
 
     original_requests = settings.SKILL_DOWNLOAD_RATE_LIMIT_REQUESTS
@@ -353,12 +346,12 @@ async def test_skill_download_applies_download_specific_rate_limit(client, tmp_p
         first = await client.post(
             "/api/v1/skills/download",
             json={"skill_uuid": skill_id, "version": "1.0.0"},
-            headers=headers,
+            headers=api_headers,
         )
         second = await client.post(
             "/api/v1/skills/download",
             json={"skill_uuid": skill_id, "version": "1.0.0"},
-            headers=headers,
+            headers=api_headers,
         )
     finally:
         settings.SKILL_DOWNLOAD_RATE_LIMIT_REQUESTS = original_requests
@@ -382,20 +375,17 @@ async def test_public_skill_download_requires_reference_or_clone_when_rbac_disab
     settings.ENABLE_SKILL_DOWNLOAD_ENCRYPTION = False
     try:
         public_skill = await _create_public_skill(async_session)
-        access = await sso_login(
+        _, api_headers = await _login_with_client_token(
             client,
             email="public-download@example.com",
             username="publicdownloaduser",
-            enterprise_id="test-ent",
-            team_id="test-team",
             role="member",
         )
-        headers = {"Authorization": f"Bearer {access}"}
 
         response = await client.post(
             "/api/v1/skills/download",
             json={"skill_uuid": public_skill.id},
-            headers=headers,
+            headers=api_headers,
         )
 
         assert response.status_code == 403
@@ -414,15 +404,12 @@ async def test_reference_skill_download_uses_pinned_public_version_when_owned_an
     settings.ENABLE_SKILL_DOWNLOAD_ENCRYPTION = False
     try:
         public_skill = await _create_public_skill(async_session, name="public-download-reference-skill")
-        access = await sso_login(
+        headers, api_headers = await _login_with_client_token(
             client,
             email="reference-download@example.com",
             username="referencedownloaduser",
-            enterprise_id="test-ent",
-            team_id="test-team",
             role="member",
         )
-        headers = {"Authorization": f"Bearer {access}"}
 
         created = await client.post(
             f"/api/v1/skills/{public_skill.id}/reference",
@@ -435,7 +422,7 @@ async def test_reference_skill_download_uses_pinned_public_version_when_owned_an
         response = await client.post(
             "/api/v1/skills/download",
             json={"skill_uuid": reference_id},
-            headers=headers,
+            headers=api_headers,
         )
 
         assert response.status_code == 200
@@ -456,15 +443,12 @@ async def test_owned_private_skill_download_allowed_when_rbac_disabled(client, t
     monkeypatch.setenv("SKILL_STORAGE_PATH", str(tmp_path))
     monkeypatch.setattr(settings, "SKILL_STORAGE_PATH", str(tmp_path))
     monkeypatch.setattr(settings, "ENABLE_RBAC", False)
-    access = await sso_login(
+    headers, api_headers = await _login_with_client_token(
         client,
         email="private-download@example.com",
         username="privatedownloaduser",
-        enterprise_id="test-ent",
-        team_id="test-team",
         role="member",
     )
-    headers = {"Authorization": f"Bearer {access}"}
     skill_id = await _create_uploaded_skill(
         client,
         headers,
@@ -475,7 +459,7 @@ async def test_owned_private_skill_download_allowed_when_rbac_disabled(client, t
     response = await client.post(
         "/api/v1/skills/download",
         json={"skill_uuid": skill_id, "version": "1.0.0"},
-        headers=headers,
+        headers=api_headers,
     )
 
     assert response.status_code == 200

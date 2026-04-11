@@ -1,5 +1,5 @@
 from backend.schemas.audit import AuditLogExportRequest, AuditLogExportResponse, AuditLogItem, AuditLogListResponse
-from backend.schemas.auth import LDAPLoginRequest, SSOLoginRequest, UserIdentityUpdate
+from backend.schemas.auth import LDAPLoginRequest, UserIdentityUpdate
 from backend.schemas.response import ErrorResponse, PaginatedResponse, TokenPair
 from backend.schemas.skill import (
     PublicSkillListResponse,
@@ -32,7 +32,6 @@ __all__ = [
     "ErrorResponse",
     "PaginatedResponse",
     "TokenPair",
-    "SSOLoginRequest",
     "LDAPLoginRequest",
     "UserIdentityUpdate",
     "AuditLogItem",

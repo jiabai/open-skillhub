@@ -4,7 +4,7 @@ import { useEffect, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { Loader2, Shield, AlertCircle } from "lucide-react"
 
-import { api, storeTokens, getErrorMessage } from "@/lib/api"
+import { storeTokens } from "@/lib/api"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 
@@ -15,12 +15,9 @@ export default function SSOCallbackPage() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    const handleCallback = async () => {
-      // 从 URL 参数获取 id_token
-      const idToken = searchParams.get("id_token")
+    const handleCallback = () => {
       const errorParam = searchParams.get("error")
       const errorDescription = searchParams.get("error_description")
-      const nonce = typeof window !== "undefined" ? window.sessionStorage.getItem("skillhub.sso.nonce") : null
 
       if (errorParam) {
         setError(errorDescription || errorParam)
@@ -28,26 +25,24 @@ export default function SSOCallbackPage() {
         return
       }
 
-      if (!idToken) {
-        setError("缺少认证凭证")
-        setLoading(false)
-        return
-      }
-      if (!nonce) {
-        setError("SSO 会话已失效，请重新发起登录")
+      if (typeof window === "undefined") {
+        setError("无法读取登录结果")
         setLoading(false)
         return
       }
 
-      try {
-        const tokenPair = await api.ssoLogin({ id_token: idToken, nonce })
-        window.sessionStorage.removeItem("skillhub.sso.nonce")
-        storeTokens(tokenPair)
-        router.replace("/dashboard")
-      } catch (err) {
-        setError(getErrorMessage(err))
+      const fragment = new URLSearchParams(window.location.hash.replace(/^#/, ""))
+      const accessToken = fragment.get("access_token")
+      const refreshToken = fragment.get("refresh_token")
+      if (!accessToken || !refreshToken) {
+        setError("缺少认证凭证")
         setLoading(false)
+        return
       }
+
+      storeTokens({ access_token: accessToken, refresh_token: refreshToken })
+      window.history.replaceState(null, "", window.location.pathname)
+      router.replace("/dashboard")
     }
 
     handleCallback()

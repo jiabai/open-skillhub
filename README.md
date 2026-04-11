@@ -30,7 +30,7 @@
 | Challenge | Solution |
 |-----------|----------|
 | Skills scattered across repositories | Centralized private skill storage |
-| No access control for AI agents | JWT + API Token authentication |
+| No access control for AI agents | JWT for web + API tokens for clients |
 | Manual skill deployment | Web console + REST-based skill distribution |
 | No version tracking | Built-in versioning & rollback |
 
@@ -88,7 +88,7 @@ For local development, the repository default is a project-local `.venv`. If you
 
 ### Multi-Tenant Architecture
 
-Every user gets an isolated skill space with JWT-based authentication and API token management for controlled client downloads.
+Every user gets an isolated skill space with a clear auth boundary: JWT for the web console, API tokens for client-side skill distribution.
 
 ### Complete Skill Lifecycle
 
@@ -105,7 +105,7 @@ The following features are controlled by feature flags and disabled by default. 
 - **RBAC** (`ENABLE_RBAC`): Role-based access control with fine-grained permissions
 - **Organization Model** (`ENABLE_ORG_MODEL`): Enterprise → Team → User hierarchy
 - **Audit Logging** (`ENABLE_AUDIT_LOG`): Full operation trail with export capability
-- **SSO Integration** (`ENABLE_SSO`): JWT-based SSO authentication
+- **SSO Integration** (`ENABLE_SSO`): OIDC Authorization Code + PKCE
 - **LDAP** (`ENABLE_LDAP`): LDAP directory authentication
 - **Email Verification** (`ENABLE_EMAIL_OTP_LOGIN`): OTP login and verification codes (enabled by default)
 
@@ -152,7 +152,7 @@ graph TB
     style Storage fill:#334155,stroke:#475569,color:#f472b6
 ```
 
-All external traffic enters through Frontend (port 80), which proxies API requests internally. Client runtimes can also connect directly to the API server (port 8001) to authenticate, fetch metadata, and download skills.
+All external traffic enters through Frontend (port 80), which proxies API requests internally. Client runtimes can also connect directly to the API server (port 8001) to create API tokens via a user session and then fetch metadata and download skills with API-token-based distribution access.
 
 ---
 
@@ -160,9 +160,9 @@ All external traffic enters through Frontend (port 80), which proxies API reques
 
 Connect your client runtime to Open SkillHub over REST:
 
-1. Authenticate and obtain a JWT or API token.
-2. Query the skill list and skill details.
-3. Download the desired skill version from `/api/v1/skills/download`.
+1. Sign in to the web console and obtain a JWT access token.
+2. Create an API token from `/api/v1/tokens`.
+3. Use that API token to query skill metadata and download the desired version from `/api/v1/skills/download`.
 4. Handle the downloaded artifact in the client environment according to your own runtime policy.
 
 ### Authentication Flow
@@ -178,13 +178,13 @@ sequenceDiagram
     DB-->>Client: Email with code
     
     Client->>API: POST /auth/login (email + code)
-    API-->>Client: JWT Token
+    API-->>Client: JWT access token
     
     Client->>API: POST /tokens (create API token)
-    API-->>Client: JWT / API token
+    API-->>Client: API token
     
-    Client->>API: GET /api/v1/skills + POST /api/v1/skills/download
-    API->>DB: Verify user + permissions
+    Client->>API: GET /api/v1/skills + POST /api/v1/skills/download (API token)
+    API->>DB: Verify token owner + permissions
     API-->>Client: Skill metadata + versioned ZIP
 ```
 
@@ -241,8 +241,8 @@ Each user's directory is fully isolated — users can only access their own skil
 - `POST /api/v1/auth/register` - User registration
 - `POST /api/v1/auth/login` - User login
 - `POST /api/v1/auth/refresh` - Refresh access token
-- `POST /api/v1/auth/sso/prepare` - Prepare SSO authentication
-- `POST /api/v1/auth/sso/login` - SSO authentication
+- `GET /api/v1/auth/sso/authorize` - Start OIDC Authorization Code + PKCE flow
+- `GET /api/v1/auth/sso/callback` - Complete OIDC callback and issue app tokens
 - `POST /api/v1/auth/ldap/login` - LDAP authentication
 - `POST /api/v1/auth/logout` - User logout
 
@@ -251,14 +251,14 @@ Each user's directory is fully isolated — users can only access their own skil
 <details>
 <summary><strong>Skill Management</strong></summary>
 
-- `GET /api/v1/skills` - List all skills
+- `GET /api/v1/skills` - List all skills (API token only)
 - `GET /api/v1/skills/public` - List public skills
 - `GET /api/v1/skills/public/{id}` - Get public skill details
 - `GET /api/v1/skills/cache-policy` - Get skill cache policy
 - `POST /api/v1/skills` - Create new skill
 - `POST /api/v1/skills/upload` - Upload skill ZIP
-- `POST /api/v1/skills/download` - Download skill package (encrypted)
-- `GET /api/v1/skills/{id}` - Get skill details
+- `POST /api/v1/skills/download` - Download skill package (encrypted, API token only)
+- `GET /api/v1/skills/{id}` - Get skill details (API token only)
 - `PUT /api/v1/skills/{id}` - Update skill
 - `DELETE /api/v1/skills/{id}` - Delete skill
 - `POST /api/v1/skills/{id}/reference` - Add reference file
@@ -267,10 +267,10 @@ Each user's directory is fully isolated — users can only access their own skil
 - `PUT /api/v1/skills/{id}/unpin` - Unpin skill
 - `POST /api/v1/skills/{id}/activate` - Activate skill
 - `POST /api/v1/skills/{id}/deactivate` - Deactivate skill
-- `GET /api/v1/skills/{id}/versions` - Version history
+- `GET /api/v1/skills/{id}/versions` - Version history (API token only)
 - `GET /api/v1/skills/{id}/versions/diff` - Version diff
-- `GET /api/v1/skills/{id}/versions/{version}` - Get specific version
-- `GET /api/v1/skills/{id}/versions/{version}/install-instructions` - Install instructions
+- `GET /api/v1/skills/{id}/versions/{version}` - Get specific version (API token only)
+- `GET /api/v1/skills/{id}/versions/{version}/install-instructions` - Install instructions (API token only)
 - `POST /api/v1/skills/{id}/versions/{version}/rollback` - Rollback to version
 - `GET /api/v1/skills/{id}/files` - List skill files
 - `GET /api/v1/skills/{id}/files/{path}` - Read skill file

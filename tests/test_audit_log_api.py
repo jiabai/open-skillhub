@@ -3,7 +3,7 @@ import io
 import zipfile
 
 import pytest
-from sso_helpers import sso_login
+from sso_helpers import create_api_token, sso_login
 
 
 @pytest.mark.asyncio
@@ -17,6 +17,8 @@ async def test_audit_log_query_and_export(client):
         role="admin",
     )
     headers = {"Authorization": f"Bearer {token}"}
+    api_token = await create_api_token(client, token, name="audit-client")
+    api_headers = {"Authorization": f"Bearer {api_token}"}
     create_response = await client.post(
         "/api/v1/skills",
         json={"name": "audit-skill", "description": "desc", "visibility": "private"},
@@ -51,7 +53,7 @@ async def test_audit_log_query_and_export(client):
     download = await client.post(
         "/api/v1/skills/download",
         json={"skill_uuid": skill_id, "version": "1.0.0"},
-        headers=headers,
+        headers=api_headers,
     )
     assert download.status_code == 200
 

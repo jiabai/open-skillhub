@@ -11,6 +11,7 @@ global.ResizeObserver = ResizeObserverMock
 
 vi.mock("@/lib/api", () => {
   return {
+    apiBaseUrl: "http://localhost:8000",
     api: {
       sendVerificationCode: vi.fn(async () => ({
         sent: true,

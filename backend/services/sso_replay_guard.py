@@ -8,8 +8,10 @@ from sqlalchemy import delete, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.config.settings import settings
+from backend.models.sso_auth_request import SSOAuthRequest
 from backend.models.sso_nonce import SSONonce
 from backend.models.sso_replay_token import SSOReplayToken
+from backend.services.sso_oidc import SSOOIDCService
 
 
 class SSOReplayGuardService:
@@ -21,6 +23,12 @@ class SSOReplayGuardService:
 
     def _hash(self, value: str) -> str:
         return hashlib.sha256(value.encode("utf-8")).hexdigest()
+
+    @staticmethod
+    def _ensure_utc(value: datetime) -> datetime:
+        if value.tzinfo is None:
+            return value.replace(tzinfo=timezone.utc)
+        return value
 
     async def issue_nonce(self) -> tuple[str, int]:
         now = self._now()
@@ -35,6 +43,56 @@ class SSOReplayGuardService:
         )
         await self._session.commit()
         return nonce, expires_in
+
+    async def issue_auth_request(self, redirect_uri: str) -> tuple[str, str, str, int]:
+        now = self._now()
+        expires_in = int(settings.SSO_NONCE_EXPIRE_SECONDS or 300)
+        state = secrets.token_urlsafe(32)
+        nonce = secrets.token_urlsafe(32)
+        code_verifier = secrets.token_urlsafe(64)
+        self._session.add(
+            SSOAuthRequest(
+                state_hash=self._hash(state),
+                nonce_hash=self._hash(nonce),
+                purpose="oidc_authorize",
+                code_verifier=code_verifier,
+                redirect_uri=redirect_uri,
+                expires_at=now + timedelta(seconds=expires_in),
+            )
+        )
+        await self._session.commit()
+        return state, nonce, code_verifier, expires_in
+
+    async def consume_auth_request(self, state: str) -> SSOAuthRequest:
+        now = self._now()
+        state_hash = self._hash(state)
+        await self._session.execute(
+            delete(SSOAuthRequest).where(SSOAuthRequest.expires_at <= now, SSOAuthRequest.used_at.is_(None)),
+        )
+        result = await self._session.execute(
+            select(SSOAuthRequest).where(SSOAuthRequest.state_hash == state_hash),
+        )
+        record = result.scalar_one_or_none()
+        if not record:
+            await self._session.rollback()
+            raise ValueError("SSO_STATE_INVALID")
+        if record.used_at is not None:
+            await self._session.rollback()
+            raise ValueError("SSO_STATE_REPLAYED")
+        if self._ensure_utc(record.expires_at) <= now:
+            await self._session.rollback()
+            raise ValueError("SSO_STATE_EXPIRED")
+        record.used_at = now
+        await self._session.commit()
+        await self._session.refresh(record)
+        return record
+
+    def verify_auth_request_nonce(self, record: SSOAuthRequest, nonce: str) -> None:
+        if record.nonce_hash != self._hash(nonce):
+            raise ValueError("SSO_NONCE_INVALID")
+
+    def build_code_challenge(self, code_verifier: str) -> str:
+        return SSOOIDCService.build_code_challenge(code_verifier)
 
     async def consume_nonce(self, nonce: str) -> None:
         now = self._now()

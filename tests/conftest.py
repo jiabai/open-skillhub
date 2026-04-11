@@ -39,6 +39,13 @@ os.environ["LOG_FILE"] = str(TMP_ROOT / "app.log")
 os.environ["SSO_JWT_SECRET"] = "test-sso-secret-key-at-least-32ch"
 os.environ["SSO_JWT_ISSUER"] = "test-issuer"
 os.environ["SSO_JWT_AUDIENCE"] = "skillhub"
+os.environ["SSO_ISSUER"] = "https://sso.example.com"
+os.environ["SSO_CLIENT_ID"] = "skillhub-web"
+os.environ["SSO_CLIENT_SECRET"] = "test-client-secret"
+os.environ["SSO_AUTHORIZATION_ENDPOINT"] = "https://sso.example.com/oauth2/authorize"
+os.environ["SSO_TOKEN_ENDPOINT"] = "https://sso.example.com/oauth2/token"
+os.environ["SSO_REDIRECT_URI"] = "http://test/api/v1/auth/sso/callback"
+os.environ["SSO_FRONTEND_CALLBACK_URL"] = "http://frontend.test/login/sso/callback"
 os.environ["RBAC_ROLE_PERMISSIONS"] = '{"admin":["*"],"member":["dashboard.read","skill.list","skill.read","skill.create","skill.update","skill.delete","skill.upload","skill.execute"],"viewer":["dashboard.read","skill.list","skill.read"]}'
 os.environ["PYTEST_DEBUG_TEMPROOT"] = str(TMP_ROOT)
 

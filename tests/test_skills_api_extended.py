@@ -9,9 +9,15 @@ from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from sso_helpers import create_api_token
 
 from backend.config.settings import settings
 from backend.core.security.jwt_utils import create_access_token
+
+
+async def _create_client_headers(client, access_token: str, name: str = "test-client") -> dict[str, str]:
+    token = await create_api_token(client, access_token, name=name)
+    return {"Authorization": f"Bearer {token}"}
 
 
 def create_test_zip(
@@ -178,6 +184,7 @@ class TestSkillsAPISkillLifecycle:
             data = register_response.json()
             token = data.get("access_token")
             headers = {"Authorization": f"Bearer {token}"}
+            api_headers = await _create_client_headers(client, token, name="skills-extended-lifecycle")
 
             # 创建技能
             create_response = await client.post(
@@ -195,7 +202,7 @@ class TestSkillsAPISkillLifecycle:
                 skill_id = create_response.json()["id"]
 
                 # 获取技能
-                get_response = await client.get(f"/api/v1/skills/{skill_id}", headers=headers)
+                get_response = await client.get(f"/api/v1/skills/{skill_id}", headers=api_headers)
                 assert get_response.status_code == 200
 
                 # 更新技能
@@ -260,6 +267,7 @@ class TestSkillsAPISkillVersionOperations:
         if register_response.status_code == 201:
             token = register_response.json().get("access_token")
             headers = {"Authorization": f"Bearer {token}"}
+            api_headers = await _create_client_headers(client, token, name="skills-extended-versions")
 
             # 创建技能
             create_response = await client.post(
@@ -277,7 +285,7 @@ class TestSkillsAPISkillVersionOperations:
                 # 列出版本
                 versions_response = await client.get(
                     f"/api/v1/skills/{skill_id}/versions",
-                    headers=headers,
+                    headers=api_headers,
                 )
                 assert versions_response.status_code == 200
 

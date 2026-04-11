@@ -57,34 +57,7 @@ class AuthService:
         raw_password = password or secrets.token_urlsafe(24)
         return await self.user_repo.create(email=email, username=username, password=raw_password)
 
-    async def login_sso(self, id_token: str, nonce: str | None = None) -> TokenPair:
-        payload = jwt.decode(
-            id_token,
-            settings.SSO_JWT_SECRET,
-            algorithms=[settings.SSO_JWT_ALGORITHM],
-            audience=settings.SSO_JWT_AUDIENCE or None,
-            issuer=settings.SSO_JWT_ISSUER or None,
-            options={"require": ["exp", "iat"]},
-        )
-        token_nonce = str(payload.get("nonce") or "").strip()
-        if not token_nonce:
-            raise ValueError("SSO_NONCE_MISSING")
-        expected_nonce = nonce or token_nonce
-        if token_nonce != expected_nonce:
-            raise ValueError("SSO_NONCE_INVALID")
-        iat = payload.get("iat")
-        if iat is None:
-            raise ValueError("SSO_TOKEN_MISSING_IAT")
-        issued_at = datetime.fromtimestamp(int(iat), tz=timezone.utc)
-        now = datetime.now(timezone.utc)
-        if issued_at > now.replace(microsecond=0) and (issued_at - now).total_seconds() > settings.SSO_IAT_FUTURE_SKEW_SECONDS:
-            raise ValueError("SSO_TOKEN_INVALID_IAT")
-        exp = payload.get("exp")
-        if exp is None:
-            raise ValueError("SSO_TOKEN_MISSING_EXP")
-        expires_at = datetime.fromtimestamp(int(exp), tz=timezone.utc)
-        await self.sso_replay_guard.consume_nonce(expected_nonce)
-        replay_key = str(payload.get("jti") or "").strip() or hashlib.sha256(id_token.encode("utf-8")).hexdigest()
+    async def _login_sso_payload(self, payload: dict, *, replay_key: str, expires_at: datetime) -> TokenPair:
         await self.sso_replay_guard.mark_token_used(replay_key, expires_at)
         email = str(payload.get(settings.SSO_EMAIL_CLAIM) or "").strip()
         username = str(payload.get(settings.SSO_USERNAME_CLAIM) or email.split("@")[0]).strip()
@@ -117,6 +90,39 @@ class AuthService:
         else:
             user = await self.user_repo.update(user, **identity)
         return self.issue_token(user)
+
+    async def login_sso(self, id_token: str, nonce: str | None = None) -> TokenPair:
+        payload = jwt.decode(
+            id_token,
+            settings.SSO_JWT_SECRET,
+            algorithms=[settings.SSO_JWT_ALGORITHM],
+            audience=settings.SSO_JWT_AUDIENCE or None,
+            issuer=settings.SSO_JWT_ISSUER or None,
+            options={"require": ["exp", "iat"]},
+        )
+        token_nonce = str(payload.get("nonce") or "").strip()
+        if not token_nonce:
+            raise ValueError("SSO_NONCE_MISSING")
+        expected_nonce = nonce or token_nonce
+        if token_nonce != expected_nonce:
+            raise ValueError("SSO_NONCE_INVALID")
+        iat = payload.get("iat")
+        if iat is None:
+            raise ValueError("SSO_TOKEN_MISSING_IAT")
+        issued_at = datetime.fromtimestamp(int(iat), tz=timezone.utc)
+        now = datetime.now(timezone.utc)
+        if issued_at > now.replace(microsecond=0) and (issued_at - now).total_seconds() > settings.SSO_IAT_FUTURE_SKEW_SECONDS:
+            raise ValueError("SSO_TOKEN_INVALID_IAT")
+        exp = payload.get("exp")
+        if exp is None:
+            raise ValueError("SSO_TOKEN_MISSING_EXP")
+        expires_at = datetime.fromtimestamp(int(exp), tz=timezone.utc)
+        await self.sso_replay_guard.consume_nonce(expected_nonce)
+        replay_key = str(payload.get("jti") or "").strip() or hashlib.sha256(id_token.encode("utf-8")).hexdigest()
+        return await self._login_sso_payload(payload, replay_key=replay_key, expires_at=expires_at)
+
+    async def login_sso_claims(self, payload: dict, *, replay_key: str, expires_at: datetime) -> TokenPair:
+        return await self._login_sso_payload(payload, replay_key=replay_key, expires_at=expires_at)
 
     def issue_token(self, user: User) -> TokenPair:
         token_version = self._get_token_version(user)

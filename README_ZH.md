@@ -30,7 +30,7 @@
 | 痛点 | 解决方案 |
 |------|---------|
 | 技能散落在各处仓库 | 集中式私有技能存储 |
-| AI Agent 无访问控制 | JWT + API Token 双重认证 |
+| AI Agent 无访问控制 | Web 用 JWT，客户端用 API Token |
 | 手动分发技能繁琐 | Web 控制台 + REST 下载分发 |
 | 缺乏版本追踪 | 内置版本管理与回滚 |
 
@@ -88,7 +88,7 @@ uv run uvicorn backend.api_app:app --host 0.0.0.0 --port 8001
 
 ### 多租户架构
 
-每位用户拥有独立的技能空间，基于 JWT 身份认证与 API Token 管理，安全控制客户端的 Skill 下载访问。
+每位用户拥有独立的技能空间，并采用清晰的认证边界：Web 控制台使用 JWT，客户端分发访问使用 API Token。
 
 ### 完整的技能生命周期
 
@@ -105,7 +105,7 @@ uv run uvicorn backend.api_app:app --host 0.0.0.0 --port 8001
 - **RBAC** (`ENABLE_RBAC`) — 基于角色的细粒度权限管理
 - **组织架构模型** (`ENABLE_ORG_MODEL`) — 企业 → 团队 → 用户三级层级
 - **审计日志** (`ENABLE_AUDIT_LOG`) — 完整操作记录，支持导出
-- **SSO 单点登录** (`ENABLE_SSO`) — 基于 JWT 的 SSO 认证
+- **SSO 单点登录** (`ENABLE_SSO`) — 基于 OIDC Authorization Code + PKCE
 - **LDAP** (`ENABLE_LDAP`) — LDAP 目录认证
 - **邮箱验证** (`ENABLE_EMAIL_OTP_LOGIN`) — OTP 登录 + 验证码校验（默认启用）
 
@@ -160,9 +160,9 @@ graph TB
 
 客户端运行时通过 REST 接入 Open SkillHub：
 
-1. 认证并获取 JWT 或 API Token
-2. 查询 Skill 列表与详情
-3. 调用 `/api/v1/skills/download` 下载指定版本
+1. 登录 Web 控制台并获取 JWT Access Token
+2. 调用 `/api/v1/tokens` 创建 API Token
+3. 使用 API Token 查询 Skill 元数据并调用 `/api/v1/skills/download` 下载指定版本
 4. 在客户端本地按自身运行时策略处理已下载内容
 
 ### 认证流程
@@ -178,13 +178,13 @@ sequenceDiagram
     DB-->>Client: 邮箱收到验证码
     
     Client->>API: POST /auth/login (邮箱 + 验证码)
-    API-->>Client: JWT Token
+    API-->>Client: JWT Access Token
     
     Client->>API: POST /tokens (创建 API Token)
-    API-->>Client: JWT / API Token
+    API-->>Client: API Token
     
-    Client->>API: GET /api/v1/skills + POST /api/v1/skills/download
-    API->>DB: 校验用户身份 + 权限
+    Client->>API: GET /api/v1/skills + POST /api/v1/skills/download（API Token）
+    API->>DB: 校验 Token 所属用户 + 权限
     API-->>Client: Skill 元数据 + 版本 ZIP
 ```
 
@@ -241,8 +241,8 @@ sequenceDiagram
 - `POST /api/v1/auth/register` — 用户注册
 - `POST /api/v1/auth/login` — 用户登录
 - `POST /api/v1/auth/refresh` — 刷新访问令牌
-- `POST /api/v1/auth/sso/prepare` — 准备 SSO 认证
-- `POST /api/v1/auth/sso/login` — SSO 认证
+- `GET /api/v1/auth/sso/authorize` — 发起 OIDC Authorization Code + PKCE 流程
+- `GET /api/v1/auth/sso/callback` — 完成 OIDC 回调并签发应用令牌
 - `POST /api/v1/auth/ldap/login` — LDAP 登录
 - `POST /api/v1/auth/logout` — 用户登出
 
@@ -251,14 +251,14 @@ sequenceDiagram
 <details>
 <summary><strong>技能管理</strong></summary>
 
-- `GET /api/v1/skills` — 获取技能列表
+- `GET /api/v1/skills` — 获取技能列表（仅 API Token）
 - `GET /api/v1/skills/public` — 获取公开技能列表
 - `GET /api/v1/skills/public/{id}` — 获取公开技能详情
 - `GET /api/v1/skills/cache-policy` — 获取技能缓存策略
 - `POST /api/v1/skills` — 创建新技能
 - `POST /api/v1/skills/upload` — 上传技能 ZIP 包
-- `POST /api/v1/skills/download` — 下载技能包（加密）
-- `GET /api/v1/skills/{id}` — 获取技能详情
+- `POST /api/v1/skills/download` — 下载技能包（加密，仅 API Token）
+- `GET /api/v1/skills/{id}` — 获取技能详情（仅 API Token）
 - `PUT /api/v1/skills/{id}` — 更新技能
 - `DELETE /api/v1/skills/{id}` — 删除技能
 - `POST /api/v1/skills/{id}/reference` — 添加参考文件
@@ -267,10 +267,10 @@ sequenceDiagram
 - `PUT /api/v1/skills/{id}/unpin` — 取消置顶
 - `POST /api/v1/skills/{id}/activate` — 启用技能
 - `POST /api/v1/skills/{id}/deactivate` — 停用技能
-- `GET /api/v1/skills/{id}/versions` — 版本历史
+- `GET /api/v1/skills/{id}/versions` — 版本历史（仅 API Token）
 - `GET /api/v1/skills/{id}/versions/diff` — 版本差异对比
-- `GET /api/v1/skills/{id}/versions/{version}` — 获取指定版本
-- `GET /api/v1/skills/{id}/versions/{version}/install-instructions` — 安装说明
+- `GET /api/v1/skills/{id}/versions/{version}` — 获取指定版本（仅 API Token）
+- `GET /api/v1/skills/{id}/versions/{version}/install-instructions` — 安装说明（仅 API Token）
 - `POST /api/v1/skills/{id}/versions/{version}/rollback` — 版本回滚
 - `GET /api/v1/skills/{id}/files` — 列出技能文件
 - `GET /api/v1/skills/{id}/files/{path}` — 读取技能文件

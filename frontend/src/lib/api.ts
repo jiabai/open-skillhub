@@ -10,7 +10,6 @@ import type {
   MetricsCleanupResponse,
   MetricsReset24hResponse,
   VerificationCodeResponse,
-  SSOPrepareResponse,
   SkillListResponse,
   PublicSkillCloneRequest,
   PublicSkillReferenceRequest,
@@ -37,7 +36,7 @@ import type {
 // 3. Using short-lived tokens with refresh token rotation
 const storageKey = "skillhub.tokens"
 
-const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000"
+export const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000"
 
 export function getStoredTokens(): TokenPair | null {
   if (typeof window === "undefined") {
@@ -273,10 +272,6 @@ export const api = {
     apiFetch<TokenPair>("/api/v1/auth/login", { method: "POST", body: JSON.stringify(payload) }),
   refresh: (payload: { refresh_token: string }) =>
     apiFetch<AccessTokenResponse>("/api/v1/auth/refresh", { method: "POST", body: JSON.stringify(payload) }),
-  ssoPrepare: () =>
-    apiFetch<SSOPrepareResponse>("/api/v1/auth/sso/prepare", { method: "POST", body: JSON.stringify({}) }),
-  ssoLogin: (payload: { id_token: string; nonce: string }) =>
-    apiFetch<TokenPair>("/api/v1/auth/sso/login", { method: "POST", body: JSON.stringify(payload) }),
   ldapLogin: (payload: { username: string; password: string }) =>
     apiFetch<TokenPair>("/api/v1/auth/ldap/login", { method: "POST", body: JSON.stringify(payload) }),
   logout: () =>

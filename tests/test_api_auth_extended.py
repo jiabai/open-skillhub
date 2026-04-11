@@ -3,6 +3,7 @@
 覆盖验证码、登录、注册等 API
 """
 import pytest
+from sso_helpers import sso_login
 
 from backend.config.settings import settings
 
@@ -122,27 +123,16 @@ class TestAuthAPISso:
     """测试 SSO 登录 API"""
 
     @pytest.mark.asyncio
-    async def test_sso_login_missing_token(self, client):
-        """测试缺少 id_token"""
-        response = await client.post("/api/v1/auth/sso/login")
-        assert response.status_code == 422
+    async def test_sso_authorize_redirects(self, client):
+        response = await client.get("/api/v1/auth/sso/authorize", follow_redirects=False)
+        assert response.status_code == 302
+        assert "code_challenge_method=S256" in response.headers["location"]
 
     @pytest.mark.asyncio
-    async def test_sso_login_invalid_token(self, client):
-        """测试无效 SSO token"""
-        response = await client.post(
-            "/api/v1/auth/sso/login",
-            json={"id_token": "invalid.token", "nonce": "n" * 24},
-        )
-        assert response.status_code in [401, 403]
-
-    @pytest.mark.asyncio
-    async def test_sso_prepare_returns_nonce(self, client):
-        response = await client.post("/api/v1/auth/sso/prepare")
-        assert response.status_code == 200
-        payload = response.json()
-        assert payload["nonce"]
-        assert payload["expires_in"] > 0
+    async def test_sso_callback_missing_state_redirects_error(self, client):
+        response = await client.get("/api/v1/auth/sso/callback", params={"code": "abc"}, follow_redirects=False)
+        assert response.status_code == 302
+        assert "error=sso_error" in response.headers["location"]
 
 
 class TestAuthAPILDap:
@@ -207,6 +197,28 @@ class TestAPISkillsUnauthorized:
         """测试未授权获取技能"""
         response = await client.get("/api/v1/skills/123")
         assert response.status_code == 401
+
+    @pytest.mark.asyncio
+    async def test_distribution_endpoints_reject_jwt_access_token(self, client):
+        token = await sso_login(
+            client,
+            email="jwt-distribution@example.com",
+            username="jwtdistribution",
+            enterprise_id="ent-jwt",
+            team_id="team-jwt",
+            role="admin",
+        )
+        headers = {"Authorization": f"Bearer {token}"}
+
+        list_response = await client.get("/api/v1/skills", headers=headers)
+        download_response = await client.post(
+            "/api/v1/skills/download",
+            json={"skill_uuid": "00000000-0000-0000-0000-000000000000"},
+            headers=headers,
+        )
+
+        assert list_response.status_code == 401
+        assert download_response.status_code == 401
 
 
 class TestAPIDashboardUnauthorized:

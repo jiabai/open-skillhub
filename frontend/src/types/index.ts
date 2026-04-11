@@ -93,11 +93,6 @@ export type VerificationCodeResponse = {
   attempts_left?: number
 }
 
-export type SSOPrepareResponse = {
-  nonce: string
-  expires_in: number
-}
-
 export type MetricsCleanupResponse = {
   removed: number
   retention_days: number

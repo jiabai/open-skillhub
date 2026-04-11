@@ -15,7 +15,7 @@ Open SkillHub 是一个面向 AI Agent 客户端的私有化 Skill 管理与分�
 1. 用户在 Web 控制台创建或上传 Skill
 2. 平台解析 `SKILL.md` 和版本信息，保存 Skill 元数据与文件
 3. 用户通过控制台管理启停、版本、可见性、引用和克隆
-4. AI 客户端通过 JWT Access Token 拉取可访问的 Skill（API Token 的验证逻辑尚未接入业务接口，当前仅支持 JWT 鉴权）
+4. Web 控制台用户通过 JWT Access Token 管理 Skill，AI 客户端通过 API Token 拉取可访问的 Skill
 5. 客户端按自身运行时策略消费已下载的 Skill 内容
 
 ## 2. 核心功能
@@ -25,15 +25,15 @@ Open SkillHub 是一个面向 AI Agent 客户端的私有化 Skill 管理与分�
 项目具备完整的账户体系，支持：
 
 - 邮箱验证码注册与登录
-- JWT 访问令牌与刷新令牌
-- API Token 创建、展示一次、撤销、过期管理
-- 可选 SSO 登录
+- JWT 访问令牌与刷新令牌（用于 Web 控制台）
+- API Token 创建、展示一次、撤销、过期管理（用于客户端分发访问）
+- 可选 SSO 登录（标准 OIDC Authorization Code + PKCE）
 - 可选 LDAP 登录
 
 这意味着平台同时服务两类访问方式：
 
-- 浏览器用户：进入控制台做管理
-- 客户端程序：携带 JWT Access Token 拉取或调用 Skill（API Token 仅支持在控制台中创建、查看和撤销，其验证逻辑尚未接入下载等业务接口，因此客户端当前无法使用 API Token 直接访问 Skill）
+- 浏览器用户：携带 JWT Access Token 进入控制台做管理
+- 客户端程序：携带 API Token 查询分发接口并下载 Skill
 
 ### 2.2 Skill 生命周期管理
 
@@ -94,6 +94,20 @@ Skill 不只是"一个文件夹"，而是带元数据、版本、状态和访问
 
 这部分能力说明它本质上是一个 Skill Distribution Service。
 
+当前分发接口与控制台接口已经明确分层：
+
+- Web 控制台接口：继续使用 JWT Access Token
+- 客户端分发接口：仅使用 API Token
+
+当前已切到 API Token only 的分发读接口包括：
+
+- `GET /api/v1/skills`
+- `GET /api/v1/skills/{skill_uuid}`
+- `GET /api/v1/skills/{skill_uuid}/versions`
+- `GET /api/v1/skills/{skill_uuid}/versions/{version}`
+- `GET /api/v1/skills/{skill_uuid}/versions/{version}/install-instructions`
+- `POST /api/v1/skills/download`
+
 ### 2.6 对外服务边界
 
 当前项目对外提供的核心能力是 REST 管理与分发接口。
@@ -149,7 +163,7 @@ Skill 不只是"一个文件夹"，而是带元数据、版本、状态和访问
 
 项目提供 Dashboard 概览能力，当前能看到：
 
-- 当前用户可用 Skill 数
+- 当前用户自己拥有且激活的 Skill 数（注意：并非"可用 Skill 数"。实现调用的是 `count_active_by_user`，只统计 `user_id == 当前用户 AND is_active` 的记录，不包含通过 RBAC 可见的团队/企业共享 Skill。若需统计"可用"数，应改用 `count_visible` 并传入 `enterprise_id` 和 `team_id`）
 - 可用 Token 数
 - 最近 24 小时请求成功率
 - 指标清理与重置接口
@@ -162,7 +176,7 @@ Skill 不只是"一个文件夹"，而是带元数据、版本、状态和访问
 
 - 首页 / 入口页
 - Dashboard 概览
-- 登录、注册、SSO、LDAP 登录页
+- 登录、注册、SSO、LDAP 登录页（SSO 采用服务端主导的 OIDC Authorization Code + PKCE 流程）
 - My Skills / Skills 列表页
 - Skill 详情页
 - 新建 / 上传 Skill 页
@@ -178,8 +192,8 @@ Skill 不只是"一个文件夹"，而是带元数据、版本、状态和访问
 
 后端是一个 FastAPI 服务，当前 API 模块主要包括：
 
-- `auth`：注册、登录、刷新、SSO、LDAP、登出
-- `skills`：Skill 列表、详情、创建、更新、上传、下载、激活、停用、删除、版本相关（公共 Skill、引用、克隆仅在非 RBAC 模式下可用）
+- `auth`：注册、登录、刷新、SSO（OIDC Authorization Code + PKCE）、LDAP、登出
+- `skills`：Skill 列表、详情、创建、更新、上传、下载、激活、停用、删除、版本相关（其中客户端分发读接口使用 API Token；公共 Skill、引用、克隆仅在非 RBAC 模式下可用）
 - `tokens`：Token 创建、查询、撤销
 - `audit`：审计日志查询与导出
 - `dashboard`：概览与指标运维
@@ -215,7 +229,7 @@ Skill 不只是"一个文件夹"，而是带元数据、版本、状态和访问
 企业管理员开启 RBAC、审计、组织模型后，可以把平台作为内部 Skill Hub：
 
 - 按企业 / 团队控制可见范围
-- 通过 JWT Access Token 控制客户端的下载权限（API Token 的验证尚未接入业务接口）
+- 通过 API Token 控制客户端的分发访问权限
 - 追踪谁下载了什么、修改了什么
 - 统一管理版本与变更
 
@@ -234,4 +248,4 @@ Skill 不只是"一个文件夹"，而是带元数据、版本、状态和访问
 
 ## 7. 一句话总结
 
-Open SkillHub 当前可以理解为一个面向 AI Agent 生态的私有 SkillHub 平台，提供用户认证、Skill 上传与版本管理、公共 Skill 复用（仅非 RBAC 模式）、权限治理和审计追踪，目标是把 Skills 从零散文件或仓库，提升为可管理、可复用、可分发的正式资产。当前客户端仅支持 JWT Access Token 鉴权访问业务接口，API Token 验证逻辑尚未接入。
+Open SkillHub 当前可以理解为一个面向 AI Agent 生态的私有 SkillHub 平台，提供用户认证、Skill 上传与版本管理、公共 Skill 复用（仅非 RBAC 模式）、权限治理和审计追踪，目标是把 Skills 从零散文件或仓库，提升为可管理、可复用、可分发的正式资产。当前产品边界已经明确：Web 控制台使用 JWT Access Token，客户端分发接口使用 API Token。

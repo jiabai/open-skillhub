@@ -1,16 +1,11 @@
-import os
 from datetime import datetime, timedelta, timezone
+from unittest.mock import patch
+from urllib.parse import parse_qs, urlparse
 
-import jwt
-
-
-async def prepare_sso_nonce(client) -> str:
-    response = await client.post("/api/v1/auth/sso/prepare")
-    assert response.status_code == 200
-    return response.json()["nonce"]
+from backend.services.sso_oidc import SSOOIDCService
 
 
-def create_sso_token(
+def build_sso_claims(
     *,
     nonce: str,
     email: str,
@@ -20,18 +15,17 @@ def create_sso_token(
     role: str = "member",
     status: str = "active",
     extra_claims: dict | None = None,
-) -> str:
+) -> dict:
     now = datetime.now(timezone.utc)
     payload = {
         "email": email,
         "username": username,
         "nonce": nonce,
-        "exp": now + timedelta(hours=1),
-        "iat": now,
-        "iss": os.environ["SSO_JWT_ISSUER"],
-        "aud": os.environ["SSO_JWT_AUDIENCE"],
+        "exp": int((now + timedelta(hours=1)).timestamp()),
+        "iat": int(now.timestamp()),
         "role": role,
         "status": status,
+        "jti": f"jti-{email}",
     }
     if enterprise_id is not None:
         payload["enterprise_id"] = enterprise_id
@@ -39,7 +33,7 @@ def create_sso_token(
         payload["team_id"] = team_id
     if extra_claims:
         payload.update(extra_claims)
-    return jwt.encode(payload, os.environ["SSO_JWT_SECRET"], algorithm="HS256")
+    return payload
 
 
 async def sso_login(
@@ -53,8 +47,12 @@ async def sso_login(
     status: str = "active",
     extra_claims: dict | None = None,
 ) -> str:
-    nonce = await prepare_sso_nonce(client)
-    token = create_sso_token(
+    authorize = await client.get("/api/v1/auth/sso/authorize", follow_redirects=False)
+    assert authorize.status_code == 302
+    params = parse_qs(urlparse(authorize.headers["location"]).query)
+    nonce = params["nonce"][0]
+    state = params["state"][0]
+    claims = build_sso_claims(
         nonce=nonce,
         email=email,
         username=username,
@@ -64,6 +62,36 @@ async def sso_login(
         status=status,
         extra_claims=extra_claims,
     )
-    response = await client.post("/api/v1/auth/sso/login", json={"id_token": token, "nonce": nonce})
-    assert response.status_code == 200
-    return response.json()["access_token"]
+
+    async def _fake_exchange(self, code: str, code_verifier: str):
+        return {"id_token": "test-id-token", "access_token": "provider-access-token"}
+
+    async def _fake_decode(self, id_token: str):
+        return claims
+
+    with patch.object(SSOOIDCService, "exchange_code_for_tokens", _fake_exchange), patch.object(
+        SSOOIDCService, "decode_id_token", _fake_decode
+    ):
+        response = await client.get(
+            "/api/v1/auth/sso/callback",
+            params={"code": "test-auth-code", "state": state},
+            follow_redirects=False,
+        )
+    assert response.status_code == 302
+    fragment = parse_qs(urlparse(response.headers["location"]).fragment)
+    return fragment["access_token"][0]
+
+
+async def create_api_token(
+    client,
+    access_token: str,
+    *,
+    name: str = "test-client-token",
+) -> str:
+    response = await client.post(
+        "/api/v1/tokens",
+        json={"name": name},
+        headers={"Authorization": f"Bearer {access_token}"},
+    )
+    assert response.status_code == 201
+    return response.json()["token"]

@@ -9,13 +9,6 @@ from fastapi.responses import JSONResponse
 from sqlalchemy import text
 import psutil
 
-from backend.api.mcp import (
-    McpAppProxy,
-    ensure_mcp_initialized,
-    get_http_app,
-    get_sse_app,
-    shutdown_mcp,
-)
 from backend.api.router import api_router
 from backend.config.settings import settings
 from backend.core.middleware.deprecation import DeprecationMiddleware
@@ -24,22 +17,6 @@ from backend.core.middleware.rate_limit import RateLimitMiddleware
 from backend.db.session import engine, get_async_session, init_db
 from backend.repositories.audit_log import AuditLogRepository
 from backend.services.deprecation_notification import DeprecationNotifier
-
-
-class _SlashPathMiddleware:
-    def __init__(self, app: FastAPI, paths: set[str]):
-        self.app = app
-        self.paths = paths
-
-    async def __call__(self, scope, receive, send):
-        if scope.get("type") == "http":
-            path = scope.get("path")
-            if path in self.paths:
-                updated = dict(scope)
-                updated["path"] = f"{path}/"
-                updated["raw_path"] = f"{path}/".encode()
-                scope = updated
-        await self.app(scope, receive, send)
 
 
 def _utc_timestamp() -> str:
@@ -100,13 +77,10 @@ def _register_core_middleware(application: FastAPI) -> None:
             deprecated_versions=settings.DEPRECATED_VERSIONS,
             version_sunset_date=settings.DEPRECATED_VERSION_SUNSET_DATE,
         )
-    application.add_middleware(_SlashPathMiddleware, paths={"/mcp", "/sse"})
 
 
 def _register_routes(application: FastAPI) -> None:
     application.include_router(api_router, prefix="/api/v1")
-    application.mount("/mcp", McpAppProxy(get_http_app))
-    application.mount("/sse", McpAppProxy(get_sse_app))
 
 
 def _register_operational_endpoints(application: FastAPI) -> None:
@@ -205,7 +179,6 @@ def _register_exception_handlers(application: FastAPI) -> None:
 @asynccontextmanager
 async def lifespan(_application: FastAPI):
     await init_db()
-    await ensure_mcp_initialized()
     if settings.ENABLE_DEPRECATION_NOTIFIER_ON_STARTUP:
         async for session in get_async_session():
             notifier = DeprecationNotifier(
@@ -215,7 +188,6 @@ async def lifespan(_application: FastAPI):
             await notifier.notify_upcoming_deprecation()
             break
     yield
-    await shutdown_mcp()
 
 
 def create_application() -> FastAPI:

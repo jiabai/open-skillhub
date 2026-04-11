@@ -3,9 +3,9 @@ requires = ["setuptools>=61.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "open-skillhub-mcp"
+name = "open-skillhub"
 dynamic = ["version"]
-description = "A private Skills management SaaS with MCP and server-side skill execution for AI agents."
+description = "A private Skills management SaaS for distributing skills to client-side runtimes."
 authors = [
     { name = "jinli.yl", email = "jinli.yl@alibaba-inc.com" },
     { name = "caozouying.czy", email = "caozouying.czy@alibaba-inc.com" },
@@ -15,7 +15,7 @@ readme = "README.md"
 keywords = [
   "llm", "agent", "skills",
   "skill-management", "skill-hub",
-  "mcp", "model-context-protocol", "flowllm",
+  "client-execution", "skill-distribution",
   "progressive-disclosure"
 ]
 requires-python = ">=3.10"
@@ -84,12 +84,9 @@ backend = [
 version = {attr = "backend.__version__"}
 
 [project.urls]
-Homepage = "https://github.com/jiabai/open-skillhub-mcp"
-Documentation = "https://github.com/jiabai/open-skillhub-mcp/README.md"
-Repository = "https://github.com/jiabai/open-skillhub-mcp"
-
-[project.scripts]
-skillhub-mcp = "backend.main:main"
+Homepage = "https://github.com/jiabai/open-skillhub"
+Documentation = "https://github.com/jiabai/open-skillhub/README.md"
+Repository = "https://github.com/jiabai/open-skillhub"
 
 [tool.pytest.ini_options]
 addopts = "-p no:cacheprovider"

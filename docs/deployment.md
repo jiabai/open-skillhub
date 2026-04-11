@@ -1,6 +1,6 @@
 # 部署指南
 
-本文档提供 Open SkillHub MCP 版的完整部署说明，包括开发环境、生产环境（Docker Compose）以及低资源配置优化。
+本文档提供 Open SkillHub 客户端执行版的完整部署说明，包括开发环境、生产环境（Docker Compose）以及低资源配置优化。
 
 ## 目录
 
@@ -25,7 +25,7 @@
 ```bash
 # 克隆代码
 git clone <repository-url>
-cd open-skillhub-mcp
+cd open-skillhub
 
 # 配置环境变量
 cp backend/.env.example backend/.env
@@ -96,16 +96,10 @@ docker compose logs -f
 | **Docker Compose (PostgreSQL)** | 生产环境、高并发 | PostgreSQL | 需修改配置 |
 | **手动部署** | 开发环境、定制化 | SQLite/PostgreSQL | `uvicorn backend.api_app:app` |
 
-### FastAPI 模式（HTTP API + MCP）
+### FastAPI 模式（HTTP API）
 
-- 适用：多用户 Web API、MCP HTTP/SSE 访问
+- 适用：多用户 Web API、客户端下载与技能分发
 - 入口：`backend.api_app:app`
-- MCP 端点：`/mcp`、`/sse`
-
-### FlowLLM 模式（stdio/SSE）
-
-- 适用：本地单用户、CLI 集成
-- 入口：`skillhub.main`
 
 ---
 
@@ -155,7 +149,7 @@ apt install docker-compose -y
 
 ```bash
 git clone <repository-url>
-cd open-skillhub-mcp
+cd open-skillhub
 ```
 
 ### 3. 配置环境变量
@@ -554,7 +548,6 @@ docker compose logs -f api | grep -i smtp
 ### 相关文档
 
 - [README.md](../README.md) - 项目简介与快速开始
-- [docs/tools.md](tools.md) - MCP 工具文档
 - [docs/backend-design/](backend-design/) - 后端架构设计
 - [docs/frontend-design/](frontend-design/) - 前端设计规范
 

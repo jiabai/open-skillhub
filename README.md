@@ -5,14 +5,14 @@
 <h1 align="center">Open SkillHub</h1>
 
 <p align="center">
-  <strong>MCP and Server-Execution Skills Management Platform for AI Agents</strong>
+  <strong>Client-Execution Skills Management Platform for AI Agents</strong>
 </p>
 
 <p align="center">
   <a href="https://pypi.org/project/open-skillhub/"><img src="https://img.shields.io/badge/python-3.10+-blue?style=flat-square&logo=python" alt="Python Version"></a>
   <a href="https://pypi.org/project/open-skillhub/"><img src="https://img.shields.io/pypi/v/open-skillhub.svg?style=flat-square&logo=pypi&color=green" alt="PyPI Version"></a>
   <a href="./LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0-black?style=flat-square" alt="License"></a>
-  <a href="https://github.com/jiabai/open-skillhub-mcp"><img src="https://img.shields.io/github/stars/jiabai/open-skillhub-mcp?style=social" alt="GitHub Stars"></a>
+  <a href="https://github.com/jiabai/open-skillhub"><img src="https://img.shields.io/github/stars/jiabai/open-skillhub?style=social" alt="GitHub Stars"></a>
 </p>
 
 <p align="center">
@@ -23,9 +23,7 @@
 
 ## ✨ Overview
 
-> MCP Edition: this repository preserves the server-execution and MCP-integrated product line.
-
-**Open SkillHub MCP** is a **private Skills management SaaS platform** purpose-built for AI agents. This edition keeps the original server-side execution model, including MCP (Model Context Protocol) HTTP/SSE endpoints and service-side skill execution flows.
+**Open SkillHub** is a **private Skills management SaaS platform** purpose-built for AI agents. It focuses on the mainstream workflow of "upload → manage → download → run locally" with multi-tenant isolation, a modern web console, and REST APIs for distributing versioned skills to client-side runtimes.
 
 ### Why Open SkillHub?
 
@@ -33,7 +31,7 @@
 |-----------|----------|
 | Skills scattered across repositories | Centralized private skill storage |
 | No access control for AI agents | JWT + API Token authentication |
-| Manual skill deployment | Web console + MCP auto-discovery |
+| Manual skill deployment | Web console + REST-based skill distribution |
 | No version tracking | Built-in versioning & rollback |
 
 ---
@@ -50,8 +48,8 @@
 ### One-Command Docker Setup
 
 ```bash
-git clone https://github.com/jiabai/open-skillhub-mcp.git
-cd open-skillhub-mcp
+git clone https://github.com/jiabai/open-skillhub.git
+cd open-skillhub
 cp backend/.env.example backend/.env
 # Edit backend/.env — at minimum, change SECRET_KEY to a random 32+ char string
 # Example: python -c "import secrets; print(secrets.token_urlsafe(32))"
@@ -90,14 +88,14 @@ For local development, the repository default is a project-local `.venv`. If you
 
 ### Multi-Tenant Architecture
 
-Every user gets an isolated skill space with JWT-based authentication and API token management (`ask_live_...` tokens for secure MCP access).
+Every user gets an isolated skill space with JWT-based authentication and API token management for controlled client downloads and local execution.
 
 ### Complete Skill Lifecycle
 
 ```
-Upload ZIP → Parse SKILL.md → Version Control → Activate → MCP Discovery → Execute
-     ↑                                                              |
-     └────────────────── Rollback / Deactivate ←────────────────────┘
+Upload ZIP → Parse SKILL.md → Version Control → Activate → Download → Client Execution
+     ↑                                                                 |
+     └───────────────────── Rollback / Deactivate ←────────────────────┘
 ```
 
 ### Enterprise-Grade Security (Feature Flags)
@@ -111,19 +109,16 @@ The following features are controlled by feature flags and disabled by default. 
 - **LDAP** (`ENABLE_LDAP`): LDAP directory authentication
 - **Email Verification** (`ENABLE_EMAIL_OTP_LOGIN`): OTP login and verification codes (enabled by default)
 
-### MCP Integration (7 Tools)
+### REST-First Skill Distribution
 
-Your AI agent can discover and execute skills via standard MCP protocol:
+The default product path is to manage skills centrally and execute them in the client environment:
 
-| Tool | Purpose |
+| Capability | Purpose |
 |------|---------|
-| `load_skill_metadata` | Scan available skills |
-| `load_skill` | Load skill instructions (SKILL.md) |
-| `read_reference_file` | Read reference files within skills |
-| `run_shell_command` | Execute shell commands (whitelist-controlled) |
-| `skill_list_resource` | MCP resource: list available skills |
-| `skill_detail_resource` | MCP resource: get skill details |
-| `execute_skill` | Execute skill with RBAC checks |
+| Skill management APIs | Create, update, activate, and version skills |
+| Skill download API | Download a versioned ZIP for local execution |
+| Auth + API tokens | Control which clients can fetch which skills |
+| Web console | Browse, manage, and distribute skills |
 
 ---
 
@@ -133,7 +128,7 @@ Your AI agent can discover and execute skills via standard MCP protocol:
 graph TB
     subgraph External["External Network"]
         Browser["Browser"]
-        AIAgent["AI Agent / Client"]
+        AIAgent["AI Agent / Client Runtime"]
     end
 
     subgraph Docker["Docker Network"]
@@ -145,7 +140,7 @@ graph TB
 
     Browser -->|HTTP :80| Frontend
     Frontend -->|Proxy| API
-    AIAgent -->|MCP HTTP/SSE :8001| API
+    AIAgent -->|REST :8001| API
     API --> DB
     API --> Storage
 
@@ -157,27 +152,18 @@ graph TB
     style Storage fill:#334155,stroke:#475569,color:#f472b6
 ```
 
-All external traffic enters through Frontend (port 80), which proxies API requests internally. AI agents can also connect directly to the API server (port 8001) via MCP protocol.
+All external traffic enters through Frontend (port 80), which proxies API requests internally. Client runtimes can also connect directly to the API server (port 8001) to authenticate, fetch metadata, and download skills for local execution.
 
 ---
 
-## 🔌 MCP Configuration
+## 🔌 Client Runtime Flow
 
-Connect your AI client to Open SkillHub:
+Connect your client runtime to Open SkillHub over REST:
 
-```json
-{
-  "mcpServers": {
-    "skillhub-mcp": {
-      "type": "http",
-      "url": "https://your-domain.com/mcp",
-      "headers": {
-        "Authorization": "Bearer ask_live_xxx..."
-      }
-    }
-  }
-}
-```
+1. Authenticate and obtain a JWT or API token.
+2. Query the skill list and skill details.
+3. Download the desired skill version from `/api/v1/skills/download`.
+4. Unpack and execute the skill locally in the client environment.
 
 ### Authentication Flow
 
@@ -195,11 +181,11 @@ sequenceDiagram
     API-->>Client: JWT Token
     
     Client->>API: POST /tokens (create API token)
-    API-->>Client: ask_live_... token
+    API-->>Client: JWT / API token
     
-    Client->>API: MCP Request (Bearer token)
+    Client->>API: GET /api/v1/skills + POST /api/v1/skills/download
     API->>DB: Verify user + permissions
-    API-->>Client: Skill execution result
+    API-->>Client: Skill metadata + versioned ZIP
 ```
 
 ---
@@ -229,7 +215,7 @@ Each user's directory is fully isolated — users can only access their own skil
 | Service | Port | Description | Access |
 |---------|------|-------------|--------|
 | **Frontend** | 80 | Web Console (Next.js) | Public |
-| **API Server** | 8001 | Backend API (FastAPI) | Public (MCP) |
+| **API Server** | 8001 | Backend API (FastAPI) | Public (REST) |
 
 > **Note**: The default Docker setup uses SQLite (no separate database service). To use PostgreSQL, add a `db` service to `docker-compose.yml` — see [Deployment Guide](docs/deployment.md).
 
@@ -241,7 +227,6 @@ Each user's directory is fully isolated — users can only access their own skil
 |----------|-------------|
 | [Backend Architecture](docs/backend-design/) | System design & architecture docs |
 | [Deployment Guide](docs/deployment.md) | Production setup instructions |
-| [MCP Tools](docs/tools.md) | Tool specifications & usage |
 | [Frontend Design](docs/frontend-design/) | UI/UX design specs |
 | [User Runtime Environment](docs/user-runtime-environment/) | Runtime environment design docs |
 
@@ -326,13 +311,13 @@ For full API docs, visit `/docs` when running the server (FastAPI auto-generated
 
 | Layer | Technology |
 |-------|-----------|
-| Backend | Python 3.10+, FastAPI, SQLAlchemy (async), FlowLLM |
+| Backend | Python 3.10+, FastAPI, SQLAlchemy (async) |
 | Database | SQLite (default) / PostgreSQL 14+ (via asyncpg) |
 | Frontend | Next.js 14, TypeScript, Tailwind CSS, shadcn/ui |
 | Auth | JWT (PyJWT), OTP email verification, SSO, LDAP |
 | Storage | Local filesystem / S3 (boto3) |
 | Deployment | Docker Compose, Nginx reverse proxy |
-| Protocol | MCP (HTTP + SSE) |
+| Protocol | REST (HTTP) |
 | Logging | Loguru |
 
 ---

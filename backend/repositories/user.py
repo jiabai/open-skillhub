@@ -66,6 +66,10 @@ class UserRepository(BaseRepository):
         return user
 
     async def update(self, db_obj: Any, **data: Any) -> User:
+        if "status" in data and data["status"] is not None:
+            normalized_status = normalize_user_status(data["status"], DEFAULT_USER_STATUS)
+            data["status"] = normalized_status
+            data.setdefault("is_active", user_status_is_active(normalized_status))
         for key, value in data.items():
             setattr(db_obj, key, value)
         await self.session.commit()

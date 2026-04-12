@@ -19,6 +19,20 @@ async def test_update_and_delete_user(async_session):
 
 
 @pytest.mark.asyncio
+async def test_user_repository_update_syncs_is_active_with_status(async_session):
+    user_repo = UserRepository(async_session)
+    user = await user_repo.create(email="status-sync@example.com", username="status-sync", password="pass1234")
+
+    suspended = await user_repo.update(user, status="inactive")
+    assert suspended.status == "inactive"
+    assert suspended.is_active is False
+
+    reactivated = await user_repo.update(suspended, status="active")
+    assert reactivated.status == "active"
+    assert reactivated.is_active is True
+
+
+@pytest.mark.asyncio
 async def test_delete_user(async_session):
     user_repo = UserRepository(async_session)
     user_service = UserService(user_repo)

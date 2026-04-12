@@ -6,7 +6,7 @@ import secrets
 import jwt
 
 from backend.config.settings import settings
-from backend.core.security.user_state import is_user_active, normalize_user_status
+from backend.core.security.user_state import is_user_active, normalize_user_status, user_status_is_active
 from backend.core.security.jwt_utils import create_access_token, create_refresh_token, decode_token
 from backend.models.user import User
 from backend.repositories.user import UserRepository
@@ -51,12 +51,39 @@ class AuthService:
         return 0
 
     @staticmethod
-    def _is_user_enabled(user: User) -> bool:
-        return is_user_active(user)
+    def _coerce_user_active_flag(raw_value: object, fallback: bool | None) -> bool:
+        if isinstance(raw_value, bool):
+            return raw_value
+        if fallback is not None:
+            return fallback
+        return bool(raw_value)
 
     @classmethod
-    def _assert_user_enabled(cls, user: User) -> None:
-        if not cls._is_user_enabled(user):
+    def _is_user_enabled(
+        cls,
+        user: User,
+        *,
+        fallback_status: str | None = None,
+        fallback_is_active: bool | None = None,
+    ) -> bool:
+        try:
+            return is_user_active(user)
+        except ValueError:
+            if fallback_status is None:
+                return False
+            return cls._coerce_user_active_flag(getattr(user, "is_active", fallback_is_active), fallback_is_active) and user_status_is_active(
+                fallback_status
+            )
+
+    @classmethod
+    def _assert_user_enabled(
+        cls,
+        user: User,
+        *,
+        fallback_status: str | None = None,
+        fallback_is_active: bool | None = None,
+    ) -> None:
+        if not cls._is_user_enabled(user, fallback_status=fallback_status, fallback_is_active=fallback_is_active):
             raise ValueError("Inactive user")
 
     async def register(self, email: str, username: str, password: str | None) -> User:
@@ -99,7 +126,7 @@ class AuthService:
             )
         else:
             user = await self.user_repo.update(user, **identity)
-        self._assert_user_enabled(user)
+        self._assert_user_enabled(user, fallback_status=status, fallback_is_active=user_status_is_active(status))
         return self.issue_token(user)
 
     async def login_sso(self, id_token: str, nonce: str | None = None) -> TokenPair:
@@ -213,7 +240,7 @@ class AuthService:
             )
         else:
             user = await self.user_repo.update(user, **identity)
-        self._assert_user_enabled(user)
+        self._assert_user_enabled(user, fallback_status=status, fallback_is_active=user_status_is_active(status))
         return self.issue_token(user)
 
     async def refresh_token(self, refresh_token: str) -> TokenPair:

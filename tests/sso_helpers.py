@@ -2,6 +2,7 @@ from datetime import datetime, timedelta, timezone
 from unittest.mock import patch
 from urllib.parse import parse_qs, urlparse
 
+from backend.core.security.user_state import DEFAULT_USER_STATUS
 from backend.services.sso_oidc import SSOOIDCService
 
 
@@ -13,7 +14,7 @@ def build_sso_claims(
     enterprise_id: str | None = None,
     team_id: str | None = None,
     role: str = "member",
-    status: str = "active",
+    status: str = DEFAULT_USER_STATUS,
     extra_claims: dict | None = None,
 ) -> dict:
     now = datetime.now(timezone.utc)
@@ -44,7 +45,7 @@ async def sso_login(
     enterprise_id: str | None = None,
     team_id: str | None = None,
     role: str = "member",
-    status: str = "active",
+    status: str = DEFAULT_USER_STATUS,
     extra_claims: dict | None = None,
 ) -> str:
     authorize = await client.get("/api/v1/auth/sso/authorize", follow_redirects=False)

@@ -1,6 +1,7 @@
 import type {
   TokenPair,
-  Skill,
+  ConsoleSkill,
+  PublicSkill,
   SkillVisible,
   Token,
   User,
@@ -314,28 +315,28 @@ export const api = {
     if (query) params.set("q", query)
     if (includeInactive) params.set("include_inactive", "true")
     const queryString = params.toString()
-    return apiFetch<{ items: Skill[]; total: number }>(`/api/v1/skills${queryString ? `?${queryString}` : ""}`)
+    return apiFetch<{ items: ConsoleSkill[]; total: number }>(`/api/v1/skills${queryString ? `?${queryString}` : ""}`)
   },
   listPublicSkills: (query?: string) => {
     const params = new URLSearchParams()
     if (query) params.set("q", query)
     const queryString = params.toString()
-    return apiFetch<{ items: Skill[]; total: number }>(`/api/v1/skills/public${queryString ? `?${queryString}` : ""}`)
+    return apiFetch<{ items: PublicSkill[]; total: number }>(`/api/v1/skills/public${queryString ? `?${queryString}` : ""}`)
   },
-  getPublicSkill: (skillUuid: string) => apiFetch<Skill>(`/api/v1/skills/public/${skillUuid}`),
+  getPublicSkill: (skillUuid: string) => apiFetch<PublicSkill>(`/api/v1/skills/public/${skillUuid}`),
   createSkill: (payload: { name: string; description?: string | null; tags?: string[]; visible?: "private" | "team" | "enterprise" }) =>
-    apiFetch<Skill>("/api/v1/skills", { method: "POST", body: JSON.stringify(payload) }),
-  getSkill: (skillUuid: string) => apiFetch<Skill>(`/api/v1/skills/${skillUuid}`),
+    apiFetch<ConsoleSkill>("/api/v1/skills", { method: "POST", body: JSON.stringify(payload) }),
+  getSkill: (skillUuid: string) => apiFetch<ConsoleSkill>(`/api/v1/skills/${skillUuid}`),
   updateSkill: (skillUuid: string, payload: { name?: string; description?: string | null; tags?: string[]; visible?: "private" | "team" | "enterprise" }) =>
-    apiFetch<Skill>(`/api/v1/skills/${skillUuid}`, { method: "PUT", body: JSON.stringify(payload) }),
+    apiFetch<ConsoleSkill>(`/api/v1/skills/${skillUuid}`, { method: "PUT", body: JSON.stringify(payload) }),
   referencePublicSkill: (skillUuid: string, payload: PublicSkillReferenceRequest) =>
-    apiFetch<Skill>(`/api/v1/skills/${skillUuid}/reference`, { method: "POST", body: JSON.stringify(payload) }),
+    apiFetch<ConsoleSkill>(`/api/v1/skills/${skillUuid}/reference`, { method: "POST", body: JSON.stringify(payload) }),
   clonePublicSkill: (skillUuid: string, payload: PublicSkillCloneRequest) =>
-    apiFetch<Skill>(`/api/v1/skills/${skillUuid}/clone`, { method: "POST", body: JSON.stringify(payload) }),
+    apiFetch<ConsoleSkill>(`/api/v1/skills/${skillUuid}/clone`, { method: "POST", body: JSON.stringify(payload) }),
   pinReferenceSkillVersion: (skillUuid: string, version: string) =>
-    apiFetch<Skill>(`/api/v1/skills/${skillUuid}/pin`, { method: "PUT", body: JSON.stringify({ version }) }),
+    apiFetch<ConsoleSkill>(`/api/v1/skills/${skillUuid}/pin`, { method: "PUT", body: JSON.stringify({ version }) }),
   unpinReferenceSkillVersion: (skillUuid: string) =>
-    apiFetch<Skill>(`/api/v1/skills/${skillUuid}/unpin`, { method: "PUT", body: JSON.stringify({}) }),
+    apiFetch<ConsoleSkill>(`/api/v1/skills/${skillUuid}/unpin`, { method: "PUT", body: JSON.stringify({}) }),
   deleteSkill: (skillUuid: string, deleteArchives?: boolean) => {
     const params = new URLSearchParams()
     if (deleteArchives) params.set("delete_archives", "true")
@@ -343,9 +344,9 @@ export const api = {
     return apiFetch(`/api/v1/skills/${skillUuid}${queryString ? `?${queryString}` : ""}`, { method: "DELETE" })
   },
   activateSkill: (skillUuid: string) =>
-    apiFetch<Skill>(`/api/v1/skills/${skillUuid}/activate`, { method: "POST" }),
+    apiFetch<ConsoleSkill>(`/api/v1/skills/${skillUuid}/activate`, { method: "POST" }),
   deactivateSkill: (skillUuid: string) =>
-    apiFetch<Skill>(`/api/v1/skills/${skillUuid}/deactivate`, { method: "POST" }),
+    apiFetch<ConsoleSkill>(`/api/v1/skills/${skillUuid}/deactivate`, { method: "POST" }),
   getSkillCachePolicy: () =>
     apiFetch<SkillCachePolicyResponse>("/api/v1/skills/cache-policy"),
 
@@ -460,7 +461,7 @@ export const api = {
     apiFetch<SkillVersion>(`/api/v1/skills/${skillUuid}/versions/${version}/rollback`, { method: "POST" }),
   downloadSkill: (payload: { skill_uuid: string; version?: string; signal?: AbortSignal }) => {
     const { signal, ...body } = payload
-    return apiFetch<SkillDownloadResponse>("/api/v1/skills/download", {
+    return apiFetch<SkillDownloadResponse>("/api/v1/client/skills/download", {
       method: "POST",
       body: JSON.stringify(body),
       signal,
@@ -468,7 +469,7 @@ export const api = {
   },
   downloadSkillRaw: async (payload: { skill_uuid: string; version?: string; signal?: AbortSignal }) => {
     const { signal, ...body } = payload
-    const text = await apiFetchText("/api/v1/skills/download", {
+    const text = await apiFetchText("/api/v1/client/skills/download", {
       method: "POST",
       body: JSON.stringify(body),
       signal,

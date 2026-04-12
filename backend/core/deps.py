@@ -23,7 +23,7 @@ from fastapi.security import OAuth2PasswordBearer
 from starlette import status
 
 from backend.config.settings import settings
-from backend.core.middleware.auth import get_current_active_user
+from backend.core.middleware.auth import assert_user_active, get_current_active_user
 from backend.core.security.rbac import has_permission
 from backend.db.session import get_async_session
 from backend.repositories.skill import SkillRepository
@@ -139,12 +139,20 @@ async def get_current_api_token_user(
             headers={"WWW-Authenticate": "Bearer"},
         ) from exc
     user = await token_service.user_repo.get_by_id(token.user_id)
-    if not user or not user.is_active:
+    if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Inactive user",
+            detail="User not found",
             headers={"WWW-Authenticate": "Bearer"},
         )
+    try:
+        assert_user_active(user)
+    except HTTPException as exc:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=str(exc.detail),
+            headers={"WWW-Authenticate": "Bearer"},
+        ) from exc
     return user
 
 

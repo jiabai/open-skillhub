@@ -42,36 +42,6 @@ const publicSkillsPayload = {
   total: 1,
 } as any
 
-function mockDownloadDom() {
-  const createObjectURLMock = vi.fn(() => "blob:public-skill-download")
-  const revokeObjectURLMock = vi.fn()
-  const originalCreateObjectURL = URL.createObjectURL
-  const originalRevokeObjectURL = URL.revokeObjectURL
-  const clickMock = vi.fn()
-  const appendChildSpy = vi.spyOn(document.body, "appendChild")
-  const removeChildSpy = vi.spyOn(document.body, "removeChild")
-  const createElementSpy = vi.spyOn(document, "createElement").mockImplementation((tagName: string) => {
-    const element = document.createElementNS("http://www.w3.org/1999/xhtml", tagName)
-    if (tagName.toLowerCase() === "a") {
-      Object.defineProperty(element, "click", { value: clickMock })
-    }
-    return element
-  })
-  Object.defineProperty(URL, "createObjectURL", { value: createObjectURLMock, configurable: true })
-  Object.defineProperty(URL, "revokeObjectURL", { value: revokeObjectURLMock, configurable: true })
-
-  return {
-    clickMock,
-    restore() {
-      createElementSpy.mockRestore()
-      appendChildSpy.mockRestore()
-      removeChildSpy.mockRestore()
-      Object.defineProperty(URL, "createObjectURL", { value: originalCreateObjectURL, configurable: true })
-      Object.defineProperty(URL, "revokeObjectURL", { value: originalRevokeObjectURL, configurable: true })
-    },
-  }
-}
-
 describe("console pages", () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -179,7 +149,6 @@ describe("console pages", () => {
       await screen.findByText("Best when you want to start using a public Skill quickly without taking over its files.")
     ).toBeInTheDocument()
     expect(await screen.findByRole("button", { name: "Clone" })).toBeInTheDocument()
-    expect(await screen.findByRole("button", { name: "Download" })).toBeInTheDocument()
     expect(await screen.findByText("Recommended first step: Reference")).toBeInTheDocument()
   })
 
@@ -189,16 +158,6 @@ describe("console pages", () => {
 
     render(<PublicSkillsPage />)
     await screen.findByText("Starter Skill")
-
-    const downloadDom = mockDownloadDom()
-
-    fireEvent.click(screen.getByRole("button", { name: "Download" }))
-    await waitFor(() => {
-      expect(api.downloadSkillRaw).toHaveBeenCalledWith({ skill_uuid: "public-1", version: "1.2.3" })
-    })
-    await waitFor(() => {
-      expect(downloadDom.clickMock).toHaveBeenCalled()
-    })
 
     fireEvent.click(screen.getByRole("button", { name: "Add Reference" }))
     await waitFor(() => {
@@ -211,43 +170,6 @@ describe("console pages", () => {
       expect(api.clonePublicSkill).toHaveBeenCalledWith("public-1", { name: "Starter Skill-copy", visible: "private" })
     })
     expect(await screen.findByText("Clone created")).toBeInTheDocument()
-
-    downloadDom.restore()
-  })
-
-  it("downloads encrypted public skill after confirmation", async () => {
-    vi.mocked(api.listPublicSkills).mockResolvedValue(publicSkillsPayload)
-    vi.mocked(api.downloadSkillRaw).mockResolvedValueOnce({
-      rawText: '{"encrypted":true}',
-      payload: {
-        skill_uuid: "public-1",
-        version: "1.2.3",
-        encrypted_code: "abc",
-        checksum: "sha256:123",
-        expires_at: "2026-04-08T00:00:00Z",
-        archive_size_bytes: 128,
-        encryption_enabled: true,
-        download_filename: "skill-public-1-1.2.3.encrypted.json",
-        decryption_hint: "Use the official decryption tool.",
-      },
-    } as any)
-    const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(true)
-    const downloadDom = mockDownloadDom()
-
-    render(<PublicSkillsPage />)
-    await screen.findByText("Starter Skill")
-
-    fireEvent.click(screen.getByRole("button", { name: "Download" }))
-
-    await waitFor(() => {
-      expect(confirmSpy).toHaveBeenCalledWith("Use the official decryption tool.")
-    })
-    await waitFor(() => {
-      expect(downloadDom.clickMock).toHaveBeenCalled()
-    })
-
-    confirmSpy.mockRestore()
-    downloadDom.restore()
   })
 
   it("renders skill detail with type explanation", async () => {

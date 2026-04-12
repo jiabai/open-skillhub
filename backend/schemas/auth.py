@@ -1,4 +1,6 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
+
+from backend.core.security.user_state import UserStatus, normalize_user_status
 
 
 class LDAPLoginRequest(BaseModel):
@@ -10,4 +12,11 @@ class UserIdentityUpdate(BaseModel):
     enterprise_id: str | None = Field(default=None, max_length=100)
     team_id: str | None = Field(default=None, max_length=100)
     role: str | None = Field(default=None, max_length=50)
-    status: str | None = Field(default=None, max_length=32)
+    status: UserStatus | None = Field(default=None, max_length=32)
+
+    @field_validator("status")
+    @classmethod
+    def validate_status(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        return normalize_user_status(value)

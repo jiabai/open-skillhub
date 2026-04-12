@@ -6,6 +6,7 @@ import secrets
 import jwt
 
 from backend.config.settings import settings
+from backend.core.security.user_state import is_user_active, normalize_user_status
 from backend.core.security.jwt_utils import create_access_token, create_refresh_token, decode_token
 from backend.models.user import User
 from backend.repositories.user import UserRepository
@@ -49,6 +50,15 @@ class AuthService:
                 return 0
         return 0
 
+    @staticmethod
+    def _is_user_enabled(user: User) -> bool:
+        return is_user_active(user)
+
+    @classmethod
+    def _assert_user_enabled(cls, user: User) -> None:
+        if not cls._is_user_enabled(user):
+            raise ValueError("Inactive user")
+
     async def register(self, email: str, username: str, password: str | None) -> User:
         if await self.user_repo.get_by_email(email):
             raise ValueError("Email already registered")
@@ -67,7 +77,7 @@ class AuthService:
         enterprise_id = str(payload.get(settings.SSO_ENTERPRISE_CLAIM) or "").strip() or None
         team_id = str(payload.get(settings.SSO_TEAM_CLAIM) or "").strip() or None
         role = str(payload.get(settings.SSO_ROLE_CLAIM) or settings.DEFAULT_ROLE).strip()
-        status = str(payload.get(settings.SSO_STATUS_CLAIM) or settings.DEFAULT_USER_STATUS).strip()
+        status = normalize_user_status(payload.get(settings.SSO_STATUS_CLAIM), settings.DEFAULT_USER_STATUS)
         if not settings.ENABLE_ORG_MODEL:
             enterprise_id = None
             team_id = None
@@ -89,6 +99,7 @@ class AuthService:
             )
         else:
             user = await self.user_repo.update(user, **identity)
+        self._assert_user_enabled(user)
         return self.issue_token(user)
 
     async def login_sso(self, id_token: str, nonce: str | None = None) -> TokenPair:
@@ -162,7 +173,7 @@ class AuthService:
         enterprise_id = None
         team_id = None
         role = settings.DEFAULT_ROLE
-        status = settings.DEFAULT_USER_STATUS
+        status = normalize_user_status(settings.DEFAULT_USER_STATUS)
         if settings.LDAP_SEARCH_BASE:
             conn.search(
                 search_base=settings.LDAP_SEARCH_BASE,
@@ -177,7 +188,7 @@ class AuthService:
             enterprise_id = str(entry[settings.LDAP_ENTERPRISE_ATTR].value or "") or None
             team_id = str(entry[settings.LDAP_TEAM_ATTR].value or "") or None
             role = str(entry[settings.LDAP_ROLE_ATTR].value or settings.DEFAULT_ROLE)
-            status = str(entry[settings.LDAP_STATUS_ATTR].value or settings.DEFAULT_USER_STATUS)
+            status = normalize_user_status(entry[settings.LDAP_STATUS_ATTR].value, settings.DEFAULT_USER_STATUS)
         if not settings.ENABLE_ORG_MODEL:
             enterprise_id = None
             team_id = None
@@ -202,6 +213,7 @@ class AuthService:
             )
         else:
             user = await self.user_repo.update(user, **identity)
+        self._assert_user_enabled(user)
         return self.issue_token(user)
 
     async def refresh_token(self, refresh_token: str) -> TokenPair:
@@ -212,8 +224,9 @@ class AuthService:
         if not subject:
             raise ValueError("Invalid token")
         user = await self.user_repo.get_by_id(subject)
-        if not user or not user.is_active:
+        if not user:
             raise ValueError("User not found")
+        self._assert_user_enabled(user)
         if payload.get("ver", 0) != self._get_token_version(user):
             raise ValueError("Token revoked")
         return self.issue_token(user)

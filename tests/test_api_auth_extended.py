@@ -199,6 +199,18 @@ class TestAPISkillsUnauthorized:
         assert response.status_code == 401
 
     @pytest.mark.asyncio
+    async def test_list_public_skills_unauthorized(self, client):
+        """测试未授权列出公共技能"""
+        response = await client.get("/api/v1/skills/public")
+        assert response.status_code == 401
+
+    @pytest.mark.asyncio
+    async def test_get_public_skill_unauthorized(self, client):
+        """测试未授权获取公共技能详情"""
+        response = await client.get("/api/v1/skills/public/123")
+        assert response.status_code == 401
+
+    @pytest.mark.asyncio
     async def test_distribution_endpoints_reject_jwt_access_token(self, client):
         token = await sso_login(
             client,
@@ -212,12 +224,12 @@ class TestAPISkillsUnauthorized:
 
         list_response = await client.get("/api/v1/skills", headers=headers)
         download_response = await client.post(
-            "/api/v1/skills/download",
+            "/api/v1/client/skills/download",
             json={"skill_uuid": "00000000-0000-0000-0000-000000000000"},
             headers=headers,
         )
 
-        assert list_response.status_code == 401
+        assert list_response.status_code == 200
         assert download_response.status_code == 401
 
 

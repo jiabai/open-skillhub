@@ -95,9 +95,15 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     enableAuditLog: featureFlags.enableAuditLog,
   })
 
-  const handleLogout = () => {
-    clearTokens()
-    router.replace("/login")
+  const handleLogout = async () => {
+    try {
+      await api.logout()
+    } catch {
+      // Always clear local credentials, even if the revoke request fails.
+    } finally {
+      clearTokens()
+      router.replace("/login")
+    }
   }
 
   if (isAuthRoute) {
@@ -175,7 +181,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                         </AlertDialogHeader>
                         <AlertDialogFooter>
                           <AlertDialogCancel>Cancel</AlertDialogCancel>
-                          <AlertDialogAction onClick={handleLogout} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                          <AlertDialogAction onClick={() => void handleLogout()} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
                             Sign Out
                           </AlertDialogAction>
                         </AlertDialogFooter>
@@ -238,7 +244,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                           <AlertDialogAction
                             onClick={() => {
                               setMobileNavOpen(false)
-                              handleLogout()
+                              void handleLogout()
                             }}
                             className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                           >

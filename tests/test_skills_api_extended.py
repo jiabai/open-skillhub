@@ -95,7 +95,7 @@ class TestSkillsAPIDownload:
     async def test_download_unauthorized(self, client):
         """测试未授权下载"""
         response = await client.post(
-            "/api/v1/skills/download",
+            "/api/v1/client/skills/download",
             json={"skill_uuid": "some-skill-id"},
         )
 
@@ -184,8 +184,6 @@ class TestSkillsAPISkillLifecycle:
             data = register_response.json()
             token = data.get("access_token")
             headers = {"Authorization": f"Bearer {token}"}
-            api_headers = await _create_client_headers(client, token, name="skills-extended-lifecycle")
-
             # 创建技能
             create_response = await client.post(
                 "/api/v1/skills",
@@ -202,7 +200,7 @@ class TestSkillsAPISkillLifecycle:
                 skill_id = create_response.json()["id"]
 
                 # 获取技能
-                get_response = await client.get(f"/api/v1/skills/{skill_id}", headers=api_headers)
+                get_response = await client.get(f"/api/v1/skills/{skill_id}", headers=headers)
                 assert get_response.status_code == 200
 
                 # 更新技能
@@ -267,8 +265,6 @@ class TestSkillsAPISkillVersionOperations:
         if register_response.status_code == 201:
             token = register_response.json().get("access_token")
             headers = {"Authorization": f"Bearer {token}"}
-            api_headers = await _create_client_headers(client, token, name="skills-extended-versions")
-
             # 创建技能
             create_response = await client.post(
                 "/api/v1/skills",
@@ -285,7 +281,7 @@ class TestSkillsAPISkillVersionOperations:
                 # 列出版本
                 versions_response = await client.get(
                     f"/api/v1/skills/{skill_id}/versions",
-                    headers=api_headers,
+                    headers=headers,
                 )
                 assert versions_response.status_code == 200
 

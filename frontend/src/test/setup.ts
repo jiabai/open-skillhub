@@ -23,6 +23,7 @@ vi.mock("@/lib/api", () => {
       register: vi.fn(async () => ({})),
       login: vi.fn(async () => ({ access_token: "token", refresh_token: "refresh" })),
       refresh: vi.fn(async () => ({ access_token: "token", refresh_token: "refresh" })),
+      logout: vi.fn(async () => ({})),
       getMe: vi.fn(async () => ({ username: "测试用户", email: "user@example.com", is_superuser: false })),
       updateMe: vi.fn(async () => ({})),
       changePassword: vi.fn(async () => ({})),

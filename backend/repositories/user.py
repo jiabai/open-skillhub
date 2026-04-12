@@ -3,6 +3,7 @@ from typing import Any
 from sqlalchemy import select
 
 from backend.core.security.password import get_password_hash
+from backend.core.security.user_state import DEFAULT_USER_STATUS, normalize_user_status, user_status_is_active
 from backend.models.user import User
 from backend.repositories.base import BaseRepository
 
@@ -48,14 +49,16 @@ class UserRepository(BaseRepository):
 
     async def create(self, model: Any = User, **data: Any) -> User:
         password = data.pop("password")
+        normalized_status = normalize_user_status(data.get("status"), DEFAULT_USER_STATUS)
         user = User(
             email=data["email"],
             username=data["username"],
             hashed_password=get_password_hash(password),
+            is_active=user_status_is_active(normalized_status),
             enterprise_id=data.get("enterprise_id"),
             team_id=data.get("team_id"),
             role=data.get("role") or "member",
-            status=data.get("status") or "active",
+            status=normalized_status,
         )
         self.session.add(user)
         await self.session.commit()

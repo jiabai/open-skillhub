@@ -25,14 +25,14 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { getAppMode } from "@/lib/app-mode"
 import { api } from "@/lib/api"
-import type { Skill } from "@/types"
+import type { ConsoleSkill } from "@/types"
 import { useToast } from "@/hooks/use-toast"
 
 export default function SkillsPage() {
   const { success, error: showError } = useToast()
   const [query, setQuery] = useState("")
   const [includeInactive, setIncludeInactive] = useState(false)
-  const [skills, setSkills] = useState<Skill[]>([])
+  const [skills, setSkills] = useState<ConsoleSkill[]>([])
   const [status, setStatus] = useState<"idle" | "loading" | "error">("idle")
   const [error, setError] = useState<string | null>(null)
   const appMode = getAppMode()
@@ -81,7 +81,7 @@ export default function SkillsPage() {
     }
   }
 
-  const getKindSummary = (skill: Skill) => {
+  const getKindSummary = (skill: ConsoleSkill) => {
     if (skill.skill_kind === "reference" || skill.is_reference_read_only) {
       return skill.pinned_version ? `Reference - pinned to v${skill.pinned_version}` : "Reference - follows public source"
     }

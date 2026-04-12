@@ -4,9 +4,12 @@ from sqlalchemy import select
 
 from backend.api_app import create_application
 from backend.config.settings import settings
+from backend.core.security.user_state import DEFAULT_USER_STATUS, UserStatus
 from backend.models.audit_log import AuditLog
+from backend.models.user import User
 from backend.repositories.user import UserRepository
 from backend.services.auth import AuthService
+from sso_helpers import sso_login
 
 
 @pytest.mark.asyncio
@@ -156,6 +159,49 @@ async def test_logout_revokes_existing_access_and_refresh_tokens(client, async_s
     refreshed = await client.post("/api/v1/auth/refresh", json={"refresh_token": refresh_token})
     assert refreshed.status_code == 401
     assert refreshed.json()["detail"] == "Token revoked"
+
+
+@pytest.mark.asyncio
+async def test_login_does_not_auto_register_when_public_signup_disabled(client, async_session, monkeypatch):
+    monkeypatch.setattr(settings, "ENABLE_PUBLIC_SIGNUP", False)
+    await client.post(
+        "/api/v1/auth/verification-code",
+        json={"email": "blocked-signup@example.com", "purpose": "login"},
+    )
+
+    login = await client.post(
+        "/api/v1/auth/login",
+        json={"email": "blocked-signup@example.com", "code": "123456"},
+    )
+
+    assert login.status_code == 403
+    result = await async_session.execute(select(User).where(User.email == "blocked-signup@example.com"))
+    assert result.scalar_one_or_none() is None
+
+
+@pytest.mark.asyncio
+async def test_user_with_inactive_status_cannot_access_authenticated_endpoints(client, async_session):
+    access_token = await sso_login(
+        client,
+        email="inactive-status@example.com",
+        username="inactive-status",
+        enterprise_id="ent-inactive",
+        team_id="team-inactive",
+        role="member",
+        status=DEFAULT_USER_STATUS,
+    )
+    user_repo = UserRepository(async_session)
+    user = await user_repo.get_by_email("inactive-status@example.com")
+    assert user is not None
+    await user_repo.update(user, status=UserStatus.INACTIVE)
+
+    response = await client.get(
+        "/api/v1/users/me",
+        headers={"Authorization": f"Bearer {access_token}"},
+    )
+
+    assert response.status_code == 403
+    assert response.json()["detail"] == "Inactive user"
 
 
 @pytest.mark.asyncio

@@ -1,4 +1,4 @@
-import { Copy, Download, Link2 } from "lucide-react"
+import { Copy, Link2 } from "lucide-react"
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 
@@ -13,16 +13,11 @@ const items = [
     description: "Best when you expect to edit code, manage versions yourself, or maintain a private fork.",
     icon: Copy,
   },
-  {
-    title: "Download",
-    description: "Best when you need an archive artifact and already have download access to that Skill.",
-    icon: Download,
-  },
 ]
 
 export function SkillTypeExplainer() {
   return (
-    <div className="grid gap-4 md:grid-cols-3">
+    <div className="grid gap-4 md:grid-cols-2">
       {items.map((item) => {
         const Icon = item.icon
 

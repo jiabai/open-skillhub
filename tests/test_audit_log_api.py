@@ -51,7 +51,7 @@ async def test_audit_log_query_and_export(client):
     rollback = await client.post(f"/api/v1/skills/{skill_id}/versions/1.0.0/rollback", headers=headers)
     assert rollback.status_code == 200
     download = await client.post(
-        "/api/v1/skills/download",
+        "/api/v1/client/skills/download",
         json={"skill_uuid": skill_id, "version": "1.0.0"},
         headers=api_headers,
     )

@@ -3,6 +3,7 @@ from urllib.parse import parse_qs, urlparse
 import pytest
 from sqlalchemy import select
 
+from backend.core.security.user_state import DEFAULT_USER_STATUS
 from backend.models.sso_auth_request import SSOAuthRequest
 from backend.models.user import User
 from backend.services.sso_oidc import SSOOIDCService
@@ -55,7 +56,7 @@ async def test_sso_callback_exchanges_code_and_redirects_with_app_tokens(client,
             "enterprise_id": "ent-oidc",
             "team_id": "team-oidc",
             "role": "admin",
-            "status": "active",
+            "status": DEFAULT_USER_STATUS,
             "iat": 1704067200,
             "exp": 4102444800,
             "jti": "oidc-jti-123",

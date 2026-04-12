@@ -119,7 +119,7 @@ def _register_operational_endpoints(application: FastAPI) -> None:
 def _register_request_size_middleware(application: FastAPI) -> None:
     @application.middleware("http")
     async def limit_skill_download_request_size(request: Request, call_next):
-        if request.method == "POST" and request.url.path == "/api/v1/skills/download":
+        if request.method == "POST" and request.url.path == "/api/v1/client/skills/download":
             content_length = request.headers.get("content-length")
             if content_length:
                 try:

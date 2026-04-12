@@ -1,6 +1,7 @@
 from datetime import datetime
 
 from pydantic import BaseModel, EmailStr, Field
+from backend.core.security.user_state import UserStatus
 
 
 class UserCreate(BaseModel):
@@ -48,7 +49,7 @@ class UserResponse(BaseModel):
     enterprise_id: str | None = None
     team_id: str | None = None
     role: str
-    status: str
+    status: UserStatus
     created_at: datetime
     updated_at: datetime
 

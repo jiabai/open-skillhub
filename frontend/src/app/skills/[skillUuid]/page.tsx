@@ -7,7 +7,7 @@ import { Eye, FileText, Loader2, Save, Trash2 } from "lucide-react"
 
 import { api } from "@/lib/api"
 import { featureFlags } from "@/lib/feature-flags"
-import type { Skill, SkillVisible } from "@/types"
+import type { ConsoleSkill, SkillVisible } from "@/types"
 import { useToast } from "@/hooks/use-toast"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog"
 import { Badge } from "@/components/ui/badge"
@@ -29,7 +29,7 @@ type SkillDetailProps = {
 export default function SkillDetailPage({ params }: SkillDetailProps) {
   const { success, error: showError } = useToast()
   const router = useRouter()
-  const [skill, setSkill] = useState<Skill | null>(null)
+  const [skill, setSkill] = useState<ConsoleSkill | null>(null)
   const [files, setFiles] = useState<string[]>([])
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading")
   const [error, setError] = useState<string | null>(null)

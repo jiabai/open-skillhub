@@ -14,7 +14,8 @@ from backend.repositories.audit_log import AuditLogRepository
 from backend.repositories.skill import SkillRepository
 from backend.repositories.skill_version import SkillVersionRepository
 from backend.repositories.user import UserRepository
-from backend.schemas.skill import PublicSkillListItem, SkillResponse
+from backend.schemas.skill import PublicSkillListItem, PublicSkillResponse, SkillConsoleResponse
+from backend.schemas.skill_download import SkillDownloadRequest, SkillDownloadResponse
 from backend.services.audit import AuditService
 from backend.services.skill import DownloadTooLargeError, SkillService
 from backend.services.skill_errors import SkillError, SkillErrorCode
@@ -138,12 +139,12 @@ async def get_optional_current_user(
     return user
 
 
-async def serialize_skill(service: SkillService, skill) -> SkillResponse:
-    payload = SkillResponse.model_validate(skill).model_dump(by_alias=True)
+async def serialize_skill(service: SkillService, skill) -> SkillConsoleResponse:
+    payload = SkillConsoleResponse.model_validate(skill).model_dump(by_alias=True)
     payload["resolved_version"] = await service.resolved_version_for_skill(skill)
     payload["skill_kind"] = await service.skill_kind(skill)
     payload["is_reference_read_only"] = service.is_reference_skill(skill)
-    return SkillResponse.model_validate(payload)
+    return SkillConsoleResponse.model_validate(payload)
 
 
 async def serialize_public_skill(
@@ -152,7 +153,9 @@ async def serialize_public_skill(
     reference_source_ids: set[str] | None = None,
     clone_source_ids: set[str] | None = None,
 ) -> PublicSkillListItem:
-    payload = (await serialize_skill(service, skill)).model_dump(by_alias=True)
+    payload = PublicSkillResponse.model_validate(skill).model_dump(by_alias=True)
+    payload["resolved_version"] = await service.resolved_version_for_skill(skill)
+    payload["skill_kind"] = "public"
     payload["has_reference"] = False
     payload["has_clone"] = False
     if reference_source_ids is not None:
@@ -231,6 +234,46 @@ async def create_audit_event(
     )
 
 
+async def handle_skill_download_request(
+    request: Request,
+    payload: SkillDownloadRequest,
+    current_user,
+    session,
+) -> SkillDownloadResponse:
+    service = build_skill_service(session)
+    try:
+        await enforce_download_rate_limit(request, current_user)
+        result = await service.download_skill(current_user, payload.skill_uuid, payload.version)
+    except DownloadTooLargeError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_413_CONTENT_TOO_LARGE,
+            detail=f"Download too large ({exc.size_bytes // 1024 // 1024}MB). Max allowed is {exc.limit_bytes // 1024 // 1024}MB.",
+        ) from exc
+    except ValueError as exc:
+        raise handle_skill_value_error(exc) from exc
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Download failed") from exc
+
+    response_payload = SkillDownloadResponse.model_validate(result)
+    await create_audit_event(
+        session,
+        request,
+        current_user,
+        "skill.download",
+        payload.skill_uuid,
+        metadata={
+            "version": response_payload.version,
+            "requested_version": payload.version or "(current)",
+            "archive_size_bytes": response_payload.archive_size_bytes,
+            "encryption_enabled": response_payload.encryption_enabled,
+            "download_filename": response_payload.download_filename,
+        },
+    )
+    return response_payload
+
+
 __all__ = [
     "DownloadTooLargeError",
     "_download_rate_limit_state",
@@ -238,6 +281,7 @@ __all__ = [
     "create_audit_event",
     "enforce_download_rate_limit",
     "get_optional_current_user",
+    "handle_skill_download_request",
     "handle_skill_value_error",
     "serialize_public_skill",
     "serialize_skill",

@@ -4,38 +4,30 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Reques
 from loguru import logger
 
 from backend.config.settings import settings
-from backend.core.deps import (
-    require_api_token_permission,
-    require_api_token_skill_download_access,
-    require_permission,
-)
+from backend.core.deps import require_permission
 from backend.core.utils.skill_storage import MAX_FILE_SIZE, MAX_TOTAL_SIZE
 from backend.db.session import get_async_session
 from backend.repositories.skill import SkillRepository
 from backend.api.v1.skills_support import (
-    DownloadTooLargeError,
     _download_rate_limit_state,
     build_skill_service,
     create_audit_event,
-    enforce_download_rate_limit,
-    get_optional_current_user,
     handle_skill_value_error,
     serialize_public_skill,
     serialize_skill,
     stream_upload_to_temp_file,
 )
-from backend.services.skill import SkillService
-from backend.schemas.skill_download import SkillDownloadRequest, SkillDownloadResponse
 from backend.schemas.skill_lifecycle import SkillInstallInstructionsResponse, SkillVersionDiffResponse
 from backend.schemas.skill import (
     SkillCachePolicyResponse,
     SkillCloneCreate,
+    SkillConsoleResponse,
     SkillCreate,
     SkillListResponse,
     SkillPinVersionRequest,
     PublicSkillListResponse,
+    PublicSkillResponse,
     SkillReferenceCreate,
-    SkillResponse,
     SkillUpdate,
 )
 from backend.schemas.skill_version import SkillVersionListResponse, SkillVersionResponse
@@ -51,7 +43,7 @@ async def list_skills(
     limit: int = 100,
     q: str | None = None,
     include_inactive: bool = False,
-    current_user=Depends(require_api_token_permission("skill.list")),
+    current_user=Depends(require_permission("skill.list")),
     session=Depends(get_async_session),
 ):
     service = build_skill_service(session)
@@ -80,7 +72,7 @@ async def list_public_skills(
     skip: int = 0,
     limit: int = 100,
     q: str | None = None,
-    current_user=Depends(get_optional_current_user),
+    current_user=Depends(require_permission("skill.list")),
     session=Depends(get_async_session),
 ):
     service = build_skill_service(session)
@@ -102,9 +94,10 @@ async def list_public_skills(
     return PublicSkillListResponse(items=items, total=total)
 
 
-@router.get("/public/{skill_uuid}", response_model=SkillResponse)
+@router.get("/public/{skill_uuid}", response_model=PublicSkillResponse)
 async def get_public_skill(
     skill_uuid: str,
+    current_user=Depends(require_permission("skill.list")),
     session=Depends(get_async_session),
 ):
     service = build_skill_service(session)
@@ -112,7 +105,7 @@ async def get_public_skill(
         skill = await service.get_public_skill(skill_uuid)
     except ValueError as exc:
         raise handle_skill_value_error(exc) from exc
-    return await serialize_skill(service, skill)
+    return await serialize_public_skill(service, skill)
 
 
 @router.get("/cache-policy", response_model=SkillCachePolicyResponse)
@@ -124,8 +117,8 @@ async def get_cache_policy(current_user=Depends(require_permission("skill.read")
     )
 
 
-@router.post("", response_model=SkillResponse, status_code=status.HTTP_201_CREATED)
-@router.post("/", response_model=SkillResponse, status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=SkillConsoleResponse, status_code=status.HTTP_201_CREATED)
+@router.post("/", response_model=SkillConsoleResponse, status_code=status.HTTP_201_CREATED)
 async def create_skill(
     request: Request,
     payload: SkillCreate,
@@ -147,10 +140,10 @@ async def create_skill(
     return await serialize_skill(service, skill)
 
 
-@router.get("/{skill_uuid}", response_model=SkillResponse)
+@router.get("/{skill_uuid}", response_model=SkillConsoleResponse)
 async def get_skill(
     skill_uuid: str,
-    current_user=Depends(require_api_token_permission("skill.read")),
+    current_user=Depends(require_permission("skill.read")),
     session=Depends(get_async_session),
 ):
     service = build_skill_service(session)
@@ -161,7 +154,7 @@ async def get_skill(
     return await serialize_skill(service, skill)
 
 
-@router.put("/{skill_uuid}", response_model=SkillResponse)
+@router.put("/{skill_uuid}", response_model=SkillConsoleResponse)
 async def update_skill(
     request: Request,
     skill_uuid: str,
@@ -201,7 +194,7 @@ async def delete_skill(
     return None
 
 
-@router.post("/{public_uuid}/reference", response_model=SkillResponse, status_code=status.HTTP_201_CREATED)
+@router.post("/{public_uuid}/reference", response_model=SkillConsoleResponse, status_code=status.HTTP_201_CREATED)
 async def create_reference_skill(
     request: Request,
     public_uuid: str,
@@ -225,7 +218,7 @@ async def create_reference_skill(
     return await serialize_skill(service, skill)
 
 
-@router.post("/{public_uuid}/clone", response_model=SkillResponse, status_code=status.HTTP_201_CREATED)
+@router.post("/{public_uuid}/clone", response_model=SkillConsoleResponse, status_code=status.HTTP_201_CREATED)
 async def clone_public_skill(
     request: Request,
     public_uuid: str,
@@ -253,7 +246,7 @@ async def clone_public_skill(
     return await serialize_skill(service, result.skill)
 
 
-@router.put("/{skill_uuid}/pin", response_model=SkillResponse)
+@router.put("/{skill_uuid}/pin", response_model=SkillConsoleResponse)
 async def pin_reference_skill_version(
     request: Request,
     skill_uuid: str,
@@ -272,7 +265,7 @@ async def pin_reference_skill_version(
     return await serialize_skill(service, skill)
 
 
-@router.put("/{skill_uuid}/unpin", response_model=SkillResponse)
+@router.put("/{skill_uuid}/unpin", response_model=SkillConsoleResponse)
 async def unpin_reference_skill_version(
     request: Request,
     skill_uuid: str,
@@ -362,51 +355,7 @@ async def upload_skill_file(
     return {"filename": filename}
 
 
-@router.post("/download", response_model=SkillDownloadResponse)
-async def download_skill(
-    request: Request,
-    payload: SkillDownloadRequest,
-    current_user=Depends(require_api_token_skill_download_access()),
-    session=Depends(get_async_session),
-):
-    service = build_skill_service(session)
-    try:
-        await enforce_download_rate_limit(request, current_user)
-        result = await service.download_skill(current_user, payload.skill_uuid, payload.version)
-    except DownloadTooLargeError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_413_CONTENT_TOO_LARGE,
-            detail=f"Download too large ({exc.size_bytes // 1024 // 1024}MB). Max allowed is {exc.limit_bytes // 1024 // 1024}MB.",
-        ) from exc
-    except ValueError as exc:
-        raise handle_skill_value_error(exc) from exc
-    except HTTPException:
-        raise
-    except Exception as exc:
-        logger.error(
-            f"[DOWNLOAD FAILED] user_id={current_user.id}, skill={payload.skill_uuid}, unexpected_error={str(exc)}",
-            exc_info=True,
-        )
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Download failed") from exc
-    response_payload = SkillDownloadResponse.model_validate(result)
-    await create_audit_event(
-        session,
-        request,
-        current_user,
-        "skill.download",
-        payload.skill_uuid,
-        metadata={
-            "version": response_payload.version,
-            "requested_version": payload.version or "(current)",
-            "archive_size_bytes": response_payload.archive_size_bytes,
-            "encryption_enabled": response_payload.encryption_enabled,
-            "download_filename": response_payload.download_filename,
-        },
-    )
-    return response_payload
-
-
-@router.post("/{skill_uuid}/deactivate", response_model=SkillResponse)
+@router.post("/{skill_uuid}/deactivate", response_model=SkillConsoleResponse)
 async def deactivate_skill(
     request: Request,
     skill_uuid: str,
@@ -422,7 +371,7 @@ async def deactivate_skill(
     return await serialize_skill(service, skill)
 
 
-@router.post("/{skill_uuid}/activate", response_model=SkillResponse)
+@router.post("/{skill_uuid}/activate", response_model=SkillConsoleResponse)
 async def activate_skill(
     request: Request,
     skill_uuid: str,
@@ -441,7 +390,7 @@ async def activate_skill(
 @router.get("/{skill_uuid}/versions", response_model=SkillVersionListResponse)
 async def list_skill_versions(
     skill_uuid: str,
-    current_user=Depends(require_api_token_permission("skill.read")),
+    current_user=Depends(require_permission("skill.read")),
     session=Depends(get_async_session),
 ):
     service = build_skill_service(session)
@@ -473,7 +422,7 @@ async def diff_skill_versions(
 async def get_skill_version(
     skill_uuid: str,
     version: str,
-    current_user=Depends(require_api_token_permission("skill.read")),
+    current_user=Depends(require_permission("skill.read")),
     session=Depends(get_async_session),
 ):
     service = build_skill_service(session)
@@ -488,7 +437,7 @@ async def get_skill_version(
 async def get_install_instructions(
     skill_uuid: str,
     version: str,
-    current_user=Depends(require_api_token_permission("skill.read")),
+    current_user=Depends(require_permission("skill.read")),
     session=Depends(get_async_session),
 ):
     service = build_skill_service(session)

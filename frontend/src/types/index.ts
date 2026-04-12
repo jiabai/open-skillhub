@@ -1,6 +1,8 @@
 // Open SkillHub Frontend Type Definitions
 // 参考文档：docs/frontend-design/01-api-types.md
 
+import type { UserStatus } from "@/lib/user-status"
+
 // ========== 基础类型 ==========
 
 export type TokenPair = {
@@ -13,24 +15,34 @@ export type SkillKind = "regular" | "public" | "reference" | "clone"
 
 // ========== 核心数据模型 ==========
 
-export type Skill = {
+export type ConsoleSkill = {
   id: string
-  user_id?: string
   name: string
   description: string | null
   tags?: string[]
   visible?: SkillVisible
-  enterprise_id?: string | null
-  team_id?: string | null
   source_skill_id?: string | null
   pinned_version?: string | null
   resolved_version?: string | null
   skill_kind?: SkillKind
   is_reference_read_only?: boolean
-  skill_dir?: string
   current_version?: string | null
   is_active?: boolean
-  cache_revoked_at?: string | null
+  created_at?: string
+  updated_at?: string
+}
+
+export type PublicSkill = {
+  id: string
+  name: string
+  description: string | null
+  tags?: string[]
+  visible?: Extract<SkillVisible, "public">
+  pinned_version?: string | null
+  resolved_version?: string | null
+  skill_kind?: Extract<SkillKind, "public">
+  current_version?: string | null
+  is_active?: boolean
   created_at?: string
   updated_at?: string
   has_reference?: boolean
@@ -57,7 +69,7 @@ export type User = {
   enterprise_id: string | null
   team_id: string | null
   role: string
-  status: string
+  status: UserStatus
   created_at: string
   updated_at: string
 }
@@ -66,7 +78,7 @@ export type UserIdentityUpdate = {
   enterprise_id?: string | null
   team_id?: string | null
   role?: string | null
-  status?: string | null
+  status?: UserStatus | null
 }
 
 // ========== 响应类型 ==========
@@ -211,7 +223,12 @@ export type ApiErrorResponse = {
 // ========== 列表响应类型 ==========
 
 export type SkillListResponse = {
-  items: Skill[]
+  items: ConsoleSkill[]
+  total: number
+}
+
+export type PublicSkillListResponse = {
+  items: PublicSkill[]
   total: number
 }
 

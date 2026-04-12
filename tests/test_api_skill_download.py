@@ -9,6 +9,7 @@ import pytest
 from sso_helpers import create_api_token, sso_login
 
 from backend.config.settings import settings
+from backend.core.security.user_state import UserStatus
 from backend.core.utils.skill_storage import SYSTEM_USER_ID, create_skill_dir, get_skill_versions_dir
 from backend.models.skill import Skill
 from backend.models.skill_version import SkillVersion
@@ -49,7 +50,7 @@ async def _create_public_skill(async_session, name: str = "public-download-skill
             is_active=False,
             is_superuser=True,
             role="admin",
-            status="inactive",
+            status=UserStatus.INACTIVE,
         )
         async_session.add(system_user)
         await async_session.flush()
@@ -152,7 +153,7 @@ async def test_skill_download_returns_encrypted_payload(client, tmp_path, monkey
         extra_files={"reference.md": "hello"},
     )
     response = await client.post(
-        "/api/v1/skills/download",
+        "/api/v1/client/skills/download",
         json={"skill_uuid": skill_id, "version": "1.0.0"},
         headers=api_headers,
     )
@@ -182,7 +183,7 @@ async def test_skill_download_denied_without_permission(client, tmp_path, monkey
     )
     skill_id = await _create_uploaded_skill(client, headers, "skilldl2")
     response = await client.post(
-        "/api/v1/skills/download",
+        "/api/v1/client/skills/download",
         json={"skill_uuid": skill_id, "version": "1.0.0"},
         headers=api_headers,
     )
@@ -205,7 +206,7 @@ async def test_skill_download_returns_gone_for_deactivated_skill(client, tmp_pat
     assert deactivate_response.status_code == 200
 
     response = await client.post(
-        "/api/v1/skills/download",
+        "/api/v1/client/skills/download",
         json={"skill_uuid": skill_id, "version": "1.0.0"},
         headers=api_headers,
     )
@@ -218,7 +219,7 @@ async def test_skill_download_returns_gone_for_deactivated_skill(client, tmp_pat
 
 @pytest.mark.asyncio
 async def test_skill_download_returns_safe_500_for_unexpected_error(client, tmp_path, monkeypatch):
-    from backend.api.v1 import skills as skills_api
+    from backend.services.skill import SkillService
 
     monkeypatch.setenv("SKILL_STORAGE_PATH", str(tmp_path))
     headers, api_headers = await _login_with_client_token(
@@ -230,10 +231,10 @@ async def test_skill_download_returns_safe_500_for_unexpected_error(client, tmp_
     async def broken_download_skill(self, user, skill_uuid, version=None):
         raise RuntimeError("database offline")
 
-    monkeypatch.setattr(skills_api.SkillService, "download_skill", broken_download_skill)
+    monkeypatch.setattr(SkillService, "download_skill", broken_download_skill)
 
     response = await client.post(
-        "/api/v1/skills/download",
+        "/api/v1/client/skills/download",
         json={"skill_uuid": "00000000-0000-0000-0000-000000000000", "version": "1.0.0"},
         headers=api_headers,
     )
@@ -254,7 +255,7 @@ async def test_skill_download_rejects_invalid_uuid(client):
     )
 
     response = await client.post(
-        "/api/v1/skills/download",
+        "/api/v1/client/skills/download",
         json={"skill_uuid": "not-a-valid-uuid", "version": "1.0.0"},
         headers=api_headers,
     )
@@ -278,7 +279,7 @@ async def test_skill_download_rejects_oversized_request_body(client):
     settings.SKILL_DOWNLOAD_MAX_REQUEST_BYTES = 64
     try:
         response = await client.post(
-            "/api/v1/skills/download",
+            "/api/v1/client/skills/download",
             json={"skill_uuid": "00000000-0000-0000-0000-000000000000", "version": "v" * 256},
             headers=api_headers,
         )
@@ -311,7 +312,7 @@ async def test_skill_download_returns_413_for_large_archives(client, tmp_path, m
     settings.SKILL_DOWNLOAD_MAX_ARCHIVE_BYTES = 128
     try:
         response = await client.post(
-            "/api/v1/skills/download",
+            "/api/v1/client/skills/download",
             json={"skill_uuid": skill_id, "version": "1.0.0"},
             headers=api_headers,
         )
@@ -344,12 +345,12 @@ async def test_skill_download_applies_download_specific_rate_limit(client, tmp_p
     skills_api._download_rate_limit_state.clear()
     try:
         first = await client.post(
-            "/api/v1/skills/download",
+            "/api/v1/client/skills/download",
             json={"skill_uuid": skill_id, "version": "1.0.0"},
             headers=api_headers,
         )
         second = await client.post(
-            "/api/v1/skills/download",
+            "/api/v1/client/skills/download",
             json={"skill_uuid": skill_id, "version": "1.0.0"},
             headers=api_headers,
         )
@@ -383,7 +384,7 @@ async def test_public_skill_download_requires_reference_or_clone_when_rbac_disab
         )
 
         response = await client.post(
-            "/api/v1/skills/download",
+            "/api/v1/client/skills/download",
             json={"skill_uuid": public_skill.id},
             headers=api_headers,
         )
@@ -420,7 +421,7 @@ async def test_reference_skill_download_uses_pinned_public_version_when_owned_an
         reference_id = created.json()["id"]
 
         response = await client.post(
-            "/api/v1/skills/download",
+            "/api/v1/client/skills/download",
             json={"skill_uuid": reference_id},
             headers=api_headers,
         )
@@ -457,7 +458,7 @@ async def test_owned_private_skill_download_allowed_when_rbac_disabled(client, t
     )
 
     response = await client.post(
-        "/api/v1/skills/download",
+        "/api/v1/client/skills/download",
         json={"skill_uuid": skill_id, "version": "1.0.0"},
         headers=api_headers,
     )

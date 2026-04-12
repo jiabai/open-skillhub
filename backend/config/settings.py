@@ -4,6 +4,7 @@ import json
 
 from pydantic import ValidationInfo, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+from backend.core.security.user_state import DEFAULT_USER_STATUS
 
 _BACKEND_DIR = Path(__file__).resolve().parent.parent
 _ENV_FILE = _BACKEND_DIR / ".env"
@@ -157,7 +158,7 @@ class Settings(BaseSettings):
 
     DEFAULT_SKILL_VISIBILITY: str = "private"
     DEFAULT_ROLE: str = "member"
-    DEFAULT_USER_STATUS: str = "active"
+    DEFAULT_USER_STATUS: str = DEFAULT_USER_STATUS
     RBAC_ROLE_PERMISSIONS: dict = {}
     SSO_ISSUER: str = ""
     SSO_CLIENT_ID: str = ""

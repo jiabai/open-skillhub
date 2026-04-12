@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Copy, Download, Loader2, Search, Sparkles } from "lucide-react"
+import { Copy, Loader2, Search, Sparkles } from "lucide-react"
 
 import { ModeBoundaryNote } from "@/components/app/mode-boundary-note"
 import { NextStepCard } from "@/components/app/next-step-card"
@@ -13,8 +13,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input"
 import { getAppMode } from "@/lib/app-mode"
 import { api } from "@/lib/api"
-import { buildSkillDownloadArtifact, getDownloadErrorMessage } from "@/lib/skill-download"
-import type { Skill } from "@/types"
+import type { PublicSkill } from "@/types"
 import { useToast } from "@/hooks/use-toast"
 
 type NextStepState =
@@ -24,10 +23,9 @@ type NextStepState =
 export default function PublicSkillsPage() {
   const { success, error: showError } = useToast()
   const [query, setQuery] = useState("")
-  const [skills, setSkills] = useState<Skill[]>([])
+  const [skills, setSkills] = useState<PublicSkill[]>([])
   const [status, setStatus] = useState<"idle" | "loading" | "error">("loading")
   const [error, setError] = useState<string | null>(null)
-  const [downloadingSkillId, setDownloadingSkillId] = useState<string | null>(null)
   const [nextStep, setNextStep] = useState<NextStepState>(null)
   const appMode = getAppMode()
 
@@ -48,7 +46,7 @@ export default function PublicSkillsPage() {
     loadSkills()
   }, [])
 
-  const handleReference = async (skill: Skill) => {
+  const handleReference = async (skill: PublicSkill) => {
     try {
       await api.referencePublicSkill(skill.id, { name: skill.name })
       setNextStep({
@@ -66,7 +64,7 @@ export default function PublicSkillsPage() {
     }
   }
 
-  const handleClone = async (skill: Skill) => {
+  const handleClone = async (skill: PublicSkill) => {
     try {
       const created = await api.clonePublicSkill(skill.id, { name: `${skill.name}-copy`, visible: "private" })
       setNextStep({
@@ -81,34 +79,6 @@ export default function PublicSkillsPage() {
       showError("Unable to clone skill", {
         description: err instanceof Error ? err.message : "Unknown error",
       })
-    }
-  }
-
-  const handleDownload = async (skill: Skill) => {
-    setDownloadingSkillId(skill.id)
-    try {
-      const result = await api.downloadSkillRaw({ skill_uuid: skill.id, version: skill.resolved_version ?? undefined })
-      const artifact = buildSkillDownloadArtifact(result.payload, skill.id, result.rawText)
-      if (artifact.confirmMessage && !window.confirm(artifact.confirmMessage)) {
-        return
-      }
-      const blob = new Blob([artifact.content], { type: artifact.contentType })
-      const url = URL.createObjectURL(blob)
-      const link = document.createElement("a")
-      link.href = url
-      link.download = artifact.filename
-      document.body.appendChild(link)
-      link.click()
-      document.body.removeChild(link)
-      URL.revokeObjectURL(url)
-      success("Public skill download started")
-    } catch (err) {
-      const description = getDownloadErrorMessage(err)
-      showError("Unable to download skill", {
-        description: appMode === "no-rbac" ? `${description}. In no-RBAC mode, downloads are limited to Skills you own directly.` : description,
-      })
-    } finally {
-      setDownloadingSkillId(null)
     }
   }
 
@@ -194,10 +164,6 @@ export default function PublicSkillsPage() {
                 </div>
               </div>
               <div className="flex flex-wrap gap-2">
-                <Button variant="outline" onClick={() => handleDownload(skill)} disabled={downloadingSkillId === skill.id}>
-                  <Download className="mr-2 h-4 w-4" />
-                  Download
-                </Button>
                 <Button variant="secondary" onClick={() => handleReference(skill)} disabled={skill.has_reference}>
                   Add Reference
                 </Button>

@@ -16,6 +16,7 @@ import {
 } from "lucide-react"
 
 import { api, getErrorMessage } from "@/lib/api"
+import { USER_STATUS_LABELS, USER_STATUS_OPTIONS, type UserStatus } from "@/lib/user-status"
 import type { User, UserIdentityUpdate } from "@/types"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -60,11 +61,11 @@ const roleOptions = [
   { value: "viewer", label: "只读" },
 ]
 
-const statusOptions = [
-  { value: "active", label: "正常" },
-  { value: "inactive", label: "停用" },
-  { value: "pending", label: "待审核" },
-]
+const USER_STATUS_BADGE_VARIANTS: Record<UserStatus, "default" | "destructive" | "secondary"> = {
+  active: "default",
+  inactive: "destructive",
+  pending: "secondary",
+}
 
 export default function UsersAdminPage() {
   const { success, error: showError } = useToast()
@@ -142,12 +143,10 @@ export default function UsersAdminPage() {
     )
   }
 
-  const getStatusBadge = (status: string) => {
-    const variant =
-      status === "active" ? "default" : status === "inactive" ? "destructive" : "secondary"
+  const getStatusBadge = (status: UserStatus) => {
     return (
-      <Badge variant={variant}>
-        {statusOptions.find((s) => s.value === status)?.label || status}
+      <Badge variant={USER_STATUS_BADGE_VARIANTS[status]}>
+        {USER_STATUS_LABELS[status]}
       </Badge>
     )
   }
@@ -320,13 +319,13 @@ export default function UsersAdminPage() {
               <Label htmlFor="status">状态</Label>
               <Select
                 value={editForm.status || ""}
-                onValueChange={(value) => setEditForm((prev) => ({ ...prev, status: value }))}
+                onValueChange={(value) => setEditForm((prev) => ({ ...prev, status: value as UserStatus }))}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="选择状态" />
                 </SelectTrigger>
                 <SelectContent>
-                  {statusOptions.map((option) => (
+                  {USER_STATUS_OPTIONS.map((option) => (
                     <SelectItem key={option.value} value={option.value}>
                       {option.label}
                     </SelectItem>

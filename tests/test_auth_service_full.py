@@ -8,6 +8,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from backend.config.settings import settings
+from backend.core.security.user_state import DEFAULT_USER_STATUS, UserStatus, normalize_user_status
 from backend.models.user import User
 from backend.repositories.user import UserRepository
 from backend.services.auth import AuthService, TokenPair
@@ -31,8 +32,18 @@ def test_user():
     user.enterprise_id = None
     user.team_id = None
     user.role = "user"
-    user.status = "active"
+    user.status = DEFAULT_USER_STATUS
     return user
+
+
+def test_normalize_user_status_accepts_known_values():
+    assert normalize_user_status("ACTIVE") == DEFAULT_USER_STATUS
+    assert normalize_user_status(" pending ") == UserStatus.PENDING
+
+
+def test_normalize_user_status_rejects_unknown_values():
+    with pytest.raises(ValueError, match="Invalid user status"):
+        normalize_user_status("disabled")
 
 
 class TestAuthServiceRegister:
@@ -117,6 +128,8 @@ class TestAuthServiceSSOLogin:
 
         new_user = MagicMock(spec=User)
         new_user.id = "sso-user-123"
+        new_user.is_active = True
+        new_user.status = DEFAULT_USER_STATUS
         mock_user_repo.create = AsyncMock(return_value=new_user)
 
         service = AuthService(mock_user_repo)
@@ -144,6 +157,8 @@ class TestAuthServiceSSOLogin:
 
         new_user = MagicMock(spec=User)
         new_user.id = "sso-user-123"
+        new_user.is_active = True
+        new_user.status = DEFAULT_USER_STATUS
         mock_user_repo.create = AsyncMock(return_value=new_user)
 
         service = AuthService(mock_user_repo)
@@ -151,7 +166,7 @@ class TestAuthServiceSSOLogin:
             enterprise_id="ent-123",
             team_id="team-456",
             role="admin",
-            status="active"
+            status=DEFAULT_USER_STATUS
         )
         result = await service.login_sso(token)
 
@@ -252,6 +267,8 @@ class TestAuthServiceSSOLogin:
 
         new_user = MagicMock(spec=User)
         new_user.id = "sso-user-123"
+        new_user.is_active = True
+        new_user.status = DEFAULT_USER_STATUS
         mock_user_repo.create = AsyncMock(return_value=new_user)
 
         now = datetime.now(timezone.utc)
@@ -327,7 +344,7 @@ class TestAuthServiceRefreshToken:
         from backend.core.security.jwt_utils import create_refresh_token
         refresh_token = create_refresh_token(subject=str(test_user.id))
 
-        with pytest.raises(ValueError, match="User not found"):
+        with pytest.raises(ValueError, match="Inactive user"):
             await service.refresh_token(refresh_token)
 
     @pytest.mark.asyncio
@@ -391,6 +408,8 @@ class TestAuthServiceOrgAndRBAC:
 
         new_user = MagicMock(spec=User)
         new_user.id = "sso-user-123"
+        new_user.is_active = True
+        new_user.status = DEFAULT_USER_STATUS
         mock_user_repo.create = AsyncMock(return_value=new_user)
 
         service = AuthService(mock_user_repo)
@@ -424,6 +443,8 @@ class TestAuthServiceOrgAndRBAC:
 
         new_user = MagicMock(spec=User)
         new_user.id = "sso-user-123"
+        new_user.is_active = True
+        new_user.status = DEFAULT_USER_STATUS
         mock_user_repo.create = AsyncMock(return_value=new_user)
 
         service = AuthService(mock_user_repo)

@@ -1,8 +1,9 @@
-import { render, screen, waitFor } from "@testing-library/react"
+import { fireEvent, render, screen, waitFor } from "@testing-library/react"
 import { describe, expect, it, vi } from "vitest"
 import type { ReactNode } from "react"
 
 import { api } from "@/lib/api"
+import { DEFAULT_USER_STATUS } from "@/lib/user-status"
 import { AppShell } from "@/components/app/app-shell"
 
 const replaceMock = vi.fn()
@@ -88,7 +89,7 @@ describe("AppShell auth guard", () => {
       enterprise_id: null,
       team_id: null,
       role: "admin",
-      status: "active",
+      status: DEFAULT_USER_STATUS,
       created_at: "2026-04-08T00:00:00Z",
       updated_at: "2026-04-08T00:00:00Z",
     } as any)
@@ -101,5 +102,37 @@ describe("AppShell auth guard", () => {
     expect(await screen.findAllByText("Skills")).not.toHaveLength(0)
     expect(await screen.findAllByText("Public Skills")).not.toHaveLength(0)
     expect(screen.queryByText("My Skills")).not.toBeInTheDocument()
+  })
+
+  it("calls backend logout before redirecting to login", async () => {
+    replaceMock.mockClear()
+    process.env.NEXT_PUBLIC_ENABLE_RBAC = "false"
+    vi.mocked(api.getMe).mockResolvedValueOnce({
+      id: "user-1",
+      email: "user@example.com",
+      username: "user",
+      is_active: true,
+      is_superuser: false,
+      enterprise_id: null,
+      team_id: null,
+      role: "member",
+      status: DEFAULT_USER_STATUS,
+      created_at: "2026-04-08T00:00:00Z",
+      updated_at: "2026-04-08T00:00:00Z",
+    } as any)
+    vi.mocked(api.logout).mockResolvedValueOnce(undefined)
+    window.localStorage.setItem("skillhub.tokens", JSON.stringify({ access_token: "token", refresh_token: "refresh" }))
+
+    render(<AppShell>content</AppShell>)
+
+    await screen.findByRole("button", { name: "Workbench" })
+    fireEvent.click(screen.getAllByText("Sign Out")[0])
+    fireEvent.click(screen.getAllByText("Sign Out")[1])
+
+    await waitFor(() => {
+      expect(api.logout).toHaveBeenCalledTimes(1)
+      expect(replaceMock).toHaveBeenCalledWith("/login")
+    })
+    expect(window.localStorage.getItem("skillhub.tokens")).toBeNull()
   })
 })

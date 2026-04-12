@@ -27,16 +27,12 @@ class SkillUpdate(BaseModel):
     )
 
 
-class SkillResponse(BaseModel):
+class SkillBaseResponse(BaseModel):
     id: str
-    user_id: str | None = None
     name: str
     description: str
     tags: list[str]
     visible: str = Field(alias="visibility", serialization_alias="visible")
-    enterprise_id: str | None
-    team_id: str | None
-    skill_dir: str
     source_skill_id: str | None = None
     pinned_version: str | None = None
     resolved_version: str | None = None
@@ -44,19 +40,39 @@ class SkillResponse(BaseModel):
     is_reference_read_only: bool = False
     current_version: str | None
     is_active: bool
-    cache_revoked_at: datetime | None
     created_at: datetime
     updated_at: datetime
 
     model_config = {"from_attributes": True, "populate_by_name": True}
 
 
+class SkillConsoleResponse(SkillBaseResponse):
+    pass
+
+
 class SkillListResponse(BaseModel):
-    items: list[SkillResponse]
+    items: list[SkillConsoleResponse]
     total: int
 
 
-class PublicSkillListItem(SkillResponse):
+class PublicSkillResponse(BaseModel):
+    id: str
+    name: str
+    description: str
+    tags: list[str]
+    visible: str = Field(alias="visibility", serialization_alias="visible")
+    pinned_version: str | None = None
+    resolved_version: str | None = None
+    skill_kind: Literal["public"] = "public"
+    current_version: str | None
+    is_active: bool
+    created_at: datetime
+    updated_at: datetime
+
+    model_config = {"from_attributes": True, "populate_by_name": True}
+
+
+class PublicSkillListItem(PublicSkillResponse):
     has_reference: bool = False
     has_clone: bool = False
 

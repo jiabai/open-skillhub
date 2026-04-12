@@ -87,6 +87,14 @@ async def _create_public_skill(async_session, tmp_path: Path) -> Skill:
     return public_skill
 
 
+def _assert_console_skill_hides_internal_fields(payload: dict) -> None:
+    assert "user_id" not in payload
+    assert "enterprise_id" not in payload
+    assert "team_id" not in payload
+    assert "skill_dir" not in payload
+    assert "cache_revoked_at" not in payload
+
+
 @pytest.mark.asyncio
 async def test_skill_lifecycle(client, tmp_path, monkeypatch):
     monkeypatch.setenv("SKILL_STORAGE_PATH", str(tmp_path))
@@ -108,25 +116,29 @@ async def test_skill_lifecycle(client, tmp_path, monkeypatch):
     )
     access = login.json()["access_token"]
     headers = {"Authorization": f"Bearer {access}"}
-    api_headers = await _create_client_headers(client, access, name="skill-list-client")
     created = await client.post(
         "/api/v1/skills",
         json={"name": "skillx", "description": "desc"},
         headers=headers,
     )
     assert created.status_code == 201
-    skill_id = created.json()["id"]
-    listed = await client.get("/api/v1/skills", headers=api_headers)
+    created_payload = created.json()
+    _assert_console_skill_hides_internal_fields(created_payload)
+    skill_id = created_payload["id"]
+    listed = await client.get("/api/v1/skills", headers=headers)
     assert listed.status_code == 200
     payload = listed.json()
     assert payload["total"] == 1
+    _assert_console_skill_hides_internal_fields(payload["items"][0])
     updated = await client.put(
         f"/api/v1/skills/{skill_id}",
         json={"name": "skillx2", "description": "new"},
         headers=headers,
     )
     assert updated.status_code == 200
-    assert updated.json()["name"] == "skillx2"
+    updated_payload = updated.json()
+    assert updated_payload["name"] == "skillx2"
+    _assert_console_skill_hides_internal_fields(updated_payload)
     deleted = await client.delete(f"/api/v1/skills/{skill_id}", headers=headers)
     assert deleted.status_code == 204
 
@@ -353,7 +365,6 @@ async def test_skill_zip_upload_creates_version(client, tmp_path, monkeypatch):
     )
     access = login.json()["access_token"]
     headers = {"Authorization": f"Bearer {access}"}
-    api_headers = await _create_client_headers(client, access, name="zip-versions-client")
     created = await client.post(
         "/api/v1/skills",
         json={"name": "skillzip", "description": "desc"},
@@ -375,7 +386,7 @@ async def test_skill_zip_upload_creates_version(client, tmp_path, monkeypatch):
     payload = uploaded.json()
     assert payload["version"] == "1.0.0"
     assert payload["current_version"] == "1.0.0"
-    versions = await client.get(f"/api/v1/skills/{skill_id}/versions", headers=api_headers)
+    versions = await client.get(f"/api/v1/skills/{skill_id}/versions", headers=headers)
     assert versions.status_code == 200
     items = versions.json()["items"]
     assert items[0]["version"] == "1.0.0"
@@ -465,7 +476,6 @@ async def test_skill_deactivate_hides_from_list(client, tmp_path, monkeypatch):
     )
     access = login.json()["access_token"]
     headers = {"Authorization": f"Bearer {access}"}
-    api_headers = await _create_client_headers(client, access, name="deactivate-list-client")
     created = await client.post(
         "/api/v1/skills",
         json={"name": "skilldown", "description": "desc"},
@@ -474,12 +484,13 @@ async def test_skill_deactivate_hides_from_list(client, tmp_path, monkeypatch):
     skill_id = created.json()["id"]
     deactivated = await client.post(f"/api/v1/skills/{skill_id}/deactivate", headers=headers)
     assert deactivated.status_code == 200
-    assert deactivated.json()["cache_revoked_at"] is not None
-    listed = await client.get("/api/v1/skills", headers=api_headers)
+    _assert_console_skill_hides_internal_fields(deactivated.json())
+    listed = await client.get("/api/v1/skills", headers=headers)
     assert listed.json()["total"] == 0
-    listed_all = await client.get("/api/v1/skills?include_inactive=true", headers=api_headers)
+    listed_all = await client.get("/api/v1/skills?include_inactive=true", headers=headers)
     assert listed_all.json()["total"] == 1
     assert listed_all.json()["items"][0]["is_active"] is False
+    _assert_console_skill_hides_internal_fields(listed_all.json()["items"][0])
 
 
 @pytest.mark.asyncio
@@ -548,7 +559,6 @@ async def test_skill_install_instructions_returns_client_strategy(client, tmp_pa
     )
     access = login.json()["access_token"]
     headers = {"Authorization": f"Bearer {access}"}
-    api_headers = await _create_client_headers(client, access, name="deps-install-client")
     created = await client.post(
         "/api/v1/skills",
         json={"name": "skilldeps", "description": "desc"},
@@ -570,7 +580,7 @@ async def test_skill_install_instructions_returns_client_strategy(client, tmp_pa
     )
     response = await client.get(
         f"/api/v1/skills/{skill_id}/versions/1.0.0/install-instructions",
-        headers=api_headers,
+        headers=headers,
     )
     assert response.status_code == 200
     payload = response.json()
@@ -600,7 +610,6 @@ async def test_skill_install_instructions_reads_requirements_file(client, tmp_pa
     )
     access = login.json()["access_token"]
     headers = {"Authorization": f"Bearer {access}"}
-    api_headers = await _create_client_headers(client, access, name="reqs-install-client")
     created = await client.post(
         "/api/v1/skills",
         json={"name": "skillreqs", "description": "desc"},
@@ -620,7 +629,7 @@ async def test_skill_install_instructions_reads_requirements_file(client, tmp_pa
     )
     response = await client.get(
         f"/api/v1/skills/{skill_id}/versions/1.0.0/install-instructions",
-        headers=api_headers,
+        headers=headers,
     )
     assert response.status_code == 200
     payload = response.json()
@@ -710,7 +719,6 @@ async def test_skill_version_auto_increment(client, tmp_path, monkeypatch):
     )
     access = login.json()["access_token"]
     headers = {"Authorization": f"Bearer {access}"}
-    api_headers = await _create_client_headers(client, access, name="auto-versions-client")
     created = await client.post(
         "/api/v1/skills",
         json={"name": "skillauto", "description": "desc"},
@@ -741,7 +749,7 @@ async def test_skill_version_auto_increment(client, tmp_path, monkeypatch):
     )
     assert uploaded_second.status_code == 201
     assert uploaded_second.json()["version"] == "1.0.1"
-    versions = await client.get(f"/api/v1/skills/{skill_id}/versions", headers=api_headers)
+    versions = await client.get(f"/api/v1/skills/{skill_id}/versions", headers=headers)
     items = versions.json()["items"]
     assert items[0]["version"] == "1.0.1"
     assert items[1]["version"] == "1.0.0"
@@ -936,7 +944,6 @@ async def test_skill_search_by_tag(client):
     )
     access = login.json()["access_token"]
     headers = {"Authorization": f"Bearer {access}"}
-    api_headers = await _create_client_headers(client, access, name="tag-search-client")
     first = await client.post(
         "/api/v1/skills",
         json={"name": "skilltag1", "description": "desc", "tags": ["vision", "nlp"]},
@@ -949,7 +956,7 @@ async def test_skill_search_by_tag(client):
         json={"name": "skilltag2", "description": "desc", "tags": ["audio"]},
         headers=headers,
     )
-    listed = await client.get("/api/v1/skills?q=vision", headers=api_headers)
+    listed = await client.get("/api/v1/skills?q=vision", headers=headers)
     assert listed.status_code == 200
     payload = listed.json()
     assert payload["total"] == 1
@@ -978,7 +985,6 @@ async def test_skill_dependency_spec_frontmatter_yaml(client, tmp_path, monkeypa
     )
     access = login.json()["access_token"]
     headers = {"Authorization": f"Bearer {access}"}
-    api_headers = await _create_client_headers(client, access, name="yaml-install-client")
     created = await client.post(
         "/api/v1/skills",
         json={"name": "skillyaml", "description": "desc"},
@@ -1001,7 +1007,7 @@ async def test_skill_dependency_spec_frontmatter_yaml(client, tmp_path, monkeypa
     assert uploaded.status_code == 201
     response = await client.get(
         f"/api/v1/skills/{skill_id}/versions/2.0.0/install-instructions",
-        headers=api_headers,
+        headers=headers,
     )
     assert response.status_code == 200
     payload = response.json()
@@ -1062,8 +1068,9 @@ async def test_public_skill_list_and_detail(client, async_session, tmp_path, mon
     monkeypatch.setattr(settings, "ENABLE_RBAC", False)
     monkeypatch.setattr(settings, "ENABLE_SKILL_VISIBILITY", True)
     public_skill = await _create_public_skill(async_session, tmp_path)
+    headers = await _register_and_login(client, "public-browser@example.com", "public-browser")
 
-    listed = await client.get("/api/v1/skills/public")
+    listed = await client.get("/api/v1/skills/public", headers=headers)
     assert listed.status_code == 200
     payload = listed.json()
     assert payload["total"] == 1
@@ -1073,13 +1080,33 @@ async def test_public_skill_list_and_detail(client, async_session, tmp_path, mon
     assert payload["items"][0]["has_reference"] is False
     assert payload["items"][0]["has_clone"] is False
 
-    detail = await client.get(f"/api/v1/skills/public/{public_skill.id}")
+    detail = await client.get(f"/api/v1/skills/public/{public_skill.id}", headers=headers)
     assert detail.status_code == 200
     detail_payload = detail.json()
     assert detail_payload["id"] == public_skill.id
     assert detail_payload["visible"] == "public"
     assert detail_payload["skill_kind"] == "public"
     assert detail_payload["resolved_version"] == "1.2.3"
+    assert "skill_dir" not in detail_payload
+    assert "user_id" not in detail_payload
+    assert "enterprise_id" not in detail_payload
+    assert "team_id" not in detail_payload
+    assert "source_skill_id" not in detail_payload
+    assert "cache_revoked_at" not in detail_payload
+
+
+@pytest.mark.asyncio
+async def test_public_skill_list_and_detail_require_auth(client, async_session, tmp_path, monkeypatch):
+    monkeypatch.setattr(settings, "SKILL_STORAGE_PATH", str(tmp_path))
+    monkeypatch.setattr(settings, "ENABLE_RBAC", False)
+    monkeypatch.setattr(settings, "ENABLE_SKILL_VISIBILITY", True)
+    public_skill = await _create_public_skill(async_session, tmp_path)
+
+    listed = await client.get("/api/v1/skills/public")
+    assert listed.status_code == 401
+
+    detail = await client.get(f"/api/v1/skills/public/{public_skill.id}")
+    assert detail.status_code == 401
 
 
 @pytest.mark.asyncio
@@ -1302,12 +1329,6 @@ async def test_clone_remains_clone_after_followup_version_upload(client, async_s
     monkeypatch.setattr(settings, "ENABLE_SKILL_VISIBILITY", True)
     public_skill = await _create_public_skill(async_session, tmp_path)
     headers = await _register_and_login(client, "clone-followup@example.com", "clone-followup")
-    api_headers = await _create_client_headers(
-        client,
-        headers["Authorization"].split(" ", 1)[1],
-        name="clone-followup-client",
-    )
-
     cloned = await client.post(
         f"/api/v1/skills/{public_skill.id}/clone",
         json={"name": "public-skill-clone-followup", "visible": "private"},
@@ -1329,7 +1350,7 @@ async def test_clone_remains_clone_after_followup_version_upload(client, async_s
     )
     assert uploaded.status_code == 201
 
-    detail = await client.get(f"/api/v1/skills/{clone_id}", headers=api_headers)
+    detail = await client.get(f"/api/v1/skills/{clone_id}", headers=headers)
     assert detail.status_code == 200
     assert detail.json()["skill_kind"] == "clone"
 
@@ -1447,7 +1468,6 @@ async def test_public_list_marks_clone_beyond_500_owned_skills(client, async_ses
 async def test_invalid_version_returns_400_not_404(client, tmp_path, monkeypatch):
     monkeypatch.setenv("SKILL_STORAGE_PATH", str(tmp_path))
     headers = await _register_and_login(client, "invalid-version@example.com", "invalid-version")
-    api_headers = await _create_client_headers(client, headers["Authorization"].split(" ", 1)[1], name="invalid-version-client")
     created = await client.post(
         "/api/v1/skills",
         json={"name": "skill-invalid-version", "description": "desc"},
@@ -1456,7 +1476,7 @@ async def test_invalid_version_returns_400_not_404(client, tmp_path, monkeypatch
     assert created.status_code == 201
     skill_id = created.json()["id"]
 
-    response = await client.get(f"/api/v1/skills/{skill_id}/versions/invalid%20version!", headers=api_headers)
+    response = await client.get(f"/api/v1/skills/{skill_id}/versions/invalid%20version!", headers=headers)
     assert response.status_code == 400
     assert response.json()["detail"] == "Invalid version"
 

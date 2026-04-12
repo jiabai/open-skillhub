@@ -5,6 +5,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import async_sessionmaker
 
 from backend.config.settings import settings
+from backend.core.security.user_state import UserStatus
 from backend.core.utils.skill_storage import SYSTEM_STORAGE_OWNER, SYSTEM_USER_ID
 from backend.models.skill import Skill
 from backend.models.skill_version import SkillVersion
@@ -23,7 +24,7 @@ async def test_sync_public_skills_creates_public_skill_and_versions(async_sessio
         is_active=False,
         is_superuser=True,
         role="admin",
-        status="inactive",
+        status=UserStatus.INACTIVE,
     )
     async_session.add(system_user)
     await async_session.commit()
@@ -68,7 +69,7 @@ async def test_sync_public_skills_updates_existing_skill_and_deactivates_missing
         is_active=False,
         is_superuser=True,
         role="admin",
-        status="inactive",
+        status=UserStatus.INACTIVE,
     )
     async_session.add(system_user)
     await async_session.commit()

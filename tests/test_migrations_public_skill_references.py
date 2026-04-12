@@ -6,6 +6,7 @@ import pytest
 from sqlalchemy import create_engine, inspect, text
 
 from backend.config.settings import settings
+from backend.core.security.user_state import UserStatus
 from backend.db.migrations.versions.m8n9o0p1q2r3_add_public_skill_references import (
     SYSTEM_USER_ID,
 )
@@ -73,7 +74,7 @@ def test_public_skill_reference_migration_upgrade_and_downgrade(tmp_path):
         assert system_user["is_active"] == 0
         assert system_user["is_superuser"] == 1
         assert system_user["role"] == "admin"
-        assert system_user["status"] == "inactive"
+        assert system_user["status"] == UserStatus.INACTIVE
 
         command.downgrade(config, "l7m8n9o0p1q2")
 

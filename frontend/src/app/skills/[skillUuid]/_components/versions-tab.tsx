@@ -1,12 +1,11 @@
 "use client"
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
 import { formatDistanceToNow } from "date-fns"
-import { Check, Clock3, Copy, Download, GitCompare, Loader2, RotateCcw, Terminal } from "lucide-react"
+import { Check, Clock3, Copy, GitCompare, Loader2, RotateCcw, Terminal } from "lucide-react"
 
 import { api } from "@/lib/api"
-import { buildSkillDownloadArtifact, getDownloadErrorMessage } from "@/lib/skill-download"
-import type { Skill, SkillInstallInstructions, SkillVersion, SkillVersionDiff } from "@/types"
+import type { ConsoleSkill, SkillInstallInstructions, SkillVersion, SkillVersionDiff } from "@/types"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -26,8 +25,8 @@ import { Skeleton } from "@/components/ui/skeleton"
 
 type VersionsTabProps = {
   skillUuid: string
-  skill: Skill
-  onSkillUpdated?: (skill: Skill) => void
+  skill: ConsoleSkill
+  onSkillUpdated?: (skill: ConsoleSkill) => void
 }
 
 export function VersionsTab({ skillUuid, skill, onSkillUpdated }: VersionsTabProps) {
@@ -40,14 +39,12 @@ export function VersionsTab({ skillUuid, skill, onSkillUpdated }: VersionsTabPro
   const [versionDetailLoading, setVersionDetailLoading] = useState(false)
   const [diffLoading, setDiffLoading] = useState(false)
   const [installLoading, setInstallLoading] = useState(false)
-  const [downloadLoading, setDownloadLoading] = useState(false)
   const [rollbackLoading, setRollbackLoading] = useState(false)
   const [pinLoading, setPinLoading] = useState(false)
   const [copied, setCopied] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [detailError, setDetailError] = useState<string | null>(null)
   const [installError, setInstallError] = useState<string | null>(null)
-  const downloadControllerRef = useRef<AbortController | null>(null)
   const isReference = skill.skill_kind === "reference" || skill.is_reference_read_only
 
   const selectedVersion = useMemo(
@@ -71,13 +68,6 @@ export function VersionsTab({ skillUuid, skill, onSkillUpdated }: VersionsTabPro
   useEffect(() => {
     fetchVersions()
   }, [fetchVersions])
-
-  useEffect(() => {
-    return () => {
-      downloadControllerRef.current?.abort()
-      downloadControllerRef.current = null
-    }
-  }, [])
 
   useEffect(() => {
     const abortController = new AbortController()
@@ -177,45 +167,6 @@ export function VersionsTab({ skillUuid, skill, onSkillUpdated }: VersionsTabPro
     setTimeout(() => setCopied(false), 1500)
   }
 
-  const handleDownload = async (version?: string) => {
-    const controller = new AbortController()
-    downloadControllerRef.current = controller
-    setDownloadLoading(true)
-    setError(null)
-    try {
-      const result = await api.downloadSkillRaw({ skill_uuid: skillUuid, version, signal: controller.signal })
-      const artifact = buildSkillDownloadArtifact(result.payload, skillUuid, result.rawText)
-      if (artifact.confirmMessage && !window.confirm(artifact.confirmMessage)) {
-        return
-      }
-      const blob = new Blob([artifact.content], { type: artifact.contentType })
-      const url = URL.createObjectURL(blob)
-      const link = document.createElement("a")
-      link.href = url
-      link.download = artifact.filename
-      document.body.appendChild(link)
-      link.click()
-      document.body.removeChild(link)
-      URL.revokeObjectURL(url)
-    } catch (err) {
-      const message = getDownloadErrorMessage(err)
-      if (message !== "Download cancelled") {
-        setError(message)
-      }
-    } finally {
-      if (downloadControllerRef.current === controller) {
-        downloadControllerRef.current = null
-      }
-      setDownloadLoading(false)
-    }
-  }
-
-  const handleCancelDownload = () => {
-    downloadControllerRef.current?.abort()
-    downloadControllerRef.current = null
-    setDownloadLoading(false)
-  }
-
   const handleRollback = async (version: string) => {
     setRollbackLoading(true)
     setError(null)
@@ -262,7 +213,7 @@ export function VersionsTab({ skillUuid, skill, onSkillUpdated }: VersionsTabPro
     selectedVersions.length === 0
       ? "Select one version to inspect details, or select two versions to compare changes."
       : selectedVersions.length === 1
-        ? "One version selected. Use the actions on the right to inspect, download, or change version behavior."
+        ? "One version selected. Use the actions on the right to inspect or change version behavior."
         : "Two versions selected. The right side now shows dependency and file differences."
 
   const renderVersionList = () => {
@@ -361,17 +312,6 @@ export function VersionsTab({ skillUuid, skill, onSkillUpdated }: VersionsTabPro
           {installLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Terminal className="mr-2 h-4 w-4" />}
           Install instructions
         </Button>
-
-        <Button variant="outline" onClick={() => handleDownload(version.version)} disabled={downloadLoading}>
-          {downloadLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
-          Download
-        </Button>
-
-        {downloadLoading ? (
-          <Button variant="ghost" onClick={handleCancelDownload}>
-            Cancel download
-          </Button>
-        ) : null}
 
         {!isReference ? (
           <AlertDialog>

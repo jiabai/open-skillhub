@@ -1,6 +1,5 @@
 import type {
   TokenPair,
-  AccessTokenResponse,
   Skill,
   SkillVisible,
   Token,
@@ -159,15 +158,15 @@ const fetchText = async (path: string, options: ApiRequestOptions = {}): Promise
 
 // ========== Token 刷新并发控制 ==========
 // 用于缓存正在进行的刷新请求，防止多个并发请求同时触发多次刷新
-let refreshPromise: Promise<AccessTokenResponse> | null = null
+let refreshPromise: Promise<TokenPair> | null = null
 
 /**
  * 使用 refresh_token 刷新 access_token
  * @param refreshToken 当前的 refresh_token
- * @returns 新的 access_token 响应
+ * @returns 新的 token pair 响应
  * @throws 当刷新失败时抛出错误
  */
-const refreshTokens = async (refreshToken: string): Promise<AccessTokenResponse> => {
+const refreshTokens = async (refreshToken: string): Promise<TokenPair> => {
   const { response, payload } = await fetchJson("/api/v1/auth/refresh", {
     method: "POST",
     body: JSON.stringify({ refresh_token: refreshToken }),
@@ -178,16 +177,16 @@ const refreshTokens = async (refreshToken: string): Promise<AccessTokenResponse>
     const error = getErrorInfo(payload, response.statusText)
     throw new ApiError(error.detail, response.status, error.code)
   }
-  return payload as AccessTokenResponse
+  return payload as TokenPair
 }
 
 /**
  * 安全的 token 刷新函数，防止并发刷新
  * 如果已有刷新请求在进行中，会复用该请求的 Promise，避免重复刷新
  * @param refreshToken 当前的 refresh_token
- * @returns 新的 access_token 响应
+ * @returns 新的 token pair 响应
  */
-const safeRefreshTokens = async (refreshToken: string): Promise<AccessTokenResponse> => {
+const safeRefreshTokens = async (refreshToken: string): Promise<TokenPair> => {
   if (refreshPromise) {
     return refreshPromise
   }
@@ -207,10 +206,10 @@ async function apiFetch<T>(path: string, options: ApiRequestOptions = {}): Promi
     const tokens = getStoredTokens()
     if (tokens?.refresh_token) {
       try {
-        // 调用安全刷新接口获取新的 access_token（防止并发刷新）
+        // 调用安全刷新接口获取新的 token pair（防止并发刷新）
         const refreshed = await safeRefreshTokens(tokens.refresh_token)
-        // 更新本地存储的 tokens，保留原有的 refresh_token
-        storeTokens({ access_token: refreshed.access_token, refresh_token: tokens.refresh_token })
+        // 更新本地存储的 tokens，覆盖 access_token 和 refresh_token
+        storeTokens(refreshed)
         // 使用新的 access_token 重新发起原始请求
         const retry = await fetchJson(path, { ...options, accessToken: refreshed.access_token, skipRefresh: true })
         if (retry.response.ok) {
@@ -239,10 +238,10 @@ async function apiFetchText(path: string, options: ApiRequestOptions = {}): Prom
     const tokens = getStoredTokens()
     if (tokens?.refresh_token) {
       try {
-        // 调用安全刷新接口获取新的 access_token（防止并发刷新）
+        // 调用安全刷新接口获取新的 token pair（防止并发刷新）
         const refreshed = await safeRefreshTokens(tokens.refresh_token)
-        // 更新本地存储的 tokens，保留原有的 refresh_token
-        storeTokens({ access_token: refreshed.access_token, refresh_token: tokens.refresh_token })
+        // 更新本地存储的 tokens，覆盖 access_token 和 refresh_token
+        storeTokens(refreshed)
         // 使用新的 access_token 重新发起原始请求
         const retry = await fetchText(path, { ...options, accessToken: refreshed.access_token, skipRefresh: true })
         if (retry.response.ok) {
@@ -271,7 +270,7 @@ export const api = {
   login: (payload: { email: string; code: string }) =>
     apiFetch<TokenPair>("/api/v1/auth/login", { method: "POST", body: JSON.stringify(payload) }),
   refresh: (payload: { refresh_token: string }) =>
-    apiFetch<AccessTokenResponse>("/api/v1/auth/refresh", { method: "POST", body: JSON.stringify(payload) }),
+    apiFetch<TokenPair>("/api/v1/auth/refresh", { method: "POST", body: JSON.stringify(payload) }),
   ldapLogin: (payload: { username: string; password: string }) =>
     apiFetch<TokenPair>("/api/v1/auth/ldap/login", { method: "POST", body: JSON.stringify(payload) }),
   logout: () =>
@@ -375,7 +374,7 @@ export const api = {
     if (response.status === 401 && tokens?.refresh_token) {
       try {
         const refreshed = await safeRefreshTokens(tokens.refresh_token)
-        storeTokens({ access_token: refreshed.access_token, refresh_token: tokens.refresh_token })
+        storeTokens(refreshed)
         response = await doUpload(refreshed.access_token)
       } catch (error) {
         clearTokens()
@@ -431,7 +430,7 @@ export const api = {
     if (response.status === 401 && tokens?.refresh_token) {
       try {
         const refreshed = await safeRefreshTokens(tokens.refresh_token)
-        storeTokens({ access_token: refreshed.access_token, refresh_token: tokens.refresh_token })
+        storeTokens(refreshed)
         response = await doUpload(refreshed.access_token)
       } catch (error) {
         clearTokens()

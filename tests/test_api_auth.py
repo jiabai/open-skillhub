@@ -38,7 +38,8 @@ async def test_register_login_refresh(client):
     assert refreshed.status_code == 200
     refreshed_payload = refreshed.json()
     assert "access_token" in refreshed_payload
-    assert "refresh_token" not in refreshed_payload
+    assert "refresh_token" in refreshed_payload
+    assert refreshed_payload["refresh_token"] != ""
     assert "token_type" not in refreshed_payload
 
 

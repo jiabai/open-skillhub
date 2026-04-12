@@ -1,4 +1,5 @@
 import os
+import re
 import sys
 import tempfile
 from pathlib import Path
@@ -107,6 +108,14 @@ def _patched_generate_code(self):
 
 
 vc_module.VerificationCodeService._generate_code = _patched_generate_code
+
+
+@pytest.fixture
+def tmp_path(request) -> Path:
+    node_name = re.sub(r"[^A-Za-z0-9._-]+", "-", request.node.name).strip("-") or "tmp"
+    path = TMP_ROOT / f"{node_name}-{uuid4().hex}"
+    path.mkdir(parents=True, exist_ok=False)
+    return path
 
 
 @pytest_asyncio.fixture(scope="session")

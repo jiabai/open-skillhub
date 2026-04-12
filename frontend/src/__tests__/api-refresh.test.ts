@@ -23,7 +23,7 @@ describe("api refresh token", () => {
     const fetchMock = vi.fn()
     fetchMock
       .mockResolvedValueOnce(createResponse(401, { detail: "Unauthorized" }))
-      .mockResolvedValueOnce(createResponse(200, { access_token: "new-access" }))
+      .mockResolvedValueOnce(createResponse(200, { access_token: "new-access", refresh_token: "new-refresh" }))
       .mockResolvedValueOnce(createResponse(200, { username: "demo", email: "demo@example.com" }))
     vi.stubGlobal("fetch", fetchMock)
 
@@ -33,7 +33,7 @@ describe("api refresh token", () => {
     const user = await api.getMe()
 
     expect(user).toEqual({ username: "demo", email: "demo@example.com" })
-    expect(getStoredTokens()).toEqual({ access_token: "new-access", refresh_token: "refresh" })
+    expect(getStoredTokens()).toEqual({ access_token: "new-access", refresh_token: "new-refresh" })
     expect(fetchMock).toHaveBeenCalledTimes(3)
   })
 
@@ -57,7 +57,7 @@ describe("api refresh token", () => {
     fetchMock
       .mockResolvedValueOnce(createResponse(401, { detail: "Unauthorized" }))
       .mockResolvedValueOnce(createResponse(401, { detail: "Unauthorized" }))
-      .mockResolvedValueOnce(createResponse(200, { access_token: "new-access" }))
+      .mockResolvedValueOnce(createResponse(200, { access_token: "new-access", refresh_token: "new-refresh" }))
       .mockResolvedValueOnce(createResponse(200, { username: "user1", email: "user1@example.com" }))
       .mockResolvedValueOnce(createResponse(200, { username: "user2", email: "user2@example.com" }))
     vi.stubGlobal("fetch", fetchMock)
@@ -69,7 +69,7 @@ describe("api refresh token", () => {
 
     expect(user1).toEqual({ username: "user1", email: "user1@example.com" })
     expect(user2).toEqual({ username: "user2", email: "user2@example.com" })
-    expect(getStoredTokens()).toEqual({ access_token: "new-access", refresh_token: "refresh" })
+    expect(getStoredTokens()).toEqual({ access_token: "new-access", refresh_token: "new-refresh" })
     expect(fetchMock).toHaveBeenCalledTimes(5)
     const refreshCalls = fetchMock.mock.calls.filter(
       call => (call[1] as RequestInit)?.body === JSON.stringify({ refresh_token: "refresh" })

@@ -172,6 +172,58 @@ async def test_skill_visible_field_alias(client, tmp_path, monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_create_skill_invalid_visible_returns_422(client, tmp_path, monkeypatch):
+    monkeypatch.setenv("SKILL_STORAGE_PATH", str(tmp_path))
+    headers = await _register_and_login(client, "invalid-visible-create@example.com", "invalid-visible-create")
+
+    response = await client.post(
+        "/api/v1/skills",
+        json={"name": "invalid-visible-create", "description": "desc", "visible": "public"},
+        headers=headers,
+    )
+
+    assert response.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_update_skill_invalid_visible_returns_422(client, tmp_path, monkeypatch):
+    monkeypatch.setenv("SKILL_STORAGE_PATH", str(tmp_path))
+    headers = await _register_and_login(client, "invalid-visible-update@example.com", "invalid-visible-update")
+    created = await client.post(
+        "/api/v1/skills",
+        json={"name": "invalid-visible-update", "description": "desc"},
+        headers=headers,
+    )
+    assert created.status_code == 201
+    skill_id = created.json()["id"]
+
+    response = await client.put(
+        f"/api/v1/skills/{skill_id}",
+        json={"visible": "public"},
+        headers=headers,
+    )
+
+    assert response.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_clone_skill_invalid_visible_returns_422(client, async_session, tmp_path, monkeypatch):
+    monkeypatch.setattr(settings, "SKILL_STORAGE_PATH", str(tmp_path))
+    monkeypatch.setattr(settings, "ENABLE_RBAC", False)
+    monkeypatch.setattr(settings, "ENABLE_SKILL_VISIBILITY", True)
+    public_skill = await _create_public_skill(async_session, tmp_path)
+    headers = await _register_and_login(client, "invalid-visible-clone@example.com", "invalid-visible-clone")
+
+    response = await client.post(
+        f"/api/v1/skills/{public_skill.id}/clone",
+        json={"name": "invalid-visible-clone", "visible": "public"},
+        headers=headers,
+    )
+
+    assert response.status_code == 422
+
+
+@pytest.mark.asyncio
 async def test_skill_name_max_length(client):
     await client.post(
         "/api/v1/auth/verification-code",

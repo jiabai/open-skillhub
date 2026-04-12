@@ -8,12 +8,6 @@ export type TokenPair = {
   refresh_token: string
 }
 
-export type AccessTokenResponse = {
-  access_token: string
-  token_type?: string
-  expires_in?: number
-}
-
 export type SkillVisible = "private" | "team" | "enterprise" | "public"
 export type SkillKind = "regular" | "public" | "reference" | "clone"
 

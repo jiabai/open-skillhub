@@ -10,7 +10,7 @@ from backend.db.session import get_async_session
 from backend.repositories.audit_log import AuditLogRepository
 from backend.repositories.user import UserRepository
 from backend.schemas.auth import LDAPLoginRequest
-from backend.schemas.response import AccessTokenResponse, TokenPair
+from backend.schemas.response import TokenPair
 from backend.schemas.token import TokenRefresh
 from backend.schemas.user import UserLoginCode, UserRegisterCode
 from backend.schemas.verification import VerificationCodeRequest, VerificationCodeResponse
@@ -160,7 +160,7 @@ async def login(payload: UserLoginCode, session=Depends(get_async_session)):
     return TokenPair(access_token=token_pair.access_token, refresh_token=token_pair.refresh_token)
 
 
-@router.post("/refresh", response_model=AccessTokenResponse)
+@router.post("/refresh", response_model=TokenPair)
 async def refresh(payload: TokenRefresh, session=Depends(get_async_session)):
     service = AuthService(UserRepository(session))
     target = "unknown"
@@ -186,7 +186,7 @@ async def refresh(payload: TokenRefresh, session=Depends(get_async_session)):
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
         audit_service = AuditService(AuditLogRepository(session))
         await audit_service.create_event(actor_id=target, action="auth.refresh", target=target)
-    return AccessTokenResponse(access_token=token_pair.access_token)
+    return TokenPair(access_token=token_pair.access_token, refresh_token=token_pair.refresh_token)
 
 
 @router.get("/sso/authorize")

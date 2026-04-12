@@ -4,13 +4,15 @@ from typing import Literal
 from pydantic import AliasChoices, BaseModel, Field
 
 
+WritableSkillVisibility = Literal["private", "team", "enterprise"]
+
+
 class SkillCreate(BaseModel):
     name: str = Field(min_length=1, max_length=100)
     description: str = Field(default="", max_length=500)
     tags: list[str] = Field(default_factory=list, max_length=50)
-    visible: str = Field(
+    visible: WritableSkillVisibility = Field(
         default="private",
-        max_length=20,
         validation_alias=AliasChoices("visible", "visibility"),
     )
 
@@ -19,9 +21,8 @@ class SkillUpdate(BaseModel):
     name: str | None = Field(default=None, min_length=1, max_length=100)
     description: str | None = Field(default=None, max_length=500)
     tags: list[str] | None = Field(default=None, max_length=50)
-    visible: str | None = Field(
+    visible: WritableSkillVisibility | None = Field(
         default=None,
-        max_length=20,
         validation_alias=AliasChoices("visible", "visibility"),
     )
 
@@ -72,9 +73,8 @@ class SkillReferenceCreate(BaseModel):
 
 class SkillCloneCreate(BaseModel):
     name: str = Field(min_length=1, max_length=100)
-    visible: str = Field(
+    visible: WritableSkillVisibility = Field(
         default="private",
-        max_length=20,
         validation_alias=AliasChoices("visible", "visibility"),
     )
 

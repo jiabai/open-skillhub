@@ -22,10 +22,6 @@ class TokenPair(BaseModel):
     refresh_token: str
 
 
-class AccessTokenResponse(BaseModel):
-    access_token: str
-
-
 class DashboardOverviewResponse(BaseModel):
     active_skills: int
     available_tokens: int

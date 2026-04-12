@@ -63,9 +63,9 @@ Skill 不只是"一个文件夹"，而是带元数据、版本、状态和访问
 
 这说明 Open SkillHub 不只是"上传后覆盖"，而是一个真正有版本轨迹的 Skill 仓库。
 
-### 2.4 公共 Skill、引用与克隆（仅非 RBAC 模式）
+### 2.4 公共 Skill、引用与克隆（仅在 public skill capability 开启时）
 
-仓库里实现了公共 Skill 工作流，尤其适合"复用模板，再决定是否私有化维护"的场景。但需要注意，这套能力仅在关闭 RBAC 模式时可用（要求 `ENABLE_SKILL_VISIBILITY=true` 且 `ENABLE_RBAC=false`），开启 RBAC 后公共 Skill、引用和克隆功能将全部禁用：
+仓库里实现了公共 Skill 工作流，尤其适合"复用模板，再决定是否私有化维护"的场景。但需要注意，这套能力只有在 public skill capability 开启时才可用；按当前实现，这要求 `ENABLE_SKILL_VISIBILITY=true` 且 `ENABLE_RBAC=false`。当 RBAC 开启时，公共 Skill、引用和克隆功能不会开放：
 
 - 浏览公共 Skill 列表
 - 查看公共 Skill 详情
@@ -79,7 +79,7 @@ Skill 不只是"一个文件夹"，而是带元数据、版本、状态和访问
 - `reference`：引用公共 Skill，本地只保留引用关系，文件只读
 - `clone`：从公共 Skill 派生出的私有副本，可继续独立演进
 
-这套设计的价值在于，平台在非 RBAC 模式下同时支持"共享复用"和"私有分叉"。
+这套设计的价值在于，平台在 public skill capability 开启时同时支持"共享复用"和"私有分叉"。
 
 ### 2.5 Skill 下载与客户端分发
 
@@ -134,7 +134,9 @@ Skill 不只是"一个文件夹"，而是带元数据、版本、状态和访问
 - `team`
 - `enterprise`
 
-在关闭 RBAC 时，系统更偏个人工作区模式；在开启 RBAC 时，系统更偏组织治理模式。
+从 capability 角度看，关闭 RBAC 时系统更接近个人工作区；开启 RBAC 时系统更接近组织治理控制台。
+
+补充说明：当前前端控制台已不再通过独立的 `NEXT_PUBLIC_*` 业务型环境变量推导这些能力，而是统一消费后端 `/api/v1/runtime-config` 下发的 capability contract。
 
 ### 2.8 审计与运维治理
 
@@ -150,7 +152,7 @@ Skill 不只是"一个文件夹"，而是带元数据、版本、状态和访问
 
 ### 2.9 用户管理与后台治理
 
-在管理模式下，平台提供用户管理能力：
+在治理能力开启的场景下，平台提供用户管理能力：
 
 - 用户列表查询
 - 按用户名或邮箱搜索
@@ -180,7 +182,7 @@ Skill 不只是"一个文件夹"，而是带元数据、版本、状态和访问
 - My Skills / Skills 列表页
 - Skill 详情页
 - 新建 / 上传 Skill 页
-- Public Skills 页面（仅非 RBAC 模式下可用）
+- Public Skills 页面（仅在 public skill capability 开启时可用）
 - Tokens 页面
 - Audit 页面
 - Admin Users 页面
@@ -188,12 +190,14 @@ Skill 不只是"一个文件夹"，而是带元数据、版本、状态和访问
 
 从这些页面设计可以看出，产品主要面向"管理和分发"，不是面向最终消费者的展示型站点。
 
+补充说明：这些页面的系统级功能展示现在由运行时 capability 驱动，而不是由前端构建期 feature flag 决定。
+
 ## 4. 后端提供哪些服务
 
 后端是一个 FastAPI 服务，当前 API 模块主要包括：
 
 - `auth`：注册、登录、刷新、SSO（OIDC Authorization Code + PKCE）、LDAP、登出
-- `skills`：Skill 列表、详情、创建、更新、上传、下载、激活、停用、删除、版本相关（其中客户端分发读接口使用 API Token；公共 Skill、引用、克隆仅在非 RBAC 模式下可用）
+- `skills`：Skill 列表、详情、创建、更新、上传、下载、激活、停用、删除、版本相关（其中客户端分发读接口使用 API Token；公共 Skill、引用、克隆仅在 public skill capability 开启时可用）
 - `tokens`：Token 创建、查询、撤销
 - `audit`：审计日志查询与导出
 - `dashboard`：概览与指标运维
@@ -215,16 +219,16 @@ Skill 不只是"一个文件夹"，而是带元数据、版本、状态和访问
 
 用户上传自己的 Skill ZIP，平台保存版本和文件。之后用户在页面中启停 Skill、查看版本、生成 Token，让自己的客户端按权限下载。
 
-### 场景二：小团队复用公共 Skill 模板（仅非 RBAC 模式）
+### 场景二：小团队复用公共 Skill 模板（仅在 public skill capability 开启时）
 
-在关闭 RBAC 的情况下，团队可以先维护一批公共 Skill。普通用户进入 Public Skills 页面后，可以：
+在 public skill capability 开启的情况下，团队可以先维护一批公共 Skill。普通用户进入 Public Skills 页面后，可以：
 
 - 先加 reference，快速接入
 - 再 clone，形成自己的可编辑副本
 
-这样既能复用公共能力，又不会直接破坏源 Skill。需要注意，此场景与 RBAC 模式互斥——开启 RBAC 后公共 Skill、引用和克隆功能将全部禁用。
+这样既能复用公共能力，又不会直接破坏源 Skill。需要注意，按当前产品边界，这个场景与 RBAC 同时开启互斥；一旦启用 RBAC，公共 Skill、引用和克隆功能不会开放。
 
-### 场景三：企业级受控分发（RBAC 模式）
+### 场景三：企业级受控分发（RBAC 开启）
 
 企业管理员开启 RBAC、审计、组织模型后，可以把平台作为内部 Skill Hub：
 
@@ -233,7 +237,7 @@ Skill 不只是"一个文件夹"，而是带元数据、版本、状态和访问
 - 追踪谁下载了什么、修改了什么
 - 统一管理版本与变更
 
-注意：RBAC 模式下不支持公共 Skill、引用和克隆功能，企业内的 Skill 分发完全依赖可见性和权限控制，而非公共模板复用机制。
+注意：RBAC 开启时不支持公共 Skill、引用和克隆功能，企业内的 Skill 分发完全依赖可见性和权限控制，而非公共模板复用机制。
 
 ## 6. 这个项目不主要做什么
 
@@ -248,4 +252,4 @@ Skill 不只是"一个文件夹"，而是带元数据、版本、状态和访问
 
 ## 7. 一句话总结
 
-Open SkillHub 当前可以理解为一个面向 AI Agent 生态的私有 SkillHub 平台，提供用户认证、Skill 上传与版本管理、公共 Skill 复用（仅非 RBAC 模式）、权限治理和审计追踪，目标是把 Skills 从零散文件或仓库，提升为可管理、可复用、可分发的正式资产。当前产品边界已经明确：Web 控制台使用 JWT Access Token，客户端分发接口使用 API Token。
+Open SkillHub 当前可以理解为一个面向 AI Agent 生态的私有 SkillHub 平台，提供用户认证、Skill 上传与版本管理、公共 Skill 复用（仅在 public skill capability 开启时）、权限治理和审计追踪，目标是把 Skills 从零散文件或仓库，提升为可管理、可复用、可分发的正式资产。当前产品边界已经明确：Web 控制台使用 JWT Access Token，客户端分发接口使用 API Token。

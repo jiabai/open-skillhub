@@ -41,15 +41,6 @@ services:
       args:
         - NEXT_PUBLIC_API_BASE_URL=http://39.107.59.41:8001
         - API_INTERNAL_URL=http://api:8001
-        - NEXT_PUBLIC_ENABLE_PUBLIC_SIGNUP=true
-        - NEXT_PUBLIC_ENABLE_EMAIL_OTP_LOGIN=true
-        - NEXT_PUBLIC_ENABLE_SSO=false
-        - NEXT_PUBLIC_ENABLE_LDAP=false
-        - NEXT_PUBLIC_ENABLE_AUDIT_LOG=true
-        - NEXT_PUBLIC_ENABLE_AUDIT_EXPORT=true
-        - NEXT_PUBLIC_ENABLE_ORG_MODEL=false
-        - NEXT_PUBLIC_ENABLE_RBAC=false
-        - NEXT_PUBLIC_ENABLE_SKILL_VISIBILITY=false
     ports:
       - "80:3000"
     depends_on:

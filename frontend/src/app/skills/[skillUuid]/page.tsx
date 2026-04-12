@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation"
 import { Eye, FileText, Loader2, Save, Trash2 } from "lucide-react"
 
 import { api } from "@/lib/api"
-import { featureFlags } from "@/lib/feature-flags"
+import { useRuntimeConfig } from "@/hooks/use-runtime-config"
 import type { ConsoleSkill, SkillVisible } from "@/types"
 import { useToast } from "@/hooks/use-toast"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog"
@@ -27,6 +27,7 @@ type SkillDetailProps = {
 }
 
 export default function SkillDetailPage({ params }: SkillDetailProps) {
+  const { config } = useRuntimeConfig()
   const { success, error: showError } = useToast()
   const router = useRouter()
   const [skill, setSkill] = useState<ConsoleSkill | null>(null)
@@ -77,7 +78,7 @@ export default function SkillDetailPage({ params }: SkillDetailProps) {
           : {
               name,
               description,
-              visible: featureFlags.enableSkillVisibility ? visible : undefined,
+              visible: config.capabilities.skill_visibility ? visible : undefined,
             }
       )
       setSkill(updated)
@@ -207,13 +208,13 @@ export default function SkillDetailPage({ params }: SkillDetailProps) {
                 <p className="text-sm text-muted-foreground">{typeSummary}</p>
                 <div className="flex flex-wrap gap-2">
                   <Badge variant="muted">id: {skill.id.slice(0, 8)}</Badge>
-                  {featureFlags.enableSkillVisibility && skill.visible ? (
+                  {config.capabilities.skill_visibility && skill.visible ? (
                     <Badge variant={skill.visible === "private" ? "outline" : skill.visible === "team" ? "secondary" : "accent"}>{skill.visible}</Badge>
                   ) : null}
                   {skill.skill_kind ? <Badge variant="muted">{skill.skill_kind}</Badge> : null}
                   {skill.resolved_version ? <Badge variant="outline">v{skill.resolved_version}</Badge> : null}
                   {skill.pinned_version ? <Badge variant="outline">Pinned {skill.pinned_version}</Badge> : null}
-                  {!featureFlags.enableSkillVisibility ? <Badge variant="outline">private</Badge> : null}
+                  {!config.capabilities.skill_visibility ? <Badge variant="outline">private</Badge> : null}
                   <Badge variant="accent">MCP Ready</Badge>
                 </div>
               </CardContent>
@@ -305,7 +306,7 @@ export default function SkillDetailPage({ params }: SkillDetailProps) {
                   <Label htmlFor="description">Description</Label>
                   <Textarea id="description" value={description} onChange={(event) => setDescription(event.target.value)} disabled={!!isReference} />
                 </div>
-                {featureFlags.enableSkillVisibility ? (
+                {config.capabilities.skill_visibility ? (
                   <div className="flex flex-col gap-2">
                     <Label htmlFor="visible" className="flex items-center gap-2">
                       <Eye className="h-4 w-4 text-muted-foreground" />

@@ -2,7 +2,9 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react"
 import { describe, expect, it, vi } from "vitest"
 import type { ReactNode } from "react"
 
+import { RuntimeConfigContext } from "@/components/app/runtime-config-provider"
 import { api } from "@/lib/api"
+import { __setRuntimeConfigForTests, getRuntimeConfigSnapshot } from "@/lib/runtime-config"
 import { DEFAULT_USER_STATUS } from "@/lib/user-status"
 import { AppShell } from "@/components/app/app-shell"
 
@@ -41,11 +43,19 @@ vi.mock("@/components/ui/alert-dialog", () => ({
   AlertDialogCancel: ({ children }: { children: ReactNode }) => <button type="button">{children}</button>,
 }))
 
+function renderWithRuntimeConfig(node: ReactNode) {
+  return render(
+    <RuntimeConfigContext.Provider value={{ config: getRuntimeConfigSnapshot(), isLoading: false }}>
+      {node}
+    </RuntimeConfigContext.Provider>
+  )
+}
+
 describe("AppShell auth guard", () => {
   it("redirects to login when not authenticated", async () => {
     replaceMock.mockClear()
     window.localStorage.removeItem("skillhub.tokens")
-    render(<AppShell>content</AppShell>)
+    renderWithRuntimeConfig(<AppShell>content</AppShell>)
     await waitFor(() => {
       expect(replaceMock).toHaveBeenCalledWith("/login")
     })
@@ -56,7 +66,7 @@ describe("AppShell auth guard", () => {
     vi.mocked(api.getMe).mockRejectedValueOnce(new Error("unauthorized"))
     window.localStorage.setItem("skillhub.tokens", JSON.stringify({ access_token: "stale", refresh_token: "refresh" }))
 
-    render(<AppShell>content</AppShell>)
+    renderWithRuntimeConfig(<AppShell>content</AppShell>)
 
     await waitFor(() => {
       expect(replaceMock).toHaveBeenCalledWith("/login")
@@ -65,10 +75,10 @@ describe("AppShell auth guard", () => {
   })
 
   it("shows no-rbac navigation when logged in", async () => {
-    process.env.NEXT_PUBLIC_ENABLE_RBAC = "false"
+    __setRuntimeConfigForTests({ capabilities: { rbac: false, no_rbac_mode: true, audit_log: true } })
     window.localStorage.setItem("skillhub.tokens", JSON.stringify({ access_token: "token", refresh_token: "refresh" }))
 
-    render(<AppShell>content</AppShell>)
+    renderWithRuntimeConfig(<AppShell>content</AppShell>)
 
     expect(await screen.findByRole("button", { name: "Workbench" })).toBeInTheDocument()
     expect(await screen.findAllByText("Public Skills")).not.toHaveLength(0)
@@ -79,7 +89,7 @@ describe("AppShell auth guard", () => {
   })
 
   it("shows rbac navigation when rbac mode is enabled", async () => {
-    process.env.NEXT_PUBLIC_ENABLE_RBAC = "true"
+    __setRuntimeConfigForTests({ capabilities: { rbac: true, no_rbac_mode: false, audit_log: true } })
     vi.mocked(api.getMe).mockResolvedValueOnce({
       id: "user-1",
       email: "admin@example.com",
@@ -95,7 +105,7 @@ describe("AppShell auth guard", () => {
     } as any)
     window.localStorage.setItem("skillhub.tokens", JSON.stringify({ access_token: "token", refresh_token: "refresh" }))
 
-    render(<AppShell>content</AppShell>)
+    renderWithRuntimeConfig(<AppShell>content</AppShell>)
 
     expect(await screen.findByText("Governed console")).toBeInTheDocument()
     expect(await screen.findAllByText("Overview")).not.toHaveLength(0)
@@ -106,7 +116,7 @@ describe("AppShell auth guard", () => {
 
   it("calls backend logout before redirecting to login", async () => {
     replaceMock.mockClear()
-    process.env.NEXT_PUBLIC_ENABLE_RBAC = "false"
+    __setRuntimeConfigForTests({ capabilities: { rbac: false, no_rbac_mode: true, audit_log: true } })
     vi.mocked(api.getMe).mockResolvedValueOnce({
       id: "user-1",
       email: "user@example.com",
@@ -123,7 +133,7 @@ describe("AppShell auth guard", () => {
     vi.mocked(api.logout).mockResolvedValueOnce(undefined)
     window.localStorage.setItem("skillhub.tokens", JSON.stringify({ access_token: "token", refresh_token: "refresh" }))
 
-    render(<AppShell>content</AppShell>)
+    renderWithRuntimeConfig(<AppShell>content</AppShell>)
 
     await screen.findByRole("button", { name: "Workbench" })
     fireEvent.click(screen.getAllByText("Sign Out")[0])

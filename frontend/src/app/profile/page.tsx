@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react"
 import { Building2, Loader2, Users, User2 } from "lucide-react"
 
 import { api, getErrorMessage } from "@/lib/api"
-import { featureFlags } from "@/lib/feature-flags"
+import { useRuntimeConfig } from "@/hooks/use-runtime-config"
 import type { User } from "@/types"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -14,6 +14,7 @@ import { Label } from "@/components/ui/label"
 import { useToast } from "@/hooks/use-toast"
 
 export default function ProfilePage() {
+  const { config } = useRuntimeConfig()
   const { success, error: showError } = useToast()
   const [user, setUser] = useState<User | null>(null)
   const [username, setUsername] = useState("")
@@ -187,7 +188,7 @@ export default function ProfilePage() {
       </Card>
 
       {/* 组织信息卡片 - 条件显示 */}
-      {featureFlags.enableOrgModel && user && (
+      {config.capabilities.org_model && user && (
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">

@@ -6,7 +6,7 @@ import { zhCN } from "date-fns/locale"
 import { Download, FileJson, FileSpreadsheet, Filter, ChevronDown, ChevronUp, User } from "lucide-react"
 
 import { api } from "@/lib/api"
-import { featureFlags } from "@/lib/feature-flags"
+import { useRuntimeConfig } from "@/hooks/use-runtime-config"
 import type { AuditLogItem } from "@/types"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -33,6 +33,7 @@ const ACTION_OPTIONS = [
 ]
 
 export default function AuditLogsPage() {
+  const { config } = useRuntimeConfig()
   // 筛选状态
   const [startDate, setStartDate] = useState("")
   const [endDate, setEndDate] = useState("")
@@ -305,7 +306,7 @@ export default function AuditLogsPage() {
             </Button>
 
             {/* 导出日志 - 条件显示 */}
-            {featureFlags.enableAuditExport && (
+            {config.capabilities.audit_export && (
               <div className="pt-4 border-t flex flex-col gap-2">
                 <p className="text-sm font-medium">导出日志</p>
                 <div className="flex flex-col gap-2 sm:flex-row">

@@ -4,8 +4,8 @@ import Link from "next/link"
 import { useEffect, useState } from "react"
 import { Loader2, Search, Trash2 } from "lucide-react"
 
-import { ModeBoundaryNote } from "@/components/app/mode-boundary-note"
 import { PageIntro } from "@/components/app/page-intro"
+import { WorkspaceBoundaryNote } from "@/components/app/workspace-boundary-note"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -23,19 +23,20 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { getAppMode } from "@/lib/app-mode"
 import { api } from "@/lib/api"
+import { useRuntimeConfig } from "@/hooks/use-runtime-config"
 import type { ConsoleSkill } from "@/types"
 import { useToast } from "@/hooks/use-toast"
 
 export default function SkillsPage() {
+  const { config } = useRuntimeConfig()
   const { success, error: showError } = useToast()
   const [query, setQuery] = useState("")
   const [includeInactive, setIncludeInactive] = useState(false)
   const [skills, setSkills] = useState<ConsoleSkill[]>([])
   const [status, setStatus] = useState<"idle" | "loading" | "error">("idle")
   const [error, setError] = useState<string | null>(null)
-  const appMode = getAppMode()
+  const rbacEnabled = config.capabilities.rbac
 
   const loadSkills = async (search?: string, includeInactiveParam?: boolean) => {
     setStatus("loading")
@@ -94,9 +95,9 @@ export default function SkillsPage() {
   return (
     <div className="flex flex-col gap-6 3xl:gap-8">
       <PageIntro
-        title={appMode === "no-rbac" ? "My Skills" : "Skills"}
+        title={rbacEnabled ? "Skills" : "My Skills"}
         summary={
-          appMode === "no-rbac"
+          !rbacEnabled
             ? "This is your personal workspace. It shows the private, reference, and clone Skills that belong to your own workflow."
             : "Review and manage the Skills that are available within your current scope."
         }
@@ -106,7 +107,7 @@ export default function SkillsPage() {
           </Button>
         }
       />
-      <ModeBoundaryNote mode={appMode} />
+      <WorkspaceBoundaryNote rbacEnabled={rbacEnabled} />
 
       <Card>
         <CardHeader>
@@ -119,7 +120,7 @@ export default function SkillsPage() {
               <Search className="h-4 w-4 text-muted-foreground" />
               <Input
                 className="border-0 px-0 focus-visible:ring-0"
-                placeholder={appMode === "no-rbac" ? "Search your Skills" : "Search Skills in scope"}
+                placeholder={rbacEnabled ? "Search Skills in scope" : "Search your Skills"}
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
               />

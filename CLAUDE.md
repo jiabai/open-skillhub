@@ -131,7 +131,7 @@ Request → API Router → Service → Repository → DB (SQLAlchemy async)
 - Next.js 14 App Router with shadcn/ui + Tailwind CSS
 - API client at `frontend/src/lib/api.ts` (supports JWT refresh)
 - Key pages: `/` (dashboard), `/skills`, `/public-skills`, `/tokens`, `/profile`, `/security`, `/audit`, `/admin/users`, `/register`
-- Feature flags in `frontend/src/lib/feature-flags.ts`
+- Runtime capabilities come from `backend/api/v1/runtime_config.py` and are consumed via `frontend/src/lib/runtime-config.ts`
 
 ## Conventions
 

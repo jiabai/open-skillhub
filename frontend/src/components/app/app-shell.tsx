@@ -6,8 +6,7 @@ import { usePathname, useRouter } from "next/navigation"
 import { BarChart3, LogOut, Menu, User2, Wrench } from "lucide-react"
 
 import { api, clearTokens, getStoredTokens } from "@/lib/api"
-import { getAppMode } from "@/lib/app-mode"
-import { featureFlags } from "@/lib/feature-flags"
+import { useRuntimeConfig } from "@/hooks/use-runtime-config"
 import { getPrimaryNavigation } from "@/lib/navigation"
 import { cn } from "@/lib/utils"
 import type { User } from "@/types"
@@ -37,6 +36,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const router = useRouter()
   const isAuthRoute = pathname === "/login" || pathname === "/register"
+  const { config } = useRuntimeConfig()
   const [isChecking, setIsChecking] = useState(!isAuthRoute)
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
   const [currentUser, setCurrentUser] = useState<User | null>(null)
@@ -88,11 +88,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     }
   }, [isAuthRoute, router])
 
-  const appMode = getAppMode()
+  const rbacEnabled = config.capabilities.rbac
   const canManageUsers = currentUser?.is_superuser || currentUser?.role === "admin"
-  const navItems = getPrimaryNavigation(appMode, {
+  const navItems = getPrimaryNavigation({
+    rbacEnabled,
     canManageUsers: Boolean(canManageUsers),
-    enableAuditLog: featureFlags.enableAuditLog,
+    enableAuditLog: config.capabilities.audit_log,
   })
 
   const handleLogout = async () => {
@@ -133,7 +134,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               <div>
                 <p className="font-display text-lg">SkillHub</p>
                 <p className="text-xs text-muted-foreground">
-                  {appMode === "no-rbac" ? "Personal workspace" : "Governed console"}
+                  {rbacEnabled ? "Governed console" : "Personal workspace"}
                 </p>
               </div>
             </Link>

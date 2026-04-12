@@ -4,24 +4,24 @@ import Link from "next/link"
 import { useEffect, useMemo, useState } from "react"
 import { ArrowRight, Database, KeyRound, Shield, Sparkles, UploadCloud } from "lucide-react"
 
-import { ModeBoundaryNote } from "@/components/app/mode-boundary-note"
 import { NextStepCard } from "@/components/app/next-step-card"
 import { PageIntro } from "@/components/app/page-intro"
+import { WorkspaceBoundaryNote } from "@/components/app/workspace-boundary-note"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { getAppMode } from "@/lib/app-mode"
 import { api } from "@/lib/api"
-import { featureFlags } from "@/lib/feature-flags"
+import { useRuntimeConfig } from "@/hooks/use-runtime-config"
 import { getPrimaryNavigation } from "@/lib/navigation"
 import type { DashboardOverview, SkillCachePolicyResponse } from "@/types"
 
 export default function DashboardPage() {
+  const { config } = useRuntimeConfig()
   const [overview, setOverview] = useState<DashboardOverview | null>(null)
   const [cachePolicy, setCachePolicy] = useState<SkillCachePolicyResponse | null>(null)
   const [canManageUsers, setCanManageUsers] = useState(false)
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading")
   const [error, setError] = useState<string | null>(null)
-  const appMode = getAppMode()
+  const rbacEnabled = config.capabilities.rbac
 
   useEffect(() => {
     const load = async () => {
@@ -31,7 +31,7 @@ export default function DashboardPage() {
         const [overviewData, cachePolicyData, currentUser] = await Promise.all([
           api.getDashboardOverview(),
           api.getSkillCachePolicy().catch(() => null),
-          appMode === "rbac" ? api.getMe().catch(() => null) : Promise.resolve(null),
+          rbacEnabled ? api.getMe().catch(() => null) : Promise.resolve(null),
         ])
         setOverview(overviewData)
         setCachePolicy(cachePolicyData)
@@ -44,25 +44,26 @@ export default function DashboardPage() {
     }
 
     load()
-  }, [appMode])
+  }, [rbacEnabled])
 
   const quickAccessItems = useMemo(
     () =>
-      getPrimaryNavigation(appMode, {
+      getPrimaryNavigation({
+        rbacEnabled,
         canManageUsers,
-        enableAuditLog: featureFlags.enableAuditLog,
+        enableAuditLog: config.capabilities.audit_log,
       }).filter((item) => ["/skills", "/public-skills", "/tokens", "/audit", "/admin/users"].includes(item.href)),
-    [appMode, canManageUsers]
+    [rbacEnabled, canManageUsers, config.capabilities.audit_log]
   )
 
-  if (appMode === "no-rbac") {
+  if (!rbacEnabled) {
     return (
       <div className="flex flex-col gap-6">
         <PageIntro
           title="Workspace"
           summary="Use this workspace to discover public Skills, manage your own private Skills, and connect client access with tokens."
         />
-        <ModeBoundaryNote mode={appMode} />
+        <WorkspaceBoundaryNote rbacEnabled={rbacEnabled} />
 
         {status === "error" ? (
           <Card className="border-destructive/50">
@@ -149,7 +150,7 @@ export default function DashboardPage() {
                 </CardTitle>
               </CardHeader>
               <CardContent className="text-sm text-muted-foreground">
-                Public Skills are reusable starting points. In this mode they are a shared library, not a public editing space.
+                Public Skills are reusable starting points. Here they act as a shared library, not a public editing space.
               </CardContent>
             </Card>
             <Card>
@@ -194,7 +195,7 @@ export default function DashboardPage() {
           </Button>
         }
       />
-      <ModeBoundaryNote mode={appMode} />
+      <WorkspaceBoundaryNote rbacEnabled={rbacEnabled} />
 
       {status === "error" ? (
         <Card className="border-destructive/50">

@@ -7,7 +7,7 @@ import { Mail, Shield, Fingerprint, Building2 } from "lucide-react"
 
 import { api, apiBaseUrl, storeTokens, getErrorMessage } from "@/lib/api"
 import { useField, createEmailRules, createVerificationCodeRules } from "@/hooks/use-form-validation"
-import { featureFlags } from "@/lib/feature-flags"
+import { useRuntimeConfig } from "@/hooks/use-runtime-config"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -16,6 +16,8 @@ import { Separator } from "@/components/ui/separator"
 
 export default function LoginPage() {
   const router = useRouter()
+  const { config } = useRuntimeConfig()
+  const capabilities = config.capabilities
   const emailField = useField<string>("", createEmailRules())
   const codeField = useField<string>("", createVerificationCodeRules())
   const [codeMessage, setCodeMessage] = useState<string | null>(null)
@@ -122,13 +124,13 @@ export default function LoginPage() {
           <CardHeader>
             <CardTitle>欢迎回来</CardTitle>
             <CardDescription>
-              {featureFlags.enableEmailOtpLogin
+              {capabilities.email_otp_login
                 ? "请输入邮箱并验证验证码继续。"
                 : "请选择登录方式。"}
             </CardDescription>
           </CardHeader>
           <form onSubmit={handleSubmit}>
-            {featureFlags.enableEmailOtpLogin && (
+            {capabilities.email_otp_login && (
               <CardContent className="flex flex-col gap-4">
                 <div className="flex flex-col gap-2">
                   <Label htmlFor="email">邮箱</Label>
@@ -173,14 +175,14 @@ export default function LoginPage() {
               </CardContent>
             )}
             <CardFooter className="flex flex-col gap-3">
-              {featureFlags.enableEmailOtpLogin && (
+              {capabilities.email_otp_login && (
                 <Button type="submit" className="w-full" disabled={isLoading}>
                   {isLoading ? "正在登录..." : "邮箱验证码登录"}
                 </Button>
               )}
-              {(featureFlags.enableSSO || featureFlags.enableLDAP) && (
+              {(capabilities.sso || capabilities.ldap) && (
                 <>
-                  {featureFlags.enableEmailOtpLogin && (
+                  {capabilities.email_otp_login && (
                     <div className="relative w-full">
                       <div className="absolute inset-0 flex items-center">
                         <Separator className="w-full" />
@@ -193,7 +195,7 @@ export default function LoginPage() {
                     </div>
                   )}
                   <div className="flex w-full flex-col gap-2 sm:flex-row">
-                    {featureFlags.enableSSO && (
+                    {capabilities.sso && (
                       <Button
                         type="button"
                         variant="outline"
@@ -204,7 +206,7 @@ export default function LoginPage() {
                         SSO 登录
                       </Button>
                     )}
-                    {featureFlags.enableLDAP && (
+                    {capabilities.ldap && (
                       <Button
                         type="button"
                         variant="outline"
@@ -223,7 +225,7 @@ export default function LoginPage() {
                   <Mail className="h-4 w-4" />
                   仅用于认证
                 </span>
-                {featureFlags.enablePublicSignup && (
+                {capabilities.public_signup && (
                   <Link href="/register" className="text-primary hover:underline">
                     创建账户
                   </Link>

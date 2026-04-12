@@ -3,9 +3,9 @@
 import { useEffect, useState } from "react"
 import { Copy, KeyRound, Loader2, Trash2 } from "lucide-react"
 
-import { ModeBoundaryNote } from "@/components/app/mode-boundary-note"
 import { NextStepCard } from "@/components/app/next-step-card"
 import { PageIntro } from "@/components/app/page-intro"
+import { WorkspaceBoundaryNote } from "@/components/app/workspace-boundary-note"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -13,13 +13,14 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { getAppMode } from "@/lib/app-mode"
 import { api } from "@/lib/api"
+import { useRuntimeConfig } from "@/hooks/use-runtime-config"
 import { createTokenNameRules, useField } from "@/hooks/use-form-validation"
 import type { Token } from "@/types"
 import { useToast } from "@/hooks/use-toast"
 
 export default function TokensPage() {
+  const { config } = useRuntimeConfig()
   const { success, error: showError } = useToast()
   const [tokens, setTokens] = useState<Token[]>([])
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading")
@@ -28,7 +29,7 @@ export default function TokensPage() {
   const [days, setDays] = useState("30")
   const [newToken, setNewToken] = useState<string | null>(null)
   const [creating, setCreating] = useState(false)
-  const appMode = getAppMode()
+  const rbacEnabled = config.capabilities.rbac
 
   const loadTokens = async () => {
     setStatus("loading")
@@ -92,12 +93,12 @@ export default function TokensPage() {
       <PageIntro
         title="Tokens"
         summary={
-          appMode === "no-rbac"
+          !rbacEnabled
             ? "Create tokens when you are ready to let your own client tools access the Skills visible in your workspace."
             : "Create and manage tokens for governed access across scoped clients and automation."
         }
       />
-      <ModeBoundaryNote mode={appMode} />
+      <WorkspaceBoundaryNote rbacEnabled={rbacEnabled} />
 
       {newToken ? (
         <NextStepCard

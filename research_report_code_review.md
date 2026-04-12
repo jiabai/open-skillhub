@@ -95,27 +95,31 @@
 
 ### 4. 前后端 feature flag 没有自动同步机制
 
-**现状**
+**当前状态**
 
-- 后端通过 `ENABLE_SKILL_VISIBILITY` 控制真实可见性逻辑
-- 前端通过 `NEXT_PUBLIC_ENABLE_SKILL_VISIBILITY` 控制 UI 展示
-- 两端都依赖各自环境变量，没有统一下发机制
+- 这个问题已经修正
+- 后端通过 runtime config / capabilities 统一下发实例能力
+- 前端通过 runtime-config provider 消费 `/api/v1/runtime-config`
+- 前端不再通过独立业务型 `NEXT_PUBLIC_*` 环境变量声明功能能力
 
-**风险**
+**修正结果**
 
-- 配置错配时，前端可能展示后端未启用的功能
-- 或后端已启用功能但前端 UI 仍隐藏
+- 避免了前后端 capability 双真相源
+- 避免了前端 UI 和后端真实能力错配
+- 部署时前端不再需要同步维护业务型 capability env
 
-**影响范围**
+**当前架构边界**
 
-- 功能可见性
-- 前后端行为一致性
+- 后端：业务 capability 的唯一真相源
+- 前端：统一消费 runtime capability contract
+- 业务型前端 env：已移除
 
 **对应代码**
 
-- `backend/config/settings.py`
-- `backend/repositories/skill.py`
-- `frontend/src/lib/feature-flags.ts`
+- `backend/api/v1/runtime_config.py`
+- `backend/services/runtime_config.py`
+- `frontend/src/lib/runtime-config.ts`
+- `frontend/src/components/app/runtime-config-provider.tsx`
 
 ---
 

@@ -98,9 +98,9 @@ Upload ZIP → Parse SKILL.md → Version Control → Activate → Download
      └───────────────────── Rollback / Deactivate ←──────────┘
 ```
 
-### Enterprise-Grade Security (Feature Flags)
+### Enterprise-Grade Security (Backend Capabilities)
 
-The following features are controlled by feature flags and disabled by default. Enable them via environment variables in `backend/.env`.
+The following features are controlled by backend environment variables and exposed to the web console through `/api/v1/runtime-config`.
 
 - **RBAC** (`ENABLE_RBAC`): Role-based access control with fine-grained permissions
 - **Organization Model** (`ENABLE_ORG_MODEL`): Enterprise → Team → User hierarchy
@@ -108,6 +108,8 @@ The following features are controlled by feature flags and disabled by default. 
 - **SSO Integration** (`ENABLE_SSO`): OIDC Authorization Code + PKCE
 - **LDAP** (`ENABLE_LDAP`): LDAP directory authentication
 - **Email Verification** (`ENABLE_EMAIL_OTP_LOGIN`): OTP login and verification codes (enabled by default)
+
+The frontend no longer owns a separate set of business capability flags. UI availability is derived from the backend runtime capability contract.
 
 ### REST-First Skill Distribution
 

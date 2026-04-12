@@ -98,9 +98,9 @@ uv run uvicorn backend.api_app:app --host 0.0.0.0 --port 8001
      └────────────────── 回滚 / 停用 ←───┘
 ```
 
-### 企业级安全保障（功能开关）
+### 企业级安全保障（后端能力开关）
 
-以下功能通过环境变量中的功能开关控制，默认关闭。在 `backend/.env` 中启用对应开关即可开启。
+以下能力由后端环境变量控制，并通过 `/api/v1/runtime-config` 下发给前端控制台。
 
 - **RBAC** (`ENABLE_RBAC`) — 基于角色的细粒度权限管理
 - **组织架构模型** (`ENABLE_ORG_MODEL`) — 企业 → 团队 → 用户三级层级
@@ -108,6 +108,8 @@ uv run uvicorn backend.api_app:app --host 0.0.0.0 --port 8001
 - **SSO 单点登录** (`ENABLE_SSO`) — 基于 OIDC Authorization Code + PKCE
 - **LDAP** (`ENABLE_LDAP`) — LDAP 目录认证
 - **邮箱验证** (`ENABLE_EMAIL_OTP_LOGIN`) — OTP 登录 + 验证码校验（默认启用）
+
+前端不再单独维护一套业务能力开关，页面功能是否展示以服务端下发的 runtime capability contract 为准。
 
 ### REST 优先的技能分发
 

@@ -3,16 +3,16 @@
 import { useEffect, useState } from "react"
 import { Copy, Loader2, Search, Sparkles } from "lucide-react"
 
-import { ModeBoundaryNote } from "@/components/app/mode-boundary-note"
 import { NextStepCard } from "@/components/app/next-step-card"
 import { PageIntro } from "@/components/app/page-intro"
 import { SkillTypeExplainer } from "@/components/app/skill-type-explainer"
+import { WorkspaceBoundaryNote } from "@/components/app/workspace-boundary-note"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
-import { getAppMode } from "@/lib/app-mode"
 import { api } from "@/lib/api"
+import { useRuntimeConfig } from "@/hooks/use-runtime-config"
 import type { PublicSkill } from "@/types"
 import { useToast } from "@/hooks/use-toast"
 
@@ -21,13 +21,14 @@ type NextStepState =
   | null
 
 export default function PublicSkillsPage() {
+  const { config } = useRuntimeConfig()
   const { success, error: showError } = useToast()
   const [query, setQuery] = useState("")
   const [skills, setSkills] = useState<PublicSkill[]>([])
   const [status, setStatus] = useState<"idle" | "loading" | "error">("loading")
   const [error, setError] = useState<string | null>(null)
   const [nextStep, setNextStep] = useState<NextStepState>(null)
-  const appMode = getAppMode()
+  const rbacEnabled = config.capabilities.rbac
 
   const loadSkills = async (search?: string) => {
     setStatus("loading")
@@ -87,14 +88,14 @@ export default function PublicSkillsPage() {
       <PageIntro
         title="Public Skills"
         summary={
-          appMode === "no-rbac"
+          !rbacEnabled
             ? "Start here if you want to adopt a public Skill quickly. Use a reference first, clone when you need your own editable copy."
             : "Browse reusable public Skills and bring them into your governed workspace with the right ownership model."
         }
       />
-      <ModeBoundaryNote mode={appMode} />
+      <WorkspaceBoundaryNote rbacEnabled={rbacEnabled} />
 
-      {appMode === "no-rbac" ? <SkillTypeExplainer /> : null}
+      {!rbacEnabled ? <SkillTypeExplainer /> : null}
       {nextStep ? <NextStepCard {...nextStep} /> : null}
 
       <Card>
@@ -154,7 +155,7 @@ export default function PublicSkillsPage() {
                     <Sparkles className="mr-1 h-3 w-3" />
                     Public
                   </Badge>
-                  {appMode === "no-rbac" && !skill.has_reference ? <Badge variant="outline">Recommended first step: Reference</Badge> : null}
+                  {!rbacEnabled && !skill.has_reference ? <Badge variant="outline">Recommended first step: Reference</Badge> : null}
                 </div>
                 <CardDescription>{skill.description || "No description"}</CardDescription>
                 <div className="flex flex-wrap gap-2">

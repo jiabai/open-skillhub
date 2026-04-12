@@ -1,5 +1,6 @@
 import "@testing-library/jest-dom"
 import { vi } from "vitest"
+import { __resetRuntimeConfigForTests, __setRuntimeConfigForTests } from "@/lib/runtime-config"
 
 // Mock ResizeObserver for tests
 class ResizeObserverMock {
@@ -94,6 +95,8 @@ vi.mock("@/lib/api", () => {
       getSkillFileContent: vi.fn(async () => "# demo"),
       uploadSkillFile: vi.fn(async () => ({ filename: "SKILL.md" })),
       listTokens: vi.fn(async () => ({ items: [], total: 0 })),
+      listAuditLogs: vi.fn(async () => ({ items: [] })),
+      exportAuditLogs: vi.fn(async () => ({ format: "json", content: "{}" })),
       createToken: vi.fn(async () => ({ id: "token", name: "demo", token: "ask_live_demo" })),
       revokeToken: vi.fn(async () => ({})),
       getDashboardOverview: vi.fn(async () => ({
@@ -132,4 +135,23 @@ vi.mock("@/lib/api", () => {
       }
     })
   }
+})
+
+beforeEach(() => {
+  __resetRuntimeConfigForTests()
+  __setRuntimeConfigForTests({
+    capabilities: {
+      skill_visibility: true,
+      public_skills: false,
+      org_model: true,
+      public_signup: true,
+      email_otp_login: true,
+      sso: false,
+      ldap: false,
+      audit_log: true,
+      audit_export: true,
+      rbac: false,
+      no_rbac_mode: true,
+    },
+  })
 })

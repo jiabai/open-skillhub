@@ -7,7 +7,7 @@ import { Sparkles } from "lucide-react"
 
 import { api, getErrorMessage } from "@/lib/api"
 import { useField, createEmailRules, createVerificationCodeRules, createUsernameRules } from "@/hooks/use-form-validation"
-import { featureFlags } from "@/lib/feature-flags"
+import { useRuntimeConfig } from "@/hooks/use-runtime-config"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -15,13 +15,15 @@ import { Label } from "@/components/ui/label"
 
 export default function RegisterPage() {
   const router = useRouter()
+  const { config } = useRuntimeConfig()
+  const enablePublicSignup = config.capabilities.public_signup
 
   // 如果注册被禁用，重定向到登录页
   useEffect(() => {
-    if (!featureFlags.enablePublicSignup) {
+    if (!enablePublicSignup) {
       router.replace("/login")
     }
-  }, [router])
+  }, [enablePublicSignup, router])
 
   const usernameField = useField<string>("", createUsernameRules())
   const emailField = useField<string>("", createEmailRules())

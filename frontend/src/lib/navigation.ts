@@ -1,8 +1,6 @@
 import type { LucideIcon } from "lucide-react"
 import { KeyRound, LayoutGrid, ScrollText, ShieldCheck, Sparkles, User2, Users } from "lucide-react"
 
-import type { AppMode } from "@/lib/app-mode"
-
 export type NavigationItem = {
   href: string
   label: string
@@ -10,12 +8,13 @@ export type NavigationItem = {
 }
 
 type NavigationOptions = {
+  rbacEnabled: boolean
   canManageUsers: boolean
   enableAuditLog: boolean
 }
 
-export function getPrimaryNavigation(mode: AppMode, options: NavigationOptions): NavigationItem[] {
-  if (mode === "no-rbac") {
+export function getPrimaryNavigation(options: NavigationOptions): NavigationItem[] {
+  if (!options.rbacEnabled) {
     return [
       { href: "/dashboard", label: "Workspace", icon: LayoutGrid },
       { href: "/public-skills", label: "Public Skills", icon: Sparkles },

@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation"
 import { UploadCloud, FileArchive, CheckCircle2, Loader2, AlertCircle } from "lucide-react"
 
 import { api } from "@/lib/api"
-import { featureFlags } from "@/lib/feature-flags"
+import { useRuntimeConfig } from "@/hooks/use-runtime-config"
 import type { SkillVisible } from "@/types"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -17,6 +17,7 @@ import { useToast } from "@/hooks/use-toast"
 type UploadState = "idle" | "dragover" | "uploading" | "success" | "error"
 
 export default function NewSkillPage() {
+  const { config } = useRuntimeConfig()
   const router = useRouter()
   const { error: showError, success } = useToast()
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -104,7 +105,7 @@ export default function NewSkillPage() {
     try {
       const result = await api.uploadSkillZip(
         selectedFile,
-        featureFlags.enableSkillVisibility ? visibility : undefined,
+        config.capabilities.skill_visibility ? visibility : undefined,
         (p) => setProgress(p)
       )
 
@@ -292,7 +293,7 @@ export default function NewSkillPage() {
               <CardDescription>设置 Skill 的可见性</CardDescription>
             </CardHeader>
             <CardContent className="flex flex-col gap-4">
-              {featureFlags.enableSkillVisibility ? (
+              {config.capabilities.skill_visibility ? (
                 <div className="flex flex-col gap-2">
                   <Label htmlFor="visibility">可见性</Label>
                   <Select

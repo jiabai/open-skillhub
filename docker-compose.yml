@@ -9,10 +9,7 @@ services:
       - backend/.env
     environment:
       DATABASE_URL: sqlite+aiosqlite:///./data/skillhub.db
-      DEBUG: "true"
-      CORS_ORIGINS: '["http://localhost","http://localhost:3000","http://39.107.59.41","http://39.107.59.41:80","http://39.107.59.41:8001"]'
       LOG_FILE: "/app/logs/skillhub.log"
-      LOG_LEVEL: DEBUG
       SKILL_STORAGE_PATH: /data/skills
       TIMEZONE: "UTC+8"
     volumes:
@@ -39,7 +36,7 @@ services:
     build:
       context: ./frontend
       args:
-        - NEXT_PUBLIC_API_BASE_URL=http://39.107.59.41:8001
+        - NEXT_PUBLIC_API_BASE_URL=http://39.107.59.41
         - API_INTERNAL_URL=http://api:8001
     ports:
       - "80:3000"

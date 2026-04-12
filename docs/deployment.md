@@ -1,0 +1,181 @@
+# Deployment Guide
+
+## Scope
+
+This guide covers Linux deployment with Docker Compose for the current repository layout.
+
+It assumes:
+
+- backend runs on port `8001`
+- frontend runs on port `80`
+- frontend calls the backend through the public frontend origin plus `/api/*`
+- Next.js rewrites proxy `/api/*` to `API_INTERNAL_URL`
+
+## Important Deployment Notes
+
+### 1. Frontend public API base is a build-time setting
+
+`NEXT_PUBLIC_API_BASE_URL` is compiled into the frontend build.
+
+Recommended production value:
+
+- `http://YOUR_SERVER_IP`
+- or `https://YOUR_DOMAIN`
+
+Do not point it at the internal Docker hostname like `http://api:8001`.
+Do not leave it pointing at another machine's fixed public IP.
+
+If you change this value, rebuild the frontend image.
+
+### 2. Internal API URL stays inside the Docker network
+
+Keep:
+
+```env
+API_INTERNAL_URL=http://api:8001
+```
+
+This is only used by the Next.js server-side rewrite inside the frontend container.
+
+### 3. Backend runtime capabilities are served by the backend
+
+Frontend business capability UI no longer comes from frontend env flags.
+The frontend reads:
+
+- `/api/v1/runtime-config`
+
+So Linux deployment only needs correct backend env values. There is no separate frontend business feature-flag layer to keep in sync.
+
+## Recommended Compose Deployment
+
+### 1. Prepare backend env
+
+```bash
+cp backend/.env.example backend/.env
+```
+
+At minimum, update:
+
+- `SECRET_KEY`
+- `DEBUG=false`
+- `LOG_LEVEL=INFO`
+- `CORS_ORIGINS`
+- `DATABASE_URL` if using PostgreSQL
+
+Example `SECRET_KEY`:
+
+```bash
+python -c "import secrets; print(secrets.token_urlsafe(32))"
+```
+
+### 2. Set the frontend public origin
+
+Before building, edit [docker-compose.yml](/D:/Github/open-skillhub/docker-compose.yml:42).
+
+For a server IP deployment:
+
+```yaml
+args:
+  - NEXT_PUBLIC_API_BASE_URL=http://YOUR_SERVER_IP
+  - API_INTERNAL_URL=http://api:8001
+```
+
+For a domain deployment:
+
+```yaml
+args:
+  - NEXT_PUBLIC_API_BASE_URL=https://YOUR_DOMAIN
+  - API_INTERNAL_URL=http://api:8001
+```
+
+This makes browser requests go to:
+
+- `http://YOUR_SERVER_IP/api/v1/...`
+- or `https://YOUR_DOMAIN/api/v1/...`
+
+Then Next.js forwards those requests to the backend container.
+
+### 3. Align backend CORS only if needed
+
+If all browser traffic goes through the frontend origin and `/api` proxy, CORS is much less important.
+
+Still, for safety, set `CORS_ORIGINS` in `backend/.env` to include your public frontend origin, for example:
+
+```env
+CORS_ORIGINS=["http://YOUR_SERVER_IP","https://YOUR_DOMAIN"]
+```
+
+Do not keep unrelated hardcoded public IPs in production config.
+
+### 4. Start services
+
+```bash
+docker compose up -d --build
+```
+
+### 5. Verify
+
+From the server:
+
+```bash
+docker compose ps
+curl -f http://127.0.0.1:8001/health
+```
+
+From a browser:
+
+- open `http://YOUR_SERVER_IP`
+- or open `https://YOUR_DOMAIN`
+
+Then verify:
+
+- login page loads
+- `/api/v1/runtime-config` returns through the frontend origin
+- skill pages and audit pages render without frontend capability mismatch
+
+## SQLite vs PostgreSQL
+
+### SQLite
+
+Good for:
+
+- single-host deployment
+- low traffic
+- evaluation or internal small-team usage
+
+Current default compose setup uses SQLite persisted under:
+
+- `./data`
+
+### PostgreSQL
+
+Recommended for:
+
+- production workloads
+- higher write volume
+- stronger concurrency guarantees
+
+If you switch to PostgreSQL, update `DATABASE_URL` and add a `db` service to Compose.
+
+## Linux Checklist
+
+- open ports `80` and optionally `8001` if you expose backend directly
+- set a real `SECRET_KEY`
+- set `DEBUG=false`
+- persist `./data` and `./logs`
+- use PostgreSQL if this is not a low-traffic single-node deployment
+- rebuild frontend whenever `NEXT_PUBLIC_API_BASE_URL` changes
+
+## Common Mistakes
+
+- Setting `NEXT_PUBLIC_API_BASE_URL` to `http://api:8001`
+  This only works inside Docker, not in the browser.
+
+- Leaving `NEXT_PUBLIC_API_BASE_URL` on an old server IP
+  The frontend will keep calling the wrong host until rebuilt.
+
+- Editing backend feature envs but not rebuilding frontend after changing public origin
+  Capability flags do not require frontend rebuild, but public API base does.
+
+- Assuming README already contains the full production guide
+  Use this file for Linux deployment details.

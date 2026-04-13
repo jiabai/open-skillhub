@@ -18,7 +18,7 @@ COPY pyproject.toml uv.lock LICENSE README.md README_ZH.md /app/
 COPY backend/__init__.py /app/backend/__init__.py
 
 RUN --mount=type=cache,target=/root/.cache/uv \
-    uv sync --locked --no-dev
+    uv sync --locked --no-dev --no-install-project
 
 COPY backend /app/backend
 

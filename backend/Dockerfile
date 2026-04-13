@@ -15,10 +15,12 @@ ENV PATH="/app/.venv/bin:$PATH"
 COPY --from=ghcr.io/astral-sh/uv:0.11.3 /uv /uvx /bin/
 
 COPY pyproject.toml uv.lock LICENSE README.md README_ZH.md /app/
-COPY backend /app/backend
+COPY backend/__init__.py /app/backend/__init__.py
 
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --locked --no-dev
+
+COPY backend /app/backend
 
 EXPOSE 8001
 

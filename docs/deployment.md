@@ -158,7 +158,7 @@ From the server:
 
 ```bash
 docker compose ps
-docker compose exec api curl -f http://127.0.0.1:8001/health
+docker compose exec api python -c "import urllib.request; print(urllib.request.urlopen('http://127.0.0.1:8001/health', timeout=5).read().decode())"
 ```
 
 From a browser:

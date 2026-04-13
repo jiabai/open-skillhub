@@ -4,9 +4,12 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
+ARG UV_INDEX_URL=https://pypi.tuna.tsinghua.edu.cn/simple
+
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 ENV UV_PROJECT_ENVIRONMENT=/app/.venv
+ENV UV_INDEX_URL=$UV_INDEX_URL
 ENV PATH="/app/.venv/bin:$PATH"
 
 COPY --from=ghcr.io/astral-sh/uv:0.11.3 /uv /uvx /bin/

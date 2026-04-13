@@ -6,12 +6,14 @@ WORKDIR /workspace/frontend
 
 ARG NEXT_PUBLIC_API_BASE_URL
 ARG API_INTERNAL_URL
+ARG NPM_REGISTRY=https://registry.npmmirror.com
 
 ENV NEXT_PUBLIC_API_BASE_URL=$NEXT_PUBLIC_API_BASE_URL
 ENV API_INTERNAL_URL=$API_INTERNAL_URL
 ENV NEXT_TELEMETRY_DISABLED=1
 
 COPY frontend/package*.json ./
+RUN npm config set registry $NPM_REGISTRY
 RUN --mount=type=cache,target=/root/.npm \
     npm ci --prefer-offline --no-audit
 

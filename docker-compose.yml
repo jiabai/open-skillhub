@@ -4,6 +4,8 @@ services:
     build:
       context: .
       dockerfile: backend/Dockerfile
+      args:
+        - UV_INDEX_URL=https://pypi.tuna.tsinghua.edu.cn/simple
     user: "1000:1000"
     command: sh -c "alembic -c backend/alembic.ini upgrade head && uvicorn backend.api_app:app --host 0.0.0.0 --port 8001 --workers 1"
     env_file:
@@ -46,6 +48,7 @@ services:
       args:
         - NEXT_PUBLIC_API_BASE_URL=http://39.107.59.41
         - API_INTERNAL_URL=http://api:8001
+        - NPM_REGISTRY=https://registry.npmmirror.com
     ports:
       - "127.0.0.1:3000:3000"
     depends_on:

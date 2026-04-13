@@ -7,7 +7,8 @@ This guide covers Linux deployment with Docker Compose for the current repositor
 It assumes:
 
 - backend runs on port `8001`
-- frontend runs on port `80`
+- frontend runs on port `3000` inside Docker
+- an external Nginx reverse proxy terminates public traffic on port `80` or `443`
 - frontend calls the backend through the public frontend origin plus `/api/*`
 - Next.js rewrites proxy `/api/*` to `API_INTERNAL_URL`
 
@@ -47,6 +48,14 @@ The frontend reads:
 So Linux deployment only needs correct backend env values. There is no separate frontend business feature-flag layer to keep in sync.
 
 ## Recommended Compose Deployment
+
+The repository Compose file is now set up for an external Nginx reverse proxy:
+
+- `frontend` is exposed only inside the Docker network on `3000`
+- `api` is exposed only inside the Docker network on `8001`
+- Nginx should proxy public requests to `frontend:3000`
+
+If you want to expose the backend directly for machine-to-machine access, add a host port mapping back to the `api` service explicitly.
 
 ### 1. Prepare backend env
 
@@ -95,7 +104,37 @@ This makes browser requests go to:
 
 Then Next.js forwards those requests to the backend container.
 
-### 3. Align backend CORS only if needed
+### 3. Configure Nginx reverse proxy
+
+An example config is provided at [deploy/nginx/skillhub.conf](/D:/Github/open-skillhub/deploy/nginx/skillhub.conf).
+
+Core routing:
+
+- public `/` -> `frontend:3000`
+- browser `/api/*` -> frontend origin
+- frontend server-side rewrite `/api/*` -> `http://api:8001`
+
+Example:
+
+```nginx
+server {
+    listen 80;
+    server_name YOUR_DOMAIN;
+
+    location / {
+        proxy_pass http://frontend:3000;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+    }
+}
+```
+
+### 4. Align backend CORS only if needed
 
 If all browser traffic goes through the frontend origin and `/api` proxy, CORS is much less important.
 
@@ -107,19 +146,19 @@ CORS_ORIGINS=["http://YOUR_SERVER_IP","https://YOUR_DOMAIN"]
 
 Do not keep unrelated hardcoded public IPs in production config.
 
-### 4. Start services
+### 5. Start services
 
 ```bash
 docker compose up -d --build
 ```
 
-### 5. Verify
+### 6. Verify
 
 From the server:
 
 ```bash
 docker compose ps
-curl -f http://127.0.0.1:8001/health
+docker compose exec api curl -f http://127.0.0.1:8001/health
 ```
 
 From a browser:
@@ -159,7 +198,8 @@ If you switch to PostgreSQL, update `DATABASE_URL` and add a `db` service to Com
 
 ## Linux Checklist
 
-- open ports `80` and optionally `8001` if you expose backend directly
+- open ports `80` and `443` on the Nginx host
+- only expose `8001` if you intentionally want the backend reachable directly
 - set a real `SECRET_KEY`
 - set `DEBUG=false`
 - persist `./data` and `./logs`
@@ -173,6 +213,9 @@ If you switch to PostgreSQL, update `DATABASE_URL` and add a `db` service to Com
 
 - Leaving `NEXT_PUBLIC_API_BASE_URL` on an old server IP
   The frontend will keep calling the wrong host until rebuilt.
+
+- Publishing `frontend` directly on host port `80` while also using an external Nginx proxy
+  This creates port conflicts and defeats the reverse-proxy layout.
 
 - Editing backend feature envs but not rebuilding frontend after changing public origin
   Capability flags do not require frontend rebuild, but public API base does.

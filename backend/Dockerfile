@@ -8,7 +8,6 @@ ARG UV_DEFAULT_INDEX=https://pypi.tuna.tsinghua.edu.cn/simple
 
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
-ENV UV_PROJECT_ENVIRONMENT=/app/.venv
 ENV UV_DEFAULT_INDEX=$UV_DEFAULT_INDEX
 ENV UV_LINK_MODE=copy
 ENV PATH="/app/.venv/bin:$PATH"
@@ -28,4 +27,4 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 
 EXPOSE 8001
 
-CMD ["sh", "-c", "uv run alembic -c backend/alembic.ini upgrade head && uv run uvicorn backend.api_app:app --host 0.0.0.0 --port 8001 --workers 1"]
+CMD ["sh", "-c", "alembic -c backend/alembic.ini upgrade head && uvicorn backend.api_app:app --host 0.0.0.0 --port 8001 --workers 1"]

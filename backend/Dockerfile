@@ -23,6 +23,9 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 
 COPY backend /app/backend
 
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv sync --frozen --no-dev
+
 EXPOSE 8001
 
-CMD ["sh", "-c", "uv run alembic -c backend/alembic.ini upgrade head && uv run uvicorn backend.api_app:app --host 0.0.0.0 --port 8001"]
+CMD ["sh", "-c", "uv run alembic -c backend/alembic.ini upgrade head && uv run uvicorn backend.api_app:app --host 0.0.0.0 --port 8001 --workers 1"]

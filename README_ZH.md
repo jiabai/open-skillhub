@@ -137,7 +137,7 @@ graph TB
         Frontend["前端<br/>Next.js :3000 → :80"]
         API["API 服务<br/>FastAPI :8001"]
         DB[(SQLite / PostgreSQL)]
-        Storage["技能存储<br/>/data/skills"]
+        Storage["技能存储<br/>/app/data/skills"]
     end
 
     Browser -->|HTTP :80| Frontend
@@ -195,7 +195,7 @@ sequenceDiagram
 ## 📁 存储结构
 
 ```
-/data/skills/
+/app/data/skills/
 ├── {user_id_1}/
 │   ├── pdf/
 │   │   ├── SKILL.md          # 技能指令文件

@@ -2,9 +2,9 @@ from pathlib import Path
 from typing import Any, List, cast
 import json
 
+from backend.domain.user_status import DEFAULT_USER_STATUS
 from pydantic import ValidationInfo, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
-from backend.core.security.user_state import DEFAULT_USER_STATUS
 
 _BACKEND_DIR = Path(__file__).resolve().parent.parent
 _ENV_FILE = _BACKEND_DIR / ".env"

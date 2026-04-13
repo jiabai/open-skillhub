@@ -1,7 +1,7 @@
 from sqlalchemy import Boolean, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from backend.core.security.user_state import DEFAULT_USER_STATUS
+from backend.domain.user_status import DEFAULT_USER_STATUS
 from backend.models.base import Base, TimestampMixin, UUIDPrimaryKeyMixin
 
 

@@ -2,8 +2,8 @@ from typing import Any
 
 from sqlalchemy import select
 
+from backend.domain.user_status import DEFAULT_USER_STATUS, normalize_user_status, user_status_is_active
 from backend.core.security.password import get_password_hash
-from backend.core.security.user_state import DEFAULT_USER_STATUS, normalize_user_status, user_status_is_active
 from backend.models.user import User
 from backend.repositories.base import BaseRepository
 

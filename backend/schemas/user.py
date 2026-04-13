@@ -1,7 +1,7 @@
 from datetime import datetime
 
 from pydantic import BaseModel, EmailStr, Field
-from backend.core.security.user_state import UserStatus
+from backend.domain.user_status import UserStatus
 
 
 class UserCreate(BaseModel):

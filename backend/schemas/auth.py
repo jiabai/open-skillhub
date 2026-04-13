@@ -1,6 +1,6 @@
 from pydantic import BaseModel, Field, field_validator
 
-from backend.core.security.user_state import UserStatus, normalize_user_status
+from backend.domain.user_status import UserStatus, normalize_user_status
 
 
 class LDAPLoginRequest(BaseModel):

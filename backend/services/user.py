@@ -1,5 +1,5 @@
 from backend.core.utils.skill_archive import delete_archives_for_skill
-from backend.core.security.user_state import normalize_user_status, user_status_is_active
+from backend.domain.user_status import normalize_user_status, user_status_is_active
 from backend.core.utils.skill_storage import delete_skill_dir
 from backend.models.user import User
 from backend.repositories.skill import SkillRepository

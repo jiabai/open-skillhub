@@ -1,7 +1,7 @@
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 
-from backend.core.security.user_state import assert_user_active
+from backend.domain.user_status import assert_user_active
 from backend.core.security.jwt_utils import decode_token
 from backend.db.session import get_async_session
 from backend.repositories.user import UserRepository

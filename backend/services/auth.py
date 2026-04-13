@@ -6,7 +6,7 @@ import secrets
 import jwt
 
 from backend.config.settings import settings
-from backend.core.security.user_state import is_user_active, normalize_user_status, user_status_is_active
+from backend.domain.user_status import is_user_active, normalize_user_status, user_status_is_active
 from backend.core.security.jwt_utils import create_access_token, create_refresh_token, decode_token
 from backend.models.user import User
 from backend.repositories.user import UserRepository

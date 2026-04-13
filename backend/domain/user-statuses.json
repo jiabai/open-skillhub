@@ -1,0 +1,9 @@
+{
+  "default": "active",
+  "statuses": ["active", "inactive", "pending"],
+  "labels": {
+    "active": "正常",
+    "inactive": "停用",
+    "pending": "待审核"
+  }
+}

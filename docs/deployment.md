@@ -7,7 +7,7 @@ This guide covers Linux deployment with Docker Compose for the current repositor
 It assumes:
 
 - backend runs on port `8001`
-- frontend runs on port `3000` inside Docker
+- frontend runs on port `3000` in Docker and is published to host `127.0.0.1:3000`
 - an external Nginx reverse proxy terminates public traffic on port `80` or `443`
 - frontend calls the backend through the public frontend origin plus `/api/*`
 - Next.js rewrites proxy `/api/*` to `API_INTERNAL_URL`
@@ -49,11 +49,11 @@ So Linux deployment only needs correct backend env values. There is no separate 
 
 ## Recommended Compose Deployment
 
-The repository Compose file is now set up for an external Nginx reverse proxy:
+The repository Compose file is now set up for a host-level Nginx reverse proxy:
 
-- `frontend` is exposed only inside the Docker network on `3000`
+- `frontend` is published to host `127.0.0.1:3000`
 - `api` is exposed only inside the Docker network on `8001`
-- Nginx should proxy public requests to `frontend:3000`
+- host Nginx should proxy public requests to `127.0.0.1:3000`
 
 If you want to expose the backend directly for machine-to-machine access, add a host port mapping back to the `api` service explicitly.
 
@@ -110,7 +110,7 @@ An example config is provided at [deploy/nginx/skillhub.conf](/D:/Github/open-sk
 
 Core routing:
 
-- public `/` -> `frontend:3000`
+- public `/` -> `127.0.0.1:3000`
 - browser `/api/*` -> frontend origin
 - frontend server-side rewrite `/api/*` -> `http://api:8001`
 
@@ -122,7 +122,7 @@ server {
     server_name YOUR_DOMAIN;
 
     location / {
-        proxy_pass http://frontend:3000;
+        proxy_pass http://127.0.0.1:3000;
         proxy_http_version 1.1;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
@@ -199,6 +199,7 @@ If you switch to PostgreSQL, update `DATABASE_URL` and add a `db` service to Com
 ## Linux Checklist
 
 - open ports `80` and `443` on the Nginx host
+- ensure Docker publishes frontend only to `127.0.0.1:3000`
 - only expose `8001` if you intentionally want the backend reachable directly
 - set a real `SECRET_KEY`
 - set `DEBUG=false`

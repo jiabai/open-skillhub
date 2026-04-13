@@ -1,3 +1,5 @@
+# syntax=docker/dockerfile:1.7
+
 FROM python:3.11-slim
 
 WORKDIR /app
@@ -12,7 +14,8 @@ COPY --from=ghcr.io/astral-sh/uv:0.11.3 /uv /uvx /bin/
 COPY pyproject.toml uv.lock LICENSE README.md README_ZH.md /app/
 COPY backend /app/backend
 
-RUN uv sync --locked --no-dev
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv sync --locked --no-dev
 
 EXPOSE 8001
 

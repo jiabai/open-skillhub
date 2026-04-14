@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { useEffect, useState } from "react"
+import { useCallback, useEffect, useState } from "react"
 import { Loader2, Search, Trash2 } from "lucide-react"
 
 import { PageIntro } from "@/components/app/page-intro"
@@ -27,10 +27,14 @@ import { api } from "@/lib/api"
 import { useRuntimeConfig } from "@/hooks/use-runtime-config"
 import type { ConsoleSkill } from "@/types"
 import { useToast } from "@/hooks/use-toast"
+import { formatMessage } from "@/i18n/format-message"
+import { useI18n } from "@/i18n/use-i18n"
 
 export default function SkillsPage() {
   const { config } = useRuntimeConfig()
   const { success, error: showError } = useToast()
+  const { dictionary } = useI18n()
+  const { skills: copy } = dictionary
   const [query, setQuery] = useState("")
   const [includeInactive, setIncludeInactive] = useState(false)
   const [skills, setSkills] = useState<ConsoleSkill[]>([])
@@ -38,7 +42,7 @@ export default function SkillsPage() {
   const [error, setError] = useState<string | null>(null)
   const rbacEnabled = config.capabilities.rbac
 
-  const loadSkills = async (search?: string, includeInactiveParam?: boolean) => {
+  const loadSkills = useCallback(async (search?: string, includeInactiveParam?: boolean) => {
     setStatus("loading")
     setError(null)
     try {
@@ -47,13 +51,13 @@ export default function SkillsPage() {
       setStatus("idle")
     } catch (err) {
       setStatus("error")
-      setError(err instanceof Error ? err.message : "Failed to load skills")
+      setError(err instanceof Error ? err.message : copy.loadFailed)
     }
-  }
+  }, [copy.loadFailed])
 
   useEffect(() => {
     loadSkills()
-  }, [])
+  }, [loadSkills])
 
   const handleSearch = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -69,41 +73,39 @@ export default function SkillsPage() {
     try {
       if (currentStatus) {
         await api.deactivateSkill(skillUuid)
-        success("Skill deactivated")
+        success(copy.deactivatedSuccess)
       } else {
         await api.activateSkill(skillUuid)
-        success("Skill activated")
+        success(copy.activatedSuccess)
       }
       await loadSkills(query, includeInactive)
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Action failed"
+      const message = err instanceof Error ? err.message : copy.actionFailed
       setError(message)
-      showError("Action failed", { description: message })
+      showError(copy.actionFailed, { description: message })
     }
   }
 
   const getKindSummary = (skill: ConsoleSkill) => {
     if (skill.skill_kind === "reference" || skill.is_reference_read_only) {
-      return skill.pinned_version ? `Reference - pinned to v${skill.pinned_version}` : "Reference - follows public source"
+      return skill.pinned_version
+        ? formatMessage(copy.kindSummaryReferencePinned, { version: skill.pinned_version })
+        : copy.kindSummaryReferenceLatest
     }
     if (skill.skill_kind === "clone") {
-      return "Clone - private editable copy"
+      return copy.kindSummaryClone
     }
-    return "Private - owned in your workspace"
+    return copy.kindSummaryPrivate
   }
 
   return (
     <div className="flex flex-col gap-6 3xl:gap-8">
       <PageIntro
-        title={rbacEnabled ? "Skills" : "My Skills"}
-        summary={
-          !rbacEnabled
-            ? "This is your personal workspace. It shows the private, reference, and clone Skills that belong to your own workflow."
-            : "Review and manage the Skills that are available within your current scope."
-        }
+        title={rbacEnabled ? copy.titleGoverned : copy.titlePersonal}
+        summary={rbacEnabled ? copy.summaryGoverned : copy.summaryPersonal}
         actions={
           <Button asChild>
-            <Link href="/skills/new">Create Skill</Link>
+            <Link href="/skills/new">{copy.createSkill}</Link>
           </Button>
         }
       />
@@ -111,8 +113,8 @@ export default function SkillsPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Search and Filter</CardTitle>
-          <CardDescription>Search by name or description and decide whether to include inactive Skills.</CardDescription>
+          <CardTitle>{copy.searchFilterTitle}</CardTitle>
+          <CardDescription>{copy.searchFilterDescription}</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSearch} className="flex flex-wrap gap-3">
@@ -120,7 +122,7 @@ export default function SkillsPage() {
               <Search className="h-4 w-4 text-muted-foreground" />
               <Input
                 className="border-0 px-0 focus-visible:ring-0"
-                placeholder={rbacEnabled ? "Search Skills in scope" : "Search your Skills"}
+                placeholder={rbacEnabled ? copy.searchPlaceholderGoverned : copy.searchPlaceholderPersonal}
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
               />
@@ -128,11 +130,11 @@ export default function SkillsPage() {
             <div className="flex items-center gap-2">
               <Checkbox id="include-inactive" checked={includeInactive} onCheckedChange={(checked) => setIncludeInactive(checked === true)} />
               <Label htmlFor="include-inactive" className="whitespace-nowrap text-sm">
-                Show inactive
+                {copy.showInactive}
               </Label>
             </div>
             <Button type="submit" variant="secondary">
-              Search
+              {copy.search}
             </Button>
           </form>
         </CardContent>
@@ -143,7 +145,7 @@ export default function SkillsPage() {
           <Card>
             <CardContent className="flex items-center gap-3 py-10 text-sm text-muted-foreground">
               <Loader2 className="h-4 w-4 animate-spin" />
-              Loading Skills
+              {copy.loading}
             </CardContent>
           </Card>
         ) : null}
@@ -155,13 +157,13 @@ export default function SkillsPage() {
         {status === "idle" && skills.length === 0 ? (
           <Card>
             <CardContent className="space-y-4 py-10 text-sm text-muted-foreground">
-              <p>No Skills are available in this workspace yet.</p>
+              <p>{copy.empty}</p>
               <div className="flex flex-wrap gap-2">
                 <Button asChild variant="outline">
-                  <Link href="/public-skills">Go to Public Skills</Link>
+                  <Link href="/public-skills">{copy.goToPublicSkills}</Link>
                 </Button>
                 <Button asChild variant="outline">
-                  <Link href="/skills/new">Upload your own ZIP</Link>
+                  <Link href="/skills/new">{copy.uploadZip}</Link>
                 </Button>
               </div>
             </CardContent>
@@ -173,22 +175,22 @@ export default function SkillsPage() {
           const isReference = skill.skill_kind === "reference" || skill.is_reference_read_only
           const kindLabel =
             skill.skill_kind === "reference"
-              ? "Reference"
+              ? copy.kindReference
               : skill.skill_kind === "clone"
-                ? "Clone"
+                ? copy.kindClone
                 : skill.skill_kind === "public"
-                  ? "Public"
-                  : "Private"
+                  ? copy.kindPublic
+                  : copy.kindPrivate
 
           return (
             <Card key={skill.id}>
               <CardHeader className="flex flex-row items-start justify-between gap-4">
                 <div className="flex flex-col gap-2">
                   <CardTitle>{skill.name}</CardTitle>
-                  <CardDescription>{skill.description || "No description"}</CardDescription>
+                  <CardDescription>{skill.description || copy.noDescription}</CardDescription>
                   <p className="text-sm text-muted-foreground">{getKindSummary(skill)}</p>
                   <div className="flex flex-wrap gap-2">
-                    <Badge variant={skill.is_active ? "accent" : "muted"}>{skill.is_active ? "Active" : "Inactive"}</Badge>
+                    <Badge variant={skill.is_active ? "accent" : "muted"}>{skill.is_active ? copy.active : copy.inactive}</Badge>
                     <Badge variant="muted">{kindLabel}</Badge>
                     {skill.resolved_version ? <Badge variant="outline">v{skill.resolved_version}</Badge> : null}
                     <Badge variant="outline">id: {skill.id.slice(0, 8)}</Badge>
@@ -196,7 +198,7 @@ export default function SkillsPage() {
                 </div>
                 <div className="flex items-center gap-2">
                   <Button variant="outline" asChild>
-                    <Link href={`/skills/${skillUuid}`}>Open</Link>
+                    <Link href={`/skills/${skillUuid}`}>{copy.open}</Link>
                   </Button>
                   <Button
                     variant={skill.is_active ? "secondary" : "outline"}
@@ -204,24 +206,24 @@ export default function SkillsPage() {
                     disabled={isReference}
                     onClick={() => handleToggleActive(skillUuid, skill.is_active ?? false)}
                   >
-                    {skill.is_active ? "Deactivate" : "Activate"}
+                    {skill.is_active ? copy.deactivate : copy.activate}
                   </Button>
                   <AlertDialog>
                     <AlertDialogTrigger asChild>
-                      <Button variant="destructive" size="icon" aria-label="Delete Skill">
+                      <Button variant="destructive" size="icon" aria-label={copy.deleteSkillAria}>
                         <Trash2 className="h-4 w-4" />
                       </Button>
                     </AlertDialogTrigger>
                     <AlertDialogContent>
                       <AlertDialogHeader>
-                        <AlertDialogTitle>Delete this Skill?</AlertDialogTitle>
-                        <AlertDialogDescription>Choose whether to remove only the Skill record or also delete stored archives.</AlertDialogDescription>
+                        <AlertDialogTitle>{copy.deleteTitle}</AlertDialogTitle>
+                        <AlertDialogDescription>{copy.deleteDescription}</AlertDialogDescription>
                       </AlertDialogHeader>
                       <AlertDialogFooter className="flex-col gap-2 sm:flex-row">
-                        <AlertDialogCancel>Cancel</AlertDialogCancel>
-                        <AlertDialogAction onClick={() => handleDelete(skillUuid, false)}>Delete Skill only</AlertDialogAction>
+                        <AlertDialogCancel>{copy.cancel}</AlertDialogCancel>
+                        <AlertDialogAction onClick={() => handleDelete(skillUuid, false)}>{copy.deleteSkillOnly}</AlertDialogAction>
                         <AlertDialogAction onClick={() => handleDelete(skillUuid, true)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-                          Delete Skill and archives
+                          {copy.deleteSkillAndArchives}
                         </AlertDialogAction>
                       </AlertDialogFooter>
                     </AlertDialogContent>

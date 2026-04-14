@@ -2,15 +2,19 @@
 
 import { useEffect, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
-import { Loader2, Shield, AlertCircle } from "lucide-react"
+import { AlertCircle, Loader2, Shield } from "lucide-react"
 
 import { storeTokens } from "@/lib/api"
+import { FloatingLanguageToggle } from "@/components/app/floating-language-toggle"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { useI18n } from "@/i18n/use-i18n"
 
 export default function SSOCallbackPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
+  const { dictionary } = useI18n()
+  const { ssoCallback } = dictionary
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
 
@@ -26,7 +30,7 @@ export default function SSOCallbackPage() {
       }
 
       if (typeof window === "undefined") {
-        setError("无法读取登录结果")
+        setError(ssoCallback.readResultError)
         setLoading(false)
         return
       }
@@ -35,7 +39,7 @@ export default function SSOCallbackPage() {
       const accessToken = fragment.get("access_token")
       const refreshToken = fragment.get("refresh_token")
       if (!accessToken || !refreshToken) {
-        setError("缺少认证凭证")
+        setError(ssoCallback.missingCredentials)
         setLoading(false)
         return
       }
@@ -46,20 +50,21 @@ export default function SSOCallbackPage() {
     }
 
     handleCallback()
-  }, [router, searchParams])
+  }, [router, searchParams, ssoCallback.missingCredentials, ssoCallback.readResultError])
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center px-4 sm:px-6">
+      <div className="flex min-h-screen items-center justify-center bg-background px-4 sm:px-6">
+        <FloatingLanguageToggle />
         <Card className="w-full max-w-md border-border/80 shadow-lg 3xl:max-w-lg 4k:max-w-xl">
           <CardHeader className="text-center">
-            <div className="flex justify-center mb-4">
+            <div className="mb-4 flex justify-center">
               <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary text-primary-foreground sm:h-12 sm:w-12 3xl:h-14 3xl:w-14">
                 <Shield className="h-5 w-5 sm:h-6 sm:w-6 3xl:h-7 3xl:w-7" />
               </div>
             </div>
-            <CardTitle className="3xl:text-xl">SSO 认证中</CardTitle>
-            <CardDescription>正在验证您的身份...</CardDescription>
+            <CardTitle className="3xl:text-xl">{ssoCallback.loadingTitle}</CardTitle>
+            <CardDescription>{ssoCallback.loadingDescription}</CardDescription>
           </CardHeader>
           <CardContent className="flex justify-center py-6">
             <Loader2 className="h-8 w-8 animate-spin text-primary 3xl:h-10 3xl:w-10" />
@@ -71,20 +76,21 @@ export default function SSOCallbackPage() {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center px-4 sm:px-6">
+      <div className="flex min-h-screen items-center justify-center bg-background px-4 sm:px-6">
+        <FloatingLanguageToggle />
         <Card className="w-full max-w-md border-border/80 shadow-lg 3xl:max-w-lg 4k:max-w-xl">
           <CardHeader className="text-center">
-            <div className="flex justify-center mb-4">
+            <div className="mb-4 flex justify-center">
               <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-destructive text-destructive-foreground sm:h-12 sm:w-12 3xl:h-14 3xl:w-14">
                 <AlertCircle className="h-5 w-5 sm:h-6 sm:w-6 3xl:h-7 3xl:w-7" />
               </div>
             </div>
-            <CardTitle className="3xl:text-xl">SSO 认证失败</CardTitle>
+            <CardTitle className="3xl:text-xl">{ssoCallback.errorTitle}</CardTitle>
             <CardDescription>{error}</CardDescription>
           </CardHeader>
           <CardContent className="flex flex-col gap-3">
             <Button onClick={() => router.push("/login")} className="w-full">
-              返回登录
+              {ssoCallback.backToLogin}
             </Button>
           </CardContent>
         </Card>

@@ -2,6 +2,8 @@ import { act, fireEvent, render, screen, waitFor } from "@testing-library/react"
 import { beforeEach, vi } from "vitest"
 
 import { RuntimeConfigContext } from "@/components/app/runtime-config-provider"
+import { I18nProvider } from "@/i18n/i18n-provider"
+import { getDictionary } from "@/i18n/get-dictionary"
 import DashboardPage from "@/app/dashboard/page"
 import LoginPage from "@/app/login/page"
 import ProfilePage from "@/app/profile/page"
@@ -46,9 +48,11 @@ const publicSkillsPayload = {
 
 function renderWithRuntimeConfig(node: React.ReactNode) {
   return render(
-    <RuntimeConfigContext.Provider value={{ config: getRuntimeConfigSnapshot(), isLoading: false }}>
-      {node}
-    </RuntimeConfigContext.Provider>
+    <I18nProvider locale="zh-CN" dictionary={getDictionary("zh-CN")}>
+      <RuntimeConfigContext.Provider value={{ config: getRuntimeConfigSnapshot(), isLoading: false }}>
+        {node}
+      </RuntimeConfigContext.Provider>
+    </I18nProvider>
   )
 }
 
@@ -135,10 +139,10 @@ describe("console pages", () => {
 
   it("renders no-rbac dashboard overview", async () => {
     renderWithRuntimeConfig(<DashboardPage />)
-    expect(await screen.findByRole("heading", { name: "Workspace" })).toBeInTheDocument()
-    expect(await screen.findByText("Start Here")).toBeInTheDocument()
-    expect(await screen.findByText("My Workspace Snapshot")).toBeInTheDocument()
-    expect(await screen.findByText("Need To Know")).toBeInTheDocument()
+    expect(await screen.findByRole("heading", { name: "工作区" })).toBeInTheDocument()
+    expect(await screen.findByText("从这里开始")).toBeInTheDocument()
+    expect(await screen.findByText("我的工作区概览")).toBeInTheDocument()
+    expect(await screen.findByText("开始前要知道")).toBeInTheDocument()
   })
 
   it("renders rbac dashboard overview", async () => {
@@ -150,11 +154,11 @@ describe("console pages", () => {
       },
     })
     renderWithRuntimeConfig(<DashboardPage />)
-    expect(await screen.findByRole("heading", { name: "Overview" })).toBeInTheDocument()
-    expect(await screen.findByText("Team / Org Overview")).toBeInTheDocument()
-    expect(await screen.findByText("Skill Governance")).toBeInTheDocument()
-    expect(await screen.findByText("Audit & Access")).toBeInTheDocument()
-    expect(screen.getByRole("link", { name: "Audit" })).toBeInTheDocument()
+    expect(await screen.findByRole("heading", { name: "概览" })).toBeInTheDocument()
+    expect(await screen.findByText("团队 / 组织概览")).toBeInTheDocument()
+    expect(await screen.findByText("Skill 治理")).toBeInTheDocument()
+    expect(await screen.findByText("审计与访问")).toBeInTheDocument()
+    expect(screen.getByRole("link", { name: "审计" })).toBeInTheDocument()
   })
 
   it("renders skills list with personal workspace framing", async () => {
@@ -177,46 +181,44 @@ describe("console pages", () => {
     } as any)
 
     renderWithRuntimeConfig(<SkillsPage />)
-    expect(await screen.findByRole("heading", { name: "My Skills" })).toBeInTheDocument()
-    expect(await screen.findByText("Reference - follows public source")).toBeInTheDocument()
+    expect(await screen.findByRole("heading", { name: "我的 Skills" })).toBeInTheDocument()
+    expect(await screen.findByText("引用 - 跟随公共源版本")).toBeInTheDocument()
   })
 
   it("renders public skills list with no-rbac explainer", async () => {
     vi.mocked(api.listPublicSkills).mockResolvedValueOnce(publicSkillsPayload)
 
     renderWithRuntimeConfig(<PublicSkillsPage />)
-    expect(await screen.findByRole("heading", { name: "Public Skills" })).toBeInTheDocument()
-    expect(
-      await screen.findByText("Best when you want to start using a public Skill quickly without taking over its files.")
-    ).toBeInTheDocument()
-    expect(await screen.findByRole("button", { name: "Clone" })).toBeInTheDocument()
-    expect(await screen.findByText("Recommended first step: Reference")).toBeInTheDocument()
+    expect(await screen.findByRole("heading", { name: "公共 Skills" })).toBeInTheDocument()
+    expect(await screen.findByText("适合想快速开始使用公共 Skill，但暂时不接管其文件的时候。")).toBeInTheDocument()
+    expect(await screen.findByRole("button", { name: "克隆" })).toBeInTheDocument()
+    expect(await screen.findByText("推荐第一步：引用")).toBeInTheDocument()
   })
 
   it("triggers public skill actions and shows next steps", async () => {
     vi.mocked(api.listPublicSkills).mockResolvedValue(publicSkillsPayload)
-    vi.mocked(api.clonePublicSkill).mockResolvedValueOnce({ id: "clone-1", name: "Starter Skill-copy" } as any)
+    vi.mocked(api.clonePublicSkill).mockResolvedValueOnce({ id: "clone-1", name: "Starter Skill-副本" } as any)
 
     renderWithRuntimeConfig(<PublicSkillsPage />)
     await screen.findByText("Starter Skill")
 
-    fireEvent.click(screen.getByRole("button", { name: "Add Reference" }))
+    fireEvent.click(screen.getByRole("button", { name: "添加引用" }))
     await waitFor(() => {
       expect(api.referencePublicSkill).toHaveBeenCalledWith("public-1", { name: "Starter Skill" })
     })
-    expect(await screen.findByText("Reference created")).toBeInTheDocument()
+    expect(await screen.findByText("引用已创建")).toBeInTheDocument()
 
-    fireEvent.click(screen.getByRole("button", { name: "Clone" }))
+    fireEvent.click(screen.getByRole("button", { name: "克隆" }))
     await waitFor(() => {
-      expect(api.clonePublicSkill).toHaveBeenCalledWith("public-1", { name: "Starter Skill-copy", visible: "private" })
+      expect(api.clonePublicSkill).toHaveBeenCalledWith("public-1", { name: "Starter Skill-副本", visible: "private" })
     })
-    expect(await screen.findByText("Clone created")).toBeInTheDocument()
+    expect(await screen.findByText("克隆已创建")).toBeInTheDocument()
   })
 
   it("renders skill detail with type explanation", async () => {
     renderWithRuntimeConfig(<SkillDetailPage params={{ skillUuid: "demo" }} />)
-    expect(await screen.findByRole("heading", { name: "Skill Detail" })).toBeInTheDocument()
-    expect(await screen.findByText("Private Skill owned and maintained in your workspace.")).toBeInTheDocument()
+    expect(await screen.findByRole("heading", { name: "Skill 详情" })).toBeInTheDocument()
+    expect(await screen.findByText("私有 Skill，由你的工作区独立维护。")).toBeInTheDocument()
   })
 
   it("allows reference rename and pin controls without rollback", async () => {
@@ -307,18 +309,18 @@ describe("console pages", () => {
     } as any)
 
     renderWithRuntimeConfig(<SkillDetailPage params={{ skillUuid: "ref-1" }} />)
-    await screen.findByText("Reference Skill following the latest public source version.")
+    await screen.findByText("引用 Skill，当前跟随公共源的最新版本。")
 
-    await activateTab("Settings")
-    fireEvent.change(await screen.findByLabelText("Skill name"), { target: { value: "Renamed Ref" } })
-    fireEvent.click(screen.getByRole("button", { name: "Save changes" }))
+    await activateTab("设置")
+    fireEvent.change(await screen.findByLabelText("Skill 名称"), { target: { value: "Renamed Ref" } })
+    fireEvent.click(screen.getByRole("button", { name: "保存更改" }))
     await waitFor(() => {
       expect(api.updateSkill).toHaveBeenCalledWith("ref-1", { name: "Renamed Ref" })
     })
 
-    await activateTab("Versions")
-    fireEvent.click(await screen.findByLabelText("Select version 1.2.3"))
-    fireEvent.click(await screen.findByRole("button", { name: "Pin to 1.2.3" }))
+    await activateTab("版本")
+    fireEvent.click(await screen.findByLabelText("选择版本 1.2.3"))
+    fireEvent.click(await screen.findByRole("button", { name: "固定到 1.2.3" }))
     await waitFor(() => {
       expect(api.pinReferenceSkillVersion).toHaveBeenCalledWith("ref-1", "1.2.3")
     })
@@ -352,7 +354,7 @@ describe("console pages", () => {
 
     renderWithRuntimeConfig(<SkillDetailPage params={{ skillUuid: "skill-1" }} />)
     await screen.findByText("Versioned Skill")
-    expect(screen.getByRole("tab", { name: "Versions" })).toBeInTheDocument()
+    expect(screen.getByRole("tab", { name: "版本" })).toBeInTheDocument()
   })
 
   it("deletes a skill and returns to the skills list through the router", async () => {
@@ -371,9 +373,9 @@ describe("console pages", () => {
 
     renderWithRuntimeConfig(<SkillDetailPage params={{ skillUuid: "skill-delete" }} />)
     await screen.findByText("Delete Me")
-    await activateTab("Settings")
-    fireEvent.click(await screen.findByRole("button", { name: "Delete Skill" }))
-    fireEvent.click(await screen.findByText("Delete Skill only"))
+    await activateTab("设置")
+    fireEvent.click(await screen.findByRole("button", { name: "删除 Skill" }))
+    fireEvent.click(await screen.findByText("只删除 Skill"))
     await waitFor(() => {
       expect(replaceMock).toHaveBeenCalledWith("/skills")
     })
@@ -381,8 +383,8 @@ describe("console pages", () => {
 
   it("renders tokens page with connect client guidance", async () => {
     renderWithRuntimeConfig(<TokensPage />)
-    expect(await screen.findByRole("heading", { name: "Tokens" })).toBeInTheDocument()
-    expect(await screen.findByRole("heading", { name: "Create Token" })).toBeInTheDocument()
+    expect(await screen.findByRole("heading", { name: "令牌" })).toBeInTheDocument()
+    expect(await screen.findByRole("heading", { name: "创建令牌" })).toBeInTheDocument()
   })
 
   it("renders profile form", async () => {
@@ -396,11 +398,11 @@ describe("console pages", () => {
     vi.mocked(api.requestDeleteAccount).mockResolvedValueOnce(undefined)
     vi.mocked(api.deleteAccount).mockResolvedValueOnce(undefined)
     renderWithRuntimeConfig(<SecurityPage />)
-    fireEvent.click(screen.getByRole("button", { name: "Request deletion code" }))
-    await screen.findByLabelText("Deletion verification code")
-    fireEvent.change(screen.getByLabelText("Deletion verification code"), { target: { value: "123456" } })
-    fireEvent.click(screen.getByRole("button", { name: "Delete account" }))
-    fireEvent.click(screen.getByRole("button", { name: "Confirm deletion" }))
+    fireEvent.click(screen.getByRole("button", { name: "申请删除验证码" }))
+    await screen.findByLabelText("删除验证码")
+    fireEvent.change(screen.getByLabelText("删除验证码"), { target: { value: "123456" } })
+    fireEvent.click(screen.getByRole("button", { name: "删除账户" }))
+    fireEvent.click(screen.getByRole("button", { name: "确认删除" }))
     await waitFor(() => {
       expect(replaceMock).toHaveBeenCalledWith("/login")
     })

@@ -20,9 +20,12 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { useI18n } from "@/i18n/use-i18n"
 
 export default function SecurityPage() {
   const router = useRouter()
+  const { dictionary } = useI18n()
+  const { security } = dictionary
   const [deleteCode, setDeleteCode] = useState("")
   const [message, setMessage] = useState<string | null>(null)
   const [isRequestingCode, setIsRequestingCode] = useState(false)
@@ -36,9 +39,9 @@ export default function SecurityPage() {
     try {
       await api.requestDeleteAccount()
       setCodeSent(true)
-      setMessage("Deletion verification code sent. Check your email inbox.")
+      setMessage(security.codeSentMessage)
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to request deletion verification code")
+      setError(err instanceof Error ? err.message : security.requestCodeFailed)
     } finally {
       setIsRequestingCode(false)
     }
@@ -50,7 +53,7 @@ export default function SecurityPage() {
       clearTokens()
       router.replace("/login")
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to delete account")
+      setError(err instanceof Error ? err.message : security.deleteFailed)
     }
   }
 
@@ -61,43 +64,41 @@ export default function SecurityPage() {
           <ShieldCheck className="h-5 w-5 3xl:h-6 3xl:w-6" />
         </div>
         <div>
-          <h1 className="font-display text-3xl 3xl:text-4xl 4k:text-5xl">Security</h1>
-          <p className="text-sm text-muted-foreground 3xl:text-base">Manage sensitive account actions and deletion controls.</p>
+          <h1 className="font-display text-3xl 3xl:text-4xl 4k:text-5xl">{security.title}</h1>
+          <p className="text-sm text-muted-foreground 3xl:text-base">{security.summary}</p>
         </div>
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle>Delete Account</CardTitle>
-          <CardDescription>This action cannot be undone. Request a verification code before deleting the account.</CardDescription>
+          <CardTitle>{security.deleteTitle}</CardTitle>
+          <CardDescription>{security.deleteDescription}</CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
           {!codeSent ? (
             <div className="flex flex-col gap-4">
-              <p className="text-sm text-muted-foreground">
-                Account deletion requires an email verification step. Request the deletion code first, then confirm the action with that code.
-              </p>
+              <p className="text-sm text-muted-foreground">{security.intro}</p>
               <Button variant="outline" onClick={handleRequestDeleteCode} disabled={isRequestingCode}>
                 {isRequestingCode ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Sending...
+                    {security.sending}
                   </>
                 ) : (
-                  "Request deletion code"
+                  security.requestCode
                 )}
               </Button>
             </div>
           ) : (
             <div className="flex flex-col gap-4">
               <div className="flex flex-col gap-2">
-                <Label htmlFor="delete-code">Deletion verification code</Label>
+                <Label htmlFor="delete-code">{security.codeLabel}</Label>
                 <Input
                   id="delete-code"
                   type="text"
                   value={deleteCode}
                   onChange={(event) => setDeleteCode(event.target.value)}
-                  placeholder="6-digit verification code"
+                  placeholder={security.codePlaceholder}
                   maxLength={6}
                   required
                 />
@@ -107,30 +108,28 @@ export default function SecurityPage() {
                   {isRequestingCode ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Resending...
+                      {security.resending}
                     </>
                   ) : (
-                    "Resend code"
+                    security.resendCode
                   )}
                 </Button>
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
                     <Button variant="destructive" disabled={!deleteCode} className="sm:flex-1">
                       <Trash2 className="mr-2 h-4 w-4" />
-                      Delete account
+                      {security.deleteAccount}
                     </Button>
                   </AlertDialogTrigger>
                   <AlertDialogContent>
                     <AlertDialogHeader>
-                      <AlertDialogTitle>Delete account?</AlertDialogTitle>
-                      <AlertDialogDescription>
-                        After deletion, your account, Skills, and Tokens will no longer be available. This action cannot be undone.
-                      </AlertDialogDescription>
+                      <AlertDialogTitle>{security.confirmTitle}</AlertDialogTitle>
+                      <AlertDialogDescription>{security.confirmDescription}</AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
-                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogCancel>{security.cancel}</AlertDialogCancel>
                       <AlertDialogAction onClick={handleDeleteAccount} className="bg-destructive">
-                        Confirm deletion
+                        {security.confirmDelete}
                       </AlertDialogAction>
                     </AlertDialogFooter>
                   </AlertDialogContent>

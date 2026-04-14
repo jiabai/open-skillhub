@@ -13,13 +13,18 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Separator } from "@/components/ui/separator"
+import { FloatingLanguageToggle } from "@/components/app/floating-language-toggle"
+import { formatMessage } from "@/i18n/format-message"
+import { useI18n } from "@/i18n/use-i18n"
 
 export default function LoginPage() {
   const router = useRouter()
   const { config } = useRuntimeConfig()
+  const { dictionary } = useI18n()
+  const { login, validation } = dictionary
   const capabilities = config.capabilities
-  const emailField = useField<string>("", createEmailRules())
-  const codeField = useField<string>("", createVerificationCodeRules())
+  const emailField = useField<string>("", createEmailRules(validation.emailInvalid))
+  const codeField = useField<string>("", createVerificationCodeRules(validation.verificationCodeInvalid))
   const [codeMessage, setCodeMessage] = useState<string | null>(null)
   const [resendSeconds, setResendSeconds] = useState(0)
   const resendSecondsRef = useRef(resendSeconds)
@@ -44,7 +49,7 @@ export default function LoginPage() {
       const response = await api.sendVerificationCode({ email: emailField.value, purpose: "login" })
       const cooldown = response.resend_interval ?? 60
       setResendSeconds(cooldown)
-      setCodeMessage(`验证码已发送，有效期 ${response.expires_in ?? 300} 秒`)
+      setCodeMessage(formatMessage(login.codeSent, { seconds: response.expires_in ?? 300 }))
     } catch (err) {
       setError(getErrorMessage(err))
     } finally {
@@ -75,7 +80,7 @@ export default function LoginPage() {
       const tokenPair = await api.login({ email: emailField.value, code: codeField.value })
       storeTokens(tokenPair)
       router.replace("/dashboard")
-      setSuccess("登录成功，已保存凭证。")
+      setSuccess(login.loginSuccess)
     } catch (err) {
       setError(getErrorMessage(err))
     } finally {
@@ -89,7 +94,7 @@ export default function LoginPage() {
     try {
       window.location.href = `${apiBaseUrl}/api/v1/auth/sso/authorize`
     } catch (err) {
-      setError(err instanceof Error ? err.message : "SSO 登录失败")
+      setError(err instanceof Error ? err.message : login.ssoLoginFailed)
     }
   }
 
@@ -103,6 +108,7 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen bg-background">
+      <FloatingLanguageToggle />
       <div className="mx-auto grid min-h-screen max-w-screen-xl items-center gap-6 px-4 py-8 sm:px-6 sm:py-12 lg:grid-cols-[1.1fr_0.9fr] lg:gap-10 3xl:max-w-screen-2xl 3xl:gap-14 4k:max-w-screen-3xl 4k:gap-16">
         <div className="flex flex-col gap-4 sm:gap-6 3xl:gap-8">
           <div className="flex items-center gap-3">
@@ -110,34 +116,34 @@ export default function LoginPage() {
               <Shield className="h-5 w-5 sm:h-6 sm:w-6 3xl:h-7 3xl:w-7" />
             </div>
             <div>
-              <p className="font-display text-xl sm:text-2xl 3xl:text-3xl">欢迎回来</p>
-              <p className="text-xs sm:text-sm 3xl:text-base text-muted-foreground">安全地进入你的 Skill 空间</p>
+              <p className="font-display text-xl sm:text-2xl 3xl:text-3xl">{login.heroTitle}</p>
+              <p className="text-xs sm:text-sm 3xl:text-base text-muted-foreground">{login.heroSubtitle}</p>
             </div>
           </div>
           <div className="rounded-lg border border-border bg-muted/60 p-4 sm:p-6 3xl:p-8">
             <p className="text-sm text-muted-foreground">
-              你将访问私有 MCP Skill 目录、API Token 管理与运行记录。所有动作都记录在账户下。
+              {login.heroDescription}
             </p>
           </div>
         </div>
         <Card className="w-full max-w-md justify-self-center border-border/80 shadow-lg lg:max-w-none lg:justify-self-auto 3xl:max-w-lg 4k:max-w-xl">
           <CardHeader>
-            <CardTitle>欢迎回来</CardTitle>
+            <CardTitle>{login.cardTitle}</CardTitle>
             <CardDescription>
               {capabilities.email_otp_login
-                ? "请输入邮箱并验证验证码继续。"
-                : "请选择登录方式。"}
+                ? login.cardDescriptionWithOtp
+                : login.cardDescriptionWithoutOtp}
             </CardDescription>
           </CardHeader>
           <form onSubmit={handleSubmit}>
             {capabilities.email_otp_login && (
               <CardContent className="flex flex-col gap-4">
                 <div className="flex flex-col gap-2">
-                  <Label htmlFor="email">邮箱</Label>
+                  <Label htmlFor="email">{login.emailLabel}</Label>
                   <Input
                     id="email"
                     type="text"
-                    placeholder="you@company.com"
+                    placeholder={login.emailPlaceholder}
                     value={emailField.value}
                     onChange={(event) => emailField.setValue(event.target.value)}
                     onBlur={emailField.handleBlur}
@@ -145,12 +151,12 @@ export default function LoginPage() {
                   {emailField.error && <p className="text-sm text-destructive">{emailField.error}</p>}
                 </div>
                 <div className="flex flex-col gap-2">
-                  <Label htmlFor="code">验证码</Label>
+                  <Label htmlFor="code">{login.codeLabel}</Label>
                   <div className="flex flex-col gap-2 sm:flex-row sm:gap-2">
                     <Input
                       id="code"
                       inputMode="numeric"
-                      placeholder="6 位验证码"
+                      placeholder={login.codePlaceholder}
                       value={codeField.value}
                       onChange={(event) => codeField.setValue(event.target.value)}
                       onBlur={codeField.handleBlur}
@@ -164,7 +170,7 @@ export default function LoginPage() {
                       disabled={!emailField.value || isSending || resendSeconds > 0}
                       className="shrink-0"
                     >
-                      {resendSeconds > 0 ? `${resendSeconds}s` : isSending ? "发送中..." : "发送验证码"}
+                      {resendSeconds > 0 ? `${resendSeconds}s` : isSending ? login.sendingCode : login.sendCode}
                     </Button>
                   </div>
                   {codeField.error && <p className="text-sm text-destructive">{codeField.error}</p>}
@@ -177,7 +183,7 @@ export default function LoginPage() {
             <CardFooter className="flex flex-col gap-3">
               {capabilities.email_otp_login && (
                 <Button type="submit" className="w-full" disabled={isLoading}>
-                  {isLoading ? "正在登录..." : "邮箱验证码登录"}
+                  {isLoading ? login.loginLoading : login.loginWithOtp}
                 </Button>
               )}
               {(capabilities.sso || capabilities.ldap) && (
@@ -189,7 +195,7 @@ export default function LoginPage() {
                       </div>
                       <div className="relative flex justify-center text-xs uppercase">
                         <span className="bg-background px-2 text-muted-foreground">
-                          或
+                          {login.dividerOr}
                         </span>
                       </div>
                     </div>
@@ -203,7 +209,7 @@ export default function LoginPage() {
                         onClick={handleSSOLogin}
                       >
                         <Building2 className="mr-2 h-4 w-4" />
-                        SSO 登录
+                        {login.ssoLogin}
                       </Button>
                     )}
                     {capabilities.ldap && (
@@ -214,7 +220,7 @@ export default function LoginPage() {
                         onClick={handleLDAPLogin}
                       >
                         <Fingerprint className="mr-2 h-4 w-4" />
-                        LDAP 登录
+                        {login.ldapLogin}
                       </Button>
                     )}
                   </div>
@@ -223,11 +229,11 @@ export default function LoginPage() {
               <div className="flex w-full items-center justify-between text-sm text-muted-foreground">
                 <span className="flex items-center gap-2">
                   <Mail className="h-4 w-4" />
-                  仅用于认证
+                  {login.emailAuthOnly}
                 </span>
                 {capabilities.public_signup && (
                   <Link href="/register" className="text-primary hover:underline">
-                    创建账户
+                    {login.createAccount}
                   </Link>
                 )}
               </div>

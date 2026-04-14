@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useCallback, useEffect, useState } from "react"
 import { Copy, Loader2, Search, Sparkles } from "lucide-react"
 
 import { NextStepCard } from "@/components/app/next-step-card"
@@ -15,6 +15,7 @@ import { api } from "@/lib/api"
 import { useRuntimeConfig } from "@/hooks/use-runtime-config"
 import type { PublicSkill } from "@/types"
 import { useToast } from "@/hooks/use-toast"
+import { useI18n } from "@/i18n/use-i18n"
 
 type NextStepState =
   | { href: string; title: string; description: string; actionLabel: string }
@@ -23,6 +24,8 @@ type NextStepState =
 export default function PublicSkillsPage() {
   const { config } = useRuntimeConfig()
   const { success, error: showError } = useToast()
+  const { dictionary } = useI18n()
+  const { publicSkills } = dictionary
   const [query, setQuery] = useState("")
   const [skills, setSkills] = useState<PublicSkill[]>([])
   const [status, setStatus] = useState<"idle" | "loading" | "error">("loading")
@@ -30,7 +33,7 @@ export default function PublicSkillsPage() {
   const [nextStep, setNextStep] = useState<NextStepState>(null)
   const rbacEnabled = config.capabilities.rbac
 
-  const loadSkills = async (search?: string) => {
+  const loadSkills = useCallback(async (search?: string) => {
     setStatus("loading")
     setError(null)
     try {
@@ -39,46 +42,49 @@ export default function PublicSkillsPage() {
       setStatus("idle")
     } catch (err) {
       setStatus("error")
-      setError(err instanceof Error ? err.message : "Failed to load public skills")
+      setError(err instanceof Error ? err.message : publicSkills.loadFailed)
     }
-  }
+  }, [publicSkills.loadFailed])
 
   useEffect(() => {
     loadSkills()
-  }, [])
+  }, [loadSkills])
 
   const handleReference = async (skill: PublicSkill) => {
     try {
       await api.referencePublicSkill(skill.id, { name: skill.name })
       setNextStep({
         href: "/skills",
-        title: "Reference created",
-        description: "The public Skill was added to your personal workspace. Review it in My Skills and decide later if you need a clone.",
-        actionLabel: "Go to My Skills",
+        title: publicSkills.nextStepReferenceTitle,
+        description: publicSkills.nextStepReferenceDescription,
+        actionLabel: publicSkills.nextStepReferenceAction,
       })
-      success("Public skill added to your skills")
+      success(publicSkills.referenceSuccess)
       await loadSkills(query)
     } catch (err) {
-      showError("Unable to add reference", {
-        description: err instanceof Error ? err.message : "Unknown error",
+      showError(publicSkills.referenceErrorTitle, {
+        description: err instanceof Error ? err.message : publicSkills.loadFailed,
       })
     }
   }
 
   const handleClone = async (skill: PublicSkill) => {
     try {
-      const created = await api.clonePublicSkill(skill.id, { name: `${skill.name}-copy`, visible: "private" })
+      const created = await api.clonePublicSkill(skill.id, {
+        name: `${skill.name}${publicSkills.cloneNameSuffix}`,
+        visible: "private",
+      })
       setNextStep({
         href: `/skills/${created.id}`,
-        title: "Clone created",
-        description: "You now have a private editable copy. Open it next to manage files, versions, and later uploads.",
-        actionLabel: "Open cloned Skill",
+        title: publicSkills.nextStepCloneTitle,
+        description: publicSkills.nextStepCloneDescription,
+        actionLabel: publicSkills.nextStepCloneAction,
       })
-      success("Public skill cloned")
+      success(publicSkills.cloneSuccess)
       await loadSkills(query)
     } catch (err) {
-      showError("Unable to clone skill", {
-        description: err instanceof Error ? err.message : "Unknown error",
+      showError(publicSkills.cloneErrorTitle, {
+        description: err instanceof Error ? err.message : publicSkills.loadFailed,
       })
     }
   }
@@ -86,12 +92,8 @@ export default function PublicSkillsPage() {
   return (
     <div className="flex flex-col gap-6 3xl:gap-8">
       <PageIntro
-        title="Public Skills"
-        summary={
-          !rbacEnabled
-            ? "Start here if you want to adopt a public Skill quickly. Use a reference first, clone when you need your own editable copy."
-            : "Browse reusable public Skills and bring them into your governed workspace with the right ownership model."
-        }
+        title={publicSkills.title}
+        summary={rbacEnabled ? publicSkills.summaryGoverned : publicSkills.summaryPersonal}
       />
       <WorkspaceBoundaryNote rbacEnabled={rbacEnabled} />
 
@@ -111,13 +113,13 @@ export default function PublicSkillsPage() {
               <Search className="h-4 w-4 text-muted-foreground" />
               <Input
                 className="border-0 px-0 focus-visible:ring-0"
-                placeholder="Search public skills"
+                placeholder={publicSkills.searchPlaceholder}
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
               />
             </div>
             <Button type="submit" variant="secondary">
-              Search
+              {publicSkills.search}
             </Button>
           </form>
         </CardContent>
@@ -127,7 +129,7 @@ export default function PublicSkillsPage() {
         <Card>
           <CardContent className="flex items-center gap-3 py-10 text-sm text-muted-foreground">
             <Loader2 className="h-4 w-4 animate-spin" />
-            Loading public skills
+            {publicSkills.loading}
           </CardContent>
         </Card>
       ) : null}
@@ -140,7 +142,7 @@ export default function PublicSkillsPage() {
 
       {status === "idle" && skills.length === 0 ? (
         <Card>
-          <CardContent className="py-10 text-sm text-muted-foreground">No public skills found.</CardContent>
+          <CardContent className="py-10 text-sm text-muted-foreground">{publicSkills.empty}</CardContent>
         </Card>
       ) : null}
 
@@ -153,24 +155,24 @@ export default function PublicSkillsPage() {
                   <CardTitle>{skill.name}</CardTitle>
                   <Badge variant="accent">
                     <Sparkles className="mr-1 h-3 w-3" />
-                    Public
+                    {publicSkills.publicBadge}
                   </Badge>
-                  {!rbacEnabled && !skill.has_reference ? <Badge variant="outline">Recommended first step: Reference</Badge> : null}
+                  {!rbacEnabled && !skill.has_reference ? <Badge variant="outline">{publicSkills.recommendedReference}</Badge> : null}
                 </div>
-                <CardDescription>{skill.description || "No description"}</CardDescription>
+                <CardDescription>{skill.description || publicSkills.noDescription}</CardDescription>
                 <div className="flex flex-wrap gap-2">
                   {skill.resolved_version ? <Badge variant="outline">v{skill.resolved_version}</Badge> : null}
-                  {skill.has_reference ? <Badge variant="secondary">Referenced</Badge> : null}
-                  {skill.has_clone ? <Badge variant="secondary">Cloned</Badge> : null}
+                  {skill.has_reference ? <Badge variant="secondary">{publicSkills.referenced}</Badge> : null}
+                  {skill.has_clone ? <Badge variant="secondary">{publicSkills.cloned}</Badge> : null}
                 </div>
               </div>
               <div className="flex flex-wrap gap-2">
                 <Button variant="secondary" onClick={() => handleReference(skill)} disabled={skill.has_reference}>
-                  Add Reference
+                  {publicSkills.addReference}
                 </Button>
                 <Button variant="outline" onClick={() => handleClone(skill)}>
                   <Copy className="mr-2 h-4 w-4" />
-                  Clone
+                  {publicSkills.clone}
                 </Button>
               </div>
             </CardHeader>

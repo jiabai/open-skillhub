@@ -74,7 +74,7 @@ describe("download api", () => {
     const { api, ApiError } = await import("@/lib/api")
 
     await expect(api.downloadSkill({ skill_uuid: "skill-1" })).rejects.toEqual(
-      expect.objectContaining<ApiError>({
+      expect.objectContaining({
         name: "ApiError",
         message: "Skill deactivated",
         status: 410,

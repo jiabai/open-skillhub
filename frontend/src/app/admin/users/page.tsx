@@ -1,22 +1,20 @@
 "use client"
 
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
 import { formatDistanceToNow } from "date-fns"
-import { zhCN } from "date-fns/locale"
 import {
-  Users,
-  Loader2,
-  Search,
-  MoreHorizontal,
-  Shield,
   Building2,
-  Users as TeamIcon,
-  UserCircle,
   Edit,
+  Loader2,
+  MoreHorizontal,
+  Search,
+  Shield,
+  UserCircle,
+  Users,
+  Users as TeamIcon,
 } from "lucide-react"
 
 import { api, getErrorMessage } from "@/lib/api"
-import { USER_STATUS_LABELS, USER_STATUS_OPTIONS, type UserStatus } from "@/lib/user-status"
 import type { User, UserIdentityUpdate } from "@/types"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -24,42 +22,15 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Skeleton } from "@/components/ui/skeleton"
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useToast } from "@/hooks/use-toast"
-
-const roleOptions = [
-  { value: "admin", label: "管理员" },
-  { value: "member", label: "成员" },
-  { value: "viewer", label: "只读" },
-]
+import { getDateFnsLocale } from "@/i18n/date-fns"
+import { formatMessage } from "@/i18n/format-message"
+import { useI18n } from "@/i18n/use-i18n"
+import type { UserStatus } from "@/lib/user-status"
 
 const USER_STATUS_BADGE_VARIANTS: Record<UserStatus, "default" | "destructive" | "secondary"> = {
   active: "default",
@@ -69,20 +40,36 @@ const USER_STATUS_BADGE_VARIANTS: Record<UserStatus, "default" | "destructive" |
 
 export default function UsersAdminPage() {
   const { success, error: showError } = useToast()
+  const { dictionary, locale } = useI18n()
+  const { usersAdmin } = dictionary
+  const dateLocale = getDateFnsLocale(locale)
+  const roleOptions = useMemo(
+    () => [
+      { value: "admin", label: usersAdmin.roleAdmin },
+      { value: "member", label: usersAdmin.roleMember },
+      { value: "viewer", label: usersAdmin.roleViewer },
+    ],
+    [usersAdmin]
+  )
+  const statusOptions = useMemo(
+    () => [
+      { value: "active", label: usersAdmin.statusActive },
+      { value: "inactive", label: usersAdmin.statusInactive },
+      { value: "pending", label: usersAdmin.statusPending },
+    ] satisfies Array<{ value: UserStatus; label: string }>,
+    [usersAdmin]
+  )
   const [users, setUsers] = useState<User[]>([])
   const [total, setTotal] = useState(0)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState("")
   const [searchDebounced, setSearchDebounced] = useState("")
-
-  // 编辑用户身份对话框状态
   const [editDialogOpen, setEditDialogOpen] = useState(false)
   const [editingUser, setEditingUser] = useState<User | null>(null)
   const [editForm, setEditForm] = useState<UserIdentityUpdate>({})
   const [editLoading, setEditLoading] = useState(false)
 
-  // 防抖搜索
   useEffect(() => {
     const timer = setTimeout(() => {
       setSearchDebounced(searchQuery)
@@ -124,7 +111,7 @@ export default function UsersAdminPage() {
     setEditLoading(true)
     try {
       await api.updateUserIdentity(editingUser.id, editForm)
-      success("用户身份已更新")
+      success(usersAdmin.updateSuccess)
       setEditDialogOpen(false)
       await fetchUsers()
     } catch (err) {
@@ -136,84 +123,71 @@ export default function UsersAdminPage() {
 
   const getRoleBadge = (role: string) => {
     const variant = role === "admin" ? "default" : role === "member" ? "secondary" : "outline"
-    return (
-      <Badge variant={variant}>
-        {roleOptions.find((r) => r.value === role)?.label || role}
-      </Badge>
-    )
+    return <Badge variant={variant}>{roleOptions.find((item) => item.value === role)?.label || role}</Badge>
   }
 
   const getStatusBadge = (status: UserStatus) => {
-    return (
-      <Badge variant={USER_STATUS_BADGE_VARIANTS[status]}>
-        {USER_STATUS_LABELS[status]}
-      </Badge>
-    )
+    return <Badge variant={USER_STATUS_BADGE_VARIANTS[status]}>{statusOptions.find((item) => item.value === status)?.label || status}</Badge>
   }
 
   return (
     <div className="flex flex-col gap-6 3xl:gap-8">
-      {/* 页面标题 */}
       <div className="flex items-center gap-3">
         <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-secondary text-secondary-foreground 3xl:h-12 3xl:w-12">
           <Users className="h-5 w-5 3xl:h-6 3xl:w-6" />
         </div>
         <div>
-          <h1 className="font-display text-3xl 3xl:text-4xl 4k:text-5xl">用户管理</h1>
-          <p className="text-sm 3xl:text-base text-muted-foreground">
-            管理用户身份信息，共 {total} 个用户
-          </p>
+          <h1 className="font-display text-3xl 3xl:text-4xl 4k:text-5xl">{usersAdmin.title}</h1>
+          <p className="text-sm text-muted-foreground 3xl:text-base">{formatMessage(usersAdmin.summary, { total })}</p>
         </div>
       </div>
 
-      {/* 搜索栏 */}
       <div className="flex items-center gap-4">
-        <div className="relative flex-1 max-w-sm">
+        <div className="relative max-w-sm flex-1">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
-            placeholder="搜索用户名或邮箱..."
+            placeholder={usersAdmin.searchPlaceholder}
             value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            onChange={(event) => setSearchQuery(event.target.value)}
             className="pl-9"
           />
         </div>
       </div>
 
-      {/* 用户列表 */}
       <Card>
         <CardHeader>
-          <CardTitle>用户列表</CardTitle>
-          <CardDescription>查看和管理系统中的所有用户</CardDescription>
+          <CardTitle>{usersAdmin.listTitle}</CardTitle>
+          <CardDescription>{usersAdmin.listDescription}</CardDescription>
         </CardHeader>
         <CardContent>
           {loading ? (
             <div className="flex flex-col gap-3">
-              {[...Array(5)].map((_, i) => (
-                <Skeleton key={i} className="h-12 w-full" />
+              {[...Array(5)].map((_, index) => (
+                <Skeleton key={index} className="h-12 w-full" />
               ))}
             </div>
           ) : error ? (
             <div className="py-8 text-center text-sm text-destructive">
               <p>{error}</p>
               <Button variant="outline" size="sm" className="mt-4" onClick={fetchUsers}>
-                重试
+                {usersAdmin.retry}
               </Button>
             </div>
           ) : users.length === 0 ? (
             <div className="py-8 text-center text-sm text-muted-foreground">
-              <Users className="mx-auto h-12 w-12 mb-4 opacity-50" />
-              <p>暂无用户数据</p>
+              <Users className="mx-auto mb-4 h-12 w-12 opacity-50" />
+              <p>{usersAdmin.empty}</p>
             </div>
           ) : (
             <div className="rounded-md border">
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>用户</TableHead>
-                    <TableHead>角色</TableHead>
-                    <TableHead>状态</TableHead>
-                    <TableHead>企业 / 团队</TableHead>
-                    <TableHead>创建时间</TableHead>
+                    <TableHead>{usersAdmin.userColumn}</TableHead>
+                    <TableHead>{usersAdmin.roleColumn}</TableHead>
+                    <TableHead>{usersAdmin.statusColumn}</TableHead>
+                    <TableHead>{usersAdmin.orgTeamColumn}</TableHead>
+                    <TableHead>{usersAdmin.createdAtColumn}</TableHead>
                     <TableHead className="w-[50px]"></TableHead>
                   </TableRow>
                 </TableHeader>
@@ -229,12 +203,12 @@ export default function UsersAdminPage() {
                             <p className="font-medium">{user.username}</p>
                             <p className="text-xs text-muted-foreground">{user.email}</p>
                           </div>
-                          {user.is_superuser && (
+                          {user.is_superuser ? (
                             <Badge variant="outline" className="text-xs">
-                              <Shield className="h-3 w-3 mr-1" />
-                              超管
+                              <Shield className="mr-1 h-3 w-3" />
+                              {usersAdmin.superuser}
                             </Badge>
-                          )}
+                          ) : null}
                         </div>
                       </TableCell>
                       <TableCell>{getRoleBadge(user.role)}</TableCell>
@@ -249,18 +223,18 @@ export default function UsersAdminPage() {
                           ) : (
                             <span className="text-muted-foreground">-</span>
                           )}
-                          {user.team_id && (
-                            <div className="flex items-center gap-1 text-muted-foreground mt-0.5">
+                          {user.team_id ? (
+                            <div className="mt-0.5 flex items-center gap-1 text-muted-foreground">
                               <TeamIcon className="h-3 w-3" />
                               {user.team_id}
                             </div>
-                          )}
+                          ) : null}
                         </div>
                       </TableCell>
                       <TableCell className="text-sm text-muted-foreground">
                         {formatDistanceToNow(new Date(user.created_at), {
                           addSuffix: true,
-                          locale: zhCN,
+                          locale: dateLocale,
                         })}
                       </TableCell>
                       <TableCell>
@@ -272,8 +246,8 @@ export default function UsersAdminPage() {
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
                             <DropdownMenuItem onClick={() => handleOpenEditDialog(user)}>
-                              <Edit className="h-4 w-4 mr-2" />
-                              编辑身份
+                              <Edit className="mr-2 h-4 w-4" />
+                              {usersAdmin.editIdentity}
                             </DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
@@ -287,24 +261,20 @@ export default function UsersAdminPage() {
         </CardContent>
       </Card>
 
-      {/* 编辑用户身份对话框 */}
       <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>编辑用户身份</DialogTitle>
+            <DialogTitle>{usersAdmin.editDialogTitle}</DialogTitle>
             <DialogDescription>
-              更新 {editingUser?.username} 的身份信息
+              {formatMessage(usersAdmin.editDialogDescription, { username: editingUser?.username ?? "" })}
             </DialogDescription>
           </DialogHeader>
           <div className="flex flex-col gap-4 py-4">
             <div className="flex flex-col gap-2">
-              <Label htmlFor="role">角色</Label>
-              <Select
-                value={editForm.role || ""}
-                onValueChange={(value) => setEditForm((prev) => ({ ...prev, role: value }))}
-              >
+              <Label htmlFor="role">{usersAdmin.roleLabel}</Label>
+              <Select value={editForm.role || ""} onValueChange={(value) => setEditForm((prev) => ({ ...prev, role: value }))}>
                 <SelectTrigger>
-                  <SelectValue placeholder="选择角色" />
+                  <SelectValue placeholder={usersAdmin.rolePlaceholder} />
                 </SelectTrigger>
                 <SelectContent>
                   {roleOptions.map((option) => (
@@ -316,16 +286,13 @@ export default function UsersAdminPage() {
               </Select>
             </div>
             <div className="flex flex-col gap-2">
-              <Label htmlFor="status">状态</Label>
-              <Select
-                value={editForm.status || ""}
-                onValueChange={(value) => setEditForm((prev) => ({ ...prev, status: value as UserStatus }))}
-              >
+              <Label htmlFor="status">{usersAdmin.statusLabel}</Label>
+              <Select value={editForm.status || ""} onValueChange={(value) => setEditForm((prev) => ({ ...prev, status: value as UserStatus }))}>
                 <SelectTrigger>
-                  <SelectValue placeholder="选择状态" />
+                  <SelectValue placeholder={usersAdmin.statusPlaceholder} />
                 </SelectTrigger>
                 <SelectContent>
-                  {USER_STATUS_OPTIONS.map((option) => (
+                  {statusOptions.map((option) => (
                     <SelectItem key={option.value} value={option.value}>
                       {option.label}
                     </SelectItem>
@@ -334,41 +301,41 @@ export default function UsersAdminPage() {
               </Select>
             </div>
             <div className="flex flex-col gap-2">
-              <Label htmlFor="enterprise_id">企业 ID</Label>
+              <Label htmlFor="enterprise_id">{usersAdmin.enterpriseIdLabel}</Label>
               <Input
                 id="enterprise_id"
                 value={editForm.enterprise_id || ""}
-                onChange={(e) =>
+                onChange={(event) =>
                   setEditForm((prev) => ({
                     ...prev,
-                    enterprise_id: e.target.value || null,
+                    enterprise_id: event.target.value || null,
                   }))
                 }
-                placeholder="输入企业 ID（可选）"
+                placeholder={usersAdmin.enterpriseIdPlaceholder}
               />
             </div>
             <div className="flex flex-col gap-2">
-              <Label htmlFor="team_id">团队 ID</Label>
+              <Label htmlFor="team_id">{usersAdmin.teamIdLabel}</Label>
               <Input
                 id="team_id"
                 value={editForm.team_id || ""}
-                onChange={(e) =>
+                onChange={(event) =>
                   setEditForm((prev) => ({
                     ...prev,
-                    team_id: e.target.value || null,
+                    team_id: event.target.value || null,
                   }))
                 }
-                placeholder="输入团队 ID（可选）"
+                placeholder={usersAdmin.teamIdPlaceholder}
               />
             </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditDialogOpen(false)}>
-              取消
+              {usersAdmin.cancel}
             </Button>
             <Button onClick={handleEditSubmit} disabled={editLoading}>
-              {editLoading && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
-              保存更改
+              {editLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+              {usersAdmin.saveChanges}
             </Button>
           </DialogFooter>
         </DialogContent>

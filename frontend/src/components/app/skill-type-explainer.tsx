@@ -1,21 +1,25 @@
+"use client"
+
 import { Copy, Link2 } from "lucide-react"
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-
-const items = [
-  {
-    title: "Reference",
-    description: "Best when you want to start using a public Skill quickly without taking over its files.",
-    icon: Link2,
-  },
-  {
-    title: "Clone",
-    description: "Best when you expect to edit code, manage versions yourself, or maintain a private fork.",
-    icon: Copy,
-  },
-]
+import { useI18n } from "@/i18n/use-i18n"
 
 export function SkillTypeExplainer() {
+  const { dictionary } = useI18n()
+  const items = [
+    {
+      title: dictionary.publicSkills.referenceTitle,
+      description: dictionary.publicSkills.referenceDescription,
+      icon: Link2,
+    },
+    {
+      title: dictionary.publicSkills.cloneTitle,
+      description: dictionary.publicSkills.cloneDescription,
+      icon: Copy,
+    },
+  ]
+
   return (
     <div className="grid gap-4 md:grid-cols-2">
       {items.map((item) => {

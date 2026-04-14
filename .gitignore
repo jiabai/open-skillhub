@@ -57,6 +57,7 @@ frontend/node_modules/
 
 # Next.js
 frontend/.next/
+frontend/tsconfig.tsbuildinfo
 
 # Python
 .venv/

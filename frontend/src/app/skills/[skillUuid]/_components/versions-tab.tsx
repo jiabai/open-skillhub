@@ -22,6 +22,9 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Skeleton } from "@/components/ui/skeleton"
+import { getDateFnsLocale } from "@/i18n/date-fns"
+import { formatMessage } from "@/i18n/format-message"
+import { useI18n } from "@/i18n/use-i18n"
 
 type VersionsTabProps = {
   skillUuid: string
@@ -30,6 +33,9 @@ type VersionsTabProps = {
 }
 
 export function VersionsTab({ skillUuid, skill, onSkillUpdated }: VersionsTabProps) {
+  const { dictionary, locale } = useI18n()
+  const { versions: copy } = dictionary
+  const dateLocale = getDateFnsLocale(locale)
   const [versions, setVersions] = useState<SkillVersion[]>([])
   const [selectedVersions, setSelectedVersions] = useState<string[]>([])
   const [versionDetail, setVersionDetail] = useState<SkillVersion | null>(null)
@@ -59,11 +65,11 @@ export function VersionsTab({ skillUuid, skill, onSkillUpdated }: VersionsTabPro
       const response = await api.listSkillVersions(skillUuid)
       setVersions(response.items)
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load versions")
+      setError(err instanceof Error ? err.message : copy.loadFailed)
     } finally {
       setLoading(false)
     }
-  }, [skillUuid])
+  }, [copy.loadFailed, skillUuid])
 
   useEffect(() => {
     fetchVersions()
@@ -92,7 +98,7 @@ export function VersionsTab({ skillUuid, skill, onSkillUpdated }: VersionsTabPro
         }
       } catch (err) {
         if (!abortController.signal.aborted) {
-          setDetailError(err instanceof Error ? err.message : "Failed to load version detail")
+          setDetailError(err instanceof Error ? err.message : copy.detailLoadFailed)
         }
       } finally {
         if (!abortController.signal.aborted) {
@@ -103,7 +109,7 @@ export function VersionsTab({ skillUuid, skill, onSkillUpdated }: VersionsTabPro
 
     fetchVersionDetail()
     return () => abortController.abort()
-  }, [selectedVersions, skillUuid])
+  }, [copy.detailLoadFailed, selectedVersions, skillUuid])
 
   useEffect(() => {
     const abortController = new AbortController()
@@ -122,7 +128,7 @@ export function VersionsTab({ skillUuid, skill, onSkillUpdated }: VersionsTabPro
         }
       } catch (err) {
         if (!abortController.signal.aborted) {
-          setError(err instanceof Error ? err.message : "Failed to compare versions")
+          setError(err instanceof Error ? err.message : copy.compareFailed)
         }
       } finally {
         if (!abortController.signal.aborted) {
@@ -133,7 +139,7 @@ export function VersionsTab({ skillUuid, skill, onSkillUpdated }: VersionsTabPro
 
     fetchDiff()
     return () => abortController.abort()
-  }, [selectedVersions, skillUuid])
+  }, [copy.compareFailed, selectedVersions, skillUuid])
 
   const handleVersionSelect = useCallback((version: string) => {
     setSelectedVersions((current) => {
@@ -154,7 +160,7 @@ export function VersionsTab({ skillUuid, skill, onSkillUpdated }: VersionsTabPro
       const result = await api.getInstallInstructions(skillUuid, version)
       setInstallInstructions(result)
     } catch (err) {
-      setInstallError(err instanceof Error ? err.message : "Failed to load install instructions")
+      setInstallError(err instanceof Error ? err.message : copy.installLoadFailed)
     } finally {
       setInstallLoading(false)
     }
@@ -177,7 +183,7 @@ export function VersionsTab({ skillUuid, skill, onSkillUpdated }: VersionsTabPro
       setVersionDetail(null)
       setDiffResult(null)
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Rollback failed")
+      setError(err instanceof Error ? err.message : copy.rollbackFailed)
     } finally {
       setRollbackLoading(false)
     }
@@ -190,7 +196,7 @@ export function VersionsTab({ skillUuid, skill, onSkillUpdated }: VersionsTabPro
       const updated = await api.pinReferenceSkillVersion(skillUuid, version)
       onSkillUpdated?.(updated)
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Pin failed")
+      setError(err instanceof Error ? err.message : copy.pinFailed)
     } finally {
       setPinLoading(false)
     }
@@ -203,7 +209,7 @@ export function VersionsTab({ skillUuid, skill, onSkillUpdated }: VersionsTabPro
       const updated = await api.unpinReferenceSkillVersion(skillUuid)
       onSkillUpdated?.(updated)
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Follow latest failed")
+      setError(err instanceof Error ? err.message : copy.followLatestFailed)
     } finally {
       setPinLoading(false)
     }
@@ -211,10 +217,10 @@ export function VersionsTab({ skillUuid, skill, onSkillUpdated }: VersionsTabPro
 
   const selectionHelp =
     selectedVersions.length === 0
-      ? "Select one version to inspect details, or select two versions to compare changes."
+      ? copy.selectionHelpNone
       : selectedVersions.length === 1
-        ? "One version selected. Use the actions on the right to inspect or change version behavior."
-        : "Two versions selected. The right side now shows dependency and file differences."
+        ? copy.selectionHelpOne
+        : copy.selectionHelpTwo
 
   const renderVersionList = () => {
     if (loading) {
@@ -233,7 +239,7 @@ export function VersionsTab({ skillUuid, skill, onSkillUpdated }: VersionsTabPro
           <CardContent className="py-8 text-center text-sm text-destructive">
             <p>{error}</p>
             <Button variant="outline" size="sm" className="mt-4" onClick={fetchVersions}>
-              Retry
+              {copy.retry}
             </Button>
           </CardContent>
         </Card>
@@ -243,9 +249,7 @@ export function VersionsTab({ skillUuid, skill, onSkillUpdated }: VersionsTabPro
     if (versions.length === 0) {
       return (
         <Card>
-          <CardContent className="py-10 text-center text-sm text-muted-foreground">
-            No version history yet. Versions appear here after uploads or releases create a new version.
-          </CardContent>
+          <CardContent className="py-10 text-center text-sm text-muted-foreground">{copy.empty}</CardContent>
         </Card>
       )
     }
@@ -268,18 +272,18 @@ export function VersionsTab({ skillUuid, skill, onSkillUpdated }: VersionsTabPro
                   checked={isSelected}
                   onClick={(event) => event.stopPropagation()}
                   onCheckedChange={() => handleVersionSelect(version.version)}
-                  aria-label={`Select version ${version.version}`}
+                  aria-label={formatMessage(copy.selectVersionAria, { version: version.version })}
                 />
                 <div className="min-w-0 flex-1 space-y-1">
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="font-medium">{version.version}</span>
-                    {index === 0 ? <Badge variant="accent">Newest</Badge> : null}
-                    {isCurrent ? <Badge variant="secondary">In effect</Badge> : null}
-                    {isPinned ? <Badge variant="outline">Pinned</Badge> : null}
+                    {index === 0 ? <Badge variant="accent">{copy.newest}</Badge> : null}
+                    {isCurrent ? <Badge variant="secondary">{copy.inEffect}</Badge> : null}
+                    {isPinned ? <Badge variant="outline">{copy.pinned}</Badge> : null}
                   </div>
-                  <p className="line-clamp-2 text-xs text-muted-foreground">{version.description || "No description"}</p>
+                  <p className="line-clamp-2 text-xs text-muted-foreground">{version.description || copy.noDescription}</p>
                   <p className="text-xs text-muted-foreground">
-                    {formatDistanceToNow(new Date(version.created_at), { addSuffix: true })}
+                    {formatDistanceToNow(new Date(version.created_at), { addSuffix: true, locale: dateLocale })}
                   </p>
                 </div>
               </CardContent>
@@ -299,18 +303,18 @@ export function VersionsTab({ skillUuid, skill, onSkillUpdated }: VersionsTabPro
           <>
             <Button variant="outline" onClick={() => handlePinVersion(version.version)} disabled={pinLoading || isPinned}>
               {pinLoading && !isPinned ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-              {isPinned ? `Pinned ${version.version}` : `Pin to ${version.version}`}
+              {isPinned ? formatMessage(copy.pinnedVersion, { version: version.version }) : formatMessage(copy.pinToVersion, { version: version.version })}
             </Button>
             <Button variant="secondary" onClick={handleUnpinVersion} disabled={pinLoading || !skill.pinned_version}>
               {pinLoading && skill.pinned_version ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-              Follow latest
+              {copy.followLatest}
             </Button>
           </>
         ) : null}
 
         <Button variant="outline" onClick={() => handleGetInstallInstructions(version.version)} disabled={installLoading}>
           {installLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Terminal className="mr-2 h-4 w-4" />}
-          Install instructions
+          {copy.installInstructions}
         </Button>
 
         {!isReference ? (
@@ -318,21 +322,19 @@ export function VersionsTab({ skillUuid, skill, onSkillUpdated }: VersionsTabPro
             <AlertDialogTrigger asChild>
               <Button variant="outline">
                 <RotateCcw className="mr-2 h-4 w-4" />
-                Rollback to this version
+                {copy.rollbackToVersion}
               </Button>
             </AlertDialogTrigger>
             <AlertDialogContent>
               <AlertDialogHeader>
-                <AlertDialogTitle>Rollback to {version.version}?</AlertDialogTitle>
-                <AlertDialogDescription>
-                  This replaces the current working files with the files stored in version {version.version}.
-                </AlertDialogDescription>
+                <AlertDialogTitle>{formatMessage(copy.rollbackConfirmTitle, { version: version.version })}</AlertDialogTitle>
+                <AlertDialogDescription>{formatMessage(copy.rollbackConfirmDescription, { version: version.version })}</AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
-                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogCancel>{copy.cancel}</AlertDialogCancel>
                 <AlertDialogAction onClick={() => handleRollback(version.version)} disabled={rollbackLoading}>
                   {rollbackLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                  Confirm rollback
+                  {copy.confirmRollback}
                 </AlertDialogAction>
               </AlertDialogFooter>
             </AlertDialogContent>
@@ -352,15 +354,15 @@ export function VersionsTab({ skillUuid, skill, onSkillUpdated }: VersionsTabPro
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
             <Terminal className="h-4 w-4" />
-            Install instructions
+            {copy.installInstructions}
           </CardTitle>
-          <CardDescription>Use these commands if you need to install dependencies for the selected version.</CardDescription>
+          <CardDescription>{copy.installInstructionsDescription}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           {installLoading ? (
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <Loader2 className="h-4 w-4 animate-spin" />
-              Loading install instructions
+              {copy.loadingInstallInstructions}
             </div>
           ) : null}
 
@@ -369,20 +371,20 @@ export function VersionsTab({ skillUuid, skill, onSkillUpdated }: VersionsTabPro
           {installInstructions ? (
             <>
               <div className="flex flex-wrap gap-2">
-                <Badge variant="secondary">Strategy: {installInstructions.strategy}</Badge>
+                <Badge variant="secondary">{formatMessage(copy.strategy, { strategy: installInstructions.strategy })}</Badge>
                 {installInstructions.ecosystem ? <Badge variant="outline">{installInstructions.ecosystem}</Badge> : null}
                 {installInstructions.dependencies.length ? (
-                  <Badge variant="outline">{installInstructions.dependencies.length} dependencies</Badge>
+                  <Badge variant="outline">{formatMessage(copy.dependenciesCount, { count: installInstructions.dependencies.length })}</Badge>
                 ) : null}
               </div>
 
               {installInstructions.commands.length ? (
                 <div className="space-y-2">
                   <div className="flex items-center justify-between gap-2">
-                    <p className="text-sm font-medium">Commands</p>
+                    <p className="text-sm font-medium">{copy.commands}</p>
                     <Button variant="ghost" size="sm" onClick={handleCopyCommands}>
                       {copied ? <Check className="mr-2 h-4 w-4" /> : <Copy className="mr-2 h-4 w-4" />}
-                      {copied ? "Copied" : "Copy"}
+                      {copied ? copy.copied : copy.copy}
                     </Button>
                   </div>
                   <pre className="max-h-48 overflow-auto rounded-lg bg-muted p-3 text-xs">{installInstructions.commands.join("\n")}</pre>
@@ -391,7 +393,7 @@ export function VersionsTab({ skillUuid, skill, onSkillUpdated }: VersionsTabPro
 
               {installInstructions.requirements_text ? (
                 <div className="space-y-2">
-                  <p className="text-sm font-medium">Requirements text</p>
+                  <p className="text-sm font-medium">{copy.requirementsText}</p>
                   <pre className="max-h-48 overflow-auto rounded-lg bg-muted p-3 text-xs">{installInstructions.requirements_text}</pre>
                 </div>
               ) : null}
@@ -434,36 +436,36 @@ export function VersionsTab({ skillUuid, skill, onSkillUpdated }: VersionsTabPro
         <Card>
           <CardHeader>
             <CardTitle className="flex flex-wrap items-center gap-2">
-              <span>Version {version.version}</span>
-              {version.dependencies.length ? <Badge variant="outline">{version.dependencies.length} dependencies</Badge> : null}
+              <span>{formatMessage(copy.versionTitle, { version: version.version })}</span>
+              {version.dependencies.length ? <Badge variant="outline">{formatMessage(copy.dependenciesCount, { count: version.dependencies.length })}</Badge> : null}
               {version.dependency_spec_version ? <Badge variant="secondary">Spec v{version.dependency_spec_version}</Badge> : null}
             </CardTitle>
             <CardDescription className="flex items-center gap-2">
               <Clock3 className="h-4 w-4" />
-              Created {new Date(version.created_at).toLocaleString()}
+              {formatMessage(copy.createdAt, { date: new Date(version.created_at).toLocaleString(locale) })}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
-              <p className="text-sm font-medium">Version behavior</p>
+              <p className="text-sm font-medium">{copy.versionBehavior}</p>
               <p className="text-sm text-muted-foreground">
                 {isReference
                   ? skill.pinned_version === version.version
-                    ? "This reference is currently pinned to this exact public version."
-                    : "Pin this version if you want the reference to stop following newer public releases."
+                    ? copy.referencePinnedBehavior
+                    : copy.referencePinBehavior
                   : skill.resolved_version === version.version
-                    ? "This is the version currently in effect for your private Skill."
-                    : "You can inspect, download, or roll back your private Skill to this version."}
+                    ? copy.privateCurrentBehavior
+                    : copy.privateOtherBehavior}
               </p>
             </div>
 
             <div className="space-y-2">
-              <p className="text-sm font-medium">Description</p>
-              <p className="text-sm text-muted-foreground">{version.description || "No description"}</p>
+              <p className="text-sm font-medium">{copy.descriptionTitle}</p>
+              <p className="text-sm text-muted-foreground">{version.description || copy.noDescription}</p>
             </div>
 
             <div className="space-y-2">
-              <p className="text-sm font-medium">Dependencies</p>
+              <p className="text-sm font-medium">{copy.dependenciesTitle}</p>
               {version.dependencies.length ? (
                 <div className="flex flex-wrap gap-2">
                   {version.dependencies.map((dependency) => (
@@ -473,20 +475,20 @@ export function VersionsTab({ skillUuid, skill, onSkillUpdated }: VersionsTabPro
                   ))}
                 </div>
               ) : (
-                <p className="text-sm text-muted-foreground">No declared dependencies.</p>
+                <p className="text-sm text-muted-foreground">{copy.noDeclaredDependencies}</p>
               )}
             </div>
 
             {version.metadata && Object.keys(version.metadata).length ? (
               <div className="space-y-2">
-                <p className="text-sm font-medium">Metadata</p>
+                <p className="text-sm font-medium">{copy.metadataTitle}</p>
                 <pre className="max-h-48 overflow-auto rounded-lg bg-muted p-3 text-xs">{JSON.stringify(version.metadata, null, 2)}</pre>
               </div>
             ) : null}
 
             {version.dependency_spec && Object.keys(version.dependency_spec).length ? (
               <div className="space-y-2">
-                <p className="text-sm font-medium">Dependency spec</p>
+                <p className="text-sm font-medium">{copy.dependencySpecTitle}</p>
                 <pre className="max-h-48 overflow-auto rounded-lg bg-muted p-3 text-xs">{JSON.stringify(version.dependency_spec, null, 2)}</pre>
               </div>
             ) : null}
@@ -508,7 +510,7 @@ export function VersionsTab({ skillUuid, skill, onSkillUpdated }: VersionsTabPro
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <GitCompare className="h-5 w-5" />
-            Compare versions
+            {copy.compareVersions}
           </CardTitle>
           <CardDescription>
             {diffResult.from_version} to {diffResult.to_version}
@@ -518,26 +520,34 @@ export function VersionsTab({ skillUuid, skill, onSkillUpdated }: VersionsTabPro
           {diffLoading ? (
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <Loader2 className="h-4 w-4 animate-spin" />
-              Loading version diff
+              {copy.loadingVersionDiff}
             </div>
           ) : (
             <>
               <div className="space-y-2">
-                <p className="text-sm font-medium">Dependency changes</p>
+                <p className="text-sm font-medium">{copy.dependencyChanges}</p>
                 {diffResult.added.length === 0 && diffResult.removed.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">No dependency changes between these versions.</p>
+                  <p className="text-sm text-muted-foreground">{copy.noDependencyChanges}</p>
                 ) : (
                   <div className="grid gap-3 md:grid-cols-2">
                     <div className="rounded-lg border border-border bg-muted/30 p-3">
-                      <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Added</p>
+                      <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{copy.added}</p>
                       <div className="mt-2 flex flex-wrap gap-2">
-                        {diffResult.added.length ? diffResult.added.map((item) => <Badge key={item}>{item}</Badge>) : <span className="text-sm text-muted-foreground">None</span>}
+                        {diffResult.added.length
+                          ? diffResult.added.map((item) => <Badge key={item}>{item}</Badge>)
+                          : <span className="text-sm text-muted-foreground">{copy.none}</span>}
                       </div>
                     </div>
                     <div className="rounded-lg border border-border bg-muted/30 p-3">
-                      <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Removed</p>
+                      <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{copy.removed}</p>
                       <div className="mt-2 flex flex-wrap gap-2">
-                        {diffResult.removed.length ? diffResult.removed.map((item) => <Badge key={item} variant="outline">{item}</Badge>) : <span className="text-sm text-muted-foreground">None</span>}
+                        {diffResult.removed.length
+                          ? diffResult.removed.map((item) => (
+                              <Badge key={item} variant="outline">
+                                {item}
+                              </Badge>
+                            ))
+                          : <span className="text-sm text-muted-foreground">{copy.none}</span>}
                       </div>
                     </div>
                   </div>
@@ -545,7 +555,7 @@ export function VersionsTab({ skillUuid, skill, onSkillUpdated }: VersionsTabPro
               </div>
 
               <div className="space-y-2">
-                <p className="text-sm font-medium">File changes</p>
+                <p className="text-sm font-medium">{copy.fileChanges}</p>
                 {diffResult.modified.length ? (
                   <div className="space-y-3">
                     {diffResult.modified.map((item) => (
@@ -556,19 +566,17 @@ export function VersionsTab({ skillUuid, skill, onSkillUpdated }: VersionsTabPro
                     ))}
                   </div>
                 ) : (
-                  <p className="text-sm text-muted-foreground">No file diff details were returned for this comparison.</p>
+                  <p className="text-sm text-muted-foreground">{copy.noFileDiff}</p>
                 )}
               </div>
 
               {!isReference ? (
                 <Button variant="outline" onClick={() => handleRollback(diffResult.from_version)} disabled={rollbackLoading}>
                   {rollbackLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RotateCcw className="mr-2 h-4 w-4" />}
-                  Rollback to {diffResult.from_version}
+                  {formatMessage(copy.rollbackToVersion, { version: diffResult.from_version })}
                 </Button>
               ) : (
-                <p className="text-sm text-muted-foreground">
-                  References do not roll back local files. Pin a reference version when you want it to stay on a specific public release.
-                </p>
+                <p className="text-sm text-muted-foreground">{copy.referenceRollbackNotice}</p>
               )}
             </>
           )}
@@ -600,13 +608,9 @@ export function VersionsTab({ skillUuid, skill, onSkillUpdated }: VersionsTabPro
     <div className="grid gap-6 lg:grid-cols-[320px_1fr]">
       <div className="flex flex-col gap-4">
         <div className="space-y-2">
-          <h3 className="text-sm font-medium">Version list</h3>
+          <h3 className="text-sm font-medium">{copy.versionListTitle}</h3>
           <p className="text-xs text-muted-foreground">{selectionHelp}</p>
-          {isReference ? (
-            <p className="text-xs text-muted-foreground">
-              References can pin to one public version or follow the latest release. Private Skills can roll back to an older version.
-            </p>
-          ) : null}
+          {isReference ? <p className="text-xs text-muted-foreground">{copy.referenceHelp}</p> : null}
         </div>
         {renderVersionList()}
       </div>

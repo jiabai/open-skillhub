@@ -3,16 +3,23 @@ import { describe, expect, it, vi } from "vitest"
 import type { ReactNode } from "react"
 
 import { RuntimeConfigContext } from "@/components/app/runtime-config-provider"
+import { I18nProvider } from "@/i18n/i18n-provider"
+import { getDictionary } from "@/i18n/get-dictionary"
 import { api } from "@/lib/api"
 import { __setRuntimeConfigForTests, getRuntimeConfigSnapshot } from "@/lib/runtime-config"
 import { DEFAULT_USER_STATUS } from "@/lib/user-status"
 import { AppShell } from "@/components/app/app-shell"
 
 const replaceMock = vi.fn()
+const refreshMock = vi.fn()
+const routerMock = {
+  replace: replaceMock,
+  refresh: refreshMock,
+}
 
 vi.mock("next/navigation", () => ({
   usePathname: () => "/profile",
-  useRouter: () => ({ replace: replaceMock }),
+  useRouter: () => routerMock,
 }))
 
 vi.mock("@/components/ui/dropdown-menu", () => ({
@@ -45,15 +52,18 @@ vi.mock("@/components/ui/alert-dialog", () => ({
 
 function renderWithRuntimeConfig(node: ReactNode) {
   return render(
-    <RuntimeConfigContext.Provider value={{ config: getRuntimeConfigSnapshot(), isLoading: false }}>
-      {node}
-    </RuntimeConfigContext.Provider>
+    <I18nProvider locale="zh-CN" dictionary={getDictionary("zh-CN")}>
+      <RuntimeConfigContext.Provider value={{ config: getRuntimeConfigSnapshot(), isLoading: false }}>
+        {node}
+      </RuntimeConfigContext.Provider>
+    </I18nProvider>
   )
 }
 
 describe("AppShell auth guard", () => {
   it("redirects to login when not authenticated", async () => {
     replaceMock.mockClear()
+    refreshMock.mockClear()
     window.localStorage.removeItem("skillhub.tokens")
     renderWithRuntimeConfig(<AppShell>content</AppShell>)
     await waitFor(() => {
@@ -63,6 +73,7 @@ describe("AppShell auth guard", () => {
 
   it("clears invalid tokens and redirects to login when session validation fails", async () => {
     replaceMock.mockClear()
+    refreshMock.mockClear()
     vi.mocked(api.getMe).mockRejectedValueOnce(new Error("unauthorized"))
     window.localStorage.setItem("skillhub.tokens", JSON.stringify({ access_token: "stale", refresh_token: "refresh" }))
 
@@ -80,12 +91,12 @@ describe("AppShell auth guard", () => {
 
     renderWithRuntimeConfig(<AppShell>content</AppShell>)
 
-    expect(await screen.findByRole("button", { name: "Workbench" })).toBeInTheDocument()
-    expect(await screen.findAllByText("Public Skills")).not.toHaveLength(0)
-    expect(await screen.findAllByText("My Skills")).not.toHaveLength(0)
-    expect(await screen.findAllByText("Tokens")).not.toHaveLength(0)
-    expect(screen.queryByText("Audit")).not.toBeInTheDocument()
-    expect(screen.queryByText("Users")).not.toBeInTheDocument()
+    expect(await screen.findByRole("button", { name: "工作台" })).toBeInTheDocument()
+    expect(await screen.findAllByText("公共 Skills")).not.toHaveLength(0)
+    expect(await screen.findAllByText("我的 Skills")).not.toHaveLength(0)
+    expect(await screen.findAllByText("令牌")).not.toHaveLength(0)
+    expect(screen.queryByText("审计")).not.toBeInTheDocument()
+    expect(screen.queryByText("用户")).not.toBeInTheDocument()
   })
 
   it("shows rbac navigation when rbac mode is enabled", async () => {
@@ -107,15 +118,30 @@ describe("AppShell auth guard", () => {
 
     renderWithRuntimeConfig(<AppShell>content</AppShell>)
 
-    expect(await screen.findByText("Governed console")).toBeInTheDocument()
-    expect(await screen.findAllByText("Overview")).not.toHaveLength(0)
+    expect(await screen.findByText("治理控制台")).toBeInTheDocument()
+    expect(await screen.findAllByText("概览")).not.toHaveLength(0)
     expect(await screen.findAllByText("Skills")).not.toHaveLength(0)
-    expect(await screen.findAllByText("Public Skills")).not.toHaveLength(0)
-    expect(screen.queryByText("My Skills")).not.toBeInTheDocument()
+    expect(await screen.findAllByText("公共 Skills")).not.toHaveLength(0)
+    expect(screen.queryByText("我的 Skills")).not.toBeInTheDocument()
+  })
+
+  it("switches locale by writing the cookie and refreshing the route", async () => {
+    refreshMock.mockClear()
+    __setRuntimeConfigForTests({ capabilities: { rbac: false, no_rbac_mode: true, audit_log: true } })
+    window.localStorage.setItem("skillhub.tokens", JSON.stringify({ access_token: "token", refresh_token: "refresh" }))
+    document.cookie = "skillhub.locale=; Max-Age=0; Path=/"
+
+    renderWithRuntimeConfig(<AppShell>content</AppShell>)
+
+    fireEvent.click(await screen.findByRole("button", { name: "切换到 English" }))
+
+    expect(document.cookie).toContain("skillhub.locale=en-US")
+    expect(refreshMock).toHaveBeenCalledTimes(1)
   })
 
   it("calls backend logout before redirecting to login", async () => {
     replaceMock.mockClear()
+    refreshMock.mockClear()
     __setRuntimeConfigForTests({ capabilities: { rbac: false, no_rbac_mode: true, audit_log: true } })
     vi.mocked(api.getMe).mockResolvedValueOnce({
       id: "user-1",
@@ -135,9 +161,9 @@ describe("AppShell auth guard", () => {
 
     renderWithRuntimeConfig(<AppShell>content</AppShell>)
 
-    await screen.findByRole("button", { name: "Workbench" })
-    fireEvent.click(screen.getAllByText("Sign Out")[0])
-    fireEvent.click(screen.getAllByText("Sign Out")[1])
+    await screen.findByRole("button", { name: "工作台" })
+    fireEvent.click(screen.getAllByText("退出登录")[0])
+    fireEvent.click(screen.getAllByText("退出登录")[1])
 
     await waitFor(() => {
       expect(api.logout).toHaveBeenCalledTimes(1)

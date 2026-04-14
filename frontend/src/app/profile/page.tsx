@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
-import { Building2, Loader2, Users, User2 } from "lucide-react"
+import { Building2, Loader2, User2, Users } from "lucide-react"
 
 import { api, getErrorMessage } from "@/lib/api"
 import { useRuntimeConfig } from "@/hooks/use-runtime-config"
@@ -12,17 +12,18 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { useToast } from "@/hooks/use-toast"
+import { useI18n } from "@/i18n/use-i18n"
 
 export default function ProfilePage() {
   const { config } = useRuntimeConfig()
   const { success, error: showError } = useToast()
+  const { dictionary } = useI18n()
+  const { profile } = dictionary
   const [user, setUser] = useState<User | null>(null)
   const [username, setUsername] = useState("")
   const [email, setEmail] = useState("")
   const [status, setStatus] = useState<"loading" | "ready">("loading")
   const [message, setMessage] = useState<string | null>(null)
-
-  // 邮箱绑定相关状态
   const [newEmail, setNewEmail] = useState("")
   const [verificationCode, setVerificationCode] = useState("")
   const [isSendingCode, setIsSendingCode] = useState(false)
@@ -30,7 +31,6 @@ export default function ProfilePage() {
   const [countdown, setCountdown] = useState(0)
   const countdownRef = useRef(countdown)
 
-  // 保持 ref 和 state 同步
   useEffect(() => {
     countdownRef.current = countdown
   }, [countdown])
@@ -46,7 +46,6 @@ export default function ProfilePage() {
     loadProfile()
   }, [])
 
-  // 倒计时 effect
   useEffect(() => {
     if (countdownRef.current <= 0) {
       return
@@ -61,18 +60,18 @@ export default function ProfilePage() {
     event.preventDefault()
     setMessage(null)
     await api.updateMe({ username, email })
-    setMessage("个人信息已更新。")
+    setMessage(profile.updatedMessage)
   }
 
   const handleSendCode = async () => {
     if (!newEmail) {
-      showError("请输入新邮箱")
+      showError(profile.missingNewEmailError)
       return
     }
     setIsSendingCode(true)
     try {
       await api.sendVerificationCode({ email: newEmail, purpose: "bind_email" })
-      success("验证码已发送")
+      success(profile.codeSentSuccess)
       setCountdown(60)
     } catch (err) {
       showError(getErrorMessage(err))
@@ -84,13 +83,13 @@ export default function ProfilePage() {
   const handleBindEmail = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     if (!newEmail || !verificationCode) {
-      showError("请填写完整信息")
+      showError(profile.missingBindInfoError)
       return
     }
     setIsBinding(true)
     try {
       await api.bindEmail({ email: newEmail, code: verificationCode })
-      success("邮箱绑定成功")
+      success(profile.bindSuccess)
       setEmail(newEmail)
       setNewEmail("")
       setVerificationCode("")
@@ -108,32 +107,32 @@ export default function ProfilePage() {
           <User2 className="h-5 w-5 3xl:h-6 3xl:w-6" />
         </div>
         <div>
-          <h1 className="font-display text-3xl 3xl:text-4xl 4k:text-5xl">个人信息</h1>
-          <p className="text-sm 3xl:text-base text-muted-foreground">更新账户基础资料。</p>
+          <h1 className="font-display text-3xl 3xl:text-4xl 4k:text-5xl">{profile.title}</h1>
+          <p className="text-sm text-muted-foreground 3xl:text-base">{profile.summary}</p>
         </div>
       </div>
       <Card>
         <CardHeader>
-          <CardTitle>资料信息</CardTitle>
-          <CardDescription>所有变更立即生效。</CardDescription>
+          <CardTitle>{profile.infoTitle}</CardTitle>
+          <CardDescription>{profile.infoDescription}</CardDescription>
         </CardHeader>
         <CardContent>
           {status === "loading" ? (
             <div className="flex items-center gap-3 text-sm text-muted-foreground">
               <Loader2 className="h-4 w-4 animate-spin" />
-              加载中
+              {profile.loading}
             </div>
           ) : (
             <form onSubmit={handleSubmit} className="flex flex-col gap-4">
               <div className="flex flex-col gap-2">
-                <Label htmlFor="username">显示名称</Label>
+                <Label htmlFor="username">{profile.displayNameLabel}</Label>
                 <Input id="username" value={username} onChange={(event) => setUsername(event.target.value)} required />
               </div>
               <div className="flex flex-col gap-2">
-                <Label htmlFor="email">邮箱</Label>
+                <Label htmlFor="email">{profile.emailLabel}</Label>
                 <Input id="email" type="email" value={email} onChange={(event) => setEmail(event.target.value)} required />
               </div>
-              <Button type="submit">保存变更</Button>
+              <Button type="submit">{profile.saveChanges}</Button>
               {message ? <p className="text-sm text-primary">{message}</p> : null}
             </form>
           )}
@@ -142,67 +141,67 @@ export default function ProfilePage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>绑定新邮箱</CardTitle>
-          <CardDescription>绑定新邮箱需要验证。</CardDescription>
+          <CardTitle>{profile.bindTitle}</CardTitle>
+          <CardDescription>{profile.bindDescription}</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleBindEmail} className="flex flex-col gap-4">
             <div className="flex flex-col gap-2">
-              <Label htmlFor="new-email">新邮箱</Label>
+              <Label htmlFor="new-email">{profile.newEmailLabel}</Label>
               <Input
                 id="new-email"
                 type="email"
                 value={newEmail}
                 onChange={(event) => setNewEmail(event.target.value)}
-                placeholder="输入新邮箱地址"
+                placeholder={profile.newEmailPlaceholder}
                 required
               />
             </div>
             <div className="flex flex-col gap-2">
-              <Label htmlFor="verification-code">验证码</Label>
+              <Label htmlFor="verification-code">{profile.verificationCodeLabel}</Label>
               <div className="flex flex-col gap-2 sm:flex-row sm:gap-2">
                 <Input
                   id="verification-code"
                   value={verificationCode}
                   onChange={(event) => setVerificationCode(event.target.value)}
-                  placeholder="输入验证码"
+                  placeholder={profile.verificationCodePlaceholder}
                   required
                   className="sm:flex-1"
                 />
                 <Button
+                  type="button"
                   variant="outline"
                   onClick={handleSendCode}
                   disabled={isSendingCode || countdown > 0}
                   className="shrink-0"
                 >
-                  {countdown > 0 ? `${countdown}s` : "获取验证码"}
+                  {countdown > 0 ? `${countdown}s` : isSendingCode ? profile.sendingCode : profile.sendCode}
                 </Button>
               </div>
             </div>
             <Button type="submit" disabled={isBinding}>
-              {isBinding ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-              绑定邮箱
+              {isBinding ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+              {isBinding ? profile.bindEmailLoading : profile.bindEmail}
             </Button>
           </form>
         </CardContent>
       </Card>
 
-      {/* 组织信息卡片 - 条件显示 */}
-      {config.capabilities.org_model && user && (
+      {config.capabilities.org_model && user ? (
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Building2 className="h-5 w-5" />
-              组织信息
+              {profile.orgInfoTitle}
             </CardTitle>
-            <CardDescription>您所属的企业与团队信息。</CardDescription>
+            <CardDescription>{profile.orgInfoDescription}</CardDescription>
           </CardHeader>
           <CardContent className="flex flex-col gap-4">
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="flex flex-col gap-2">
                 <Label className="flex items-center gap-2">
                   <Building2 className="h-4 w-4 text-muted-foreground" />
-                  企业 ID
+                  {profile.enterpriseIdLabel}
                 </Label>
                 {user.enterprise_id ? (
                   <div className="flex items-center gap-2">
@@ -211,13 +210,13 @@ export default function ProfilePage() {
                     </Badge>
                   </div>
                 ) : (
-                  <p className="text-sm text-muted-foreground">暂未关联企业</p>
+                  <p className="text-sm text-muted-foreground">{profile.noEnterprise}</p>
                 )}
               </div>
               <div className="flex flex-col gap-2">
                 <Label className="flex items-center gap-2">
                   <Users className="h-4 w-4 text-muted-foreground" />
-                  团队 ID
+                  {profile.teamIdLabel}
                 </Label>
                 {user.team_id ? (
                   <div className="flex items-center gap-2">
@@ -226,18 +225,14 @@ export default function ProfilePage() {
                     </Badge>
                   </div>
                 ) : (
-                  <p className="text-sm text-muted-foreground">暂未关联团队</p>
+                  <p className="text-sm text-muted-foreground">{profile.noTeam}</p>
                 )}
               </div>
             </div>
-            {!user.enterprise_id && !user.team_id && (
-              <p className="text-sm text-muted-foreground">
-                如需加入企业或团队，请联系管理员进行配置。
-              </p>
-            )}
+            {!user.enterprise_id && !user.team_id ? <p className="text-sm text-muted-foreground">{profile.contactAdmin}</p> : null}
           </CardContent>
         </Card>
-      )}
+      ) : null}
     </div>
   )
 }

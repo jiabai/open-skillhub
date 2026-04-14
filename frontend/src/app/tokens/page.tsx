@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useCallback, useEffect, useState } from "react"
 import { Copy, KeyRound, Loader2, Trash2 } from "lucide-react"
 
 import { NextStepCard } from "@/components/app/next-step-card"
@@ -18,20 +18,30 @@ import { useRuntimeConfig } from "@/hooks/use-runtime-config"
 import { createTokenNameRules, useField } from "@/hooks/use-form-validation"
 import type { Token } from "@/types"
 import { useToast } from "@/hooks/use-toast"
+import { formatMessage } from "@/i18n/format-message"
+import { useI18n } from "@/i18n/use-i18n"
 
 export default function TokensPage() {
   const { config } = useRuntimeConfig()
   const { success, error: showError } = useToast()
+  const { dictionary } = useI18n()
+  const { tokens: copy, validation } = dictionary
   const [tokens, setTokens] = useState<Token[]>([])
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading")
   const [error, setError] = useState<string | null>(null)
-  const nameField = useField<string>("", createTokenNameRules())
+  const nameField = useField<string>(
+    "",
+    createTokenNameRules({
+      minLength: validation.tokenNameRequired,
+      maxLength: validation.tokenNameMaxLength,
+    })
+  )
   const [days, setDays] = useState("30")
   const [newToken, setNewToken] = useState<string | null>(null)
   const [creating, setCreating] = useState(false)
   const rbacEnabled = config.capabilities.rbac
 
-  const loadTokens = async () => {
+  const loadTokens = useCallback(async () => {
     setStatus("loading")
     setError(null)
     try {
@@ -40,13 +50,13 @@ export default function TokensPage() {
       setStatus("ready")
     } catch (err) {
       setStatus("error")
-      setError(err instanceof Error ? err.message : "Failed to load tokens")
+      setError(err instanceof Error ? err.message : copy.loadFailed)
     }
-  }
+  }, [copy.loadFailed])
 
   useEffect(() => {
     loadTokens()
-  }, [])
+  }, [loadTokens])
 
   const handleCreate = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -61,11 +71,11 @@ export default function TokensPage() {
       nameField.reset()
       setDays("30")
       await loadTokens()
-      success("Token created", { description: "This token is only shown once. Save it before leaving this page." })
+      success(copy.createSuccessTitle, { description: copy.createSuccessDescription })
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Creation failed"
+      const message = err instanceof Error ? err.message : copy.createFailedTitle
       setError(message)
-      showError("Creation failed", { description: message })
+      showError(copy.createFailedTitle, { description: message })
     } finally {
       setCreating(false)
     }
@@ -75,11 +85,11 @@ export default function TokensPage() {
     try {
       await api.revokeToken(tokenId)
       await loadTokens()
-      success("Token revoked")
+      success(copy.revokeSuccess)
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Revoke failed"
+      const message = err instanceof Error ? err.message : copy.revokeFailedTitle
       setError(message)
-      showError("Revoke failed", { description: message })
+      showError(copy.revokeFailedTitle, { description: message })
     }
   }
 
@@ -91,43 +101,39 @@ export default function TokensPage() {
   return (
     <div className="flex flex-col gap-6 3xl:gap-8">
       <PageIntro
-        title="Tokens"
-        summary={
-          !rbacEnabled
-            ? "Create tokens when you are ready to let your own client tools access the Skills visible in your workspace."
-            : "Create and manage tokens for governed access across scoped clients and automation."
-        }
+        title={copy.title}
+        summary={rbacEnabled ? copy.summaryGoverned : copy.summaryPersonal}
       />
       <WorkspaceBoundaryNote rbacEnabled={rbacEnabled} />
 
       {newToken ? (
         <NextStepCard
-          title="Token created"
-          description="Copy the token now, then use it in your MCP or other client configuration so your client can access visible Skills."
+          title={copy.nextStepTitle}
+          description={copy.nextStepDescription}
           href="/tokens"
-          actionLabel="Stay on Tokens"
+          actionLabel={copy.nextStepAction}
         />
       ) : null}
 
       <div className="grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
         <Card>
           <CardHeader>
-            <CardTitle>Create Token</CardTitle>
-            <CardDescription>Generate a token for client access. Browser management and client access are separate steps.</CardDescription>
+            <CardTitle>{copy.createTitle}</CardTitle>
+            <CardDescription>{copy.createDescription}</CardDescription>
           </CardHeader>
           <CardContent className="flex flex-col gap-4">
             <form onSubmit={handleCreate} className="flex flex-col gap-4">
               <div className="flex flex-col gap-2">
-                <Label htmlFor="name">Token name</Label>
-                <Input id="name" placeholder="for example: local-mcp-client" value={nameField.value} onChange={(event) => nameField.setValue(event.target.value)} onBlur={nameField.handleBlur} />
+                <Label htmlFor="name">{copy.tokenNameLabel}</Label>
+                <Input id="name" placeholder={copy.tokenNamePlaceholder} value={nameField.value} onChange={(event) => nameField.setValue(event.target.value)} onBlur={nameField.handleBlur} />
                 {nameField.error ? <p className="text-sm text-destructive">{nameField.error}</p> : null}
               </div>
               <div className="flex flex-col gap-2">
-                <Label htmlFor="days">Valid for days</Label>
+                <Label htmlFor="days">{copy.validForDaysLabel}</Label>
                 <Input id="days" type="number" min="1" value={days} onChange={(event) => setDays(event.target.value)} />
               </div>
               <Button type="submit" disabled={creating}>
-                {creating ? "Creating..." : "Create Token"}
+                {creating ? copy.createLoading : copy.createAction}
               </Button>
             </form>
             {newToken ? (
@@ -135,11 +141,11 @@ export default function TokensPage() {
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-2 text-sm text-foreground">
                     <KeyRound className="h-4 w-4 text-primary" />
-                    New token shown only once
+                    {copy.newTokenShownOnlyOnce}
                   </div>
                   <Button variant="outline" size="sm" onClick={handleCopy}>
                     <Copy className="h-4 w-4" />
-                    Copy
+                    {copy.copy}
                   </Button>
                 </div>
                 <Textarea className="mt-3 text-xs" value={newToken} readOnly />
@@ -151,33 +157,29 @@ export default function TokensPage() {
         <div className="flex flex-col gap-4">
           <Card>
             <CardHeader>
-              <CardTitle>Connect Client</CardTitle>
-              <CardDescription>After creating a token, the next step is to place it in your MCP or client configuration.</CardDescription>
+              <CardTitle>{copy.connectClientTitle}</CardTitle>
+              <CardDescription>{copy.connectClientDescription}</CardDescription>
             </CardHeader>
             <CardContent className="space-y-3 text-sm text-muted-foreground">
-              <p>1. Create a token here.</p>
-              <p>2. Copy it immediately because you cannot reveal it again later.</p>
-              <p>3. Use it in your own client so that client can access the Skills visible in this workspace.</p>
+              <p>{copy.connectStepOne}</p>
+              <p>{copy.connectStepTwo}</p>
+              <p>{copy.connectStepThree}</p>
             </CardContent>
           </Card>
           <Card>
             <CardHeader>
-              <CardTitle>Token List</CardTitle>
-              <CardDescription>Review active, expired, or revoked tokens.</CardDescription>
+              <CardTitle>{copy.tokenListTitle}</CardTitle>
+              <CardDescription>{copy.tokenListDescription}</CardDescription>
             </CardHeader>
             <CardContent className="flex flex-col gap-3">
               {status === "loading" ? (
                 <div className="flex items-center gap-3 text-sm text-muted-foreground">
                   <Loader2 className="h-4 w-4 animate-spin" />
-                  Loading
+                  {copy.loading}
                 </div>
               ) : null}
               {status === "error" ? <p className="text-sm text-destructive">{error}</p> : null}
-              {status === "ready" && tokens.length === 0 ? (
-                <p className="text-sm text-muted-foreground">
-                  No tokens yet. Without a token, client tools cannot access the Skills visible in this workspace.
-                </p>
-              ) : null}
+              {status === "ready" && tokens.length === 0 ? <p className="text-sm text-muted-foreground">{copy.empty}</p> : null}
               {tokens.map((token) => {
                 const isExpired = token.expires_at ? new Date(token.expires_at) < new Date() : false
                 const isActive = token.is_active && !isExpired
@@ -188,9 +190,11 @@ export default function TokensPage() {
                       <p className="text-sm font-medium text-foreground">{token.name}</p>
                       <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
                         <Badge variant="muted">id: {token.id.slice(0, 8)}</Badge>
-                        <Badge variant={isActive ? "accent" : isExpired ? "outline" : "muted"}>{isActive ? "Active" : isExpired ? "Expired" : "Revoked"}</Badge>
-                        {token.expires_at ? <Badge variant="outline">Expires {token.expires_at.slice(0, 10)}</Badge> : null}
-                        {token.last_used_at ? <Badge variant="outline">Last used {token.last_used_at.slice(0, 10)}</Badge> : null}
+                        <Badge variant={isActive ? "accent" : isExpired ? "outline" : "muted"}>
+                          {isActive ? copy.active : isExpired ? copy.expired : copy.revoked}
+                        </Badge>
+                        {token.expires_at ? <Badge variant="outline">{formatMessage(copy.expiresOn, { date: token.expires_at.slice(0, 10) })}</Badge> : null}
+                        {token.last_used_at ? <Badge variant="outline">{formatMessage(copy.lastUsedOn, { date: token.last_used_at.slice(0, 10) })}</Badge> : null}
                       </div>
                     </div>
                     <AlertDialog>
@@ -201,12 +205,12 @@ export default function TokensPage() {
                       </AlertDialogTrigger>
                       <AlertDialogContent>
                         <AlertDialogHeader>
-                          <AlertDialogTitle>Revoke token?</AlertDialogTitle>
-                          <AlertDialogDescription>After revocation, this token can no longer access the service.</AlertDialogDescription>
+                          <AlertDialogTitle>{copy.revokeTitle}</AlertDialogTitle>
+                          <AlertDialogDescription>{copy.revokeDescription}</AlertDialogDescription>
                         </AlertDialogHeader>
                         <AlertDialogFooter>
-                          <AlertDialogCancel>Cancel</AlertDialogCancel>
-                          <AlertDialogAction onClick={() => handleRevoke(token.id)}>Revoke</AlertDialogAction>
+                          <AlertDialogCancel>{copy.cancel}</AlertDialogCancel>
+                          <AlertDialogAction onClick={() => handleRevoke(token.id)}>{copy.revoke}</AlertDialogAction>
                         </AlertDialogFooter>
                       </AlertDialogContent>
                     </AlertDialog>

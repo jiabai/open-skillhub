@@ -12,16 +12,21 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { api } from "@/lib/api"
 import { useRuntimeConfig } from "@/hooks/use-runtime-config"
 import { getPrimaryNavigation } from "@/lib/navigation"
+import { formatMessage } from "@/i18n/format-message"
+import { useI18n } from "@/i18n/use-i18n"
 import type { DashboardOverview, SkillCachePolicyResponse } from "@/types"
 
 export default function DashboardPage() {
   const { config } = useRuntimeConfig()
+  const { dictionary } = useI18n()
   const [overview, setOverview] = useState<DashboardOverview | null>(null)
   const [cachePolicy, setCachePolicy] = useState<SkillCachePolicyResponse | null>(null)
   const [canManageUsers, setCanManageUsers] = useState(false)
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading")
   const [error, setError] = useState<string | null>(null)
   const rbacEnabled = config.capabilities.rbac
+  const dashboardCopy = dictionary.dashboard
+  const navigationLabels = dictionary.navigation
 
   useEffect(() => {
     const load = async () => {
@@ -39,12 +44,12 @@ export default function DashboardPage() {
         setStatus("ready")
       } catch (err) {
         setStatus("error")
-        setError(err instanceof Error ? err.message : "Failed to load dashboard")
+        setError(err instanceof Error ? err.message : dashboardCopy.errors.loadFailed)
       }
     }
 
     load()
-  }, [rbacEnabled])
+  }, [dashboardCopy.errors.loadFailed, rbacEnabled])
 
   const quickAccessItems = useMemo(
     () =>
@@ -52,16 +57,19 @@ export default function DashboardPage() {
         rbacEnabled,
         canManageUsers,
         enableAuditLog: config.capabilities.audit_log,
+        labels: navigationLabels,
       }).filter((item) => ["/skills", "/public-skills", "/tokens", "/audit", "/admin/users"].includes(item.href)),
-    [rbacEnabled, canManageUsers, config.capabilities.audit_log]
+    [rbacEnabled, canManageUsers, config.capabilities.audit_log, navigationLabels]
   )
 
   if (!rbacEnabled) {
+    const noRbacCopy = dashboardCopy.noRbac
+
     return (
       <div className="flex flex-col gap-6">
         <PageIntro
-          title="Workspace"
-          summary="Use this workspace to discover public Skills, manage your own private Skills, and connect client access with tokens."
+          title={noRbacCopy.title}
+          summary={noRbacCopy.summary}
         />
         <WorkspaceBoundaryNote rbacEnabled={rbacEnabled} />
 
@@ -73,40 +81,40 @@ export default function DashboardPage() {
 
         <section className="space-y-4">
           <div>
-            <h2 className="text-xl font-semibold">Start Here</h2>
-            <p className="text-sm text-muted-foreground">Pick the fastest path based on what you want to do first.</p>
+            <h2 className="text-xl font-semibold">{noRbacCopy.startHereTitle}</h2>
+            <p className="text-sm text-muted-foreground">{noRbacCopy.startHereSummary}</p>
           </div>
           <div className="grid gap-4 md:grid-cols-3">
             <NextStepCard
-              title="Browse Public Skills"
-              description="Start with a reference if you want to use a public Skill quickly without copying files."
+              title={noRbacCopy.browsePublicSkillsTitle}
+              description={noRbacCopy.browsePublicSkillsDescription}
               href="/public-skills"
-              actionLabel="Open Public Skills"
+              actionLabel={noRbacCopy.browsePublicSkillsAction}
             />
             <NextStepCard
-              title="Upload Your Own Skill"
-              description="Create a private Skill from a ZIP archive that contains a `SKILL.md` file."
+              title={noRbacCopy.uploadSkillTitle}
+              description={noRbacCopy.uploadSkillDescription}
               href="/skills/new"
-              actionLabel="Upload Skill"
+              actionLabel={noRbacCopy.uploadSkillAction}
             />
             <NextStepCard
-              title="Create a Token"
-              description="Create a token when you are ready to let your own MCP or client tools access visible Skills."
+              title={noRbacCopy.createTokenTitle}
+              description={noRbacCopy.createTokenDescription}
               href="/tokens"
-              actionLabel="Open Tokens"
+              actionLabel={noRbacCopy.createTokenAction}
             />
           </div>
         </section>
 
         <section className="space-y-4">
           <div>
-            <h2 className="text-xl font-semibold">My Workspace Snapshot</h2>
-            <p className="text-sm text-muted-foreground">A quick view of what is available in your personal workspace.</p>
+            <h2 className="text-xl font-semibold">{noRbacCopy.snapshotTitle}</h2>
+            <p className="text-sm text-muted-foreground">{noRbacCopy.snapshotSummary}</p>
           </div>
           <div className="grid gap-4 md:grid-cols-3">
             <Card>
               <CardHeader className="pb-2">
-                <CardDescription>My Skills</CardDescription>
+                <CardDescription>{noRbacCopy.mySkills}</CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="text-3xl font-bold tabular-nums">{overview?.active_skills ?? "—"}</div>
@@ -114,7 +122,7 @@ export default function DashboardPage() {
             </Card>
             <Card>
               <CardHeader className="pb-2">
-                <CardDescription>My Tokens</CardDescription>
+                <CardDescription>{noRbacCopy.myTokens}</CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="text-3xl font-bold tabular-nums">{overview?.available_tokens ?? "—"}</div>
@@ -122,14 +130,16 @@ export default function DashboardPage() {
             </Card>
             <Card>
               <CardHeader className="pb-2">
-                <CardDescription>Cache & Access</CardDescription>
+                <CardDescription>{noRbacCopy.cacheAccess}</CardDescription>
               </CardHeader>
               <CardContent className="space-y-2">
                 <div className="text-sm text-muted-foreground">
-                  {cachePolicy ? `Cache TTL ${Math.floor(cachePolicy.cache_ttl_seconds / 60)} min` : "Runtime policy unavailable"}
+                  {cachePolicy
+                    ? formatMessage(noRbacCopy.cacheTtl, { minutes: Math.floor(cachePolicy.cache_ttl_seconds / 60) })
+                    : noRbacCopy.runtimePolicyUnavailable}
                 </div>
                 <div className="text-sm text-muted-foreground">
-                  {cachePolicy?.download_encryption_enabled ? "Download encryption enabled" : "Download encryption disabled"}
+                  {cachePolicy?.download_encryption_enabled ? noRbacCopy.downloadEncryptionEnabled : noRbacCopy.downloadEncryptionDisabled}
                 </div>
               </CardContent>
             </Card>
@@ -138,41 +148,41 @@ export default function DashboardPage() {
 
         <section className="space-y-4">
           <div>
-            <h2 className="text-xl font-semibold">Need To Know</h2>
-            <p className="text-sm text-muted-foreground">These boundaries matter before you choose reference, clone, or token access.</p>
+            <h2 className="text-xl font-semibold">{noRbacCopy.needToKnowTitle}</h2>
+            <p className="text-sm text-muted-foreground">{noRbacCopy.needToKnowSummary}</p>
           </div>
           <div className="grid gap-4 lg:grid-cols-3">
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-base">
                   <Sparkles className="h-4 w-4 text-primary" />
-                  Public Skills
+                  {noRbacCopy.publicSkillsTitle}
                 </CardTitle>
               </CardHeader>
               <CardContent className="text-sm text-muted-foreground">
-                Public Skills are reusable starting points. Here they act as a shared library, not a public editing space.
+                {noRbacCopy.publicSkillsText}
               </CardContent>
             </Card>
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-base">
                   <UploadCloud className="h-4 w-4 text-primary" />
-                  Reference vs Clone
+                  {noRbacCopy.referenceVsCloneTitle}
                 </CardTitle>
               </CardHeader>
               <CardContent className="text-sm text-muted-foreground">
-                Use a reference when you want to start fast. Use a clone when you need your own editable copy and version flow.
+                {noRbacCopy.referenceVsCloneText}
               </CardContent>
             </Card>
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-base">
                   <KeyRound className="h-4 w-4 text-primary" />
-                  Token Access
+                  {noRbacCopy.tokenAccessTitle}
                 </CardTitle>
               </CardHeader>
               <CardContent className="text-sm text-muted-foreground">
-                Managing Skills in the browser and letting your own client use them are separate steps. Tokens unlock client access.
+                {noRbacCopy.tokenAccessText}
               </CardContent>
             </Card>
           </div>
@@ -181,15 +191,17 @@ export default function DashboardPage() {
     )
   }
 
+  const rbacCopy = dashboardCopy.rbac
+
   return (
     <div className="flex flex-col gap-6">
       <PageIntro
-        title="Overview"
-        summary="Review governance signals, scoped Skill activity, and operational access across the console."
+        title={rbacCopy.title}
+        summary={rbacCopy.summary}
         actions={
           <Button asChild>
             <Link href="/skills">
-              Open Skills
+              {rbacCopy.openSkills}
               <ArrowRight className="ml-2 h-4 w-4" />
             </Link>
           </Button>
@@ -206,26 +218,28 @@ export default function DashboardPage() {
       <div className="grid gap-4 md:grid-cols-3">
         <Card>
           <CardHeader className="pb-2">
-            <CardDescription>Team / Org Overview</CardDescription>
+            <CardDescription>{rbacCopy.teamOrgOverview}</CardDescription>
           </CardHeader>
           <CardContent className="text-sm text-muted-foreground">
-            {overview ? `${overview.active_skills} active Skills currently available in scope.` : "Loading scope overview..."}
+            {overview
+              ? formatMessage(rbacCopy.activeSkillsInScope, { count: overview.active_skills })
+              : rbacCopy.loadingScopeOverview}
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="pb-2">
-            <CardDescription>Skill Governance</CardDescription>
+            <CardDescription>{rbacCopy.skillGovernance}</CardDescription>
           </CardHeader>
           <CardContent className="text-sm text-muted-foreground">
-            Track visibility, ownership, and effective version behavior before users depend on those Skills.
+            {rbacCopy.skillGovernanceText}
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="pb-2">
-            <CardDescription>Audit & Access</CardDescription>
+            <CardDescription>{rbacCopy.auditAccess}</CardDescription>
           </CardHeader>
           <CardContent className="text-sm text-muted-foreground">
-            {cachePolicy?.download_encryption_enabled ? "Encrypted download policies are active." : "Review audit, token, and download controls."}
+            {cachePolicy?.download_encryption_enabled ? rbacCopy.encryptedDownloadsActive : rbacCopy.reviewAuditControls}
           </CardContent>
         </Card>
       </div>
@@ -233,22 +247,22 @@ export default function DashboardPage() {
       <div className="grid gap-4 lg:grid-cols-2">
         <Card>
           <CardHeader>
-            <CardTitle className="text-lg">Pending Actions</CardTitle>
+            <CardTitle className="text-lg">{rbacCopy.pendingActions}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3 text-sm text-muted-foreground">
             <div className="flex items-start gap-3">
               <Database className="mt-0.5 h-4 w-4 text-primary" />
-              <span>Review scoped Skill visibility and version ownership before expanding usage.</span>
+              <span>{rbacCopy.pendingVisibilityAction}</span>
             </div>
             <div className="flex items-start gap-3">
               <Shield className="mt-0.5 h-4 w-4 text-primary" />
-              <span>Check audit and access settings to make sure governance surfaces match the current environment.</span>
+              <span>{rbacCopy.pendingAuditAction}</span>
             </div>
           </CardContent>
         </Card>
         <Card>
           <CardHeader>
-            <CardTitle className="text-lg">Quick Access</CardTitle>
+            <CardTitle className="text-lg">{rbacCopy.quickAccess}</CardTitle>
           </CardHeader>
           <CardContent className="grid gap-2 sm:grid-cols-2">
             {quickAccessItems.map((item) => (

@@ -1,20 +1,16 @@
+"use client"
+
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
+import { useI18n } from "@/i18n/use-i18n"
 
 type WorkspaceBoundaryNoteProps = {
   rbacEnabled: boolean
 }
 
 export function WorkspaceBoundaryNote({ rbacEnabled }: WorkspaceBoundaryNoteProps) {
-  const content = rbacEnabled
-    ? {
-        badge: "Scoped Access",
-        text: "This console uses scoped permissions, visibility rules, and organization controls.",
-      }
-    : {
-        badge: "Personal Workspace",
-        text: "This workspace is personal: manage your own Skills, reuse public Skills, and connect your own client tokens.",
-      }
+  const { dictionary } = useI18n()
+  const content = rbacEnabled ? dictionary.workspaceBoundary.governed : dictionary.workspaceBoundary.personal
 
   return (
     <Card className="border-border/70 bg-muted/30">

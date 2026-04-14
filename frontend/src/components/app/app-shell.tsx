@@ -11,6 +11,7 @@ import { getPrimaryNavigation } from "@/lib/navigation"
 import { cn } from "@/lib/utils"
 import type { User } from "@/types"
 import { ThemeToggle } from "@/components/app/theme-toggle"
+import { LanguageToggle } from "@/components/app/language-toggle"
 import { Button } from "@/components/ui/button"
 import {
   AlertDialog,
@@ -31,12 +32,15 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Sheet, SheetClose, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
+import { useI18n } from "@/i18n/use-i18n"
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const router = useRouter()
   const isAuthRoute = pathname === "/login" || pathname === "/register"
   const { config } = useRuntimeConfig()
+  const { dictionary } = useI18n()
+  const { appShell, navigation } = dictionary
   const [isChecking, setIsChecking] = useState(!isAuthRoute)
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
   const [currentUser, setCurrentUser] = useState<User | null>(null)
@@ -94,6 +98,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     rbacEnabled,
     canManageUsers: Boolean(canManageUsers),
     enableAuditLog: config.capabilities.audit_log,
+    labels: navigation,
   })
 
   const handleLogout = async () => {
@@ -121,25 +126,26 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         href="#main-content"
         className="sr-only focus:not-sr-only focus:absolute focus:z-[100] focus:left-4 focus:top-4 focus:rounded-md focus:bg-primary focus:px-4 focus:py-2 focus:font-medium focus:text-primary-foreground"
       >
-        Skip to main content
+        {appShell.skipToMainContent}
       </a>
 
       <header className="sticky top-0 z-40 border-b border-border/80 backdrop-blur">
         <div className="container mx-auto max-w-screen-xl px-6 py-4 3xl:max-w-screen-2xl 4k:max-w-screen-3xl">
           <div className="flex items-center justify-between">
-            <Link href="/dashboard" className="flex items-center gap-3" aria-label="SkillHub home">
+            <Link href="/dashboard" className="flex items-center gap-3" aria-label={appShell.homeAriaLabel}>
               <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary text-primary-foreground">
                 <Wrench className="h-5 w-5" aria-hidden="true" />
               </div>
               <div>
                 <p className="font-display text-lg">SkillHub</p>
                 <p className="text-xs text-muted-foreground">
-                  {rbacEnabled ? "Governed console" : "Personal workspace"}
+                  {rbacEnabled ? appShell.governedConsole : appShell.personalWorkspace}
                 </p>
               </div>
             </Link>
 
             <div className="flex items-center gap-2">
+              <LanguageToggle />
               <ThemeToggle />
 
               <div className="hidden md:block">
@@ -148,7 +154,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                     <Button variant="outline" size="sm">
                       <span className="flex items-center gap-2">
                         <BarChart3 className="h-4 w-4" aria-hidden="true" />
-                        Workbench
+                        {appShell.workbench}
                       </span>
                     </Button>
                   </DropdownMenuTrigger>
@@ -156,13 +162,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                     <DropdownMenuItem>
                       <Link href="/profile" className="flex w-full items-center gap-2">
                         <User2 className="h-4 w-4" aria-hidden="true" />
-                        Profile
+                        {navigation.profile}
                       </Link>
                     </DropdownMenuItem>
                     <DropdownMenuItem>
                       <Link href="/security" className="flex w-full items-center gap-2">
                         <User2 className="h-4 w-4" aria-hidden="true" />
-                        Security
+                        {navigation.security}
                       </Link>
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
@@ -170,20 +176,20 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                       <AlertDialogTrigger asChild>
                         <DropdownMenuItem className="text-destructive focus:text-destructive" onSelect={(e) => e.preventDefault()}>
                           <LogOut className="h-4 w-4" aria-hidden="true" />
-                          Sign Out
+                          {appShell.signOut}
                         </DropdownMenuItem>
                       </AlertDialogTrigger>
                       <AlertDialogContent>
                         <AlertDialogHeader>
-                          <AlertDialogTitle>Sign out?</AlertDialogTitle>
+                          <AlertDialogTitle>{appShell.signOutTitle}</AlertDialogTitle>
                           <AlertDialogDescription>
-                            You will need to log in again before accessing your workspace.
+                            {appShell.signOutDescription}
                           </AlertDialogDescription>
                         </AlertDialogHeader>
                         <AlertDialogFooter>
-                          <AlertDialogCancel>Cancel</AlertDialogCancel>
+                          <AlertDialogCancel>{appShell.cancel}</AlertDialogCancel>
                           <AlertDialogAction onClick={() => void handleLogout()} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-                            Sign Out
+                            {appShell.signOut}
                           </AlertDialogAction>
                         </AlertDialogFooter>
                       </AlertDialogContent>
@@ -194,13 +200,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
               <Sheet open={mobileNavOpen} onOpenChange={setMobileNavOpen}>
                 <SheetTrigger asChild className="md:hidden">
-                  <Button variant="outline" size="icon" aria-label="Open navigation menu">
+                  <Button variant="outline" size="icon" aria-label={appShell.openNavigationMenu}>
                     <Menu className="h-4 w-4" aria-hidden="true" />
                   </Button>
                 </SheetTrigger>
                 <SheetContent side="right" className="w-[280px] sm:w-[350px]">
                   <SheetHeader>
-                    <SheetTitle>Navigation</SheetTitle>
+                    <SheetTitle>{appShell.navigation}</SheetTitle>
                   </SheetHeader>
                   <nav className="mt-6 flex flex-col gap-2">
                     {navItems.map((item) => {
@@ -230,18 +236,18 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                           onClick={(event) => event.stopPropagation()}
                         >
                           <LogOut className="h-4 w-4" aria-hidden="true" />
-                          Sign Out
+                          {appShell.signOut}
                         </button>
                       </AlertDialogTrigger>
                       <AlertDialogContent>
                         <AlertDialogHeader>
-                          <AlertDialogTitle>Sign out?</AlertDialogTitle>
+                          <AlertDialogTitle>{appShell.signOutTitle}</AlertDialogTitle>
                           <AlertDialogDescription>
-                            You will need to log in again before accessing your workspace.
+                            {appShell.signOutDescription}
                           </AlertDialogDescription>
                         </AlertDialogHeader>
                         <AlertDialogFooter>
-                          <AlertDialogCancel onClick={() => setMobileNavOpen(false)}>Cancel</AlertDialogCancel>
+                          <AlertDialogCancel onClick={() => setMobileNavOpen(false)}>{appShell.cancel}</AlertDialogCancel>
                           <AlertDialogAction
                             onClick={() => {
                               setMobileNavOpen(false)
@@ -249,7 +255,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                             }}
                             className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                           >
-                            Sign Out
+                            {appShell.signOut}
                           </AlertDialogAction>
                         </AlertDialogFooter>
                       </AlertDialogContent>

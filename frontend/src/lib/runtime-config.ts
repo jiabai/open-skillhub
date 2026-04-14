@@ -18,6 +18,10 @@ export type RuntimeConfig = {
   capabilities: RuntimeCapabilities
 }
 
+export type RuntimeConfigInput = {
+  capabilities?: Partial<RuntimeCapabilities>
+}
+
 export const defaultRuntimeCapabilities: RuntimeCapabilities = {
   skill_visibility: false,
   public_skills: false,
@@ -68,7 +72,7 @@ function normalizeCapabilities(value: Partial<RuntimeCapabilities> | undefined):
   }
 }
 
-export function normalizeRuntimeConfig(value: Partial<RuntimeConfig> | undefined): RuntimeConfig {
+export function normalizeRuntimeConfig(value: RuntimeConfigInput | undefined): RuntimeConfig {
   return {
     capabilities: normalizeCapabilities(value?.capabilities),
   }
@@ -79,7 +83,7 @@ export async function fetchRuntimeConfig(signal?: AbortSignal): Promise<RuntimeC
   if (!response.ok) {
     throw new Error(`Failed to load runtime config (${response.status})`)
   }
-  const payload = (await response.json()) as Partial<RuntimeConfig>
+  const payload = (await response.json()) as RuntimeConfigInput
   return normalizeRuntimeConfig(payload)
 }
 
@@ -94,7 +98,7 @@ export async function loadRuntimeConfig(signal?: AbortSignal): Promise<RuntimeCo
   }
 }
 
-export function __setRuntimeConfigForTests(config: Partial<RuntimeConfig>): void {
+export function __setRuntimeConfigForTests(config: RuntimeConfigInput): void {
   setRuntimeConfigSnapshot(normalizeRuntimeConfig(config))
 }
 

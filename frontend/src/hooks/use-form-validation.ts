@@ -15,6 +15,17 @@ export interface FieldState<T> {
   reset: () => void
 }
 
+type UsernameValidationMessages = {
+  minLength: string
+  maxLength: string
+  pattern: string
+}
+
+type NameValidationMessages = {
+  minLength: string
+  maxLength: string
+}
+
 export function useField<T>(
   initialValue: T,
   rules: ValidationRule<T>[]
@@ -112,20 +123,20 @@ export const validationRules = {
 }
 
 // 辅助函数 - 用于创建验证规则数组
-export function createEmailRules(): ValidationRule<string>[] {
+export function createEmailRules(message = validationRules.email.message): ValidationRule<string>[] {
   return [
-    { validate: (v) => validationRules.email.pattern.test(v), message: validationRules.email.message },
+    { validate: (v) => validationRules.email.pattern.test(v), message },
   ]
 }
 
-export function createVerificationCodeRules(): ValidationRule<string>[] {
+export function createVerificationCodeRules(message = validationRules.verificationCode.message): ValidationRule<string>[] {
   return [
-    { validate: (v) => validationRules.verificationCode.pattern.test(v), message: validationRules.verificationCode.message },
+    { validate: (v) => validationRules.verificationCode.pattern.test(v), message },
   ]
 }
 
-export function createUsernameRules(): ValidationRule<string>[] {
-  const { minLength, maxLength, pattern, messages } = validationRules.username
+export function createUsernameRules(messages: UsernameValidationMessages = validationRules.username.messages): ValidationRule<string>[] {
+  const { minLength, maxLength, pattern } = validationRules.username
   return [
     { validate: (v) => v.length >= minLength, message: messages.minLength },
     { validate: (v) => v.length <= maxLength, message: messages.maxLength },
@@ -133,22 +144,22 @@ export function createUsernameRules(): ValidationRule<string>[] {
   ]
 }
 
-export function createSkillNameRules(): ValidationRule<string>[] {
-  const { minLength, maxLength, messages } = validationRules.skillName
+export function createSkillNameRules(messages: NameValidationMessages = validationRules.skillName.messages): ValidationRule<string>[] {
+  const { minLength, maxLength } = validationRules.skillName
   return [
     { validate: (v) => v.length >= minLength, message: messages.minLength },
     { validate: (v) => v.length <= maxLength, message: messages.maxLength },
   ]
 }
 
-export function createSkillDescriptionRules(): ValidationRule<string>[] {
+export function createSkillDescriptionRules(message = validationRules.skillDescription.message): ValidationRule<string>[] {
   return [
-    { validate: (v) => !v || v.length <= validationRules.skillDescription.maxLength, message: validationRules.skillDescription.message },
+    { validate: (v) => !v || v.length <= validationRules.skillDescription.maxLength, message },
   ]
 }
 
-export function createTokenNameRules(): ValidationRule<string>[] {
-  const { minLength, maxLength, messages } = validationRules.tokenName
+export function createTokenNameRules(messages: NameValidationMessages = validationRules.tokenName.messages): ValidationRule<string>[] {
+  const { minLength, maxLength } = validationRules.tokenName
   return [
     { validate: (v) => v.length >= minLength, message: messages.minLength },
     { validate: (v) => v.length <= maxLength, message: messages.maxLength },

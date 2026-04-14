@@ -19,6 +19,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Textarea } from "@/components/ui/textarea"
 import { VersionsTab } from "./_components/versions-tab"
+import { formatMessage } from "@/i18n/format-message"
+import { useI18n } from "@/i18n/use-i18n"
 
 type EditableSkillVisible = Exclude<SkillVisible, "public">
 
@@ -29,6 +31,8 @@ type SkillDetailProps = {
 export default function SkillDetailPage({ params }: SkillDetailProps) {
   const { config } = useRuntimeConfig()
   const { success, error: showError } = useToast()
+  const { dictionary } = useI18n()
+  const { skillDetail: copy } = dictionary
   const router = useRouter()
   const [skill, setSkill] = useState<ConsoleSkill | null>(null)
   const [files, setFiles] = useState<string[]>([])
@@ -59,9 +63,9 @@ export default function SkillDetailPage({ params }: SkillDetailProps) {
       setStatus("ready")
     } catch (err) {
       setStatus("error")
-      setError(err instanceof Error ? err.message : "Failed to load Skill")
+      setError(err instanceof Error ? err.message : copy.loadFailed)
     }
-  }, [params.skillUuid])
+  }, [copy.loadFailed, params.skillUuid])
 
   useEffect(() => {
     fetchData()
@@ -82,10 +86,10 @@ export default function SkillDetailPage({ params }: SkillDetailProps) {
             }
       )
       setSkill(updated)
-      success("Skill saved")
+      success(copy.saveSuccess)
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Save failed"
-      showError("Save failed", { description: message })
+      const message = err instanceof Error ? err.message : copy.saveFailedTitle
+      showError(copy.saveFailedTitle, { description: message })
     } finally {
       setSaving(false)
     }
@@ -109,7 +113,7 @@ export default function SkillDetailPage({ params }: SkillDetailProps) {
       setPreviewContent(content)
       setPreviewStatus("ready")
     } catch (err) {
-      setPreviewError(err instanceof Error ? err.message : "Preview failed")
+      setPreviewError(err instanceof Error ? err.message : copy.previewFailed)
       setPreviewStatus("error")
     }
   }
@@ -118,21 +122,21 @@ export default function SkillDetailPage({ params }: SkillDetailProps) {
     ? ""
     : isReference
       ? skill.pinned_version
-        ? `Reference Skill pinned to version ${skill.pinned_version}.`
-        : "Reference Skill following the latest public source version."
+        ? formatMessage(copy.typeSummaryReferencePinned, { version: skill.pinned_version })
+        : copy.typeSummaryReferenceLatest
       : skill.skill_kind === "clone"
-        ? "Clone Skill with a private editable copy and its own version path."
-        : "Private Skill owned and maintained in your workspace."
+        ? copy.typeSummaryClone
+        : copy.typeSummaryPrivate
 
   return (
     <div className="flex flex-col gap-6 3xl:gap-8">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="font-display text-3xl 3xl:text-4xl 4k:text-5xl">Skill Detail</h1>
-          <p className="text-sm 3xl:text-base text-muted-foreground">Review type, effective version, files, and maintenance actions for this Skill.</p>
+          <h1 className="font-display text-3xl 3xl:text-4xl 4k:text-5xl">{copy.title}</h1>
+          <p className="text-sm text-muted-foreground 3xl:text-base">{copy.summary}</p>
         </div>
         <Button variant="outline" asChild>
-          <Link href="/skills">Back to list</Link>
+          <Link href="/skills">{copy.backToList}</Link>
         </Button>
       </div>
 
@@ -142,9 +146,9 @@ export default function SkillDetailPage({ params }: SkillDetailProps) {
             <div className="flex items-center gap-4">
               <div className={`h-3 w-3 rounded-full ${skill.is_active ? "bg-accent" : "bg-muted-foreground"}`} />
               <div>
-                <p className="font-medium">{skill.is_active ? "Active" : "Inactive"}</p>
+                <p className="font-medium">{skill.is_active ? copy.statusActive : copy.statusInactive}</p>
                 <p className="text-sm text-muted-foreground">
-                  {skill.is_active ? "This Skill is available for normal use." : "This Skill is currently unavailable until reactivated."}
+                  {skill.is_active ? copy.statusActiveDescription : copy.statusInactiveDescription}
                 </p>
               </div>
             </div>
@@ -155,20 +159,20 @@ export default function SkillDetailPage({ params }: SkillDetailProps) {
                 try {
                   if (skill.is_active) {
                     await api.deactivateSkill(skill.id)
-                    success("Skill deactivated")
+                    success(copy.deactivateSkill)
                   } else {
                     await api.activateSkill(skill.id)
-                    success("Skill activated")
+                    success(copy.activateSkill)
                   }
                   await fetchData()
                 } catch (err) {
-                  const message = err instanceof Error ? err.message : "Action failed"
+                  const message = err instanceof Error ? err.message : copy.saveFailedTitle
                   setError(message)
-                  showError("Action failed", { description: message })
+                  showError(copy.saveFailedTitle, { description: message })
                 }
               }}
             >
-              {skill.is_active ? "Deactivate Skill" : "Activate Skill"}
+              {skill.is_active ? copy.deactivateSkill : copy.activateSkill}
             </Button>
           </CardContent>
         </Card>
@@ -178,7 +182,7 @@ export default function SkillDetailPage({ params }: SkillDetailProps) {
         <Card>
           <CardContent className="flex items-center gap-3 py-10 text-sm text-muted-foreground">
             <Loader2 className="h-4 w-4 animate-spin" />
-            Loading Skill
+            {copy.loading}
           </CardContent>
         </Card>
       ) : null}
@@ -192,30 +196,32 @@ export default function SkillDetailPage({ params }: SkillDetailProps) {
       {status === "ready" && skill ? (
         <Tabs defaultValue="overview">
           <TabsList>
-            <TabsTrigger value="overview">Overview</TabsTrigger>
-            <TabsTrigger value="files">Files</TabsTrigger>
-            <TabsTrigger value="versions">Versions</TabsTrigger>
-            <TabsTrigger value="settings">Settings</TabsTrigger>
+            <TabsTrigger value="overview">{copy.overviewTab}</TabsTrigger>
+            <TabsTrigger value="files">{copy.filesTab}</TabsTrigger>
+            <TabsTrigger value="versions">{copy.versionsTab}</TabsTrigger>
+            <TabsTrigger value="settings">{copy.settingsTab}</TabsTrigger>
           </TabsList>
 
           <TabsContent value="overview">
             <Card>
               <CardHeader>
                 <CardTitle>{skill.name}</CardTitle>
-                <CardDescription>{skill.description || "No description"}</CardDescription>
+                <CardDescription>{skill.description || copy.noDescription}</CardDescription>
               </CardHeader>
               <CardContent className="space-y-3">
                 <p className="text-sm text-muted-foreground">{typeSummary}</p>
                 <div className="flex flex-wrap gap-2">
                   <Badge variant="muted">id: {skill.id.slice(0, 8)}</Badge>
                   {config.capabilities.skill_visibility && skill.visible ? (
-                    <Badge variant={skill.visible === "private" ? "outline" : skill.visible === "team" ? "secondary" : "accent"}>{skill.visible}</Badge>
+                    <Badge variant={skill.visible === "private" ? "outline" : skill.visible === "team" ? "secondary" : "accent"}>
+                      {skill.visible === "private" ? copy.visibilityPrivate : skill.visible === "team" ? copy.visibilityTeam : copy.visibilityEnterprise}
+                    </Badge>
                   ) : null}
                   {skill.skill_kind ? <Badge variant="muted">{skill.skill_kind}</Badge> : null}
                   {skill.resolved_version ? <Badge variant="outline">v{skill.resolved_version}</Badge> : null}
-                  {skill.pinned_version ? <Badge variant="outline">Pinned {skill.pinned_version}</Badge> : null}
-                  {!config.capabilities.skill_visibility ? <Badge variant="outline">private</Badge> : null}
-                  <Badge variant="accent">MCP Ready</Badge>
+                  {skill.pinned_version ? <Badge variant="outline">{formatMessage(copy.pinned, { version: skill.pinned_version })}</Badge> : null}
+                  {!config.capabilities.skill_visibility ? <Badge variant="outline">{copy.privateVisibility}</Badge> : null}
+                  <Badge variant="accent">{copy.mcpReady}</Badge>
                 </div>
               </CardContent>
             </Card>
@@ -224,13 +230,13 @@ export default function SkillDetailPage({ params }: SkillDetailProps) {
           <TabsContent value="files">
             <Card>
               <CardHeader>
-                <CardTitle>Files</CardTitle>
-                <CardDescription>Inspect files from the currently effective version for this Skill.</CardDescription>
+                <CardTitle>{copy.filesTitle}</CardTitle>
+                <CardDescription>{copy.filesDescription}</CardDescription>
               </CardHeader>
               <CardContent className="flex flex-col gap-3 text-sm text-muted-foreground">
-                {isReference ? <p>This reference resolves files from its public source version, so file upload and direct file edits stay disabled here.</p> : null}
+                {isReference ? <p>{copy.referenceFilesNotice}</p> : null}
                 {files.length === 0 ? (
-                  <p>No files available yet.</p>
+                  <p>{copy.noFiles}</p>
                 ) : (
                   <ul className="flex flex-col gap-2">
                     {files.map((file) => (
@@ -238,7 +244,7 @@ export default function SkillDetailPage({ params }: SkillDetailProps) {
                         <FileText className="h-4 w-4 text-muted-foreground" />
                         <span className="flex-1 truncate">{file}</span>
                         <Button variant="outline" size="sm" onClick={() => handlePreview(file)}>
-                          Preview
+                          {copy.preview}
                         </Button>
                       </li>
                     ))}
@@ -258,23 +264,25 @@ export default function SkillDetailPage({ params }: SkillDetailProps) {
                 >
                   <AlertDialogContent className="max-w-4xl">
                     <AlertDialogHeader>
-                      <AlertDialogTitle>{previewFile ? `Preview ${previewFile}` : "Preview file"}</AlertDialogTitle>
-                      <AlertDialogDescription>Use this to quickly inspect text file contents.</AlertDialogDescription>
+                      <AlertDialogTitle>
+                        {previewFile ? formatMessage(copy.previewTitle, { file: previewFile }) : copy.previewFallbackTitle}
+                      </AlertDialogTitle>
+                      <AlertDialogDescription>{copy.previewDescription}</AlertDialogDescription>
                     </AlertDialogHeader>
                     {previewStatus === "loading" ? (
                       <div className="flex items-center gap-2 text-sm text-muted-foreground">
                         <Loader2 className="h-4 w-4 animate-spin" />
-                        Loading content
+                        {copy.loadingContent}
                       </div>
                     ) : null}
                     {previewStatus === "error" ? <div className="text-sm text-destructive">{previewError}</div> : null}
                     {previewStatus === "ready" ? (
                       <pre className="max-h-[60vh] overflow-auto whitespace-pre-wrap rounded-md border border-border bg-muted/40 p-4 text-xs text-foreground">
-                        {previewContent || "File is empty"}
+                        {previewContent || copy.fileEmpty}
                       </pre>
                     ) : null}
                     <AlertDialogFooter>
-                      <AlertDialogCancel>Close</AlertDialogCancel>
+                      <AlertDialogCancel>{copy.close}</AlertDialogCancel>
                     </AlertDialogFooter>
                   </AlertDialogContent>
                 </AlertDialog>
@@ -289,64 +297,60 @@ export default function SkillDetailPage({ params }: SkillDetailProps) {
           <TabsContent value="settings">
             <Card>
               <CardHeader>
-                <CardTitle>Settings</CardTitle>
-                <CardDescription>Update metadata or delete this Skill. Reference Skills keep stricter edit limits.</CardDescription>
+                <CardTitle>{copy.settingsTitle}</CardTitle>
+                <CardDescription>{copy.settingsDescription}</CardDescription>
               </CardHeader>
               <CardContent className="flex flex-col gap-4">
-                {isReference ? (
-                  <p className="text-sm text-muted-foreground">
-                    This Skill is a reference to a public source. You can rename it for your workspace, but file and description changes stay restricted.
-                  </p>
-                ) : null}
+                {isReference ? <p className="text-sm text-muted-foreground">{copy.referenceSettingsNotice}</p> : null}
                 <div className="flex flex-col gap-2">
-                  <Label htmlFor="name">Skill name</Label>
+                  <Label htmlFor="name">{copy.nameLabel}</Label>
                   <Input id="name" value={name} onChange={(event) => setName(event.target.value)} />
                 </div>
                 <div className="flex flex-col gap-2">
-                  <Label htmlFor="description">Description</Label>
+                  <Label htmlFor="description">{copy.descriptionLabel}</Label>
                   <Textarea id="description" value={description} onChange={(event) => setDescription(event.target.value)} disabled={!!isReference} />
                 </div>
                 {config.capabilities.skill_visibility ? (
                   <div className="flex flex-col gap-2">
                     <Label htmlFor="visible" className="flex items-center gap-2">
                       <Eye className="h-4 w-4 text-muted-foreground" />
-                      Visibility
+                      {copy.visibilityLabel}
                     </Label>
                     <Select value={visible} onValueChange={(value) => setVisible(value as EditableSkillVisible)} disabled={!!isReference}>
                       <SelectTrigger id="visible">
-                        <SelectValue placeholder="Choose visibility" />
+                        <SelectValue placeholder={copy.visibilityPlaceholder} />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="private">private</SelectItem>
-                        <SelectItem value="team">team</SelectItem>
-                        <SelectItem value="enterprise">enterprise</SelectItem>
+                        <SelectItem value="private">{copy.visibilityPrivate}</SelectItem>
+                        <SelectItem value="team">{copy.visibilityTeam}</SelectItem>
+                        <SelectItem value="enterprise">{copy.visibilityEnterprise}</SelectItem>
                       </SelectContent>
                     </Select>
-                    <p className="text-xs text-muted-foreground">Visibility rules only apply when the environment enables scoped visibility.</p>
+                    <p className="text-xs text-muted-foreground">{copy.visibilityHelp}</p>
                   </div>
                 ) : null}
                 <div className="flex flex-wrap gap-2">
                   <Button onClick={handleSave} disabled={saving}>
                     <Save className="h-4 w-4" />
-                    {saving ? "Saving..." : "Save changes"}
+                    {saving ? copy.saving : copy.saveChanges}
                   </Button>
                   <AlertDialog>
                     <AlertDialogTrigger asChild>
                       <Button variant="destructive">
                         <Trash2 className="h-4 w-4" />
-                        Delete Skill
+                        {copy.deleteSkill}
                       </Button>
                     </AlertDialogTrigger>
                     <AlertDialogContent>
                       <AlertDialogHeader>
-                        <AlertDialogTitle>Delete this Skill?</AlertDialogTitle>
-                        <AlertDialogDescription>Choose whether to remove only the Skill record or also delete stored archives.</AlertDialogDescription>
+                        <AlertDialogTitle>{copy.deleteTitle}</AlertDialogTitle>
+                        <AlertDialogDescription>{copy.deleteDescription}</AlertDialogDescription>
                       </AlertDialogHeader>
                       <AlertDialogFooter className="flex-col gap-2 sm:flex-row">
-                        <AlertDialogCancel>Cancel</AlertDialogCancel>
-                        <AlertDialogAction onClick={() => handleDelete(false)}>Delete Skill only</AlertDialogAction>
+                        <AlertDialogCancel>{copy.cancel}</AlertDialogCancel>
+                        <AlertDialogAction onClick={() => handleDelete(false)}>{copy.deleteSkillOnly}</AlertDialogAction>
                         <AlertDialogAction onClick={() => handleDelete(true)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-                          Delete Skill and archives
+                          {copy.deleteSkillAndArchives}
                         </AlertDialogAction>
                       </AlertDialogFooter>
                     </AlertDialogContent>

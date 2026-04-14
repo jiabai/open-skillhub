@@ -59,6 +59,8 @@ docker compose up -d api frontend
 
 The first command runs Alembic migrations using the backend image. The second starts the API and frontend after migration succeeds. Access the web console at `http://localhost`
 
+The backend image now uses a multi-stage build. On low-resource hosts, the first `docker compose up -d --build migrate` may still take a few minutes because it must download and install Python dependencies before migration can run. Later rebuilds should be much faster as long as the Docker build cache is retained.
+
 ### Manual Installation
 
 ```bash

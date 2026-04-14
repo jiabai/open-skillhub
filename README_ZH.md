@@ -59,6 +59,8 @@ docker compose up -d api frontend
 
 第一条命令会使用后端镜像执行 Alembic 迁移；第二条命令会在迁移成功后启动 API 和前端。完成后访问 `http://localhost` 即可打开 Web 控制台。
 
+后端镜像现在使用多阶段构建。在低配置主机上，第一次执行 `docker compose up -d --build migrate` 仍然可能需要几分钟，因为需要先下载并安装 Python 依赖，再执行迁移。只要 Docker 的构建缓存还在，后续重建通常会快很多。
+
 ### 手动安装
 
 ```bash

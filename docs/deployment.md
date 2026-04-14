@@ -14,7 +14,21 @@ It assumes:
 
 ## Important Deployment Notes
 
-### 1. Frontend public API base is a build-time setting
+### 1. Backend image now uses a multi-stage build
+
+`backend/Dockerfile` separates dependency resolution from the final runtime image:
+
+- `builder` installs the locked Python environment with `uv`
+- `runtime` contains only `/app/.venv`, backend source, and runtime directories
+
+The `uv` cache is mounted at `/tmp/uv-cache` during build, so repeated builds can reuse downloaded packages when Docker BuildKit cache is preserved.
+
+Operationally this means:
+
+- the first `docker compose up -d --build migrate` can still take a few minutes on small hosts because it must build the backend image and download Python wheels
+- later rebuilds should be much faster unless `pyproject.toml` or `uv.lock` changed, or the Docker build cache was cleared
+
+### 2. Frontend public API base is a build-time setting
 
 `NEXT_PUBLIC_API_BASE_URL` is compiled into the frontend build.
 
@@ -28,7 +42,7 @@ Do not leave it pointing at another machine's fixed public IP.
 
 If you change this value, rebuild the frontend image.
 
-### 2. Internal API URL stays inside the Docker network
+### 3. Internal API URL stays inside the Docker network
 
 Keep:
 
@@ -38,7 +52,7 @@ API_INTERNAL_URL=http://api:8001
 
 This is only used by the Next.js server-side rewrite inside the frontend container.
 
-### 3. Backend runtime capabilities are served by the backend
+### 4. Backend runtime capabilities are served by the backend
 
 Frontend business capability UI no longer comes from frontend env flags.
 The frontend reads:

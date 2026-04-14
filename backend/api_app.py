@@ -83,16 +83,29 @@ def _register_routes(application: FastAPI) -> None:
     application.include_router(api_router, prefix="/api/v1")
 
 
+def _health_content(db_connected: bool) -> dict[str, bool | str]:
+    status_value = "healthy" if db_connected else "unhealthy"
+    return {"status": status_value, "db_connected": db_connected}
+
+
+async def _readiness_response() -> JSONResponse:
+    db_connected = await _check_db_connection()
+    status_code = 200 if db_connected else 503
+    return JSONResponse(status_code=status_code, content=_health_content(db_connected))
+
+
 def _register_operational_endpoints(application: FastAPI) -> None:
+    @application.get("/livez")
+    async def livez():
+        return JSONResponse(status_code=200, content={"status": "alive"})
+
+    @application.get("/readyz")
+    async def readyz():
+        return await _readiness_response()
+
     @application.get("/health")
     async def health():
-        db_connected = await _check_db_connection()
-        status_code = 200 if db_connected else 503
-        status_value = "healthy" if db_connected else "unhealthy"
-        return JSONResponse(
-            status_code=status_code,
-            content={"status": status_value, "db_connected": db_connected},
-        )
+        return await _readiness_response()
 
     @application.get("/metrics")
     async def metrics():

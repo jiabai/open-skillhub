@@ -1,24 +1,44 @@
+x-api-build: &api-build
+  context: .
+  dockerfile: backend/Dockerfile
+  args:
+    - UV_DEFAULT_INDEX=https://pypi.tuna.tsinghua.edu.cn/simple
+
+x-api-env: &api-env
+  DATABASE_URL: sqlite+aiosqlite:////app/data/skillhub.db
+  HOME: /tmp
+  LOG_FILE: ""
+  SKILL_STORAGE_PATH: /app/data/skills
+  TIMEZONE: "UTC+8"
+  PYTHONPATH: /app
+  UV_CACHE_DIR: /tmp/uv-cache
+  XDG_CACHE_HOME: /tmp/.cache
+
+x-api-volumes: &api-volumes
+  - skillhub-data:/app/data
+
 services:
-  api:
-    container_name: open-skillhub-api
-    build:
-      context: .
-      dockerfile: backend/Dockerfile
-      args:
-        - UV_DEFAULT_INDEX=https://pypi.tuna.tsinghua.edu.cn/simple
-    user: "1000:1000"
+  migrate:
+    build: *api-build
     env_file:
       - backend/.env
-    environment:
-      DATABASE_URL: sqlite+aiosqlite:///./data/skillhub.db
-      LOG_FILE: "/app/logs/skillhub.log"
-      SKILL_STORAGE_PATH: /app/data/skills
-      TIMEZONE: "UTC+8"
-    volumes:
-      - ./data:/app/data
-      - ./logs:/app/logs
+    environment: *api-env
+    volumes: *api-volumes
+    command: ["/app/.venv/bin/alembic", "-c", "backend/alembic.ini", "upgrade", "head"]
+    restart: "no"
+
+  api:
+    container_name: open-skillhub-api
+    build: *api-build
+    env_file:
+      - backend/.env
+    environment: *api-env
+    volumes: *api-volumes
     expose:
       - "8001"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
     restart: unless-stopped
     deploy:
       resources:
@@ -32,7 +52,7 @@ services:
           "CMD",
           "python",
           "-c",
-          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8001/health', timeout=5)"
+          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8001/readyz', timeout=5)"
         ]
       interval: 30s
       timeout: 10s
@@ -60,3 +80,6 @@ services:
           memory: 384M
         reservations:
           memory: 192M
+
+volumes:
+  skillhub-data:

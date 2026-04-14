@@ -45,7 +45,7 @@
 
 > **数据库**：默认使用 SQLite（零配置开箱即用）。生产环境推荐 PostgreSQL 14+，详见[部署指南](docs/deployment.md)。
 
-### 一键 Docker 部署（推荐）
+### Docker 部署（推荐）
 
 ```bash
 git clone https://github.com/jiabai/open-skillhub.git
@@ -53,10 +53,11 @@ cd open-skillhub
 cp backend/.env.example backend/.env
 # 编辑 backend/.env — 至少需要修改 SECRET_KEY 为 32 位以上的随机字符串
 # 示例：python -c "import secrets; print(secrets.token_urlsafe(32))"
-docker compose up -d --build
+docker compose up -d --build migrate
+docker compose up -d api frontend
 ```
 
-**完成！** 访问 `http://localhost` 即可打开 Web 控制台。
+第一条命令会使用后端镜像执行 Alembic 迁移；第二条命令会在迁移成功后启动 API 和前端。完成后访问 `http://localhost` 即可打开 Web 控制台。
 
 ### 手动安装
 

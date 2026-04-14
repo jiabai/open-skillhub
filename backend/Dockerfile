@@ -8,7 +8,10 @@ ARG UV_DEFAULT_INDEX=https://pypi.tuna.tsinghua.edu.cn/simple
 
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
+ENV HOME=/tmp
+ENV XDG_CACHE_HOME=/tmp/.cache
 ENV UV_DEFAULT_INDEX=$UV_DEFAULT_INDEX
+ENV UV_CACHE_DIR=/tmp/uv-cache
 ENV UV_LINK_MODE=copy
 ENV PATH="/app/.venv/bin:$PATH"
 
@@ -25,6 +28,13 @@ COPY backend /app/backend
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --frozen --no-dev
 
+RUN addgroup --system skillhub \
+    && adduser --system --ingroup skillhub --home /app skillhub \
+    && mkdir -p /app/data /tmp/uv-cache /tmp/.cache \
+    && chown -R skillhub:skillhub /app/data /tmp/uv-cache /tmp/.cache
+
+USER skillhub
+
 EXPOSE 8001
 
-CMD ["sh", "-c", "alembic -c backend/alembic.ini upgrade head && uvicorn backend.api_app:app --host 0.0.0.0 --port 8001 --workers 1"]
+CMD ["/app/.venv/bin/uvicorn", "backend.api_app:app", "--host", "0.0.0.0", "--port", "8001", "--workers", "1"]

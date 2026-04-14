@@ -51,6 +51,7 @@ So Linux deployment only needs correct backend env values. There is no separate 
 
 The repository Compose file is now set up for a host-level Nginx reverse proxy:
 
+- `migrate` runs Alembic once and exits successfully before the API starts
 - `frontend` is published to host `127.0.0.1:3000`
 - `api` is exposed only inside the Docker network on `8001`
 - host Nginx should proxy public requests to `127.0.0.1:3000`
@@ -68,6 +69,7 @@ At minimum, update:
 - `SECRET_KEY`
 - `DEBUG=false`
 - `LOG_LEVEL=INFO`
+- `LOG_FILE=` (keep empty for Docker unless you intentionally mount a file path)
 - `CORS_ORIGINS`
 - `DATABASE_URL` if using PostgreSQL
 
@@ -79,7 +81,7 @@ python -c "import secrets; print(secrets.token_urlsafe(32))"
 
 ### 2. Set the frontend public origin
 
-Before building, edit [docker-compose.yml](/D:/Github/open-skillhub/docker-compose.yml:42).
+Before building, edit [docker-compose.yml](/D:/Github/open-skillhub/docker-compose.yml).
 
 For a server IP deployment:
 
@@ -146,10 +148,18 @@ CORS_ORIGINS=["http://YOUR_SERVER_IP","https://YOUR_DOMAIN"]
 
 Do not keep unrelated hardcoded public IPs in production config.
 
-### 5. Start services
+### 5. Run migrations and start services
 
 ```bash
-docker compose up -d --build
+docker compose up -d --build migrate
+docker compose up -d api frontend
+```
+
+If your Compose installation does not support `depends_on.condition: service_completed_successfully`, use this fallback instead:
+
+```bash
+docker compose run --rm migrate
+docker compose up -d --build api frontend
 ```
 
 ### 6. Verify
@@ -157,8 +167,10 @@ docker compose up -d --build
 From the server:
 
 ```bash
+docker compose config
 docker compose ps
-docker compose exec api python -c "import urllib.request; print(urllib.request.urlopen('http://127.0.0.1:8001/health', timeout=5).read().decode())"
+docker compose logs api --tail 50
+docker compose exec api python -c "import urllib.request; print(urllib.request.urlopen('http://127.0.0.1:8001/readyz', timeout=5).read().decode())"
 ```
 
 From a browser:
@@ -182,9 +194,9 @@ Good for:
 - low traffic
 - evaluation or internal small-team usage
 
-Current default compose setup uses SQLite persisted under:
+Current default compose setup uses SQLite persisted in the Compose named volume:
 
-- `./data`
+- `skillhub-data`
 
 ### PostgreSQL
 
@@ -203,7 +215,8 @@ If you switch to PostgreSQL, update `DATABASE_URL` and add a `db` service to Com
 - only expose `8001` if you intentionally want the backend reachable directly
 - set a real `SECRET_KEY`
 - set `DEBUG=false`
-- persist `./data` and `./logs`
+- keep `LOG_FILE=` for Docker unless you intentionally mount a file path
+- keep the default named volume `skillhub-data`, or replace it with an explicit storage mapping if you need host-path access
 - use PostgreSQL if this is not a low-traffic single-node deployment
 - rebuild frontend whenever `NEXT_PUBLIC_API_BASE_URL` changes
 

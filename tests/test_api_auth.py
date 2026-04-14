@@ -232,6 +232,48 @@ async def test_health_returns_minimal_payload(client):
 
 
 @pytest.mark.asyncio
+async def test_livez_returns_alive_status(client):
+    response = await client.get("/livez")
+    assert response.status_code == 200
+    assert response.json() == {"status": "alive"}
+
+
+@pytest.mark.asyncio
+async def test_readyz_returns_minimal_payload(client):
+    response = await client.get("/readyz")
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["status"] == "healthy"
+    assert payload["db_connected"] is True
+
+
+@pytest.mark.asyncio
+async def test_readyz_reports_db_failure(monkeypatch):
+    from backend import api_app
+
+    class BrokenConnection:
+        async def __aenter__(self):
+            raise RuntimeError("db down")
+
+        async def __aexit__(self, exc_type, exc, tb):
+            return False
+
+    class BrokenEngine:
+        def connect(self):
+            return BrokenConnection()
+
+    monkeypatch.setattr(api_app, "engine", BrokenEngine())
+    app = create_application()
+    transport = httpx.ASGITransport(app=app)
+    async with httpx.AsyncClient(transport=transport, base_url="http://test") as session:
+        response = await session.get("/readyz")
+    assert response.status_code == 503
+    payload = response.json()
+    assert payload["status"] == "unhealthy"
+    assert payload["db_connected"] is False
+
+
+@pytest.mark.asyncio
 async def test_health_ignores_db_failure(monkeypatch):
     from backend import api_app
 

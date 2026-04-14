@@ -87,7 +87,7 @@ class Settings(BaseSettings):
 
     LOG_LEVEL: str = "INFO"
     LOG_FORMAT: str = "json"
-    LOG_FILE: str = "/var/log/skillhub/app.log"
+    LOG_FILE: str = ""
 
     SKILL_STORAGE_PATH: str = "/data/skills"
     SKILL_ARCHIVE_BACKEND: str = "local"

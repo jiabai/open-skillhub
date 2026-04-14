@@ -45,7 +45,7 @@
 
 > **Database**: SQLite is used by default (zero-config). PostgreSQL 14+ is recommended for production — see [Deployment Guide](docs/deployment.md) for details.
 
-### One-Command Docker Setup
+### Docker Setup
 
 ```bash
 git clone https://github.com/jiabai/open-skillhub.git
@@ -53,10 +53,11 @@ cd open-skillhub
 cp backend/.env.example backend/.env
 # Edit backend/.env — at minimum, change SECRET_KEY to a random 32+ char string
 # Example: python -c "import secrets; print(secrets.token_urlsafe(32))"
-docker compose up -d --build
+docker compose up -d --build migrate
+docker compose up -d api frontend
 ```
 
-**That's it!** Access the web console at `http://localhost`
+The first command runs Alembic migrations using the backend image. The second starts the API and frontend after migration succeeds. Access the web console at `http://localhost`
 
 ### Manual Installation
 

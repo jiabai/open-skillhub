@@ -235,7 +235,7 @@ sequenceDiagram
 | 资源 | 说明 |
 |------|------|
 | [后端架构设计](docs/backend-design/) | 系统架构与技术设计文档 |
-| [部署指南](docs/deployment.md) | 生产环境部署教程 |
+| [部署指南](docs/deployment_ZH.md) | 生产环境部署教程 |
 | [前端设计规范](docs/frontend-design/) | UI/UX 设计规格 |
 | [用户运行时环境](docs/user-runtime-environment/) | 运行时环境设计文档 |
 

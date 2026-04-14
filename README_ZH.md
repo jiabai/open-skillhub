@@ -51,13 +51,17 @@
 git clone https://github.com/jiabai/open-skillhub.git
 cd open-skillhub
 cp backend/.env.example backend/.env
+mkdir -p /home/claude/open-skillhub/data /home/claude/open-skillhub/logs
 # 编辑 backend/.env — 至少需要修改 SECRET_KEY 为 32 位以上的随机字符串
 # 示例：python -c "import secrets; print(secrets.token_urlsafe(32))"
+UV_DEFAULT_INDEX=https://pypi.tuna.tsinghua.edu.cn/simple uv lock
 docker compose up -d --build migrate
-docker compose up -d api frontend
+docker compose up -d api webui
 ```
 
-第一条命令会使用后端镜像执行 Alembic 迁移；第二条命令会在迁移成功后启动 API 和前端。完成后访问 `http://localhost` 即可打开 Web 控制台。
+第一条命令会在受限网络环境下按当前镜像源重新生成 `uv.lock`；迁移命令会初始化位于 `/home/claude/open-skillhub/data/skillhub.db` 的 SQLite 数据库；最后一条命令会启动 API 和前端服务 `webui`。API 日志会写入 `/home/claude/open-skillhub/logs/api.log`。
+
+完成后可通过反向代理访问，或直接在宿主机上访问 `http://127.0.0.1:3000` 打开 Web 控制台。
 
 后端镜像现在使用多阶段构建。在低配置主机上，第一次执行 `docker compose up -d --build migrate` 仍然可能需要几分钟，因为需要先下载并安装 Python 依赖，再执行迁移。只要 Docker 的构建缓存还在，后续重建通常会快很多。
 

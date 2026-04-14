@@ -7,9 +7,9 @@ This guide covers Linux deployment with Docker Compose for the current repositor
 It assumes:
 
 - backend runs on port `8001`
-- frontend runs on port `3000` in Docker and is published to host `127.0.0.1:3000`
+- web UI runs on port `3000` in Docker and is published to host `127.0.0.1:3000`
 - an external Nginx reverse proxy terminates public traffic on port `80` or `443`
-- frontend calls the backend through the public frontend origin plus `/api/*`
+- web UI calls the backend through the public frontend origin plus `/api/*`
 - Next.js rewrites proxy `/api/*` to `API_INTERNAL_URL`
 
 ## Important Deployment Notes
@@ -28,7 +28,29 @@ Operationally this means:
 - the first `docker compose up -d --build migrate` can still take a few minutes on small hosts because it must build the backend image and download Python wheels
 - later rebuilds should be much faster unless `pyproject.toml` or `uv.lock` changed, or the Docker build cache was cleared
 
-### 2. Frontend public API base is a build-time setting
+### 2. `uv.lock` and package index must stay aligned
+
+The compose file passes:
+
+```env
+UV_DEFAULT_INDEX=https://pypi.tuna.tsinghua.edu.cn/simple
+```
+
+If `uv.lock` still points at `pypi.org` / `files.pythonhosted.org`, `docker compose build migrate` may still stall on slow or proxied networks even though `UV_DEFAULT_INDEX` is set.
+
+Before rebuilding in mainland China or other restricted environments, regenerate the lock file against the mirror if needed:
+
+```bash
+UV_DEFAULT_INDEX=https://pypi.tuna.tsinghua.edu.cn/simple uv lock
+```
+
+You can verify the lock file no longer references the upstream PyPI hosts:
+
+```bash
+grep -n "pypi.org/simple\\|files.pythonhosted.org" uv.lock | head
+```
+
+### 3. Web UI public API base is a build-time setting
 
 `NEXT_PUBLIC_API_BASE_URL` is compiled into the frontend build.
 
@@ -42,7 +64,7 @@ Do not leave it pointing at another machine's fixed public IP.
 
 If you change this value, rebuild the frontend image.
 
-### 3. Internal API URL stays inside the Docker network
+### 4. Internal API URL stays inside the Docker network
 
 Keep:
 
@@ -52,7 +74,22 @@ API_INTERNAL_URL=http://api:8001
 
 This is only used by the Next.js server-side rewrite inside the frontend container.
 
-### 4. Backend runtime capabilities are served by the backend
+### 5. Compose now uses host bind mounts for SQLite, skills, and logs
+
+The default compose file binds these host paths:
+
+- `/home/claude/open-skillhub/data` -> `/app/data`
+- `/home/claude/open-skillhub/logs` -> `/app/logs`
+
+This means:
+
+- SQLite lives at `/home/claude/open-skillhub/data/skillhub.db`
+- skill files live under `/home/claude/open-skillhub/data/skills`
+- API logs live at `/home/claude/open-skillhub/logs/api.log`
+
+Backend containers run as UID/GID `1000:1000`, which matches the host user `claude` on the target server.
+
+### 6. Backend runtime capabilities are served by the backend
 
 Frontend business capability UI no longer comes from frontend env flags.
 The frontend reads:
@@ -66,7 +103,7 @@ So Linux deployment only needs correct backend env values. There is no separate 
 The repository Compose file is now set up for a host-level Nginx reverse proxy:
 
 - `migrate` runs Alembic once and exits successfully before the API starts
-- `frontend` is published to host `127.0.0.1:3000`
+- `webui` is published to host `127.0.0.1:3000`
 - `api` is exposed only inside the Docker network on `8001`
 - host Nginx should proxy public requests to `127.0.0.1:3000`
 
@@ -83,7 +120,6 @@ At minimum, update:
 - `SECRET_KEY`
 - `DEBUG=false`
 - `LOG_LEVEL=INFO`
-- `LOG_FILE=` (keep empty for Docker unless you intentionally mount a file path)
 - `CORS_ORIGINS`
 - `DATABASE_URL` if using PostgreSQL
 
@@ -93,7 +129,17 @@ Example `SECRET_KEY`:
 python -c "import secrets; print(secrets.token_urlsafe(32))"
 ```
 
-### 2. Set the frontend public origin
+### 2. Prepare host directories for bind mounts
+
+Create the directories before starting containers:
+
+```bash
+mkdir -p /home/claude/open-skillhub/data /home/claude/open-skillhub/logs
+```
+
+If your deployment user is not UID/GID `1000:1000`, either adjust the compose `user:` mapping or chown these directories accordingly.
+
+### 3. Set the web UI public origin
 
 Before building, edit [docker-compose.yml](/D:/Github/open-skillhub/docker-compose.yml).
 
@@ -120,7 +166,7 @@ This makes browser requests go to:
 
 Then Next.js forwards those requests to the backend container.
 
-### 3. Configure Nginx reverse proxy
+### 4. Configure Nginx reverse proxy
 
 An example config is provided at [deploy/nginx/skillhub.conf](/D:/Github/open-skillhub/deploy/nginx/skillhub.conf).
 
@@ -150,7 +196,7 @@ server {
 }
 ```
 
-### 4. Align backend CORS only if needed
+### 5. Align backend CORS only if needed
 
 If all browser traffic goes through the frontend origin and `/api` proxy, CORS is much less important.
 
@@ -162,21 +208,33 @@ CORS_ORIGINS=["http://YOUR_SERVER_IP","https://YOUR_DOMAIN"]
 
 Do not keep unrelated hardcoded public IPs in production config.
 
-### 5. Run migrations and start services
+### 6. Run migrations and start services
+
+Recommended first boot sequence:
 
 ```bash
-docker compose up -d --build migrate
-docker compose up -d api frontend
+docker compose down
+docker compose up migrate
+docker compose up api
+docker compose up webui
+```
+
+Once you have validated the services, you can run them in the background:
+
+```bash
+docker compose up -d api webui
 ```
 
 If your Compose installation does not support `depends_on.condition: service_completed_successfully`, use this fallback instead:
 
 ```bash
 docker compose run --rm migrate
-docker compose up -d --build api frontend
+docker compose up -d api webui
 ```
 
-### 6. Verify
+`docker compose up api` will also wait for `migrate` because `api` depends on `migrate` completing successfully. That is expected and does not reapply completed revisions.
+
+### 7. Verify
 
 From the server:
 
@@ -184,7 +242,11 @@ From the server:
 docker compose config
 docker compose ps
 docker compose logs api --tail 50
+docker compose logs webui --tail 50
 docker compose exec api python -c "import urllib.request; print(urllib.request.urlopen('http://127.0.0.1:8001/readyz', timeout=5).read().decode())"
+ls -l /home/claude/open-skillhub/data
+ls -l /home/claude/open-skillhub/logs
+tail -n 50 /home/claude/open-skillhub/logs/api.log
 ```
 
 From a browser:
@@ -210,7 +272,7 @@ Good for:
 
 Current default compose setup uses SQLite persisted in the Compose named volume:
 
-- `skillhub-data`
+- `/home/claude/open-skillhub/data/skillhub.db`
 
 ### PostgreSQL
 
@@ -225,14 +287,13 @@ If you switch to PostgreSQL, update `DATABASE_URL` and add a `db` service to Com
 ## Linux Checklist
 
 - open ports `80` and `443` on the Nginx host
-- ensure Docker publishes frontend only to `127.0.0.1:3000`
+- ensure Docker publishes web UI only to `127.0.0.1:3000`
 - only expose `8001` if you intentionally want the backend reachable directly
 - set a real `SECRET_KEY`
 - set `DEBUG=false`
-- keep `LOG_FILE=` for Docker unless you intentionally mount a file path
-- keep the default named volume `skillhub-data`, or replace it with an explicit storage mapping if you need host-path access
+- ensure `/home/claude/open-skillhub/data` and `/home/claude/open-skillhub/logs` exist and are writable by UID/GID `1000:1000`
 - use PostgreSQL if this is not a low-traffic single-node deployment
-- rebuild frontend whenever `NEXT_PUBLIC_API_BASE_URL` changes
+- rebuild web UI whenever `NEXT_PUBLIC_API_BASE_URL` changes
 
 ## Common Mistakes
 
@@ -240,13 +301,19 @@ If you switch to PostgreSQL, update `DATABASE_URL` and add a `db` service to Com
   This only works inside Docker, not in the browser.
 
 - Leaving `NEXT_PUBLIC_API_BASE_URL` on an old server IP
-  The frontend will keep calling the wrong host until rebuilt.
+  The web UI will keep calling the wrong host until rebuilt.
 
-- Publishing `frontend` directly on host port `80` while also using an external Nginx proxy
+- Publishing `webui` directly on host port `80` while also using an external Nginx proxy
   This creates port conflicts and defeats the reverse-proxy layout.
 
 - Editing backend feature envs but not rebuilding frontend after changing public origin
   Capability flags do not require frontend rebuild, but public API base does.
+
+- Binding `/app/data` and `/app/logs` to host paths without matching write permissions
+  SQLite migration and file logging will fail with `unable to open database file` or file permission errors.
+
+- Regenerating `uv.lock` against one index and building against another
+  Builds may stall or fetch from the wrong package source.
 
 - Assuming README already contains the full production guide
   Use this file for Linux deployment details.

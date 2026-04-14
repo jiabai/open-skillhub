@@ -51,13 +51,17 @@
 git clone https://github.com/jiabai/open-skillhub.git
 cd open-skillhub
 cp backend/.env.example backend/.env
+mkdir -p /home/claude/open-skillhub/data /home/claude/open-skillhub/logs
 # Edit backend/.env — at minimum, change SECRET_KEY to a random 32+ char string
 # Example: python -c "import secrets; print(secrets.token_urlsafe(32))"
+UV_DEFAULT_INDEX=https://pypi.tuna.tsinghua.edu.cn/simple uv lock
 docker compose up -d --build migrate
-docker compose up -d api frontend
+docker compose up -d api webui
 ```
 
-The first command runs Alembic migrations using the backend image. The second starts the API and frontend after migration succeeds. Access the web console at `http://localhost`
+The first command regenerates `uv.lock` against the configured mirror when you are on a restricted network. The migration step then initializes the SQLite database under `/home/claude/open-skillhub/data/skillhub.db`, and the final command starts the API plus the web UI service `webui`. API logs are written to `/home/claude/open-skillhub/logs/api.log`.
+
+Access the web console through your reverse proxy or through the local bind at `http://127.0.0.1:3000`.
 
 The backend image now uses a multi-stage build. On low-resource hosts, the first `docker compose up -d --build migrate` may still take a few minutes because it must download and install Python dependencies before migration can run. Later rebuilds should be much faster as long as the Docker build cache is retained.
 

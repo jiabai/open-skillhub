@@ -43,7 +43,7 @@
 - **Python 3.10+**
 - **Node.js 18+**（前端，可选）
 
-> **数据库**：默认使用 SQLite（零配置开箱即用）。生产环境推荐 PostgreSQL 14+，详见[部署指南](docs/deployment.md)。
+> **数据库**：默认使用 SQLite（零配置开箱即用）。生产环境推荐 PostgreSQL 14+，详见[部署指南](docs/deployment_ZH.md)。
 
 ### Docker 部署（推荐）
 
@@ -244,7 +244,7 @@ sequenceDiagram
 | **前端** | 80 | Web 控制台 (Next.js) | 对外开放 |
 | **API 服务** | 8001 | 后端 API (FastAPI) | 对外开放（REST） |
 
-> **注意**：默认 Docker 部署使用 SQLite，无需额外数据库服务。如需使用 PostgreSQL，请在 `docker-compose.yml` 中添加 `db` 服务，详见[部署指南](docs/deployment.md)。
+> **注意**：默认 Docker 部署使用 SQLite，无需额外数据库服务。如需使用 PostgreSQL，请在 `docker-compose.yml` 中添加 `db` 服务，详见[部署指南](docs/deployment_ZH.md)。
 
 ---
 
@@ -252,10 +252,12 @@ sequenceDiagram
 
 | 资源 | 说明 |
 |------|------|
-| [后端架构设计](docs/backend-design/) | 系统架构与技术设计文档 |
+| [架构地图](ARCHITECTURE.md) | 仓库代码地图、层级边界与关键文件 |
+| [设计规范](docs/DESIGN.md) | 后端、前端与文档的稳定设计约束 |
+| [安全规范](docs/SECURITY.md) | 认证、密钥、隔离边界与安全待办 |
 | [部署指南](docs/deployment_ZH.md) | 生产环境部署教程 |
-| [前端设计规范](docs/frontend-design/) | UI/UX 设计规格 |
-| [用户运行时环境](docs/user-runtime-environment/) | 运行时环境设计文档 |
+| [产品规格索引](docs/product-specs/index.md) | 面向用户能力的规格说明入口 |
+| [执行计划索引](docs/exec-plans/index.md) | 当前工作流、历史计划与技术债入口 |
 
 ---
 

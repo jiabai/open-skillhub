@@ -252,10 +252,12 @@ Each user's directory is fully isolated — users can only access their own skil
 
 | Resource | Description |
 |----------|-------------|
-| [Backend Architecture](docs/backend-design/) | System design & architecture docs |
+| [Architecture Map](ARCHITECTURE.md) | Repository code map, boundaries, and key files |
+| [Design Guide](docs/DESIGN.md) | Stable design rules for backend, frontend, and docs |
+| [Security Guide](docs/SECURITY.md) | Auth, secrets, isolation, and security follow-ups |
 | [Deployment Guide](docs/deployment.md) | Production setup instructions |
-| [Frontend Design](docs/frontend-design/) | UI/UX design specs |
-| [User Runtime Environment](docs/user-runtime-environment/) | Runtime environment design docs |
+| [Product Specs](docs/product-specs/index.md) | Feature intent and user-facing boundaries |
+| [Exec Plans](docs/exec-plans/index.md) | Active workstreams, completed plans, and tech debt |
 
 ---
 

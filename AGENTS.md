@@ -48,6 +48,10 @@ frontend/             # Next.js 14 web console (see frontend/AGENTS.md for detai
   src/i18n/           #   Internationalization (zh-CN, en-US)
   src/types/          #   TypeScript type definitions
   src/__tests__/      #   Vitest component tests
+desktop-client/       # Electron desktop sync client (see desktop-client/AGENTS.md)
+  electron/           #   Main-process runtime, preload bridge, IPC handlers
+  src/                #   Renderer UI, sync/distribution core, storage, adapters
+  docs/               #   Local architecture, security, specs, and exec plans
 shared/               # Shared data between backend and frontend (user-statuses.json)
 tests/                # Backend pytest suite (56 test files)
   conftest.py         #   Fixtures: async engine, session, httpx client
@@ -79,6 +83,15 @@ cd frontend && npm run build                # Production build
 cd frontend && npm run lint                 # ESLint
 cd frontend && npm test                     # Run Vitest tests
 cd frontend && npm run test:watch           # Watch mode
+```
+
+### Desktop Client
+
+```bash
+cd desktop-client && npm install            # Install dependencies
+cd desktop-client && npm test               # Run Vitest tests
+cd desktop-client && npm run build          # Type check Electron + build renderer
+cd desktop-client && npm run typecheck:electron  # Electron TypeScript only
 ```
 
 ### Docker

@@ -1,0 +1,17 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "composite": true,
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "types": ["node"]
+  },
+  "include": [
+    "vite.config.ts",
+    "vitest.config.ts",
+    "electron/**/*.ts",
+    "src/types/**/*.ts",
+    "src/core/**/*.ts",
+    "src/adapters/**/*.ts"
+  ]
+}

@@ -15,7 +15,7 @@ __pycache__
 tmp*
 temp*
 private*
-dist/
+**/dist/
 nohup*
 log/
 **/logs/*
@@ -54,10 +54,15 @@ site/*
 
 # Node.js
 frontend/node_modules/
+desktop-client/node_modules/
 
 # Next.js
 frontend/.next/
 frontend/tsconfig.tsbuildinfo
+
+# Vite (desktop-client)
+desktop-client/.vite/
+desktop-client/tsconfig.node.tsbuildinfo
 
 # Python
 .venv/

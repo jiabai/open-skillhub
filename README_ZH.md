@@ -43,7 +43,7 @@
 - **Python 3.10+**
 - **Node.js 18+**（前端，可选）
 
-> **数据库**：默认使用 SQLite（零配置开箱即用）。生产环境推荐 PostgreSQL 14+，详见[部署指南](docs/deployment.md)。
+> **数据库**：默认使用 SQLite（零配置开箱即用）。生产环境推荐 PostgreSQL 14+，详见[部署指南](docs/deployment_ZH.md)。
 
 ### Docker 部署（推荐）
 
@@ -87,7 +87,25 @@ uv run alembic -c backend/alembic.ini upgrade head
 uv run uvicorn backend.api_app:app --host 0.0.0.0 --port 8001
 ```
 
-浠撳簱榛樿浣跨敤椤圭洰鍐?`.venv`锛岃繖鏇撮€傚悎 Linux 閮ㄧ讲銆丏ocker 鍜?CI銆傚鏋滀綘鍦?Windows 鏈哄櫒涓婂笇鏈涘鐢?`D:\Code\.venv` 杩欑鏈哄櫒绾ц櫄鎷熺幆澧冿紝璇峰彧鍦ㄦ湰鍦拌缃?`UV_PROJECT_ENVIRONMENT`锛屼笉瑕佹妸璇ョ粷瀵硅矾寰勫啓鍏ヤ粨搴撱€?
+仓库默认使用项目内的 `.venv`，这样更适合 Linux 部署、Docker 和 CI。如果你在 Windows 上希望复用类似 `D:\Code\.venv` 这样的机器级虚拟环境，请只在本地设置 `UV_PROJECT_ENVIRONMENT`，不要把这类绝对路径写入仓库。
+
+### 桌面客户端
+
+仓库里还包含一个 Windows Electron 桌面客户端，位于 `desktop-client/`。它会轮询后端中的待审核技能更新，显示托盘提示和桌面通知，但不会自动分发，保持“先审核、后操作”的流程。
+
+```bash
+cd desktop-client
+npm install
+set OPEN_SKILLHUB_API_BASE_URL=http://127.0.0.1:8001
+set OPEN_SKILLHUB_API_TOKEN=ask_live_your_token
+set OPEN_SKILLHUB_CODEX_SKILLS_PATH=%USERPROFILE%\\.codex\\skills
+set OPEN_SKILLHUB_CLAUDE_CODE_SKILLS_PATH=%USERPROFILE%\\.claude\\skills
+set OPEN_SKILLHUB_GEMINI_CLI_SKILLS_PATH=%USERPROFILE%\\.gemini\\skills
+npm run test
+npm run build
+```
+
+`npm run build` 会同时执行 Electron 的 TypeScript 检查和前端构建。关闭窗口后托盘会继续保活，这样后台轮询可以持续运行，而已审核的更新只有在你明确触发分发时才会真正写入各个 agent 目录。当前桌面端链路要求客户端下载为未加密版本。
 
 ---
 
@@ -226,7 +244,7 @@ sequenceDiagram
 | **前端** | 80 | Web 控制台 (Next.js) | 对外开放 |
 | **API 服务** | 8001 | 后端 API (FastAPI) | 对外开放（REST） |
 
-> **注意**：默认 Docker 部署使用 SQLite，无需额外数据库服务。如需使用 PostgreSQL，请在 `docker-compose.yml` 中添加 `db` 服务，详见[部署指南](docs/deployment.md)。
+> **注意**：默认 Docker 部署使用 SQLite，无需额外数据库服务。如需使用 PostgreSQL，请在 `docker-compose.yml` 中添加 `db` 服务，详见[部署指南](docs/deployment_ZH.md)。
 
 ---
 
@@ -234,10 +252,12 @@ sequenceDiagram
 
 | 资源 | 说明 |
 |------|------|
-| [后端架构设计](docs/backend-design/) | 系统架构与技术设计文档 |
+| [架构地图](ARCHITECTURE.md) | 仓库代码地图、层级边界与关键文件 |
+| [设计规范](docs/DESIGN.md) | 后端、前端与文档的稳定设计约束 |
+| [安全规范](docs/SECURITY.md) | 认证、密钥、隔离边界与安全待办 |
 | [部署指南](docs/deployment_ZH.md) | 生产环境部署教程 |
-| [前端设计规范](docs/frontend-design/) | UI/UX 设计规格 |
-| [用户运行时环境](docs/user-runtime-environment/) | 运行时环境设计文档 |
+| [产品规格索引](docs/product-specs/index.md) | 面向用户能力的规格说明入口 |
+| [执行计划索引](docs/exec-plans/index.md) | 当前工作流、历史计划与技术债入口 |
 
 ---
 

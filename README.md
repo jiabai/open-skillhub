@@ -89,6 +89,24 @@ uv run uvicorn backend.api_app:app --host 0.0.0.0 --port 8001
 
 For local development, the repository default is a project-local `.venv`. If you want `uv` to use a machine-level environment such as `D:\Code\.venv` on Windows, set `UV_PROJECT_ENVIRONMENT` locally before running `uv sync`; do not commit that machine-specific path into the repository.
 
+### Desktop Client
+
+The repository also includes a Windows Electron desktop client under `desktop-client/`. It polls the backend for reviewable skill updates, shows tray tooltips and desktop notifications, and keeps distribution manual so operators can review before they act.
+
+```bash
+cd desktop-client
+npm install
+set OPEN_SKILLHUB_API_BASE_URL=http://127.0.0.1:8001
+set OPEN_SKILLHUB_API_TOKEN=ask_live_your_token
+set OPEN_SKILLHUB_CODEX_SKILLS_PATH=%USERPROFILE%\\.codex\\skills
+set OPEN_SKILLHUB_CLAUDE_CODE_SKILLS_PATH=%USERPROFILE%\\.claude\\skills
+set OPEN_SKILLHUB_GEMINI_CLI_SKILLS_PATH=%USERPROFILE%\\.gemini\\skills
+npm run test
+npm run build
+```
+
+`npm run build` performs the Electron TypeScript check and the renderer build. The tray keeps the app resident after the window is closed so background polling can continue, and approved updates are distributed only when you explicitly trigger them from the review UI. The current desktop pipeline expects unencrypted client downloads.
+
 ---
 
 ## 🎯 Core Features
@@ -234,10 +252,12 @@ Each user's directory is fully isolated — users can only access their own skil
 
 | Resource | Description |
 |----------|-------------|
-| [Backend Architecture](docs/backend-design/) | System design & architecture docs |
+| [Architecture Map](ARCHITECTURE.md) | Repository code map, boundaries, and key files |
+| [Design Guide](docs/DESIGN.md) | Stable design rules for backend, frontend, and docs |
+| [Security Guide](docs/SECURITY.md) | Auth, secrets, isolation, and security follow-ups |
 | [Deployment Guide](docs/deployment.md) | Production setup instructions |
-| [Frontend Design](docs/frontend-design/) | UI/UX design specs |
-| [User Runtime Environment](docs/user-runtime-environment/) | Runtime environment design docs |
+| [Product Specs](docs/product-specs/index.md) | Feature intent and user-facing boundaries |
+| [Exec Plans](docs/exec-plans/index.md) | Active workstreams, completed plans, and tech debt |
 
 ---
 

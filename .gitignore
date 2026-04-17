@@ -79,3 +79,4 @@ htmlcov/
 *.swp
 *.swo
 *~
+.superpowers/

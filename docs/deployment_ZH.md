@@ -74,20 +74,20 @@ API_INTERNAL_URL=http://api:8001
 
 它只用于前端容器内的 Next.js 服务端重写。
 
-### 5. 当前 Compose 使用宿主机 bind mount 保存 SQLite、skills 和日志
+### 5. 当前 Compose 使用仓库内相对路径的 bind mount 保存 SQLite、skills 和日志
 
-默认 compose 文件映射了这些宿主机目录：
+默认 compose 文件映射了这些仓库内相对目录：
 
-- `/home/claude/open-skillhub/data` -> `/app/data`
-- `/home/claude/open-skillhub/logs` -> `/app/logs`
+- `./data` -> `/app/data`
+- `./logs` -> `/app/logs`
 
 因此：
 
-- SQLite 数据库位于 `/home/claude/open-skillhub/data/skillhub.db`
-- skill 文件位于 `/home/claude/open-skillhub/data/skills`
-- API 日志位于 `/home/claude/open-skillhub/logs/api.log`
+- SQLite 数据库位于 `./data/skillhub.db`
+- skill 文件位于 `./data/skills`
+- API 日志位于 `./logs/api.log`
 
-后端容器以 UID/GID `1000:1000` 运行，对应目标机器上的 `claude` 用户。
+后端容器以 UID/GID `1000:1000` 运行，因此仓库内的 `data/` 和 `logs/` 目录需要对这个映射用户可写。
 
 ### 6. 前端业务能力以服务端运行时配置为准
 
@@ -129,15 +129,15 @@ cp backend/.env.example backend/.env
 python -c "import secrets; print(secrets.token_urlsafe(32))"
 ```
 
-### 2. 准备宿主机目录
+### 2. 准备仓库内目录
 
 在启动容器前先创建挂载目录：
 
 ```bash
-mkdir -p /home/claude/open-skillhub/data /home/claude/open-skillhub/logs
+mkdir -p ./data ./logs
 ```
 
-如果你的部署用户不是 UID/GID `1000:1000`，请相应调整 compose 里的 `user:`，或者把目录 `chown` 给对应用户。
+请在仓库根目录执行这条命令。如果你的部署用户不是 UID/GID `1000:1000`，请相应调整 compose 里的 `user:`，或者把目录 `chown` 给对应用户。
 
 ### 3. 设置 Web UI 的公网访问地址
 
@@ -244,9 +244,9 @@ docker compose ps
 docker compose logs api --tail 50
 docker compose logs webui --tail 50
 docker compose exec api python -c "import urllib.request; print(urllib.request.urlopen('http://127.0.0.1:8001/readyz', timeout=5).read().decode())"
-ls -l /home/claude/open-skillhub/data
-ls -l /home/claude/open-skillhub/logs
-tail -n 50 /home/claude/open-skillhub/logs/api.log
+ls -l ./data
+ls -l ./logs
+tail -n 50 ./logs/api.log
 ```
 
 在浏览器中：
@@ -270,9 +270,9 @@ tail -n 50 /home/claude/open-skillhub/logs/api.log
 - 低流量场景
 - 试用或小团队内部使用
 
-当前默认 compose 配置下，SQLite 文件位于：
+当前默认 compose 配置下，SQLite 文件位于仓库内 bind mount：
 
-- `/home/claude/open-skillhub/data/skillhub.db`
+- `./data/skillhub.db`
 
 ### PostgreSQL
 
@@ -291,7 +291,7 @@ tail -n 50 /home/claude/open-skillhub/logs/api.log
 - 如果不需要机器直连后端，就不要额外暴露 `8001`
 - 设置一个真实且足够长的 `SECRET_KEY`
 - 设置 `DEBUG=false`
-- 确保 `/home/claude/open-skillhub/data` 和 `/home/claude/open-skillhub/logs` 对 UID/GID `1000:1000` 可写
+- 确保 `./data` 和 `./logs` 对 UID/GID `1000:1000` 可写
 - 如果不是低流量单节点场景，优先使用 PostgreSQL
 - 只要修改了 `NEXT_PUBLIC_API_BASE_URL`，就需要重新构建 Web UI
 

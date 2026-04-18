@@ -2,7 +2,7 @@
 
 ## Scope
 
-This guide covers Linux deployment with Docker Compose for the current repository layout.
+This guide covers Linux deployment with Docker Compose for the current repository layout, including both the default deployment-style stack and a test-machine hot-reload overlay.
 
 It assumes:
 
@@ -74,20 +74,20 @@ API_INTERNAL_URL=http://api:8001
 
 This is only used by the Next.js server-side rewrite inside the frontend container.
 
-### 5. Compose now uses host bind mounts for SQLite, skills, and logs
+### 5. Compose now uses repo-local bind mounts for SQLite, skills, and logs
 
-The default compose file binds these host paths:
+The default compose file binds these repo-local host paths:
 
-- `/home/claude/open-skillhub/data` -> `/app/data`
-- `/home/claude/open-skillhub/logs` -> `/app/logs`
+- `./data` -> `/app/data`
+- `./logs` -> `/app/logs`
 
 This means:
 
-- SQLite lives at `/home/claude/open-skillhub/data/skillhub.db`
-- skill files live under `/home/claude/open-skillhub/data/skills`
-- API logs live at `/home/claude/open-skillhub/logs/api.log`
+- SQLite lives at `./data/skillhub.db`
+- skill files live under `./data/skills`
+- API logs live at `./logs/api.log`
 
-Backend containers run as UID/GID `1000:1000`, which matches the host user `claude` on the target server.
+Backend containers run as UID/GID `1000:1000`, so the repo-local `data/` and `logs/` directories must be writable by that user mapping on the host.
 
 ### 6. Backend runtime capabilities are served by the backend
 
@@ -129,15 +129,15 @@ Example `SECRET_KEY`:
 python -c "import secrets; print(secrets.token_urlsafe(32))"
 ```
 
-### 2. Prepare host directories for bind mounts
+### 2. Prepare repo-local directories for bind mounts
 
 Create the directories before starting containers:
 
 ```bash
-mkdir -p /home/claude/open-skillhub/data /home/claude/open-skillhub/logs
+mkdir -p ./data ./logs
 ```
 
-If your deployment user is not UID/GID `1000:1000`, either adjust the compose `user:` mapping or chown these directories accordingly.
+Run this from the repository root. If your deployment user is not UID/GID `1000:1000`, either adjust the compose `user:` mapping or chown these directories accordingly.
 
 ### 3. Set the web UI public origin
 
@@ -244,9 +244,9 @@ docker compose ps
 docker compose logs api --tail 50
 docker compose logs webui --tail 50
 docker compose exec api python -c "import urllib.request; print(urllib.request.urlopen('http://127.0.0.1:8001/readyz', timeout=5).read().decode())"
-ls -l /home/claude/open-skillhub/data
-ls -l /home/claude/open-skillhub/logs
-tail -n 50 /home/claude/open-skillhub/logs/api.log
+ls -l ./data
+ls -l ./logs
+tail -n 50 ./logs/api.log
 ```
 
 From a browser:
@@ -260,6 +260,85 @@ Then verify:
 - `/api/v1/runtime-config` returns through the frontend origin
 - skill pages and audit pages render without frontend capability mismatch
 
+## Test-Machine Hot Reload
+
+Use this mode only on a Linux test machine where source changes should reload without rebuilding containers.
+
+The overlay file [docker-compose.dev.yml](/D:/Github/open-skillhub/docker-compose.dev.yml) keeps the default [docker-compose.yml](/D:/Github/open-skillhub/docker-compose.yml) intact and switches the runtime behavior to:
+
+- backend source bind mount plus `uvicorn --reload`
+- frontend source bind mount plus `next dev`
+- the same reverse-proxy entry path as the default deployment
+- manual dependency rebuilds and manual DB migrations
+
+### 1. Configure the public frontend origin for dev mode
+
+The dev overlay defaults to:
+
+```yaml
+environment:
+  NEXT_PUBLIC_API_BASE_URL: http://39.107.59.41
+  API_INTERNAL_URL: http://api:8001
+```
+
+If your test machine uses a different public IP or domain, edit [docker-compose.dev.yml](/D:/Github/open-skillhub/docker-compose.dev.yml) before starting the stack.
+
+### 2. Start or refresh the hot-reload stack
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build api webui
+```
+
+This uses repo-local bind mounts for `data/`, `logs/`, `backend/`, `frontend/`, and `shared/`, so the whole dev stack can move with the checked-out repository path.
+
+### 3. Run migrations manually when schema changes
+
+Hot reload does not apply Alembic migrations automatically. When you pull a migration change or update backend models that require one, run:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.dev.yml run --rm migrate
+```
+
+The dev overlay bind-mounts `backend/` into the migration container, so newly pulled Alembic files are visible without rebuilding the backend image.
+
+### 4. Know when rebuilds are still required
+
+Source-only changes should reload automatically after `git pull`.
+
+Rebuild the affected service when dependency files change:
+
+- backend: `pyproject.toml` or `uv.lock`
+- frontend: `frontend/package.json` or `frontend/package-lock.json`
+
+Backend rebuild:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build api
+```
+
+Frontend rebuild:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build webui
+```
+
+### 5. Verify hot reload behavior
+
+Recommended checks on the test machine:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.dev.yml ps
+docker compose -f docker-compose.yml -f docker-compose.dev.yml logs api --tail 50
+docker compose -f docker-compose.yml -f docker-compose.dev.yml logs webui --tail 50
+docker compose -f docker-compose.yml -f docker-compose.dev.yml exec api python -c "import urllib.request; print(urllib.request.urlopen('http://127.0.0.1:8001/readyz', timeout=5).status)"
+```
+
+Then confirm:
+
+- editing a file under `backend/` triggers backend reload
+- editing a file under `frontend/src/` triggers frontend recompilation or HMR
+- a source-only `git pull` is reflected without rebuilding
+
 ## SQLite vs PostgreSQL
 
 ### SQLite
@@ -270,9 +349,9 @@ Good for:
 - low traffic
 - evaluation or internal small-team usage
 
-Current default compose setup uses SQLite persisted in the Compose named volume:
+Current default compose setup uses SQLite persisted in the repo-local bind mount:
 
-- `/home/claude/open-skillhub/data/skillhub.db`
+- `./data/skillhub.db`
 
 ### PostgreSQL
 
@@ -291,7 +370,7 @@ If you switch to PostgreSQL, update `DATABASE_URL` and add a `db` service to Com
 - only expose `8001` if you intentionally want the backend reachable directly
 - set a real `SECRET_KEY`
 - set `DEBUG=false`
-- ensure `/home/claude/open-skillhub/data` and `/home/claude/open-skillhub/logs` exist and are writable by UID/GID `1000:1000`
+- ensure `./data` and `./logs` exist and are writable by UID/GID `1000:1000`
 - use PostgreSQL if this is not a low-traffic single-node deployment
 - rebuild web UI whenever `NEXT_PUBLIC_API_BASE_URL` changes
 

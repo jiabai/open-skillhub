@@ -1,0 +1,53 @@
+services:
+  migrate:
+    volumes:
+      - ./data:/app/data
+      - ./logs:/app/logs
+      - ./backend:/app/backend
+
+  api:
+    depends_on: []
+    environment:
+      WATCHFILES_FORCE_POLLING: "true"
+    volumes:
+      - ./data:/app/data
+      - ./logs:/app/logs
+      - ./backend:/app/backend
+    command:
+      [
+        "/app/.venv/bin/uvicorn",
+        "backend.api_app:app",
+        "--host",
+        "0.0.0.0",
+        "--port",
+        "8001",
+        "--reload",
+        "--reload-dir",
+        "/app/backend"
+      ]
+
+  webui:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+      target: dev
+      args:
+        - NEXT_PUBLIC_API_BASE_URL=http://39.107.59.41
+        - API_INTERNAL_URL=http://api:8001
+        - NPM_REGISTRY=https://registry.npmmirror.com
+    environment:
+      NEXT_PUBLIC_API_BASE_URL: http://39.107.59.41
+      API_INTERNAL_URL: http://api:8001
+      WATCHPACK_POLLING: "true"
+    command: ["npm", "run", "dev", "--", "--hostname", "0.0.0.0", "--port", "3000"]
+    ports:
+      - "127.0.0.1:3000:3000"
+    volumes:
+      - ./frontend:/workspace/frontend
+      - ./shared:/workspace/shared
+      - frontend-node_modules:/workspace/frontend/node_modules
+      - frontend-next-cache:/workspace/frontend/.next
+
+volumes:
+  frontend-node_modules:
+  frontend-next-cache:

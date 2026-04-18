@@ -51,7 +51,7 @@
 git clone https://github.com/jiabai/open-skillhub.git
 cd open-skillhub
 cp backend/.env.example backend/.env
-mkdir -p /home/claude/open-skillhub/data /home/claude/open-skillhub/logs
+mkdir -p ./data ./logs
 # Edit backend/.env — at minimum, change SECRET_KEY to a random 32+ char string
 # Example: python -c "import secrets; print(secrets.token_urlsafe(32))"
 UV_DEFAULT_INDEX=https://pypi.tuna.tsinghua.edu.cn/simple uv lock
@@ -59,7 +59,7 @@ docker compose up -d --build migrate
 docker compose up -d api webui
 ```
 
-The first command regenerates `uv.lock` against the configured mirror when you are on a restricted network. The migration step then initializes the SQLite database under `/home/claude/open-skillhub/data/skillhub.db`, and the final command starts the API plus the web UI service `webui`. API logs are written to `/home/claude/open-skillhub/logs/api.log`.
+The first command regenerates `uv.lock` against the configured mirror when you are on a restricted network. The migration step then initializes the SQLite database under `./data/skillhub.db`, and the final command starts the API plus the web UI service `webui`. API logs are written to `./logs/api.log`.
 
 Access the web console through your reverse proxy or through the local bind at `http://127.0.0.1:3000`.
 

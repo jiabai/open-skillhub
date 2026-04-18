@@ -51,7 +51,7 @@
 git clone https://github.com/jiabai/open-skillhub.git
 cd open-skillhub
 cp backend/.env.example backend/.env
-mkdir -p /home/claude/open-skillhub/data /home/claude/open-skillhub/logs
+mkdir -p ./data ./logs
 # 编辑 backend/.env — 至少需要修改 SECRET_KEY 为 32 位以上的随机字符串
 # 示例：python -c "import secrets; print(secrets.token_urlsafe(32))"
 UV_DEFAULT_INDEX=https://pypi.tuna.tsinghua.edu.cn/simple uv lock
@@ -59,7 +59,7 @@ docker compose up -d --build migrate
 docker compose up -d api webui
 ```
 
-第一条命令会在受限网络环境下按当前镜像源重新生成 `uv.lock`；迁移命令会初始化位于 `/home/claude/open-skillhub/data/skillhub.db` 的 SQLite 数据库；最后一条命令会启动 API 和前端服务 `webui`。API 日志会写入 `/home/claude/open-skillhub/logs/api.log`。
+第一条命令会在受限网络环境下按当前镜像源重新生成 `uv.lock`；迁移命令会初始化位于 `./data/skillhub.db` 的 SQLite 数据库；最后一条命令会启动 API 和前端服务 `webui`。API 日志会写入 `./logs/api.log`。
 
 完成后可通过反向代理访问，或直接在宿主机上访问 `http://127.0.0.1:3000` 打开 Web 控制台。
 

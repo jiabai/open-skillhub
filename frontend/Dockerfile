@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1.7
 
-FROM node:20-slim AS builder
+FROM node:20-slim AS deps
 
 WORKDIR /workspace/frontend
 
@@ -16,6 +16,12 @@ COPY frontend/package*.json ./
 RUN npm config set registry $NPM_REGISTRY
 RUN --mount=type=cache,target=/root/.npm \
     npm ci --prefer-offline --no-audit
+
+FROM deps AS dev
+
+CMD ["npm", "run", "dev", "--", "--hostname", "0.0.0.0", "--port", "3000"]
+
+FROM deps AS builder
 
 COPY frontend ./
 COPY shared ../shared

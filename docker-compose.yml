@@ -15,8 +15,8 @@ x-api-env: &api-env
   XDG_CACHE_HOME: /app/data/.cache
 
 x-api-volumes: &api-volumes
-  - /home/claude/open-skillhub/data:/app/data
-  - /home/claude/open-skillhub/logs:/app/logs
+  - ./data:/app/data
+  - ./logs:/app/logs
 
 services:
   migrate:

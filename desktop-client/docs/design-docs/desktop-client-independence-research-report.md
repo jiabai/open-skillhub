@@ -91,7 +91,7 @@ desktop-client 通过环境变量配置，所有变量都以 `OPEN_SKILLHUB_` �
 
 **API 合约同步成本**。虽然当前是松耦合，但后端的 `client_skills` 端点是专门为桌面客户端设计的。独立后，API 变更的协调需要跨仓库进行，可能出现一方修改了合约但另一方未及时适配的情况。
 
-**共享的 README 引用**。主仓库的 `README.md` 和 `README_ZH.md` 都引用了 desktop-client。独立后需要更新这些引用或移除相关段落。
+**共享的 README 引用**。主仓库的 `README.md` 和 `README-zh.md` 都引用了 desktop-client。独立后需要更新这些引用或移除相关段落。
 
 **CI/CD 缺失**。desktop-client 目前没有独立的 CI 配置。独立后需要从零搭建，包括构建、测试、打包、发布的完整流水线。
 

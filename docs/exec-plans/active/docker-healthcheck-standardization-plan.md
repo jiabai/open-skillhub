@@ -160,7 +160,7 @@
 - `backend/config/settings.py`
 - `backend/.env.example`
 - `README.md`
-- `README_ZH.md`
+- `README-zh.md`
 - `docs/deployment.md`
 - `tests/test_api_auth.py`
 

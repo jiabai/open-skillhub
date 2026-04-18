@@ -9,7 +9,7 @@ This directory is for durable technical references that help contributors naviga
 | File or path | Why it matters |
 |--------------|----------------|
 | `docs/deployment.md` | English Docker and Linux deployment guide |
-| `docs/deployment_ZH.md` | Chinese deployment guide |
+| `docs/deployment-zh.md` | Chinese deployment guide |
 | `deploy/nginx/skillhub.conf` | Reverse-proxy example for the default deployment topology |
 | `shared/user-statuses.json` | Shared enum data used across backend and frontend |
 | `backend/.env.example` | Backend configuration surface |

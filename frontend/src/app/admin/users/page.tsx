@@ -31,12 +31,12 @@ import { getDateFnsLocale } from "@/i18n/date-fns"
 import { formatMessage } from "@/i18n/format-message"
 import { useI18n } from "@/i18n/use-i18n"
 import type { UserStatus } from "@/lib/user-status"
-
-const USER_STATUS_BADGE_VARIANTS: Record<UserStatus, "default" | "destructive" | "secondary"> = {
-  active: "default",
-  inactive: "destructive",
-  pending: "secondary",
-}
+import {
+  getUserRoleBadgeVariant,
+  getUserRoleLabel,
+  getUserStatusLabel,
+  USER_STATUS_BADGE_VARIANTS,
+} from "@/lib/user-identity-display"
 
 export default function UsersAdminPage() {
   const { success, error: showError } = useToast()
@@ -122,12 +122,11 @@ export default function UsersAdminPage() {
   }
 
   const getRoleBadge = (role: string) => {
-    const variant = role === "admin" ? "default" : role === "member" ? "secondary" : "outline"
-    return <Badge variant={variant}>{roleOptions.find((item) => item.value === role)?.label || role}</Badge>
+    return <Badge variant={getUserRoleBadgeVariant(role)}>{getUserRoleLabel(role, usersAdmin)}</Badge>
   }
 
   const getStatusBadge = (status: UserStatus) => {
-    return <Badge variant={USER_STATUS_BADGE_VARIANTS[status]}>{statusOptions.find((item) => item.value === status)?.label || status}</Badge>
+    return <Badge variant={USER_STATUS_BADGE_VARIANTS[status]}>{getUserStatusLabel(status, usersAdmin)}</Badge>
   }
 
   return (

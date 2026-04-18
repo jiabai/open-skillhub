@@ -405,10 +405,95 @@ describe("console pages", () => {
     expect(await screen.findByRole("heading", { name: "创建令牌" })).toBeInTheDocument()
   })
 
-  it("renders profile form", async () => {
+  it("renders profile identity summary before editable settings", async () => {
     renderWithRuntimeConfig(<ProfilePage />)
-    expect(await screen.findByRole("heading", { name: "个人信息" })).toBeInTheDocument()
+    const identityHeading = await screen.findByRole("heading", { name: "身份摘要" })
+    const basicHeading = screen.getByRole("heading", { name: "基础资料" })
+    const bindHeading = screen.getByRole("heading", { name: "绑定新邮箱" })
+
+    expect(identityHeading.compareDocumentPosition(basicHeading) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(basicHeading.compareDocumentPosition(bindHeading) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  })
+
+  it("shows regular-user identity and hides the default workspace role in non-rbac mode", async () => {
+    renderWithRuntimeConfig(<ProfilePage />)
+
+    expect(await screen.findByText("普通用户")).toBeInTheDocument()
+    expect(screen.getByText("活跃")).toBeInTheDocument()
+    expect(screen.queryByText("工作区角色")).not.toBeInTheDocument()
+    expect(screen.queryByText("user-1")).not.toBeInTheDocument()
+    expect(screen.queryByText("2026-04-08T00:00:00Z")).not.toBeInTheDocument()
     expect(await screen.findByLabelText("显示名称")).toBeInTheDocument()
+  })
+
+  it("shows platform admin identity and workspace role for privileged users", async () => {
+    __setRuntimeConfigForTests({
+      capabilities: {
+        rbac: true,
+        org_model: true,
+      },
+    })
+    vi.mocked(api.getMe).mockResolvedValueOnce({
+      id: "admin-1",
+      email: "admin@example.com",
+      username: "admin",
+      is_active: true,
+      is_superuser: true,
+      enterprise_id: null,
+      team_id: null,
+      role: "admin",
+      status: "active",
+      created_at: "2026-04-08T00:00:00Z",
+      updated_at: "2026-04-08T00:00:00Z",
+    } as any)
+
+    renderWithRuntimeConfig(<ProfilePage />)
+
+    expect(await screen.findByText("平台管理员")).toBeInTheDocument()
+    expect(screen.getByText("超管")).toBeInTheDocument()
+    expect(screen.getByText("工作区角色")).toBeInTheDocument()
+    expect(screen.getByText("管理员")).toBeInTheDocument()
+  })
+
+  it("shows organization summaries and raw ids as secondary details when org model is enabled", async () => {
+    vi.mocked(api.getMe).mockResolvedValueOnce({
+      id: "user-2",
+      email: "org@example.com",
+      username: "org-user",
+      is_active: true,
+      is_superuser: false,
+      enterprise_id: "ent-001",
+      team_id: "team-123",
+      role: "member",
+      status: "pending",
+      created_at: "2026-04-08T00:00:00Z",
+      updated_at: "2026-04-08T00:00:00Z",
+    } as any)
+
+    renderWithRuntimeConfig(<ProfilePage />)
+
+    expect(await screen.findByText("组织归属")).toBeInTheDocument()
+    expect(screen.getByText("企业归属")).toBeInTheDocument()
+    expect(screen.getByText("团队归属")).toBeInTheDocument()
+    expect(screen.getByText("已关联企业")).toBeInTheDocument()
+    expect(screen.getByText("已关联团队")).toBeInTheDocument()
+    expect(screen.getByText("ent-001")).toBeInTheDocument()
+    expect(screen.getByText("team-123")).toBeInTheDocument()
+    expect(screen.getByText("待激活")).toBeInTheDocument()
+  })
+
+  it("hides organization summary when org model is disabled", async () => {
+    __setRuntimeConfigForTests({
+      capabilities: {
+        org_model: false,
+      },
+    })
+
+    renderWithRuntimeConfig(<ProfilePage />)
+
+    expect(await screen.findByRole("heading", { name: "身份摘要" })).toBeInTheDocument()
+    expect(screen.queryByText("组织归属")).not.toBeInTheDocument()
+    expect(screen.queryByText("企业归属")).not.toBeInTheDocument()
   })
 
   it("deletes account and routes back to login from security page", async () => {

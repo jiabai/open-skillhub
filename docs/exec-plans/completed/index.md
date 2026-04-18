@@ -5,6 +5,7 @@
 | File | Outcome |
 |------|---------|
 | `2026-04-14-frontend-i18n.md` | Frontend i18n infrastructure and first migration batch |
+| `profile-identity-settings-center-plan.md` | `/profile` redesigned into an identity-first account center |
 | `runtime-config-capabilities-execution-plan.md` | Runtime capability contract moved to the backend and consumed by the frontend |
 | `runtime-config-capabilities-implementation-checklist.md` | Implementation checklist preserved after the runtime capability migration completed |
 

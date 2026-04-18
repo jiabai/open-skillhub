@@ -19,7 +19,7 @@ FROM python-base AS builder
 
 COPY --from=ghcr.io/astral-sh/uv:0.11.3 /uv /uvx /bin/
 
-COPY pyproject.toml uv.lock LICENSE README.md README_ZH.md /app/
+COPY pyproject.toml uv.lock LICENSE README.md README-zh.md /app/
 COPY backend/__init__.py /app/backend/__init__.py
 
 RUN --mount=type=cache,target=/tmp/uv-cache,sharing=locked \

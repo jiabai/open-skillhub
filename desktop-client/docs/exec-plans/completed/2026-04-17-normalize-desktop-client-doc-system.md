@@ -32,7 +32,7 @@ After this plan, an agent can enter `desktop-client/`, find canonical local docs
    Expected: the client skill summary and download contract tests pass.
 
 4. Workdir: repository root
-   Command: `Get-ChildItem desktop-client/tasks.md,desktop-client/docs/ARCHITECTURE.md,desktop-client/docs/DESIGN.md,desktop-client/docs/SECURITY.md,desktop-client/docs/QUALITY_SCORE.md,desktop-client/docs/design-docs,desktop-client/docs/references,desktop-client/docs/generated`
+   Command: `Get-ChildItem desktop-client/task-tracker.md,desktop-client/docs/ARCHITECTURE.md,desktop-client/docs/DESIGN.md,desktop-client/docs/SECURITY.md,desktop-client/docs/QUALITY_SCORE.md,desktop-client/docs/design-docs,desktop-client/docs/references,desktop-client/docs/generated`
    Expected: all canonical local desktop-client docs exist.
 
 5. Workdir: repository root

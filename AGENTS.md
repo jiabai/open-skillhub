@@ -3,6 +3,7 @@
 ## Quick Entry
 
 - Architecture map: `ARCHITECTURE.md`
+- Mandatory workflow: `WORKFLOW.md`
 - Design rules: `docs/DESIGN.md`
 - Security rules: `docs/SECURITY.md`
 - Design docs: `docs/design-docs/index.md`
@@ -38,6 +39,7 @@
 ## Working Rules
 
 - Start with the narrowest relevant `AGENTS.md`, then read deeper docs only as needed.
+- Follow `WORKFLOW.md` as the mandatory project workflow; use the lightweight path only when `WORKFLOW.md` explicitly allows it.
 - When architecture or process changes, update the matching file in `docs/`.
 - Keep `AGENTS.md` files as maps; move detailed or fast-changing material into `docs/`.
 - Do not commit secrets, machine-specific environment paths, or generated local state.
@@ -45,11 +47,12 @@
 
 ## Development Flow
 
-1. Read the relevant spec or plan in `docs/product-specs/` or `docs/exec-plans/`.
-2. Inspect the code path you are about to change.
-3. Implement the smallest end-to-end change that satisfies the request.
-4. Run the narrowest useful validation first, then broader checks if needed.
-5. Update documentation only when structure, decisions, or operational guidance changed.
+1. Read `WORKFLOW.md` and decide whether the task requires the full gated flow or the lightweight path.
+2. Read the relevant spec or plan in `docs/product-specs/` or `docs/exec-plans/`, or create/update them when the workflow requires it.
+3. Inspect the code path you are about to change.
+4. Implement the smallest end-to-end change that satisfies the approved scope.
+5. Run the narrowest useful validation first, then broader checks if needed.
+6. Update documentation when structure, decisions, process, or operational guidance changed.
 
 ## Common Commands
 
@@ -87,6 +90,6 @@ docker compose down
 
 - For backend boundaries, auth, or data model changes: `backend/AGENTS.md`
 - For frontend routing, i18n, or UI work: `frontend/AGENTS.md`
-- For deployment behavior: `docs/deployment.md` or `docs/deployment_ZH.md`
+- For deployment behavior: `docs/deployment.md` or `docs/deployment-zh.md`
 - For architectural orientation: `ARCHITECTURE.md`
 - For open design questions or debt: `docs/design-docs/` and `docs/exec-plans/`

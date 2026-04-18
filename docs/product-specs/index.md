@@ -9,6 +9,7 @@ Product specs describe user-visible intent and boundaries for a feature before o
 | File | Scope |
 |------|-------|
 | `2026-04-14-frontend-i18n-design.md` | Initial frontend i18n boundary and first migration batch |
+| `2026-04-18-invitation-code-design.md` | Invitation code registration and admin management backend |
 
 ## Guidelines
 

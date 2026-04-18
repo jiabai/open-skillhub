@@ -190,7 +190,7 @@
 **涉及文件**
 
 - 修改 `README.md`
-- 修改 `README_ZH.md`
+- 修改 `README-zh.md`
 - 修改 `docs/deployment.md`
 
 - [ ] 更新 README 英文 quickstart

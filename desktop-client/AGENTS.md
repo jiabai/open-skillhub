@@ -12,7 +12,7 @@ Guidance for AI coding agents working in `desktop-client/`.
 - Product specs: `docs/product-specs/index.md`
 - References: `docs/references/index.md`
 - Generated schema: `docs/generated/state-db-schema.md`
-- Task list: `tasks.md`
+- Task tracker: `task-tracker.md`
 - Active ExecPlans: `docs/exec-plans/active/`
 - Tech debt: `docs/exec-plans/tech-debt-tracker.md`
 
@@ -26,10 +26,10 @@ Guidance for AI coding agents working in `desktop-client/`.
 
 ## Development Flow
 
-- Read `tasks.md` and the active ExecPlan before changing code.
+- Read `task-tracker.md` and the active ExecPlan before changing code.
 - Read the local product spec and references before changing contracts or persistence.
 - Validate with tests or build commands before closing a task.
-- Update `tasks.md`, `docs/ARCHITECTURE.md`, and any touched design, security, or reference docs when behavior changes.
+- Update `task-tracker.md`, `docs/ARCHITECTURE.md`, and any touched design, security, or reference docs when behavior changes.
 - Move finished ExecPlans to `docs/exec-plans/completed/` and record unresolved gaps in `docs/exec-plans/tech-debt-tracker.md`.
 
 ## Common Commands

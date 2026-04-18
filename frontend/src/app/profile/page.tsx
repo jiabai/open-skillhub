@@ -1,12 +1,12 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
-import { Building2, Loader2, User2, Users } from "lucide-react"
+import { Loader2, User2 } from "lucide-react"
 
 import { api, getErrorMessage } from "@/lib/api"
 import { useRuntimeConfig } from "@/hooks/use-runtime-config"
 import type { User } from "@/types"
-import { Badge } from "@/components/ui/badge"
+import { UserIdentitySummary } from "@/components/app/user-identity-summary"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -18,7 +18,7 @@ export default function ProfilePage() {
   const { config } = useRuntimeConfig()
   const { success, error: showError } = useToast()
   const { dictionary } = useI18n()
-  const { profile } = dictionary
+  const { profile, usersAdmin } = dictionary
   const [user, setUser] = useState<User | null>(null)
   const [username, setUsername] = useState("")
   const [email, setEmail] = useState("")
@@ -111,6 +111,13 @@ export default function ProfilePage() {
           <p className="text-sm text-muted-foreground 3xl:text-base">{profile.summary}</p>
         </div>
       </div>
+      <UserIdentitySummary
+        user={user}
+        isLoading={status === "loading"}
+        capabilities={config.capabilities}
+        profile={profile}
+        usersAdmin={usersAdmin}
+      />
       <Card>
         <CardHeader>
           <CardTitle>{profile.infoTitle}</CardTitle>
@@ -186,53 +193,6 @@ export default function ProfilePage() {
           </form>
         </CardContent>
       </Card>
-
-      {config.capabilities.org_model && user ? (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Building2 className="h-5 w-5" />
-              {profile.orgInfoTitle}
-            </CardTitle>
-            <CardDescription>{profile.orgInfoDescription}</CardDescription>
-          </CardHeader>
-          <CardContent className="flex flex-col gap-4">
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="flex flex-col gap-2">
-                <Label className="flex items-center gap-2">
-                  <Building2 className="h-4 w-4 text-muted-foreground" />
-                  {profile.enterpriseIdLabel}
-                </Label>
-                {user.enterprise_id ? (
-                  <div className="flex items-center gap-2">
-                    <Badge variant="secondary" className="font-mono">
-                      {user.enterprise_id}
-                    </Badge>
-                  </div>
-                ) : (
-                  <p className="text-sm text-muted-foreground">{profile.noEnterprise}</p>
-                )}
-              </div>
-              <div className="flex flex-col gap-2">
-                <Label className="flex items-center gap-2">
-                  <Users className="h-4 w-4 text-muted-foreground" />
-                  {profile.teamIdLabel}
-                </Label>
-                {user.team_id ? (
-                  <div className="flex items-center gap-2">
-                    <Badge variant="secondary" className="font-mono">
-                      {user.team_id}
-                    </Badge>
-                  </div>
-                ) : (
-                  <p className="text-sm text-muted-foreground">{profile.noTeam}</p>
-                )}
-              </div>
-            </div>
-            {!user.enterprise_id && !user.team_id ? <p className="text-sm text-muted-foreground">{profile.contactAdmin}</p> : null}
-          </CardContent>
-        </Card>
-      ) : null}
     </div>
   )
 }

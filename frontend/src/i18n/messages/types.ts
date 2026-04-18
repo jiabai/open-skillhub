@@ -307,6 +307,13 @@ export type AppDictionary = {
   profile: {
     title: string
     summary: string
+    identityTitle: string
+    identityDescription: string
+    platformIdentityLabel: string
+    platformIdentityAdmin: string
+    platformIdentityUser: string
+    accountStatusLabel: string
+    workspaceRoleLabel: string
     infoTitle: string
     infoDescription: string
     loading: string
@@ -330,6 +337,10 @@ export type AppDictionary = {
     bindSuccess: string
     orgInfoTitle: string
     orgInfoDescription: string
+    enterpriseMembershipLabel: string
+    teamMembershipLabel: string
+    hasEnterprise: string
+    hasTeam: string
     enterpriseIdLabel: string
     teamIdLabel: string
     noEnterprise: string

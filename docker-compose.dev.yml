@@ -1,6 +1,9 @@
 services:
   migrate:
-    mem_limit: 512m
+    deploy:
+      resources:
+        limits:
+          memory: 512M
     volumes:
       - ./data:/app/data
       - ./logs:/app/logs
@@ -8,8 +11,12 @@ services:
 
   api:
     depends_on: []
-    mem_limit: 512m
-    mem_reservation: 256m
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 256M
     environment:
       WATCHFILES_FORCE_POLLING: "true"
     volumes:
@@ -30,8 +37,12 @@ services:
       ]
 
   webui:
-    mem_limit: 768m
-    mem_reservation: 384m
+    deploy:
+      resources:
+        limits:
+          memory: 768M
+        reservations:
+          memory: 384M
     build:
       context: .
       dockerfile: frontend/Dockerfile

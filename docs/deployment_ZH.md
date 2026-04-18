@@ -260,6 +260,85 @@ tail -n 50 ./logs/api.log
 - `/api/v1/runtime-config` 能通过前端域名返回
 - 技能页和审计页没有能力开关不一致的问题
 
+## 测试机热重载
+
+此模式仅适用于 Linux 测试机，用于在修改源码后无需重建容器即可自动重载。
+
+覆盖文件 [docker-compose.dev.yml](/D:/Github/open-skillhub/docker-compose.dev.yml) 不会修改默认的 [docker-compose.yml](/D:/Github/open-skillhub/docker-compose.yml)，而是将运行行为切换为：
+
+- 后端源码 bind mount + `uvicorn --reload`
+- 前端源码 bind mount + `next dev`
+- 与默认部署相同的反向代理入口路径
+- 依赖变更和数据库迁移需要手动处理
+
+### 1. 配置开发模式的公网前端地址
+
+开发覆盖文件默认为：
+
+```yaml
+environment:
+  NEXT_PUBLIC_API_BASE_URL: http://39.107.59.41
+  API_INTERNAL_URL: http://api:8001
+```
+
+如果你的测试机使用不同的公网 IP 或域名，请在启动前编辑 [docker-compose.dev.yml](/D:/Github/open-skillhub/docker-compose.dev.yml)。
+
+### 2. 启动或刷新热重载环境
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build api webui
+```
+
+此命令使用仓库内相对路径的 bind mount 挂载 `data/`、`logs/`、`backend/`、`frontend/` 和 `shared/`，因此整个开发环境可以跟随仓库路径移动。
+
+### 3. 数据库变更时手动运行迁移
+
+热重载模式不会自动执行 Alembic 迁移。当你拉取了迁移变更或更新了需要迁移的后端模型时，请运行：
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.dev.yml run --rm migrate
+```
+
+开发覆盖文件会把 `backend/` bind mount 到迁移容器中，因此新拉取的 Alembic 文件无需重建后端镜像即可被识别。
+
+### 4. 了解何时仍需重建
+
+纯源码变更在 `git pull` 后应该自动重载。
+
+当依赖文件变更时需要重建对应服务：
+
+- 后端：`pyproject.toml` 或 `uv.lock`
+- 前端：`frontend/package.json` 或 `frontend/package-lock.json`
+
+后端重建：
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build api
+```
+
+前端重建：
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build webui
+```
+
+### 5. 验证热重载行为
+
+在测试机上建议执行以下检查：
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.dev.yml ps
+docker compose -f docker-compose.yml -f docker-compose.dev.yml logs api --tail 50
+docker compose -f docker-compose.yml -f docker-compose.dev.yml logs webui --tail 50
+docker compose -f docker-compose.yml -f docker-compose.dev.yml exec api python -c "import urllib.request; print(urllib.request.urlopen('http://127.0.0.1:8001/readyz', timeout=5).status)"
+```
+
+然后确认：
+
+- 编辑 `backend/` 下的文件会触发后端重载
+- 编辑 `frontend/src/` 下的文件会触发前端重新编译或 HMR
+- 纯源码的 `git pull` 无需重建即可生效
+
 ## SQLite 与 PostgreSQL
 
 ### SQLite

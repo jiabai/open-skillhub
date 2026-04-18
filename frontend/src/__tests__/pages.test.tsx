@@ -93,6 +93,24 @@ describe("console pages", () => {
     expect(screen.getAllByRole("button").length).toBeGreaterThanOrEqual(1)
   })
 
+  it("shows auth-only helper when email otp is the only login method", () => {
+    renderWithRuntimeConfig(<LoginPage />)
+    expect(screen.getByText("仅用于认证")).toBeInTheDocument()
+  })
+
+  it("hides auth-only helper when all login methods are disabled", () => {
+    __setRuntimeConfigForTests({
+      capabilities: {
+        email_otp_login: false,
+        sso: false,
+        ldap: false,
+      },
+    })
+
+    renderWithRuntimeConfig(<LoginPage />)
+    expect(screen.queryByText("仅用于认证")).not.toBeInTheDocument()
+  })
+
   it("redirects after login success", async () => {
     replaceMock.mockClear()
     renderWithRuntimeConfig(<LoginPage />)

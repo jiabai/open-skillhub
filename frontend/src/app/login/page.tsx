@@ -23,6 +23,7 @@ export default function LoginPage() {
   const { dictionary } = useI18n()
   const { login, validation } = dictionary
   const capabilities = config.capabilities
+  const showsEmailAuthOnly = capabilities.email_otp_login && !capabilities.sso && !capabilities.ldap
   const emailField = useField<string>("", createEmailRules(validation.emailInvalid))
   const codeField = useField<string>("", createVerificationCodeRules(validation.verificationCodeInvalid))
   const [codeMessage, setCodeMessage] = useState<string | null>(null)
@@ -227,10 +228,14 @@ export default function LoginPage() {
                 </>
               )}
               <div className="flex w-full items-center justify-between text-sm text-muted-foreground">
-                <span className="flex items-center gap-2">
-                  <Mail className="h-4 w-4" />
-                  {login.emailAuthOnly}
-                </span>
+                {showsEmailAuthOnly ? (
+                  <span className="flex items-center gap-2">
+                    <Mail className="h-4 w-4" />
+                    {login.emailAuthOnly}
+                  </span>
+                ) : (
+                  <span />
+                )}
                 {capabilities.public_signup && (
                   <Link href="/register" className="text-primary hover:underline">
                     {login.createAccount}

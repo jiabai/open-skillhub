@@ -4,6 +4,7 @@
 
 - Architecture map: `ARCHITECTURE.md`
 - Mandatory workflow: `WORKFLOW.md`
+- Repository validator: `scripts/validate_agents_docs.py`
 - Design rules: `docs/DESIGN.md`
 - Security rules: `docs/SECURITY.md`
 - Design docs: `docs/design-docs/index.md`
@@ -40,7 +41,10 @@
 
 - Start with the narrowest relevant `AGENTS.md`, then read deeper docs only as needed.
 - Follow `WORKFLOW.md` as the mandatory project workflow; use the lightweight path only when `WORKFLOW.md` explicitly allows it.
+- Repo-wide active work lives under `docs/exec-plans/active/`; use sibling task checklist files in that directory when a plan needs explicit execution checkpoints.
+- `desktop-client/` keeps its own `desktop-client/task-tracker.md`; do not create a second parallel tracker inside that subproject.
 - When architecture or process changes, update the matching file in `docs/`.
+- Keep AGENTS quick-entry paths valid and relative to the file that declares them.
 - Keep `AGENTS.md` files as maps; move detailed or fast-changing material into `docs/`.
 - Do not commit secrets, machine-specific environment paths, or generated local state.
 - Avoid unrelated refactors while working on a feature or bug.
@@ -65,6 +69,7 @@ uv run uvicorn backend.api_app:app --host 0.0.0.0 --port 8001
 uv run pytest
 uv run ruff check .
 uv run mypy backend
+python scripts/validate_agents_docs.py --level ERROR
 ```
 
 ### Frontend

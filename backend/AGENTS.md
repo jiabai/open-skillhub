@@ -1,13 +1,14 @@
 # Backend AGENTS.md
 
-Use this file when you are changing the FastAPI backend. Read the root `AGENTS.md` first for project-wide entry points.
+Use this file when you are changing the FastAPI backend. Read the root `../AGENTS.md` first for project-wide entry points.
 
 ## Quick Entry
 
-- Architecture map: `ARCHITECTURE.md`
-- Security guidance: `docs/SECURITY.md`
-- Active plans: `docs/exec-plans/active/index.md`
-- Tech debt tracker: `docs/exec-plans/tech-debt-tracker.md`
+- Root workflow: `../WORKFLOW.md`
+- Root architecture map: `../ARCHITECTURE.md`
+- Security guidance: `../docs/SECURITY.md`
+- Active plans: `../docs/exec-plans/active/index.md`
+- Tech debt tracker: `../docs/exec-plans/tech-debt-tracker.md`
 
 ## Backend Map
 

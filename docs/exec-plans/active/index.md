@@ -10,7 +10,7 @@
 | `next-steps-user-status-followup.md` | Shared-definition follow-up for user status and related enums |
 | `2026-04-10-backend-consolidation-refactor-plan.md` | Backend consolidation and service-boundary cleanup |
 | `skills-api-boundary.md` | Clarify JWT console APIs versus API-token client APIs |
-| `2026-04-10-backend-consolidation-tasks.md` | Backend consolidation task list aligned with the refactor plan |
+| `2026-04-10-backend-consolidation-refactor-tasks.md` | Backend consolidation task list aligned with the refactor plan |
 
 ## Working Agreement
 

@@ -1,13 +1,14 @@
 # Frontend AGENTS.md
 
-Use this file when you are changing the Next.js web console. Read the root `AGENTS.md` first for project-wide guidance.
+Use this file when you are changing the Next.js web console. Read the root `../AGENTS.md` first for project-wide guidance.
 
 ## Quick Entry
 
-- Architecture map: `ARCHITECTURE.md`
-- Design guidance: `docs/DESIGN.md`
-- Product specs: `docs/product-specs/index.md`
-- Active plans: `docs/exec-plans/active/index.md`
+- Root workflow: `../WORKFLOW.md`
+- Root architecture map: `../ARCHITECTURE.md`
+- Design guidance: `../docs/DESIGN.md`
+- Product specs: `../docs/product-specs/index.md`
+- Active plans: `../docs/exec-plans/active/index.md`
 
 ## Frontend Map
 

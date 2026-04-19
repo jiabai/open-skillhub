@@ -20,18 +20,18 @@
 - Create: `frontend/src/i18n/messages/en-US.ts`
 - Create: `frontend/src/i18n/messages/zh-CN.ts`
 
-- [ ] Define supported locales, default fallback behavior, and request locale resolution helpers.
-- [ ] Add typed dictionaries with domain sections for metadata, navigation, shell, login, and dashboard.
-- [ ] Expose locale and dictionary through a React provider plus a hook with safe defaults.
+- [x] Define supported locales, default fallback behavior, and request locale resolution helpers.
+- [x] Add typed dictionaries with domain sections for metadata, navigation, shell, login, and dashboard.
+- [x] Expose locale and dictionary through a React provider plus a hook with safe defaults.
 
 ### Task 2: Connect the root layout
 
 **Files:**
 - Modify: `frontend/src/app/layout.tsx`
 
-- [ ] Resolve locale from the incoming request at layout time.
-- [ ] Generate localized metadata from the selected dictionary.
-- [ ] Wrap the app with the new i18n provider and set `<html lang>` from the resolved locale.
+- [x] Resolve locale from the incoming request at layout time.
+- [x] Generate localized metadata from the selected dictionary.
+- [x] Wrap the app with the new i18n provider and set `<html lang>` from the resolved locale.
 
 ### Task 3: Migrate shared shell and navigation
 
@@ -40,9 +40,9 @@
 - Modify: `frontend/src/components/app/app-shell.tsx`
 - Modify: `frontend/src/components/app/workspace-boundary-note.tsx`
 
-- [ ] Move shared navigation labels into dictionaries.
-- [ ] Update the app shell to read translated chrome labels from the i18n hook.
-- [ ] Update workspace boundary messaging to use translated content.
+- [x] Move shared navigation labels into dictionaries.
+- [x] Update the app shell to read translated chrome labels from the i18n hook.
+- [x] Update workspace boundary messaging to use translated content.
 
 ### Task 4: Migrate the first feature pages
 
@@ -50,9 +50,9 @@
 - Modify: `frontend/src/app/login/page.tsx`
 - Modify: `frontend/src/app/dashboard/page.tsx`
 
-- [ ] Replace hardcoded login copy with dictionary-driven content.
-- [ ] Replace hardcoded dashboard copy with dictionary-driven content.
-- [ ] Keep runtime capability branches intact while moving only presentation strings.
+- [x] Replace hardcoded login copy with dictionary-driven content.
+- [x] Replace hardcoded dashboard copy with dictionary-driven content.
+- [x] Keep runtime capability branches intact while moving only presentation strings.
 
 ### Task 5: Verify behavior
 
@@ -60,6 +60,6 @@
 - Modify: `frontend/src/__tests__/pages.test.tsx`
 - Modify: `frontend/src/__tests__/app-shell-auth.test.tsx`
 
-- [ ] Update assertions that depend on migrated copy or shared navigation labels.
-- [ ] Run targeted frontend tests for the affected pages and shell.
-- [ ] Run lint or type-aware verification if the local toolchain allows it within reasonable time.
+- [x] Update assertions that depend on migrated copy or shared navigation labels.
+- [x] Run targeted frontend tests for the affected pages and shell.
+- [x] Run lint or type-aware verification if the local toolchain allows it within reasonable time.

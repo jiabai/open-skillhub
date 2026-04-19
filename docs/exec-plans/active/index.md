@@ -4,13 +4,14 @@
 
 | File | Focus |
 |------|-------|
+| `backend-consolidation-refactor-plan.md` | Backend consolidation and service-boundary cleanup |
+| `backend-consolidation-refactor-tasks.md` | Backend consolidation task list aligned with the refactor plan |
 | `docker-healthcheck-standardization-plan.md` | Stabilize Docker startup, health semantics, and service separation |
 | `docker-healthcheck-standardization-tasks.md` | Milestone checklist for the Docker healthcheck work |
 | `error-architecture-refactor-plan.md` | Unify backend error semantics and transport adapters |
-| `next-steps-user-status-followup.md` | Shared-definition follow-up for user status and related enums |
-| `2026-04-10-backend-consolidation-refactor-plan.md` | Backend consolidation and service-boundary cleanup |
-| `skills-api-boundary.md` | Clarify JWT console APIs versus API-token client APIs |
-| `2026-04-10-backend-consolidation-refactor-tasks.md` | Backend consolidation task list aligned with the refactor plan |
+| `runtime-capabilities-enhancement-plan.md` | Expand capability tests, add permission helper, document contract constraints |
+| `skills-api-boundary-plan.md` | Clarify JWT console APIs versus API-token client APIs |
+| `user-status-followup-plan.md` | Shared-definition follow-up for user status and related enums |
 
 ## Working Agreement
 

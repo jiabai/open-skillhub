@@ -7,7 +7,7 @@ from backend.db.session import async_session_maker
 from backend.repositories.skill import SkillRepository
 from backend.repositories.skill_version import SkillVersionRepository
 from backend.repositories.user import UserRepository
-from backend.services.skill import SkillService
+from backend.services.skill_support import parse_frontmatter, parse_semver
 
 
 async def sync_public_skills() -> None:
@@ -31,7 +31,7 @@ async def sync_public_skills() -> None:
                 continue
             seen_names.add(skill_dir.name)
             content = skill_md.read_text(encoding="utf-8", errors="replace")
-            frontmatter = SkillService._parse_frontmatter(content)
+            frontmatter = parse_frontmatter(content)
             description = str(frontmatter.get("description") or "").strip()
             existing = await skill_repo.get_by_name(SYSTEM_USER_ID, skill_dir.name)
             if not existing:
@@ -83,7 +83,7 @@ async def sync_public_skills() -> None:
                         dependency_spec_version=None,
                         metadata={"name": existing.name, "description": description, "version": "1.0.0"},
                     )
-            current_version = max(available_versions, key=lambda item: SkillService._parse_semver(item) or ("", 0, 0, 0))
+            current_version = max(available_versions, key=lambda item: parse_semver(item) or ("", 0, 0, 0))
             await skill_repo.update(existing, current_version=current_version, is_active=True)
 
         existing_public = await skill_repo.list_by_user(SYSTEM_USER_ID, limit=1000, include_inactive=True)

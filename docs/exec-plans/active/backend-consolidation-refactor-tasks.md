@@ -25,14 +25,14 @@
 
 ## Milestone 3: SkillService 主体拆分
 
-- [ ] 为 `backend/services/skill.py` 设计内部协作边界，优先按 lifecycle、storage、version、upload 四类职责拆分。
-- [ ] 拆出 `skill_lifecycle.py`，承载 create / update / activate / deactivate / delete / visibility / kind 判定。
-- [ ] 拆出 `skill_storage.py`，承载 `list_skill_files` / `read_skill_file` / `upload_file` / `upload_file_from_path`。
-- [ ] 拆出 `skill_version.py`，承载 version 解析、reference、pin、unpin、rollback、diff 等逻辑。
-- [ ] 拆出 `skill_upload.py`，承载 zip 上传、版本目录准备、归档持久化、依赖解析流程。
-- [ ] 删除 `SkillService` 中纯转发 `skill_support.py` 的静态代理方法，如 `_parse_frontmatter`、`_validate_version`、`_normalize_dependencies`、`_parse_requirements_text`。
-- [ ] 保留 `SkillService` 作为外部门面，不改公开方法签名。
-- [ ] 运行最小回归：`uv run pytest tests/test_skill_service.py tests/test_skill_service_file_ops.py tests/test_skill_service_more.py tests/test_skill_service_advanced.py tests/test_skill_service_integration.py`
+- [x] 为 `backend/services/skill.py` 设计内部协作边界，优先按 lifecycle、storage、version、upload 四类职责拆分。
+- [x] 拆出 `skill_lifecycle.py`，承载 create / update / activate / deactivate / delete / visibility / kind 判定。
+- [x] 拆出 `skill_storage.py`，承载 `list_skill_files` / `read_skill_file` / `upload_file` / `upload_file_from_path`。
+- [x] 拆出 `skill_version.py`，承载 version 解析、reference、pin、unpin、rollback、diff 等逻辑。
+- [x] 拆出 `skill_upload.py`，承载 zip 上传、版本目录准备、归档持久化、依赖解析流程。
+- [x] 删除 `SkillService` 中纯转发 `skill_support.py` 的静态代理方法，如 `_parse_frontmatter`、`_validate_version`、`_normalize_dependencies`、`_parse_requirements_text`。
+- [x] 保留 `SkillService` 作为外部门面，不改公开方法签名。
+- [x] 运行最小回归：`uv run pytest tests/test_skill_service.py tests/test_skill_service_file_ops.py tests/test_skill_service_more.py tests/test_skill_service_advanced.py tests/test_skill_service_integration.py`
 
 ## Milestone 4: legacy / fallback 残留集中化
 

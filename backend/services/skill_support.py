@@ -13,7 +13,7 @@ from backend.services.skill_errors import SkillError, SkillErrorCode
 
 @dataclass(frozen=True)
 class ValidatedArchive:
-    archive: object
+    archive: zipfile.ZipFile
     entries: list[object]
     entry_names: set[str]
 

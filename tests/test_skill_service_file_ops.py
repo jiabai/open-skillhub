@@ -1,9 +1,6 @@
 """
 SkillService 文件操作和版本管理集成测试
 """
-import io
-import zipfile
-from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -13,7 +10,6 @@ from backend.core.utils.key_derivation import derive_aes256_key
 from backend.core.utils.skill_storage import (
     get_skill_versions_dir,
     get_user_skill_dir,
-    create_skill_dir,
 )
 from backend.models.skill import Skill
 from backend.models.skill_version import SkillVersion
@@ -21,6 +17,7 @@ from backend.repositories.skill import SkillRepository
 from backend.repositories.skill_version import SkillVersionRepository
 from backend.services.skill import SkillService
 from backend.services.skill_errors import SkillError, SkillErrorCode
+from backend.services.skill_support import build_node_commands, normalize_dependency_spec, parse_frontmatter, parse_requirements_text, parse_semver
 
 
 @pytest.fixture
@@ -233,7 +230,7 @@ class TestSkillServiceSkillOperations:
         mock_skill_repo.update = AsyncMock(return_value=test_skill)
 
         service = SkillService(mock_skill_repo, None)
-        result = await service.update_skill(test_user, "skill-uuid-123", description="New description")
+        await service.update_skill(test_user, "skill-uuid-123", description="New description")
 
         mock_skill_repo.update.assert_called_once()
 
@@ -246,7 +243,7 @@ class TestSkillServiceSkillOperations:
         mock_skill_repo.update = AsyncMock(return_value=test_skill)
 
         service = SkillService(mock_skill_repo, None)
-        result = await service.deactivate_skill(test_user, "skill-uuid-123")
+        await service.deactivate_skill(test_user, "skill-uuid-123")
 
         mock_skill_repo.update.assert_called_once()
 
@@ -259,7 +256,7 @@ class TestSkillServiceSkillOperations:
         mock_skill_repo.update = AsyncMock(return_value=test_skill)
 
         service = SkillService(mock_skill_repo, None)
-        result = await service.activate_skill(test_user, "skill-uuid-123")
+        await service.activate_skill(test_user, "skill-uuid-123")
 
         mock_skill_repo.update.assert_called_once()
 
@@ -417,7 +414,7 @@ class TestSkillServiceListSkills:
         mock_skill_repo.list_visible = AsyncMock(return_value=[test_skill])
 
         service = SkillService(mock_skill_repo, None)
-        result = await service.list_skills(test_user, query="test")
+        await service.list_skills(test_user, query="test")
 
         mock_skill_repo.list_visible.assert_called_once()
 
@@ -433,7 +430,7 @@ class TestSkillServiceGetSkill:
         mock_skill_repo.get_by_id = AsyncMock(return_value=test_skill)
 
         # Mock is_skill_visible to return True
-        with patch('backend.services.skill.is_skill_visible', return_value=True):
+        with patch('backend.services.skill_lifecycle.is_skill_visible', return_value=True):
             service = SkillService(mock_skill_repo, None)
             result = await service.get_skill(test_user, "skill-uuid-123")
 
@@ -512,7 +509,7 @@ dependencies:
 ---
 # Content
 """
-        result = SkillService._parse_frontmatter(content)
+        result = parse_frontmatter(content)
         assert result["dependencies"] == ["requests>=2.0.0", "numpy"]
 
     def test_parse_requirements_with_versions(self):
@@ -521,29 +518,29 @@ dependencies:
 numpy==1.21.0
 pandas~=1.3.0
 """
-        result = SkillService._parse_requirements_text(text)
+        result = parse_requirements_text(text)
         assert len(result) == 3
         assert "requests>=2.0.0,<3.0.0" in result
 
     def test_build_node_commands_with_yarn(self):
         """测试 yarn 安装命令"""
-        cmds = SkillService._build_node_commands("yarn", False)
+        cmds = build_node_commands("yarn", False)
         assert cmds == ["yarn install"]
 
     def test_build_node_commands_with_pnpm(self):
         """测试 pnpm 安装命令"""
-        cmds = SkillService._build_node_commands("pnpm", True)
+        cmds = build_node_commands("pnpm", True)
         assert cmds == ["pnpm install"]
 
     def test_parse_semver_with_prefix(self):
         """测试带前缀的 semver 解析"""
-        result = SkillService._parse_semver("v2.3.4")
+        result = parse_semver("v2.3.4")
         assert result == ("v", 2, 3, 4)
 
     def test_normalize_dependency_spec_valid_json(self):
         """测试有效 JSON 依赖规范"""
         json_str = '{"python": {"manager": "pip", "requirements": ["requests"]}}'
-        result = SkillService._normalize_dependency_spec(json_str)
+        result = normalize_dependency_spec(json_str)
         assert result["python"]["manager"] == "pip"
 
     def test_encrypt_decrypt_consistency(self):

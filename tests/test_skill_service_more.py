@@ -77,14 +77,14 @@ class TestSkillServiceUploadZipPaths:
         zip_content = create_minimal_zip()
 
         with patch.object(settings, 'SKILL_STORAGE_PATH', '/tmp'):
-            with patch('backend.services.skill.save_archive', new_callable=AsyncMock):
-                with patch('backend.services.skill.get_skill_versions_dir') as mock_dir:
+            with patch('backend.services.skill_upload.save_archive', new_callable=AsyncMock):
+                with patch('backend.services.skill_upload.get_skill_versions_dir') as mock_dir:
                     mock_dir.return_value = Path('/tmp/v')
 
                     with patch.object(Path, 'mkdir'):
                         with patch.object(Path, 'write_bytes'):
-                            with patch('backend.services.skill.clear_skill_current_dir'):
-                                with patch('backend.services.skill.get_user_skill_dir'):
+                            with patch('backend.services.skill_upload.clear_skill_current_dir'):
+                                with patch('backend.services.skill_upload.get_user_skill_dir'):
                                     with patch.object(Path, 'exists', return_value=False):
                                         result = await service.upload_zip(
                                             test_user, "skill-123", "test.zip", zip_content
@@ -112,7 +112,7 @@ class TestSkillServiceDownloadPaths:
 
         archive_content = b"test"
 
-        with patch('backend.services.skill.load_archive', new_callable=AsyncMock) as mock_load:
+        with patch('backend.services.skill_version.load_archive', new_callable=AsyncMock) as mock_load:
             mock_load.return_value = archive_content
 
             with patch.object(settings, 'ENABLE_SKILL_DOWNLOAD_ENCRYPTION', False):
@@ -135,10 +135,10 @@ class TestSkillServiceDownloadPaths:
         service = SkillService(mock_skill_repo, mock_version_repo)
 
         # load_archive returns None, need to read from disk
-        with patch('backend.services.skill.load_archive', new_callable=AsyncMock) as mock_load:
+        with patch('backend.services.skill_version.load_archive', new_callable=AsyncMock) as mock_load:
             mock_load.return_value = None  # Not in archive
 
-            with patch('backend.services.skill.get_skill_versions_dir') as mock_dir:
+            with patch('backend.services.skill_version.get_skill_versions_dir') as mock_dir:
                 mock_version_dir = MagicMock(spec=Path)
                 mock_dir.return_value = mock_version_dir
 

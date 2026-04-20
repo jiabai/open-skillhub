@@ -43,14 +43,14 @@
 
 ## Milestone 5: app 组装层精简
 
-- [ ] 拆出 `backend/api/_middleware.py`，承载中间件注册。
-- [ ] 拆出 `backend/api/_exceptions.py`，承载异常处理器注册。
-- [ ] 拆出 `backend/api/_endpoints.py`，承载 `/livez`、`/readyz`、`/health`、`/metrics`。
-- [ ] 拆出 `backend/api/_size_guard.py`，承载请求大小限制中间件。
-- [ ] 将 `backend/api_app.py` 收敛为 `create_application()`、`lifespan` 与最少量装配代码。
-- [ ] 保持 app 创建入口、挂载路径、4 个运维端点语义不变。
-- [ ] 检查导入关系，避免新增循环依赖。
-- [ ] 运行最小回归：`uv run pytest tests/test_api_auth.py tests/test_api_auth_extended.py tests/test_app_startup.py tests/test_request_metrics.py tests/test_metrics_cleanup_api.py tests/test_metrics_reset_24h_api.py tests/test_api_skill_download.py`
+- [x] 拆出 `backend/api/_middleware.py`，承载中间件注册。
+- [x] 拆出 `backend/api/_exceptions.py`，承载异常处理器注册。
+- [x] 拆出 `backend/api/_endpoints.py`，承载 `/livez`、`/readyz`、`/health`、`/metrics`。
+- [x] 拆出 `backend/api/_size_guard.py`，承载请求大小限制中间件。
+- [x] 将 `backend/api_app.py` 收敛为 `create_application()`、`lifespan` 与最少量装配代码。
+- [x] 保持 app 创建入口、挂载路径、4 个运维端点语义不变。
+- [x] 检查导入关系，避免新增循环依赖。
+- [x] 运行最小回归：`uv run pytest tests/test_api_auth.py tests/test_api_auth_extended.py tests/test_app_startup.py tests/test_request_metrics.py tests/test_metrics_cleanup_api.py tests/test_metrics_reset_24h_api.py tests/test_api_skill_download.py`
 
 ## Milestone 6: 收尾校验
 

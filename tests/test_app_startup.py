@@ -8,3 +8,4 @@ def test_create_application_registers_operational_routes():
     assert "/livez" in route_paths
     assert "/readyz" in route_paths
     assert "/health" in route_paths
+    assert "/metrics" in route_paths

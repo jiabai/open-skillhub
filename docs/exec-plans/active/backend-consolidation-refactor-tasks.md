@@ -15,13 +15,13 @@
 
 ## Milestone 2: skills API 边界收口
 
-- [ ] 将 `backend/api/v1/skills_support.py` 从单文件演进为 package：`backend/api/v1/skills_support/`。
-- [ ] 在 `backend/api/v1/skills_support/__init__.py` 中统一 re-export 当前对外使用的 helper，优先保持 import 路径稳定。
-- [ ] 按职责拆出子模块：`service_factory.py`、`serializer.py`、`upload.py`、`download.py`、`audit.py`、`auth.py`、`error_mapper.py`。
-- [ ] 更新 `backend/api/v1/skills.py` 的导入，确保只依赖 package 暴露面，不直接耦合内部子模块实现细节。
-- [ ] 删除旧的单文件 `backend/api/v1/skills_support.py`。
-- [ ] 保持 `skills` 路由行为、响应 schema、审计动作名不变。
-- [ ] 运行最小回归：`uv run pytest tests/test_api_skills.py tests/test_skills_api_extended.py tests/test_api_skill_download.py tests/test_skill_support.py`
+- [x] 将 `backend/api/v1/skills_support.py` 从单文件演进为 package：`backend/api/v1/skills_support/`。
+- [x] 在 `backend/api/v1/skills_support/__init__.py` 中统一 re-export 当前对外使用的 helper，优先保持 import 路径稳定。
+- [x] 按职责拆出子模块：`service_factory.py`、`serializer.py`、`upload.py`、`download.py`、`audit.py`、`auth.py`、`error_mapper.py`。
+- [x] 更新 `backend/api/v1/skills.py` 的导入，确保只依赖 package 暴露面，不直接耦合内部子模块实现细节。
+- [x] 删除旧的单文件 `backend/api/v1/skills_support.py`。
+- [x] 保持 `skills` 路由行为、响应 schema、审计动作名不变。
+- [x] 运行最小回归：`uv run pytest tests/test_api_skills.py tests/test_skills_api_extended.py tests/test_api_skill_download.py tests/test_skill_support.py`
 
 ## Milestone 3: SkillService 主体拆分
 

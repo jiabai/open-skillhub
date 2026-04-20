@@ -9,7 +9,7 @@ from backend.core.utils.skill_storage import MAX_FILE_SIZE, MAX_TOTAL_SIZE
 from backend.db.session import get_async_session
 from backend.repositories.skill import SkillRepository
 from backend.api.v1.skills_support import (
-    _download_rate_limit_state,
+    _download_rate_limit_state,  # noqa: F401
     build_skill_service,
     create_audit_event,
     handle_skill_value_error,
@@ -318,7 +318,7 @@ async def upload_skill_file(
                 )
                 return payload
             else:
-                logger.debug(f"[UPLOAD ZIP] Creating new skill")
+                logger.debug("[UPLOAD ZIP] Creating new skill")
                 payload = await service.upload_zip_create_skill_from_path(current_user, filename, temp_path, visibility)
                 logger.info(
                     f"[UPLOAD ZIP SUCCESS] Created new skill, id={payload.get('id')}, "

@@ -36,6 +36,22 @@ async def test_sso_authorize_redirects_to_provider_with_pkce(client, async_sessi
 
 
 @pytest.mark.asyncio
+async def test_sso_authorize_returns_service_unavailable_when_configuration_invalid(client, monkeypatch):
+    def _broken_validate_configuration(self):
+        raise ValueError("SSO configuration incomplete")
+
+    monkeypatch.setattr(SSOOIDCService, "validate_configuration", _broken_validate_configuration)
+
+    response = await client.get("/api/v1/auth/sso/authorize", follow_redirects=False)
+
+    assert response.status_code == 503
+    payload = response.json()
+    assert payload["detail"] == "SSO configuration incomplete"
+    assert payload["code"] == "SERVICE_UNAVAILABLE"
+    assert payload["timestamp"].endswith("Z")
+
+
+@pytest.mark.asyncio
 async def test_sso_callback_exchanges_code_and_redirects_with_app_tokens(client, async_session, monkeypatch):
     authorize = await client.get("/api/v1/auth/sso/authorize", follow_redirects=False)
     params = parse_qs(urlparse(authorize.headers["location"]).query)

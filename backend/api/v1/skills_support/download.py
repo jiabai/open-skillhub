@@ -12,8 +12,28 @@ from .error_mapper import handle_skill_value_error
 from .service_factory import build_skill_service
 
 
+_DOWNLOAD_RATE_LIMIT_CLEANUP_INTERVAL_SECONDS = 60
 _download_rate_limit_lock = asyncio.Lock()
 _download_rate_limit_state: dict[str, list[float]] = {}
+_download_rate_limit_last_cleanup = 0.0
+
+
+def _cleanup_download_rate_limit_state(now: float, window: int) -> None:
+    global _download_rate_limit_last_cleanup
+    cleanup_interval = min(window, _DOWNLOAD_RATE_LIMIT_CLEANUP_INTERVAL_SECONDS)
+    if now - _download_rate_limit_last_cleanup < cleanup_interval:
+        return
+    cutoff = now - window
+    stale_keys: list[str] = []
+    for key, timestamps in _download_rate_limit_state.items():
+        recent = [timestamp for timestamp in timestamps if timestamp >= cutoff]
+        if recent:
+            _download_rate_limit_state[key] = recent
+        else:
+            stale_keys.append(key)
+    for key in stale_keys:
+        _download_rate_limit_state.pop(key, None)
+    _download_rate_limit_last_cleanup = now
 
 
 async def enforce_download_rate_limit(request: Request, current_user) -> None:
@@ -26,6 +46,7 @@ async def enforce_download_rate_limit(request: Request, current_user) -> None:
     key = str(getattr(current_user, "id", "") or (request.client.host if request and request.client else "unknown"))
     now = time.monotonic()
     async with _download_rate_limit_lock:
+        _cleanup_download_rate_limit_state(now, window)
         timestamps = _download_rate_limit_state.get(key, [])
         cutoff = now - window
         timestamps = [timestamp for timestamp in timestamps if timestamp >= cutoff]

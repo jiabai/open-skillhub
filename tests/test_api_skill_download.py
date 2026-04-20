@@ -3,7 +3,6 @@ import hashlib
 import io
 import zipfile
 from datetime import datetime, timezone
-from pathlib import Path
 
 import pytest
 from sso_helpers import create_api_token, sso_login
@@ -242,7 +241,7 @@ async def test_skill_download_returns_safe_500_for_unexpected_error(client, tmp_
     assert response.status_code == 500
     payload = response.json()
     assert payload["detail"] == "Download failed"
-    assert payload["code"] == "HTTP_ERROR"
+    assert payload["code"] == "INTERNAL_SERVER_ERROR"
     assert payload["timestamp"].endswith("Z")
 
 

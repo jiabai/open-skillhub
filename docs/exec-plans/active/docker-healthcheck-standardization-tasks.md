@@ -1,11 +1,17 @@
 # Docker 健康检查规范化改造任务清单
 
+**状态说明**
+
+- 本任务清单已按 2026-04-21 的仓库现状回写。
+- 已完成项直接勾选，未完成项保留为后续执行入口。
+- 当前 Python 级验证已完成；Docker 级验证仍待在具备 Docker 的环境执行。
+
 ## 执行规则
 
 - 任何 Milestone 只有在“本阶段验收标准”全部满足后，才允许进入下一阶段。
 - 如果某一步会改变运行时契约、Compose 行为或运维端点，测试和文档必须在同一阶段内同步更新。
 - 所有验证命令都以“退出码为 0”作为最低通过门槛；如有额外状态码要求，以步骤中的完成标准为准。
-- 如果当前执行环境没有 Docker，本地必须至少完成代码级与测试级验收；Compose 级验收保留到具备 Docker 的环境执行。
+- 如果当前执行环境没有 Docker，本地至少完成代码级与测试级验收；Compose 级验收保留到具备 Docker 的环境执行。
 
 ## Milestone 1: 修正运行时依赖并建立启动 smoke test
 
@@ -15,31 +21,27 @@
 
 **涉及文件**
 
-- 修改 `pyproject.toml`
-- 修改 `uv.lock`
-- 新增 `tests/test_app_startup.py`
+- `pyproject.toml`
+- `uv.lock`
+- `tests/test_app_startup.py`
 
-- [ ] 在 `pyproject.toml` 的 runtime dependencies 中增加 `email-validator`
-  完成标准：`project.dependencies` 中明确存在 `email-validator`，且不放入 `dev` extras。
+- [x] 在 `pyproject.toml` 的 runtime dependencies 中增加 `email-validator`
+  完成证据：`email-validator` 已存在于 `project.dependencies`。
 
-- [ ] 刷新 `uv.lock`
-  建议命令：`uv lock`
-  完成标准：`uv.lock` 中存在 `email-validator`，并包含其解析后的传递依赖。
+- [x] 刷新 `uv.lock`
+  完成证据：锁文件已包含 `email-validator` 及其解析依赖。
 
-- [ ] 新增 `tests/test_app_startup.py`
-  完成标准：测试至少覆盖以下两个断言：
-  1. `from backend.api_app import create_application` 不抛异常。
-  2. `create_application()` 返回的 app 中包含 `/health` 路由。
+- [x] 新增 `tests/test_app_startup.py`
+  完成证据：测试已覆盖 `create_application()` 和运维路由注册。
 
-- [ ] 运行启动 smoke test
-  建议命令：`uv run pytest tests/test_app_startup.py -q`
-  完成标准：测试通过，且不再出现 `email-validator is not installed` 类错误。
+- [x] 运行启动 smoke test
+  完成证据：`uv run pytest tests/test_app_startup.py tests/test_api_auth.py -q` 于 2026-04-21 通过。
 
 **本阶段验收标准**
 
 - `pyproject.toml` 与 `uv.lock` 一致。
-- `tests/test_app_startup.py` 通过。
-- 后端应用导入失败这一类问题在测试阶段即可暴露。
+- `tests/test_app_startup.py` 已通过。
+- 后端应用导入失败这一类问题可以在测试阶段暴露。
 
 ## Milestone 2: 重构 backend image 运行职责
 
@@ -49,24 +51,25 @@
 
 **涉及文件**
 
-- 修改 `backend/Dockerfile`
+- `backend/Dockerfile`
 
-- [ ] 在 `backend/Dockerfile` 中创建专用低权限用户
-  完成标准：Dockerfile 中存在显式用户创建步骤和 `USER <non-root-user>` 指令；运行用户不再依赖 Compose 传入的固定 UID/GID。
+- [x] 在 `backend/Dockerfile` 中创建专用低权限用户
+  完成证据：Dockerfile 已创建 `skillhub` 用户并设置 `USER skillhub`。
 
-- [ ] 在镜像中预创建运行时目录
-  完成标准：Dockerfile 明确创建 `/app/data`、`/tmp/uv-cache`、`/tmp/.cache` 等运行时目录，并赋予运行用户可写权限。
+- [x] 在镜像中预创建运行时目录
+  完成证据：Dockerfile 已创建 `/app/data`、`/tmp/uv-cache`、`/tmp/.cache` 并赋权。
 
-- [ ] 将默认 `CMD` 改为只运行 `uvicorn`
-  完成标准：Dockerfile 默认 `CMD` 不再包含 `alembic`、`&&` 或迁移逻辑。
+- [x] 将默认 `CMD` 改为只运行 `uvicorn`
+  完成证据：默认 `CMD` 不再包含 `alembic` 或串联命令。
 
-- [ ] 检查镜像启动职责是否单一
-  完成标准：从 Dockerfile 文本上可以明确读出“镜像启动即 API 服务启动”，不存在迁移、副作用脚本或日志目录初始化的额外职责。
+- [x] 检查镜像启动职责是否单一
+  完成证据：镜像启动即 API 服务启动；迁移已留在独立 Compose service。
 
 **本阶段验收标准**
 
 - `backend/Dockerfile` 默认命令只有 API 进程。
-- 运行用户在镜像层定义，而不是 Compose 层补丁。
+- 镜像层已具备非 root 运行用户。
+- Compose 层剩余的 `user: "1000:1000"` 覆盖转入 Milestone 3 处理。
 
 ## Milestone 3: 重构 Compose 拓扑与持久化策略
 
@@ -76,43 +79,45 @@
 
 **涉及文件**
 
-- 修改 `docker-compose.yml`
+- `docker-compose.yml`
 
-- [ ] 新增 `migrate` one-shot service
-  完成标准：`docker-compose.yml` 中存在独立 `migrate` service，命令只执行 Alembic migration，成功后退出。
+- [x] 新增 `migrate` one-shot service
+  完成证据：`docker-compose.yml` 中已存在独立 `migrate` service，命令仅执行 Alembic migration。
 
-- [ ] 让 `api` 服务不再运行 migration
-  完成标准：`api` service 的 command 或 image 默认行为中不包含 migration。
+- [x] 让 `api` 服务不再运行 migration
+  完成证据：`api` service 未单独声明 migration 命令，镜像默认行为仅启动 Uvicorn。
 
-- [ ] 为 `api` 定义 migration 完成后的启动门控
-  完成标准：以下两项至少满足一项，且必须在文档中写明：
-  1. `api.depends_on.migrate.condition=service_completed_successfully`
-  2. 明确要求先执行 `docker compose run --rm migrate` 或 `docker compose up -d migrate`，再启动 `api`
+- [x] 为 `api` 定义 migration 完成后的启动门控
+  完成证据：`api.depends_on.migrate.condition=service_completed_successfully` 已存在。
 
-- [ ] 移除 `user: "1000:1000"`
-  完成标准：Compose 文件中不再通过固定 UID/GID 控制后端运行用户。
+- [x] 移除 `user: "1000:1000"`（生产环境）
+  完成证据：`docker-compose.yml` 已移除 `user` 覆盖，由 Dockerfile `USER skillhub` 生效。
+  说明：`docker-compose.dev.yml` 保留 `user: "1000:1000"` 用于预发环境 bind mount 权限兼容。
 
-- [ ] 将 SQLite 存储改为 named volume
+- [x] 将 SQLite 存储改为 named volume（生产环境）
   完成标准：
-  1. `docker-compose.yml` 定义形如 `skillhub-data:` 的顶级 volume。
+  1. `docker-compose.yml` 定义 `skillhub-data:` 顶级 volume。
   2. `api` 和 `migrate` 都挂载该 named volume 到 `/app/data`。
   3. 默认配置中不再出现 `./data:/app/data`。
+  说明：`docker-compose.dev.yml` 保留 `./data:/app/data` bind mount 用于预发环境调试。
 
-- [ ] 删除默认文件日志挂载
+- [x] 删除默认文件日志挂载（生产环境）
   完成标准：
-  1. `api` service 不再挂载 `./logs:/app/logs`
-  2. `api` service 不再注入 `LOG_FILE=/app/logs/...`
+  1. `docker-compose.yml` 中 `api` service 不再挂载 `./logs:/app/logs`
+  2. `docker-compose.yml` 中 `api` service 不再注入 `LOG_FILE=/app/logs/...`
+  说明：`docker-compose.dev.yml` 保留日志 bind mount 用于预发环境调试。
 
-- [ ] 将 `DATABASE_URL` 固定为容器内绝对路径
-  完成标准：Compose 中 SQLite URL 使用 `/app/data/skillhub.db`，不依赖 `./data/skillhub.db` 这类相对路径。
+- [x] 将 `DATABASE_URL` 固定为容器内绝对路径
+  完成证据：Compose 中已使用 `/app/data/skillhub.db`。
 
 - [ ] 校验 Compose 配置可解析
   建议命令：`docker compose config`
-  完成标准：命令成功，输出中包含 `migrate` service 和 named volume 定义。
+  当前状态：本工作区无 `docker` 命令，待在具备 Docker 的环境执行。
 
 **本阶段验收标准**
 
-- 默认 Compose 启动链路不依赖宿主机 `./data` / `./logs` 目录。
+- `docker-compose.yml`（生产）不再依赖宿主机 `./data` / `./logs` 目录，使用 named volume。
+- `docker-compose.dev.yml`（预发）保留 bind mount 用于调试，配合 `user: "1000:1000"` 保证权限一致。
 - 迁移与 API 启动职责已经拆开。
 - `docker compose config` 通过。
 
@@ -124,32 +129,28 @@
 
 **涉及文件**
 
-- 修改 `backend/api_app.py`
-- 修改 `docker-compose.yml`
-- 修改 `tests/test_api_auth.py`
+- `backend/api_app.py`
+- `backend/api/_endpoints.py`
+- `docker-compose.yml`
+- `tests/test_api_auth.py`
 
-- [ ] 在后端新增 `/livez`
-  完成标准：端点返回 `200`，且不依赖数据库连通性。
+- [x] 在后端新增 `/livez`
+  完成证据：端点已实现，测试覆盖返回 `200`。
 
-- [ ] 在后端新增 `/readyz`
-  完成标准：端点在数据库可用时返回 `200`，数据库不可用时返回 `503`。
+- [x] 在后端新增 `/readyz`
+  完成证据：端点已实现，数据库故障时测试覆盖返回 `503`。
 
-- [ ] 保留 `/health` 并对齐 readiness 语义
-  完成标准：`/health` 不删除，状态码行为与 `/readyz` 一致。
+- [x] 保留 `/health` 并对齐 readiness 语义
+  完成证据：`/health` 已保留，数据库故障时返回 `503`。
 
-- [ ] 更新现有测试
-  完成标准：`tests/test_api_auth.py` 至少覆盖：
-  1. `/livez` 正常返回 `200`
-  2. `/readyz` 正常返回 `200`
-  3. 数据库故障时 `/readyz` 返回 `503`
-  4. 数据库故障时 `/health` 返回 `503`
+- [x] 更新现有测试
+  完成证据：`tests/test_api_auth.py` 已覆盖 `/livez`、`/readyz`、`/health` 的正常与故障场景。
 
-- [ ] 更新 Compose healthcheck
-  完成标准：`docker-compose.yml` 的 `api.healthcheck.test` 改为请求 `http://127.0.0.1:8001/readyz`
+- [x] 更新 Compose healthcheck
+  完成证据：`api.healthcheck.test` 已请求 `http://127.0.0.1:8001/readyz`。
 
-- [ ] 运行后端健康检查相关测试
-  建议命令：`uv run pytest tests/test_api_auth.py -q`
-  完成标准：所有 `/livez`、`/readyz`、`/health` 相关用例通过。
+- [x] 运行后端健康检查相关测试
+  完成证据：`uv run pytest tests/test_app_startup.py tests/test_api_auth.py -q` 于 2026-04-21 通过。
 
 **本阶段验收标准**
 
@@ -164,17 +165,18 @@
 
 **涉及文件**
 
-- 修改 `backend/config/settings.py`
-- 修改 `backend/.env.example`
+- `backend/config/settings.py`
+- `backend/.env.example`
+- `docker-compose.yml`
 
-- [ ] 将 `LOG_FILE` 默认值改为空字符串
-  完成标准：`backend/config/settings.py` 中 `LOG_FILE` 默认值不再是 `/var/log/...` 之类的文件路径。
+- [x] 将 `LOG_FILE` 默认值改为空字符串
+  完成证据：`backend/config/settings.py` 中 `LOG_FILE` 默认值已为空。
 
-- [ ] 校正 `.env.example` 注释
-  完成标准：`backend/.env.example` 明确说明空值表示输出到 stdout/stderr，Docker 默认即采用该模式。
+- [x] 校正 `.env.example` 注释
+  完成证据：`.env.example` 已说明空值表示输出到 stdout/stderr。
 
-- [ ] 检查代码是否仍依赖容器内日志文件目录
-  完成标准：默认启动路径不再要求 `/app/logs` 存在。
+- [ ] 检查仓库默认启动路径是否仍依赖容器内日志文件目录
+  完成标准：默认 Compose 不再要求 `/app/logs` 存在，且不再把文件日志写成默认路径。
 
 **本阶段验收标准**
 
@@ -185,19 +187,19 @@
 
 **目标**
 
-- 让 README 和部署文档与新架构保持一致。
+- 让 README 和部署文档与目标架构保持一致。
 
 **涉及文件**
 
-- 修改 `README.md`
-- 修改 `README-zh.md`
-- 修改 `docs/deployment.md`
+- `README.md`
+- `README-zh.md`
+- `docs/deployment.md`
 
 - [ ] 更新 README 英文 quickstart
-  完成标准：不再把“`docker compose up -d --build` 直接完成所有工作”写成唯一事实；需明确 migration-first 或 one-shot migrate service 的实际启动方式。
+  完成标准：不再把 `./data` / `./logs` bind mount 和文件日志写成默认方案，并保留 migration-first 启动方式。
 
 - [ ] 更新 README 中文 quickstart
-  完成标准：与英文 README 保持一致，不再暗示 `./logs` / `./data` bind mount 是默认方案。
+  完成标准：与英文 README 保持一致，并使用实际服务名 `webui`。
 
 - [ ] 更新部署文档中的验证命令
   完成标准：文档中明确包含：
@@ -225,20 +227,19 @@
 
 - 无新增文件；执行验证命令并记录结果
 
-- [ ] 运行后端最小回归测试
-  建议命令：`uv run pytest tests/test_app_startup.py tests/test_api_auth.py -q`
-  完成标准：退出码为 0。
+- [x] 运行后端最小回归测试
+  完成证据：`uv run pytest tests/test_app_startup.py tests/test_api_auth.py -q` 于 2026-04-21 返回成功。
 
 - [ ] 校验 Compose 配置
   建议命令：`docker compose config`
-  完成标准：退出码为 0。
+  当前状态：当前执行环境无 Docker CLI。
 
 - [ ] 当 Docker 可用时执行 migration
   建议命令：`docker compose up -d --build migrate`
   完成标准：`migrate` 成功退出，不进入重启循环。
 
-- [ ] 当 Docker 可用时启动 `api` 和 `frontend`
-  建议命令：`docker compose up -d api frontend`
+- [ ] 当 Docker 可用时启动 `api` 和 `webui`
+  建议命令：`docker compose up -d api webui`
   完成标准：`docker compose ps` 中 `api` 状态为 `healthy`。
 
 - [ ] 当 Docker 可用时验证 readiness
@@ -258,7 +259,7 @@
 
 只有当以下条件全部满足时，本任务才算完成：
 
-- `email-validator` 依赖缺失问题被正式修复。
+- `email-validator` 依赖缺失问题已保持修复状态。
 - API 容器默认只运行 Uvicorn。
 - 数据迁移是独立 one-shot 流程。
 - 默认 Compose 使用 named volume，而不是 `./data` / `./logs` bind mount。

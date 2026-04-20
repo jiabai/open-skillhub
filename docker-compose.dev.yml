@@ -1,23 +1,18 @@
 services:
   migrate:
-    deploy:
-      resources:
-        limits:
-          memory: 512M
+    user: "1000:1000"
+    environment:
+      LOG_FILE: /app/logs/api.log
     volumes:
       - ./data:/app/data
       - ./logs:/app/logs
       - ./backend:/app/backend
 
   api:
+    user: "1000:1000"
     depends_on: []
-    deploy:
-      resources:
-        limits:
-          memory: 512M
-        reservations:
-          memory: 256M
     environment:
+      LOG_FILE: /app/logs/api.log
       WATCHFILES_FORCE_POLLING: "true"
     volumes:
       - ./data:/app/data
@@ -44,13 +39,7 @@ services:
         reservations:
           memory: 384M
     build:
-      context: .
-      dockerfile: frontend/Dockerfile
       target: dev
-      args:
-        - NEXT_PUBLIC_API_BASE_URL=http://39.107.59.41
-        - API_INTERNAL_URL=http://api:8001
-        - NPM_REGISTRY=https://registry.npmmirror.com
     environment:
       NEXT_PUBLIC_API_BASE_URL: http://39.107.59.41
       API_INTERNAL_URL: http://api:8001

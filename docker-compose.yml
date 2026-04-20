@@ -7,21 +7,16 @@ x-api-build: &api-build
 x-api-env: &api-env
   DATABASE_URL: sqlite+aiosqlite:////app/data/skillhub.db
   HOME: /app/data
-  LOG_FILE: /app/logs/api.log
   SKILL_STORAGE_PATH: /app/data/skills
   TIMEZONE: "UTC+8"
   PYTHONPATH: /app
-  UV_CACHE_DIR: /app/data/.uv-cache
-  XDG_CACHE_HOME: /app/data/.cache
 
 x-api-volumes: &api-volumes
-  - ./data:/app/data
-  - ./logs:/app/logs
+  - skillhub-data:/app/data
 
 services:
   migrate:
     build: *api-build
-    user: "1000:1000"
     env_file:
       - backend/.env
     environment: *api-env
@@ -32,7 +27,6 @@ services:
   api:
     container_name: open-skillhub-api
     build: *api-build
-    user: "1000:1000"
     env_file:
       - backend/.env
     environment: *api-env
@@ -83,3 +77,6 @@ services:
           memory: 384M
         reservations:
           memory: 192M
+
+volumes:
+  skillhub-data:

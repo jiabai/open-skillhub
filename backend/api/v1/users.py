@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 
 from backend.config.settings import settings
+from backend.core.errors import verification_error_payload
 from backend.core.deps import require_management_access
 from backend.core.middleware.auth import get_current_active_user
 from backend.db.session import get_async_session
@@ -14,20 +15,6 @@ from backend.services.verification_code import get_verification_service
 
 
 router = APIRouter()
-
-_verification_error_messages = {
-    "CODE_EXPIRED": "验证码已过期",
-    "CODE_INVALID": "验证码错误",
-    "TOO_MANY_ATTEMPTS": "尝试次数过多，请稍后再试",
-    "RESEND_TOO_FREQUENT": "重发过于频繁",
-}
-
-
-def _verification_error_payload(detail: str) -> dict | None:
-    message = _verification_error_messages.get(detail)
-    if not message:
-        return None
-    return {"detail": message, "code": detail}
 
 
 @router.get("", response_model=UserListResponse)
@@ -113,7 +100,7 @@ async def bind_email(
         detail = str(exc)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=_verification_error_payload(detail) or detail,
+            detail=verification_error_payload(detail) or detail,
         ) from exc
     user_repo = UserRepository(session)
     existing = await user_repo.get_by_email(payload.email)

@@ -1,5 +1,4 @@
 from contextlib import asynccontextmanager
-from datetime import datetime, timezone
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, Request
@@ -11,6 +10,11 @@ import psutil
 
 from backend.api.router import api_router
 from backend.config.settings import settings
+from backend.core.errors import (
+    error_code_for_status,
+    error_payload as build_error_payload,
+    error_payload_from_exception as build_error_payload_from_exception,
+)
 from backend.core.middleware.deprecation import DeprecationMiddleware
 from backend.core.middleware.logging import RequestLoggingMiddleware, configure_loguru
 from backend.core.middleware.rate_limit import RateLimitMiddleware
@@ -19,36 +23,16 @@ from backend.repositories.audit_log import AuditLogRepository
 from backend.services.deprecation_notification import DeprecationNotifier
 
 
-def _utc_timestamp() -> str:
-    return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
-
-
 def _error_payload(detail: object, code: str) -> dict:
-    return {
-        "detail": detail,
-        "code": code,
-        "timestamp": _utc_timestamp(),
-    }
+    return build_error_payload(detail, code)
 
 
 def _code_for_status(status_code: int) -> str:
-    return {
-        400: "BAD_REQUEST",
-        401: "UNAUTHORIZED",
-        403: "FORBIDDEN",
-        404: "NOT_FOUND",
-        409: "CONFLICT",
-        422: "VALIDATION_ERROR",
-    }.get(status_code, "HTTP_ERROR")
+    return error_code_for_status(status_code)
 
 
 def _error_payload_from_exception(detail: object, status_code: int) -> dict:
-    if isinstance(detail, dict) and "detail" in detail and "code" in detail:
-        payload = dict(detail)
-        if "timestamp" not in payload:
-            payload["timestamp"] = _utc_timestamp()
-        return payload
-    return _error_payload(detail, _code_for_status(status_code))
+    return build_error_payload_from_exception(detail, status_code)
 
 
 async def _check_db_connection() -> bool:

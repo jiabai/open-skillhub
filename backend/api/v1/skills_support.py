@@ -67,19 +67,8 @@ def _build_http_exception(status_code: int, detail: str, code: str | None = None
     return HTTPException(status_code=status_code, detail=detail)
 
 
-def handle_skill_value_error(exc: ValueError) -> HTTPException:
-    if isinstance(exc, SkillError):
-        if exc.code == SkillErrorCode.FILE_TOO_LARGE:
-            return _build_http_exception(
-                status.HTTP_413_CONTENT_TOO_LARGE,
-                "File exceeds maximum size limit",
-                code=SkillErrorCode.FILE_TOO_LARGE.value,
-                structured=True,
-            )
-        status_code, structured = _SKILL_ERROR_RESPONSES.get(exc.code, (status.HTTP_400_BAD_REQUEST, False))
-        return _build_http_exception(status_code, exc.detail, code=exc.code.value, structured=structured)
-
-    detail = str(exc)
+def _handle_legacy_skill_value_error(detail: str) -> HTTPException | None:
+    # Compat path for older service methods that still raise raw ValueError strings.
     if "Filename contains invalid characters" in detail:
         return _build_http_exception(
             status.HTTP_400_BAD_REQUEST,
@@ -110,6 +99,25 @@ def handle_skill_value_error(exc: ValueError) -> HTTPException:
         )
     if detail in {"File not found", "Version files not found"}:
         return _build_http_exception(status.HTTP_404_NOT_FOUND, detail)
+    return None
+
+
+def handle_skill_value_error(exc: ValueError) -> HTTPException:
+    if isinstance(exc, SkillError):
+        if exc.code == SkillErrorCode.FILE_TOO_LARGE:
+            return _build_http_exception(
+                status.HTTP_413_CONTENT_TOO_LARGE,
+                "File exceeds maximum size limit",
+                code=SkillErrorCode.FILE_TOO_LARGE.value,
+                structured=True,
+            )
+        status_code, structured = _SKILL_ERROR_RESPONSES.get(exc.code, (status.HTTP_400_BAD_REQUEST, False))
+        return _build_http_exception(status_code, exc.detail, code=exc.code.value, structured=structured)
+
+    detail = str(exc)
+    legacy_exception = _handle_legacy_skill_value_error(detail)
+    if legacy_exception is not None:
+        return legacy_exception
     if detail == "Invalid visibility":
         return _build_http_exception(status.HTTP_400_BAD_REQUEST, detail)
     return _build_http_exception(status.HTTP_400_BAD_REQUEST, detail)

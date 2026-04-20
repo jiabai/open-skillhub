@@ -5,6 +5,7 @@ Users API 端点测试
 import pytest
 
 from backend.config.settings import settings
+from sso_helpers import sso_login
 
 
 class TestUsersAPIMe:
@@ -60,6 +61,27 @@ class TestUsersAPIBindEmail:
         )
         assert response.status_code == 401
 
+    @pytest.mark.asyncio
+    async def test_bind_email_invalid_code_returns_structured_verification_error(self, client):
+        token = await sso_login(
+            client,
+            email="bind-user@example.com",
+            username="bind-user",
+            enterprise_id="ent-bind",
+            team_id="team-bind",
+            role="member",
+        )
+        response = await client.post(
+            "/api/v1/users/bind-email",
+            json={"email": "new@example.com", "code": "000000"},
+            headers={"Authorization": f"Bearer {token}"},
+        )
+        assert response.status_code == 401
+        payload = response.json()
+        assert payload["detail"] == "验证码错误"
+        assert payload["code"] == "CODE_INVALID"
+        assert payload["timestamp"].endswith("Z")
+
 
 class TestUsersAPIUpdateIdentity:
     """测试 PUT /{user_id}/identity 端点"""
@@ -112,3 +134,25 @@ class TestUsersAPIErrorHandling:
         )
         # 应该返回验证错误
         assert response.status_code == 422
+
+    @pytest.mark.asyncio
+    async def test_delete_me_invalid_code_keeps_raw_detail_shape(self, client):
+        token = await sso_login(
+            client,
+            email="delete-shape@example.com",
+            username="delete-shape",
+            enterprise_id="ent-delete-shape",
+            team_id="team-delete-shape",
+            role="member",
+        )
+        response = await client.request(
+            "DELETE",
+            "/api/v1/users/me",
+            json={"code": "000000"},
+            headers={"Authorization": f"Bearer {token}"},
+        )
+        assert response.status_code == 400
+        payload = response.json()
+        assert payload["detail"] == "CODE_INVALID"
+        assert payload["code"] == "BAD_REQUEST"
+        assert payload["timestamp"].endswith("Z")

@@ -1,8 +1,11 @@
+import json
 import io
 import zipfile
 
 import pytest
 
+from backend.api.v1.skills_support import handle_skill_value_error
+from backend.core.utils.skill_storage import tool_error_payload
 from backend.services.skill_errors import SkillError, SkillErrorCode
 from backend.services.skill_support import (
     build_dependency_spec_from_archive,
@@ -106,3 +109,25 @@ def test_build_dependency_spec_from_archive_detects_python_and_node():
     assert dependency_spec["node"]["manager"] == "npm"
     assert dependency_spec["node"]["lockfile"] == "package-lock.json"
     assert spec_version == "1"
+
+
+def test_tool_error_payload_uses_shared_error_shape():
+    payload = json.loads(tool_error_payload("Tool failed", "TOOL_FAILURE"))
+    assert payload["detail"] == "Tool failed"
+    assert payload["code"] == "TOOL_FAILURE"
+    assert payload["timestamp"].endswith("Z")
+
+
+def test_handle_skill_value_error_maps_legacy_file_too_large():
+    exc = handle_skill_value_error(ValueError("File too large"))
+    assert exc.status_code == 413
+    assert exc.detail == {
+        "detail": "File exceeds maximum size limit",
+        "code": SkillErrorCode.FILE_TOO_LARGE.value,
+    }
+
+
+def test_handle_skill_value_error_keeps_legacy_missing_file_unstructured():
+    exc = handle_skill_value_error(ValueError("Version files not found"))
+    assert exc.status_code == 404
+    assert exc.detail == "Version files not found"

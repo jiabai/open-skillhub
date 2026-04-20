@@ -5,13 +5,13 @@
 
 ## Milestone 1: 错误与响应收口
 
-- [ ] 新建 `backend/core/errors.py`，提取共享错误元数据 helper：UTC 时间戳、状态码到默认 code 的映射、基础 payload 构造。
-- [ ] 将 `backend/api_app.py` 的 `_error_payload()` / `_error_payload_from_exception()` 改为复用共享 helper，保留为 HTTP adapter。
-- [ ] 将 `backend/core/utils/skill_storage.py` 的 `tool_error_payload()` 改为复用共享 helper，保留为 tool/MCP adapter。
-- [ ] 去重 `backend/api/v1/auth.py` 与 `backend/api/v1/users.py` 中重复的 `_verification_error_messages` + `_verification_error_payload()`。
-- [ ] 将 `backend/api/v1/skills_support.py` 中 5 个基于字符串内容的兼容判断收口到专用 mapper，并明确标注为 compat 逻辑。
-- [ ] 明确保持 `users.delete_me()` 当前原始字符串错误 detail 语义不变，不借本 milestone 顺手统一。
-- [ ] 运行最小回归：`uv run pytest tests/test_api_auth.py tests/test_api_auth_extended.py tests/test_users_api.py tests/test_skill_support.py tests/test_api_skill_download.py`
+- [x] 新建 `backend/core/errors.py`，提取共享错误元数据 helper：UTC 时间戳、状态码到默认 code 的映射、基础 payload 构造。
+- [x] 将 `backend/api_app.py` 的 `_error_payload()` / `_error_payload_from_exception()` 改为复用共享 helper，保留为 HTTP adapter。
+- [x] 将 `backend/core/utils/skill_storage.py` 的 `tool_error_payload()` 改为复用共享 helper，保留为 tool/MCP adapter。
+- [x] 去重 `backend/api/v1/auth.py` 与 `backend/api/v1/users.py` 中重复的 `_verification_error_messages` + `_verification_error_payload()`。
+- [x] 将 `backend/api/v1/skills_support.py` 中 5 个基于字符串内容的兼容判断收口到专用 mapper，并明确标注为 compat 逻辑。
+- [x] 明确保持 `users.delete_me()` 当前原始字符串错误 detail 语义不变，不借本 milestone 顺手统一。
+- [x] 运行最小回归：`uv run pytest tests/test_api_auth.py tests/test_api_auth_extended.py tests/test_users_api.py tests/test_skill_support.py tests/test_api_skill_download.py`
 
 ## Milestone 2: skills API 边界收口
 

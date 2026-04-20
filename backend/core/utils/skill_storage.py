@@ -1,11 +1,10 @@
-import json
 import re
-from datetime import datetime, timezone
 from pathlib import Path
 
 from loguru import logger
 
 from backend.config.settings import settings
+from backend.core.errors import error_payload_json
 
 ALLOWED_EXTENSIONS = {
     ".md", ".py", ".js", ".ts", ".sh", ".txt", ".json", ".yaml", ".yml",
@@ -41,14 +40,7 @@ def validate_skill_name(skill_name: str) -> tuple[bool, str]:
 
 
 def tool_error_payload(detail: object, code: str) -> str:
-    return json.dumps(
-        {
-            "detail": detail,
-            "code": code,
-            "timestamp": datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z"),
-        },
-        ensure_ascii=False,
-    )
+    return error_payload_json(detail, code, ensure_ascii=False)
 
 
 def resolve_storage_owner(user_id: str) -> str:
@@ -68,14 +60,14 @@ def clear_skill_current_dir(user_id: str, skill_name: str) -> None:
     path = get_user_skill_dir(user_id, skill_name)
     logger.debug(f"[STORAGE_CLEAR] user_id={user_id}, skill_name={skill_name}, path={path}")
     if not path.exists():
-        logger.debug(f"[STORAGE_CLEAR] Directory does not exist")
+        logger.debug("[STORAGE_CLEAR] Directory does not exist")
         return
     versions_dir = path / SKILL_VERSIONS_DIRNAME
     for child in list(path.iterdir()):
         if child == versions_dir:
             continue
         _remove_path_tree(child)
-    logger.debug(f"[STORAGE_CLEAR] Completed")
+    logger.debug("[STORAGE_CLEAR] Completed")
 
 
 def create_skill_dir(user_id: str, skill_name: str) -> Path:
@@ -89,10 +81,10 @@ def delete_skill_dir(user_id: str, skill_name: str) -> None:
     path = get_user_skill_dir(user_id, skill_name)
     logger.debug(f"[STORAGE_DELETE_DIR] user_id={user_id}, skill_name={skill_name}, path={path}")
     if not path.exists():
-        logger.debug(f"[STORAGE_DELETE_DIR] Directory does not exist")
+        logger.debug("[STORAGE_DELETE_DIR] Directory does not exist")
         return
     _remove_path_tree(path)
-    logger.debug(f"[STORAGE_DELETE_DIR] Completed")
+    logger.debug("[STORAGE_DELETE_DIR] Completed")
 
 
 def save_file(user_id: str, skill_name: str, filename: str, content: bytes) -> Path:

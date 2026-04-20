@@ -8,10 +8,10 @@
 | `backend-consolidation-refactor-tasks.md` | Backend consolidation task list aligned with the refactor plan |
 | `docker-healthcheck-standardization-plan.md` | Stabilize Docker startup, health semantics, and service separation |
 | `docker-healthcheck-standardization-tasks.md` | Milestone checklist for the Docker healthcheck work |
+| `enum-catalog-consolidation-plan.md` | Decide follow-up consolidation strategy for role, visibility, and skill kind |
 | `error-architecture-refactor-plan.md` | Unify backend error semantics and transport adapters |
 | `runtime-capabilities-enhancement-plan.md` | Expand capability tests, add permission helper, document contract constraints |
 | `skills-api-boundary-plan.md` | Clarify JWT console APIs versus API-token client APIs |
-| `user-status-followup-plan.md` | Shared-definition follow-up for user status and related enums |
 
 ## Working Agreement
 

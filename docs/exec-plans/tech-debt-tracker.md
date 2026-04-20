@@ -14,7 +14,7 @@ Last updated: 2026-04-20
 
 | Topic | Why it matters | Source |
 |------|----------------|--------|
-| Shared enum consolidation | User status now uses build-time synced catalogs, but other enums such as role, visibility, and skill kind still duplicate literals across layers | `docs/exec-plans/active/user-status-followup-plan.md` |
+| Shared enum consolidation | User status now uses build-time synced catalogs, but other enums such as role, visibility, and skill kind still duplicate literals across layers | `docs/exec-plans/active/enum-catalog-consolidation-plan.md` |
 | Documentation freshness automation | The new docs structure exists, but it still relies on manual gardening | repository process follow-up |
 
 ## Debt Handling Rules

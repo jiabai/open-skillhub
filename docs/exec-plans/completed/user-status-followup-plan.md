@@ -1,7 +1,8 @@
 # User Status Build-Time Catalog Sync
 
 This ExecPlan is a living document. The sections Progress, Surprises & Discoveries,
-Decision Log, and Outcomes & Retrospective must be kept up to date as work proceeds.
+Decision Log, and Outcomes & Retrospective were kept up to date as work proceeded.
+It is now archived as a completed plan and retained for regression reference.
 
 ## Purpose / Big Picture
 
@@ -29,8 +30,8 @@ catalogs is prevented by an explicit sync/check script and focused tests.
   consistency validation
 - [x] (2026-04-20 15:47) Update deployment and reference docs to describe the
   build-time sync workflow
-- [ ] (pending) Extend the same pattern to other duplicated enums such as role,
-  visibility, and skill kind if follow-up work is approved
+- [x] (2026-04-20 16:05) Reclassify broader enum consolidation into the separate
+  active plan `docs/exec-plans/active/enum-catalog-consolidation-plan.md`
 
 ## Surprises & Discoveries
 
@@ -68,6 +69,13 @@ catalogs is prevented by an explicit sync/check script and focused tests.
   point directly at one remediation command.
   Date/Author: 2026-04-20 / Codex
 
+- Decision: split `role`, `visibility`, and `skill_kind` into a new active plan
+  instead of forcing them into the final step of this one.
+  Rationale: user status is complete, while the remaining enum-like concepts have
+  broader and more varied semantics across RBAC, editable skill visibility, and
+  backend-derived read models.
+  Date/Author: 2026-04-20 / Codex
+
 ## Outcomes & Retrospective
 
 Completed in this follow-up:
@@ -78,9 +86,15 @@ Completed in this follow-up:
 - added focused tests that guard backend constants, generated files, and sync logic
 - updated build/deployment docs to require sync verification before image builds
 
-Still intentionally out of scope:
+This plan is complete and archived.
 
-- migrating `role`, `visibility`, and `skill_kind` to the same pattern
+Later follow-up work is tracked separately:
+
+- `role`, `visibility`, and `skill_kind` now belong to
+  `docs/exec-plans/active/enum-catalog-consolidation-plan.md`
+
+Still intentionally out of scope for this archived plan:
+
 - rewriting historical migration snapshots
 
 ## Context and Orientation
@@ -115,8 +129,8 @@ The user-status workflow now follows this sequence:
 3. Commit the updated generated copies together with the source change.
 4. Run `python scripts/sync_shared_catalogs.py --check` before release, CI, or
    Docker image builds.
-5. Extend the same pattern to future shared enums only after validating that each
-   target subproject needs a committed runtime-local copy.
+
+Broader enum follow-up work continues in a separate active plan.
 
 ## Concrete Steps
 

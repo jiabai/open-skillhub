@@ -1,4 +1,3 @@
-import pytest
 
 from backend.core.security.rbac import _DEFAULT_ROLE_PERMISSIONS, has_permission
 

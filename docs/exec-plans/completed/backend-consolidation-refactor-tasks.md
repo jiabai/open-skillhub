@@ -54,9 +54,9 @@
 
 ## Milestone 6: 收尾校验
 
-- [ ] 搜索 `legacy` / `fallback` / 重复错误构造是否仍散落在主流程。
-- [ ] 搜索未再使用的 helper、mapper、compat 分支并删除死代码。
-- [ ] 运行收尾回归：`uv run pytest tests/test_api_auth.py tests/test_api_auth_extended.py tests/test_users_api.py tests/test_api_skills.py tests/test_skills_api_extended.py tests/test_api_skill_download.py tests/test_skill_service.py tests/test_skill_service_file_ops.py tests/test_skill_service_more.py tests/test_skill_service_advanced.py tests/test_skill_service_integration.py tests/test_app_startup.py tests/test_request_metrics.py tests/test_metrics_cleanup_api.py tests/test_metrics_reset_24h_api.py`
-- [ ] 运行静态检查：`uv run ruff check backend tests`
-- [ ] 输出“未动行为清单”，明确哪些外部行为被刻意保持不变。
-- [ ] 输出“仍保留的兼容点清单”，明确哪些 legacy / compat 逻辑本轮是有意保留的。
+- [x] 搜索 `legacy` / `fallback` / 重复错误构造是否仍散落在主流程。
+- [x] 搜索未再使用的 helper、mapper、compat 分支并删除死代码。
+- [x] 运行收尾回归：`uv run pytest tests/test_api_auth.py tests/test_api_auth_extended.py tests/test_users_api.py tests/test_api_skills.py tests/test_skills_api_extended.py tests/test_api_skill_download.py tests/test_skill_service.py tests/test_skill_service_file_ops.py tests/test_skill_service_more.py tests/test_skill_service_advanced.py tests/test_skill_service_integration.py tests/test_app_startup.py tests/test_request_metrics.py tests/test_metrics_cleanup_api.py tests/test_metrics_reset_24h_api.py`
+- [x] 运行静态检查：`uv run ruff check backend tests`
+- [x] 输出“未动行为清单”，明确哪些外部行为被刻意保持不变。
+- [x] 输出“仍保留的兼容点清单”，明确哪些 legacy / compat 逻辑本轮是有意保留的。

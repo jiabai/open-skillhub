@@ -2,7 +2,7 @@
 Token Service 完整测试
 """
 from datetime import datetime, timedelta, timezone
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
@@ -57,7 +57,7 @@ class TestTokenServiceCreate:
         mock_token_repo.create = AsyncMock(return_value=test_token)
 
         service = TokenService(mock_token_repo, mock_user_repo)
-        result = await service.create_token(test_user, "New Token")
+        await service.create_token(test_user, "New Token")
 
         mock_token_repo.create.assert_called_once()
 
@@ -68,7 +68,7 @@ class TestTokenServiceCreate:
 
         expires_at = datetime.now(timezone.utc) + timedelta(days=30)
         service = TokenService(mock_token_repo, mock_user_repo)
-        result = await service.create_token(test_user, "Expiring Token", expires_at=expires_at)
+        await service.create_token(test_user, "Expiring Token", expires_at=expires_at)
 
         mock_token_repo.create.assert_called_once()
 
@@ -144,7 +144,7 @@ class TestTokenServiceValidate:
     async def test_validate_token_success(self, mock_token_repo, mock_user_repo, test_token):
         """测试成功验证 Token"""
         token_value = generate_api_token()
-        token_hash = hash_token(token_value)
+        hash_token(token_value)
 
         test_token.is_active = True
         test_token.expires_at = None
@@ -153,7 +153,7 @@ class TestTokenServiceValidate:
         mock_token_repo.mark_used = AsyncMock()
 
         service = TokenService(mock_token_repo, mock_user_repo)
-        result = await service.validate_token(token_value)
+        await service.validate_token(token_value)
 
         mock_token_repo.mark_used.assert_called_once()
 
@@ -224,7 +224,7 @@ class TestTokenServiceValidate:
         mock_token_repo.mark_used = AsyncMock()
 
         service = TokenService(mock_token_repo, mock_user_repo)
-        result = await service.validate_token(token_value)
+        await service.validate_token(token_value)
 
         mock_token_repo.mark_used.assert_called_once()
 

@@ -235,7 +235,7 @@ class TestAuthServiceLDAP:
 
                                                         with patch.dict('sys.modules', {'ldap3': mock_ldap3}):
                                                             with patch('importlib.import_module', return_value=mock_ldap3):
-                                                                result = await service.login_ldap("testuser", "password")
+                                                                await service.login_ldap("testuser", "password")
 
                                                         # Verify enterprise_id and team_id were passed
                                                         call_args = mock_user_repo.create.call_args
@@ -288,7 +288,7 @@ class TestAuthServiceLDAP:
 
                                                         with patch.dict('sys.modules', {'ldap3': mock_ldap3}):
                                                             with patch('importlib.import_module', return_value=mock_ldap3):
-                                                                result = await service.login_ldap("testuser", "password")
+                                                                await service.login_ldap("testuser", "password")
 
                                                         # Verify role was passed
                                                         call_args = mock_user_repo.create.call_args

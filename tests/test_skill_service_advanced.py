@@ -3,7 +3,6 @@ SkillService upload_zip 和 download 完整集成测试
 """
 import base64
 import io
-import os
 import zipfile
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -11,12 +10,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from backend.config.settings import settings
-from backend.core.utils.skill_storage import (
-    get_skill_versions_dir,
-    get_user_skill_dir,
-)
 from backend.models.skill import Skill
-from backend.models.skill_version import SkillVersion
 from backend.repositories.skill import SkillRepository
 from backend.repositories.skill_version import SkillVersionRepository
 from backend.services.skill import SkillService
@@ -350,14 +344,14 @@ class TestSkillServiceDiffAdvanced:
     ):
         """测试带变更的版本差异"""
         mock_skill_repo.get_by_id = AsyncMock(return_value=test_skill)
-        service = SkillService(mock_skill_repo, None)
+        SkillService(mock_skill_repo, None)
 
         with patch('backend.services.skill_version.get_skill_versions_dir') as mock_versions_dir:
             mock_base = Path('/tmp/versions')
             mock_versions_dir.return_value = mock_base
 
-            from_dir = mock_base / "1.0.0"
-            to_dir = mock_base / "2.0.0"
+            mock_base / "1.0.0"
+            mock_base / "2.0.0"
 
             with patch.object(Path, 'resolve') as mock_resolve:
                 mock_resolve.return_value = mock_base

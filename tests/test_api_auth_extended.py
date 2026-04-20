@@ -5,7 +5,6 @@
 import pytest
 from sso_helpers import sso_login
 
-from backend.config.settings import settings
 
 
 class TestAuthAPIVerificationCode:

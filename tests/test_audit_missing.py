@@ -1,4 +1,3 @@
-import os
 import pytest
 from sqlalchemy import select
 

@@ -2,7 +2,7 @@
 Repository 测试补充
 覆盖 team 和 enterprise repositories
 """
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
@@ -76,7 +76,7 @@ class TestTeamRepository:
         mock_session.refresh = AsyncMock()
 
         repo = TeamRepository(mock_session)
-        result = await repo.create(
+        await repo.create(
             name="New Team",
             external_id="ext-new-team",
             enterprise_id="ent-123",
@@ -122,7 +122,7 @@ class TestEnterpriseRepository:
         mock_session.refresh = AsyncMock()
 
         repo = EnterpriseRepository(mock_session)
-        result = await repo.create(
+        await repo.create(
             name="New Enterprise",
             external_id="ext-new-ent",
         )
@@ -159,7 +159,7 @@ class TestEnterpriseRepositoryFull:
         mock_session.refresh = AsyncMock()
 
         repo = EnterpriseRepository(mock_session)
-        result = await repo.create(
+        await repo.create(
             name="Full Enterprise",
             external_id="ext-full-ent",
         )
@@ -180,7 +180,7 @@ class TestTeamRepositoryFull:
         mock_session.refresh = AsyncMock()
 
         repo = TeamRepository(mock_session)
-        result = await repo.create(
+        await repo.create(
             name="Full Team",
             external_id="ext-full-team",
             enterprise_id="ent-123",

@@ -190,7 +190,7 @@ async def load_archive(user_id: str, skill_name: str, version: str) -> bytes | N
         except Exception as e:
             logger.debug(f"[ARCHIVE_LOAD] S3 load failed: {str(e)}")
             if settings.ENABLE_CACHE_OFFLINE_FALLBACK:
-                logger.debug(f"[ARCHIVE_LOAD] Falling back to local cache")
+                logger.debug("[ARCHIVE_LOAD] Falling back to local cache")
                 return _read_local_cache(_local_cache_path(user_id, skill_name, version))
             return None
         body = result.get("Body")

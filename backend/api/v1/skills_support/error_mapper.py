@@ -90,6 +90,4 @@ def handle_skill_value_error(exc: ValueError) -> HTTPException:
     legacy_exception = _handle_legacy_skill_value_error(detail)
     if legacy_exception is not None:
         return legacy_exception
-    if detail == "Invalid visibility":
-        return _build_http_exception(status.HTTP_400_BAD_REQUEST, detail)
     return _build_http_exception(status.HTTP_400_BAD_REQUEST, detail)

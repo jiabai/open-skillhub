@@ -1,12 +1,12 @@
 import asyncio
 import time
-from datetime import datetime, timezone
 
 from fastapi import Request
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import JSONResponse
 
 from backend.config.settings import settings
+from backend.core.errors import error_payload
 
 _RATE_LIMIT_CLEANUP_INTERVAL_SECONDS = 60
 
@@ -54,11 +54,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
             cutoff = now - window
             timestamps = [ts for ts in timestamps if ts >= cutoff]
             if len(timestamps) >= limit:
-                payload = {
-                    "detail": "Rate limit exceeded",
-                    "code": "RATE_LIMIT_EXCEEDED",
-                    "timestamp": datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z"),
-                }
+                payload = error_payload("Rate limit exceeded", "RATE_LIMIT_EXCEEDED")
                 return JSONResponse(status_code=429, content=payload)
             timestamps.append(now)
             self._requests[client] = timestamps

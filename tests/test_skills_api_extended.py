@@ -2,17 +2,12 @@
 Skills API 扩展测试
 覆盖版本管理、文件操作、激活/停用等完整业务流程
 """
-import base64
 import io
 import zipfile
-from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from sso_helpers import create_api_token
 
-from backend.config.settings import settings
-from backend.core.security.jwt_utils import create_access_token
 
 
 async def _create_client_headers(client, access_token: str, name: str = "test-client") -> dict[str, str]:
@@ -160,7 +155,6 @@ class TestSkillsAPISkillLifecycle:
     @pytest.mark.asyncio
     async def test_skill_crud_lifecycle(self, client, tmp_path, monkeypatch):
         """测试完整的技能 CRUD 生命周期"""
-        import os
         monkeypatch.setenv("SKILL_STORAGE_PATH", str(tmp_path))
 
         # 先发送验证码
@@ -249,7 +243,6 @@ class TestSkillsAPISkillVersionOperations:
     @pytest.mark.asyncio
     async def test_skill_upload_download_flow(self, client, tmp_path, monkeypatch):
         """测试技能上传下载流程"""
-        import os
         monkeypatch.setenv("SKILL_STORAGE_PATH", str(tmp_path))
 
         # 尝试注册

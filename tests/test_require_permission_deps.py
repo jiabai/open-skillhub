@@ -16,7 +16,7 @@ Test Categories:
 """
 
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import patch
 
 from backend.core.deps import require_permission
 

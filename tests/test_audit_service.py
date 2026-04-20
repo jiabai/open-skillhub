@@ -40,7 +40,7 @@ class TestAuditServiceCreate:
         mock_audit_repo.create_event = AsyncMock(return_value=test_audit_log)
 
         service = AuditService(mock_audit_repo)
-        result = await service.create_event(
+        await service.create_event(
             actor_id="user-123",
             action="user.login",
             target="user-123",
@@ -54,7 +54,7 @@ class TestAuditServiceCreate:
         mock_audit_repo.create_event = AsyncMock(return_value=test_audit_log)
 
         service = AuditService(mock_audit_repo)
-        result = await service.create_event(
+        await service.create_event(
             actor_id="user-123",
             action="skill.create",
             target="skill-456",
@@ -69,7 +69,7 @@ class TestAuditServiceCreate:
         mock_audit_repo.create_event = AsyncMock(return_value=test_audit_log)
 
         service = AuditService(mock_audit_repo)
-        result = await service.create_event(
+        await service.create_event(
             actor_id="user-123",
             action="auth.login",
             target="user-123",
@@ -84,7 +84,7 @@ class TestAuditServiceCreate:
         mock_audit_repo.create_event = AsyncMock(return_value=test_audit_log)
 
         service = AuditService(mock_audit_repo)
-        result = await service.create_event(
+        await service.create_event(
             actor_id="user-123",
             action="api.request",
             target="/api/v1/skills",
@@ -99,7 +99,7 @@ class TestAuditServiceCreate:
         mock_audit_repo.create_event = AsyncMock(return_value=test_audit_log)
 
         service = AuditService(mock_audit_repo)
-        result = await service.create_event(
+        await service.create_event(
             actor_id="user-123",
             action="skill.delete",
             target="skill-456",
@@ -118,7 +118,7 @@ class TestAuditServiceList:
         mock_audit_repo.list_events = AsyncMock(return_value=[])
 
         service = AuditService(mock_audit_repo)
-        result = await service.list_events(actor_id="user-123")
+        await service.list_events(actor_id="user-123")
 
         mock_audit_repo.list_events.assert_called_once()
 
@@ -138,7 +138,7 @@ class TestAuditServiceList:
         mock_audit_repo.list_events = AsyncMock(return_value=[test_audit_log])
 
         service = AuditService(mock_audit_repo)
-        result = await service.list_events(action="user.login")
+        await service.list_events(action="user.login")
 
         mock_audit_repo.list_events.assert_called_once()
 

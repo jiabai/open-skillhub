@@ -50,10 +50,10 @@ os.environ["SSO_FRONTEND_CALLBACK_URL"] = "http://frontend.test/login/sso/callba
 os.environ["RBAC_ROLE_PERMISSIONS"] = '{"admin":["*"],"member":["dashboard.read","skill.list","skill.read","skill.create","skill.update","skill.delete","skill.upload"],"viewer":["dashboard.read","skill.list","skill.read"]}'
 os.environ["PYTEST_DEBUG_TEMPROOT"] = str(TMP_ROOT)
 
-import pytest_asyncio
-import httpx
-from sqlalchemy import delete
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+import pytest_asyncio  # noqa: E402
+import httpx  # noqa: E402
+from sqlalchemy import delete  # noqa: E402
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine  # noqa: E402
 
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
@@ -94,7 +94,7 @@ class TestVerificationCodeService:
         await self._service.verify_code(email, purpose, code)
 
 
-import backend.services.verification_code as vc_module
+import backend.services.verification_code as vc_module  # noqa: E402
 
 _original_generate_code = vc_module.VerificationCodeService._generate_code
 

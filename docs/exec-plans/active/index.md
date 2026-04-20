@@ -4,8 +4,6 @@
 
 | File | Focus |
 |------|-------|
-| `backend-consolidation-refactor-plan.md` | Backend consolidation and service-boundary cleanup |
-| `backend-consolidation-refactor-tasks.md` | Backend consolidation task list aligned with the refactor plan |
 | `docker-healthcheck-standardization-plan.md` | Stabilize Docker startup, health semantics, and service separation |
 | `docker-healthcheck-standardization-tasks.md` | Milestone checklist for the Docker healthcheck work |
 | `enum-catalog-consolidation-plan.md` | Decide follow-up consolidation strategy for role, visibility, and skill kind |

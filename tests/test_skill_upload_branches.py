@@ -3,7 +3,6 @@ SkillService upload_zip 分支覆盖测试
 """
 import io
 import zipfile
-from datetime import datetime, timezone
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -163,7 +162,7 @@ class TestSkillServiceUploadZipMetadata:
                             with patch('backend.services.skill.clear_skill_current_dir'):
                                 with patch('backend.services.skill.get_user_skill_dir'):
                                     with patch.object(Path, 'exists', return_value=False):
-                                        result = await service.upload_zip(
+                                        await service.upload_zip(
                                             test_user, "skill-123", "test.zip", zip_content
                                         )
 
@@ -204,7 +203,7 @@ class TestSkillServiceUploadZipVersionHandling:
                             with patch('backend.services.skill.clear_skill_current_dir'):
                                 with patch('backend.services.skill.get_user_skill_dir'):
                                     with patch.object(Path, 'exists', return_value=False):
-                                        result = await service.upload_zip(
+                                        await service.upload_zip(
                                             test_user, "skill-123", "test.zip", zip_content
                                         )
 
@@ -340,7 +339,7 @@ class TestUploadWithOrphanArchives:
                             with patch('backend.services.skill.clear_skill_current_dir'):
                                 with patch('backend.services.skill.get_user_skill_dir'):
                                     with patch.object(Path, 'exists', return_value=False):
-                                        result = await service.upload_zip_create_skill(
+                                        await service.upload_zip_create_skill(
                                             test_user, "test.zip", zip_content, "private"
                                         )
 

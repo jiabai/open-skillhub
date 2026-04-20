@@ -9,7 +9,6 @@ import pytest
 from backend.config.settings import settings
 from backend.services.verification_code import (
     VerificationCodeService,
-    CodeRecord,
     get_verification_service,
 )
 from backend.models.verification_code import VerificationCode

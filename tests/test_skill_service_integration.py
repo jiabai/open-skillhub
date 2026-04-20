@@ -2,22 +2,13 @@
 SkillService 集成测试
 覆盖 ZIP 上传、下载、版本管理等核心功能
 """
-import base64
 import io
-import os
 import zipfile
-from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from backend.config.settings import settings
-from backend.core.utils.skill_storage import (
-    get_skill_versions_dir,
-    get_user_skill_dir,
-)
 from backend.models.skill import Skill
-from backend.models.skill_version import SkillVersion
 from backend.repositories.skill import SkillRepository
 from backend.repositories.skill_version import SkillVersionRepository
 from backend.services.skill import SkillService

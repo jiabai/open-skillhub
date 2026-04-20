@@ -197,6 +197,21 @@
   - 未动行为清单
   - 仍保留的兼容点清单
 
+## 未动行为清单
+
+- 所有 FastAPI 路由路径、HTTP 方法、状态码、响应 schema 字段保持不变；`/api/v1` 挂载路径未改。
+- `SkillService` 继续作为对外 facade，现有公开方法名与参数保持不变。
+- API 错误响应继续保持 `detail` / `code` / `timestamp` 形态；下载专用 429、全局限流 429、验证码错误码的对外文案与错误码保持现状。
+- `/livez`、`/readyz`、`/health`、`/metrics` 继续存在并保持当前语义；`readyz` / `health` 在 DB 不可用时仍返回 `503` + `unhealthy` payload。
+- `users.delete_me()` 继续保留原始字符串错误 detail，不借本轮重构统一为验证码结构化错误。
+- RBAC、JWT / API token 行为、审计 action 名称、runtime config contract 均未调整。
+
+## 仍保留的兼容点清单
+
+- `backend/repositories/skill.py::_list_cloned_source_ids_legacy_fallback()` 仍保留对历史 clone 记录的兼容，用于识别尚未回填 `cloned_from_skill_id`、但在首个 `SkillVersion.metadata_json` 中仍有来源信息的旧数据。
+- `backend/api/v1/skills_support/error_mapper.py::_handle_legacy_skill_value_error()` 仍保留对旧 service raw `ValueError` 字符串的兼容映射，避免旧路径直接暴露不一致的 HTTP 语义。
+- `backend/services/skill.py` 仍保留 facade 形态，以及少量向内部协作对象转发的协调入口，用来维持现有调用面稳定，避免在本轮结构收口中同步调整外部依赖。
+
 ## Assumptions
 
 - 目标是“结构收口”，不是 feature 重写；任何需要改 schema、改接口、改权限语义的事项都不纳入本次。

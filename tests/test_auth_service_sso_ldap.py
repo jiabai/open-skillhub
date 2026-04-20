@@ -3,7 +3,6 @@ AuthService SSO/LDAP 测试
 覆盖 SSO 登录、LDAP 登录、Token 刷新等完整流程
 """
 import jwt
-import secrets
 from datetime import datetime, timedelta, timezone
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -143,7 +142,7 @@ class TestAuthServiceRegister:
         mock_user_repo.create = AsyncMock(return_value=new_user)
 
         service = AuthService(mock_user_repo)
-        result = await service.register("new@example.com", "newuser", None)
+        await service.register("new@example.com", "newuser", None)
 
         # 验证调用了 create，密码参数不为空
         call_args = mock_user_repo.create.call_args
@@ -466,7 +465,7 @@ class TestAuthServiceOrgModelAndRBAC:
 
         # Mock ENABLE_ORG_MODEL 为 False
         with patch.object(settings, 'ENABLE_ORG_MODEL', False):
-            result = await service.login_sso(token)
+            await service.login_sso(token)
 
             # 验证 enterprise_id 和 team_id 被忽略
             call_args = mock_user_repo.create.call_args
@@ -489,7 +488,7 @@ class TestAuthServiceOrgModelAndRBAC:
 
         # Mock ENABLE_RBAC 为 False
         with patch.object(settings, 'ENABLE_RBAC', False):
-            result = await service.login_sso(token)
+            await service.login_sso(token)
 
             # 验证 role 被设置为默认值
             call_args = mock_user_repo.create.call_args

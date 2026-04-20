@@ -168,7 +168,7 @@ class TestAuthServiceSSOLogin:
             role="admin",
             status=DEFAULT_USER_STATUS
         )
-        result = await service.login_sso(token)
+        await service.login_sso(token)
 
         call_args = mock_user_repo.create.call_args
         assert call_args.kwargs["enterprise_id"] == "ent-123"
@@ -207,7 +207,7 @@ class TestAuthServiceSSOLogin:
     @pytest.mark.asyncio
     async def test_sso_login_wrong_secret(self, mock_user_repo):
         """测试错误密钥"""
-        token = self._create_sso_token()
+        self._create_sso_token()
         service = AuthService(mock_user_repo)
 
         # 使用不同的密钥解码会失败

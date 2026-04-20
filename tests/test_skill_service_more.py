@@ -4,7 +4,6 @@ SkillService 额外测试
 """
 import io
 import zipfile
-from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -12,7 +11,6 @@ import pytest
 
 from backend.config.settings import settings
 from backend.models.skill import Skill
-from backend.models.skill_version import SkillVersion
 from backend.repositories.skill import SkillRepository
 from backend.repositories.skill_version import SkillVersionRepository
 from backend.services.skill import SkillService
@@ -86,7 +84,7 @@ class TestSkillServiceUploadZipPaths:
                             with patch('backend.services.skill_upload.clear_skill_current_dir'):
                                 with patch('backend.services.skill_upload.get_user_skill_dir'):
                                     with patch.object(Path, 'exists', return_value=False):
-                                        result = await service.upload_zip(
+                                        await service.upload_zip(
                                             test_user, "skill-123", "test.zip", zip_content
                                         )
 
@@ -132,7 +130,7 @@ class TestSkillServiceDownloadPaths:
         version_record.version = "1.0.0"
         mock_version_repo.get_by_version = AsyncMock(return_value=version_record)
 
-        service = SkillService(mock_skill_repo, mock_version_repo)
+        SkillService(mock_skill_repo, mock_version_repo)
 
         # load_archive returns None, need to read from disk
         with patch('backend.services.skill_version.load_archive', new_callable=AsyncMock) as mock_load:
@@ -170,7 +168,7 @@ class TestSkillServiceDiffVersionsPaths:
     ):
         """测试相同文件的差异"""
         mock_skill_repo.get_by_id = AsyncMock(return_value=test_skill)
-        service = SkillService(mock_skill_repo, None)
+        SkillService(mock_skill_repo, None)
 
         # This would need actual file setup - skip complex mocking
         pass

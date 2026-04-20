@@ -11,7 +11,7 @@ This directory is for durable technical references that help contributors naviga
 | `docs/deployment.md` | English Docker and Linux deployment guide |
 | `docs/deployment-zh.md` | Chinese deployment guide |
 | `deploy/nginx/skillhub.conf` | Reverse-proxy example for the default deployment topology |
-| `shared/user-statuses.json` | Shared enum data used across backend and frontend |
+| `shared/user-statuses.json` | Authoring source for the build-time synced user-status catalogs consumed by backend and frontend |
 | `backend/.env.example` | Backend configuration surface |
 | `frontend/.env.example` | Frontend public API base configuration |
 

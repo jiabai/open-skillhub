@@ -1,4 +1,4 @@
-import userStatuses from "../../../shared/user-statuses.json"
+import userStatuses from "@/generated/user-statuses.json"
 
 const catalog = userStatuses as {
   default: string

@@ -98,6 +98,25 @@ API_INTERNAL_URL=http://api:8001
 
 因此 Linux 部署时，只需要保证后端环境变量正确，不需要再额外同步一套前端业务开关。
 
+### 7. 共享用户状态 catalog 采用“构建前同步”，不是运行时直接读取根目录 `shared/`
+
+`shared/user-statuses.json` 是唯一编辑源，但运行时实际消费的是各子项目内已提交的本地副本：
+
+- backend：`backend/domain/user-statuses.json`
+- frontend：`frontend/src/generated/user-statuses.json`
+
+在 Docker 构建、发布打包或 CI 校验前，请执行：
+
+```bash
+python scripts/sync_shared_catalogs.py --check
+```
+
+如果你确实修改了 `shared/user-statuses.json`，请先重新生成本地副本：
+
+```bash
+python scripts/sync_shared_catalogs.py --write
+```
+
 ## 推荐的 Compose 部署方式
 
 当前仓库内的 Compose 文件默认面向“宿主机 Nginx 反向代理”布局：
@@ -140,6 +159,12 @@ mkdir -p ./data ./logs
 请在仓库根目录执行这条命令。如果你的部署用户不是 UID/GID `1000:1000`，请相应调整 compose 里的 `user:`，或者把目录 `chown` 给对应用户。
 
 ### 3. 设置 Web UI 的公网访问地址
+
+构建镜像前，先确认同步后的 catalog 仍然一致：
+
+```bash
+python scripts/sync_shared_catalogs.py --check
+```
 
 构建前，编辑 [docker-compose.yml](/D:/Github/open-skillhub/docker-compose.yml)。
 
@@ -289,7 +314,7 @@ environment:
 docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build api webui
 ```
 
-此命令使用仓库内相对路径的 bind mount 挂载 `data/`、`logs/`、`backend/`、`frontend/` 和 `shared/`，因此整个开发环境可以跟随仓库路径移动。
+此命令使用仓库内相对路径的 bind mount 挂载 `data/`、`logs/`、`backend/` 和 `frontend/`，因此整个开发环境可以跟随仓库路径移动。
 
 ### 3. 数据库变更时手动运行迁移
 
@@ -304,6 +329,8 @@ docker compose -f docker-compose.yml -f docker-compose.dev.yml run --rm migrate
 ### 4. 了解何时仍需重建
 
 纯源码变更在 `git pull` 后应该自动重载。
+
+如果你修改了 `shared/user-statuses.json`，请先在宿主机执行 `python scripts/sync_shared_catalogs.py --write`，把 `backend/domain/` 和 `frontend/src/generated/` 下的运行时副本刷新后，再做重建或热重载验证。
 
 当依赖文件变更时需要重建对应服务：
 
@@ -393,6 +420,9 @@ docker compose -f docker-compose.yml -f docker-compose.dev.yml exec api python -
 
 - `uv.lock` 用一个源生成，构建时又用另一个源
   这样很容易导致构建卡住，或者依赖仍然去错误的包源下载。
+
+- 修改了 `shared/user-statuses.json`，却没有执行 `python scripts/sync_shared_catalogs.py --write`
+  backend 和 frontend 构建读取的是各自已提交的本地副本，不同步就不会生效。
 
 - 误以为 README 已经覆盖了全部生产部署细节
   Linux 部署以本文档为准。

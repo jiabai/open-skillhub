@@ -55,11 +55,12 @@ mkdir -p ./data ./logs
 # Edit backend/.env — at minimum, change SECRET_KEY to a random 32+ char string
 # Example: python -c "import secrets; print(secrets.token_urlsafe(32))"
 UV_DEFAULT_INDEX=https://pypi.tuna.tsinghua.edu.cn/simple uv lock
+python scripts/sync_shared_catalogs.py --check
 docker compose up -d --build migrate
 docker compose up -d api webui
 ```
 
-The first command regenerates `uv.lock` against the configured mirror when you are on a restricted network. The migration step then initializes the SQLite database under `./data/skillhub.db`, and the final command starts the API plus the web UI service `webui`. API logs are written to `./logs/api.log`.
+The first command regenerates `uv.lock` against the configured mirror when you are on a restricted network. The catalog check confirms that committed generated user-status assets are still in sync before container builds. The migration step then initializes the SQLite database under `./data/skillhub.db`, and the final command starts the API plus the web UI service `webui`. API logs are written to `./logs/api.log`.
 
 Access the web console through your reverse proxy or through the local bind at `http://127.0.0.1:3000`.
 
@@ -75,6 +76,7 @@ source .venv/bin/activate  # Linux/macOS
 
 # 2. Install dependencies
 uv sync --locked --extra dev
+python scripts/sync_shared_catalogs.py --check
 
 # 3. Configure environment
 cp backend/.env.example backend/.env
@@ -88,6 +90,8 @@ uv run uvicorn backend.api_app:app --host 0.0.0.0 --port 8001
 ```
 
 For local development, the repository default is a project-local `.venv`. If you want `uv` to use a machine-level environment such as `D:\Code\.venv` on Windows, set `UV_PROJECT_ENVIRONMENT` locally before running `uv sync`; do not commit that machine-specific path into the repository.
+
+If you edit `shared/user-statuses.json`, run `python scripts/sync_shared_catalogs.py --write` and commit the synced copies under `backend/domain/` and `frontend/src/generated/` together with the source change.
 
 ### Desktop Client
 

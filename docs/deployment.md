@@ -98,6 +98,27 @@ The frontend reads:
 
 So Linux deployment only needs correct backend env values. There is no separate frontend business feature-flag layer to keep in sync.
 
+### 7. Shared user-status catalogs are synced before build, not loaded from root `shared/` at runtime
+
+`shared/user-statuses.json` is the authoring source, but backend and frontend each
+consume a committed local copy during runtime:
+
+- backend: `backend/domain/user-statuses.json`
+- frontend: `frontend/src/generated/user-statuses.json`
+
+Before Docker builds, release packaging, or CI validation, run:
+
+```bash
+python scripts/sync_shared_catalogs.py --check
+```
+
+If you intentionally edited `shared/user-statuses.json`, regenerate the local
+copies first:
+
+```bash
+python scripts/sync_shared_catalogs.py --write
+```
+
 ## Recommended Compose Deployment
 
 The repository Compose file is now set up for a host-level Nginx reverse proxy:
@@ -140,6 +161,12 @@ mkdir -p ./data ./logs
 Run this from the repository root. If your deployment user is not UID/GID `1000:1000`, either adjust the compose `user:` mapping or chown these directories accordingly.
 
 ### 3. Set the web UI public origin
+
+Before building images, verify synced catalogs:
+
+```bash
+python scripts/sync_shared_catalogs.py --check
+```
 
 Before building, edit [docker-compose.yml](/D:/Github/open-skillhub/docker-compose.yml).
 
@@ -289,7 +316,7 @@ If your test machine uses a different public IP or domain, edit [docker-compose.
 docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build api webui
 ```
 
-This uses repo-local bind mounts for `data/`, `logs/`, `backend/`, `frontend/`, and `shared/`, so the whole dev stack can move with the checked-out repository path.
+This uses repo-local bind mounts for `data/`, `logs/`, `backend/`, and `frontend/`, so the whole dev stack can move with the checked-out repository path.
 
 ### 3. Run migrations manually when schema changes
 
@@ -304,6 +331,8 @@ The dev overlay bind-mounts `backend/` into the migration container, so newly pu
 ### 4. Know when rebuilds are still required
 
 Source-only changes should reload automatically after `git pull`.
+
+If you edit `shared/user-statuses.json`, run `python scripts/sync_shared_catalogs.py --write` on the host first so the committed runtime-local copies under `backend/domain/` and `frontend/src/generated/` are refreshed before rebuilds or reload checks.
 
 Rebuild the affected service when dependency files change:
 
@@ -393,6 +422,9 @@ If you switch to PostgreSQL, update `DATABASE_URL` and add a `db` service to Com
 
 - Regenerating `uv.lock` against one index and building against another
   Builds may stall or fetch from the wrong package source.
+
+- Editing `shared/user-statuses.json` but skipping `python scripts/sync_shared_catalogs.py --write`
+  Backend and frontend builds use their committed local copies, so the new source catalog will not take effect until the synced runtime files are regenerated.
 
 - Assuming README already contains the full production guide
   Use this file for Linux deployment details.

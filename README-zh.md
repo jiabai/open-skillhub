@@ -55,11 +55,12 @@ mkdir -p ./data ./logs
 # 编辑 backend/.env — 至少需要修改 SECRET_KEY 为 32 位以上的随机字符串
 # 示例：python -c "import secrets; print(secrets.token_urlsafe(32))"
 UV_DEFAULT_INDEX=https://pypi.tuna.tsinghua.edu.cn/simple uv lock
+python scripts/sync_shared_catalogs.py --check
 docker compose up -d --build migrate
 docker compose up -d api webui
 ```
 
-第一条命令会在受限网络环境下按当前镜像源重新生成 `uv.lock`；迁移命令会初始化位于 `./data/skillhub.db` 的 SQLite 数据库；最后一条命令会启动 API 和前端服务 `webui`。API 日志会写入 `./logs/api.log`。
+第一条命令会在受限网络环境下按当前镜像源重新生成 `uv.lock`；catalog 检查会在构建容器前确认已提交的用户状态生成文件仍然和共享源一致；迁移命令会初始化位于 `./data/skillhub.db` 的 SQLite 数据库；最后一条命令会启动 API 和前端服务 `webui`。API 日志会写入 `./logs/api.log`。
 
 完成后可通过反向代理访问，或直接在宿主机上访问 `http://127.0.0.1:3000` 打开 Web 控制台。
 
@@ -75,6 +76,7 @@ source .venv/bin/activate  # Linux/macOS
 
 # 2. 安装依赖
 uv sync --locked --extra dev
+python scripts/sync_shared_catalogs.py --check
 
 # 3. 配置环境变量
 cp backend/.env.example backend/.env
@@ -88,6 +90,8 @@ uv run uvicorn backend.api_app:app --host 0.0.0.0 --port 8001
 ```
 
 仓库默认使用项目内的 `.venv`，这样更适合 Linux 部署、Docker 和 CI。如果你在 Windows 上希望复用类似 `D:\Code\.venv` 这样的机器级虚拟环境，请只在本地设置 `UV_PROJECT_ENVIRONMENT`，不要把这类绝对路径写入仓库。
+
+如果你修改了 `shared/user-statuses.json`，请执行 `python scripts/sync_shared_catalogs.py --write`，并把 `backend/domain/` 与 `frontend/src/generated/` 下同步后的副本一起提交。
 
 ### 桌面客户端
 

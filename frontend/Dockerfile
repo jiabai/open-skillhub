@@ -24,7 +24,6 @@ CMD ["npm", "run", "dev", "--", "--hostname", "0.0.0.0", "--port", "3000"]
 FROM deps AS builder
 
 COPY frontend ./
-COPY shared ../shared
 RUN --mount=type=cache,target=/workspace/frontend/.next/cache \
     npm run build
 

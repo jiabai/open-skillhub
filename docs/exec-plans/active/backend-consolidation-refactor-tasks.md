@@ -36,10 +36,10 @@
 
 ## Milestone 4: legacy / fallback 残留集中化
 
-- [ ] 将 `backend/repositories/skill.py` 中 `list_cloned_source_ids()` 的 legacy fallback 提取为显式命名的私有方法，例如 `_list_cloned_source_ids_legacy_fallback()`。
-- [ ] 保证主流程优先走 `cloned_from_skill_id` 新字段路径，仅在需要时进入 fallback。
-- [ ] 为仍需保留的兼容路径增加清晰命名或独立 helper，避免继续混在主流程里。
-- [ ] 运行最小回归：`uv run pytest tests/test_api_skills.py tests/test_skills_api_extended.py tests/test_skill_service_integration.py`
+- [x] 将 `backend/repositories/skill.py` 中 `list_cloned_source_ids()` 的 legacy fallback 提取为显式命名的私有方法，例如 `_list_cloned_source_ids_legacy_fallback()`。
+- [x] 保证主流程优先走 `cloned_from_skill_id` 新字段路径，仅在需要时进入 fallback。
+- [x] 为仍需保留的兼容路径增加清晰命名或独立 helper，避免继续混在主流程里。
+- [x] 运行最小回归：`uv run pytest tests/test_skill_repository.py tests/test_api_skills.py tests/test_skills_api_extended.py tests/test_skill_service_integration.py`
 
 ## Milestone 5: app 组装层精简
 

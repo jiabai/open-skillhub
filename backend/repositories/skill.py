@@ -10,6 +10,10 @@ from backend.repositories.base import BaseRepository
 
 class SkillRepository(BaseRepository):
     @staticmethod
+    def _normalize_skill_ids(values: list[Any]) -> set[str]:
+        return {value for value in values if isinstance(value, str) and value.strip()}
+
+    @staticmethod
     def _query_filter(query: str | None):
         if not query:
             return None
@@ -116,32 +120,37 @@ class SkillRepository(BaseRepository):
                 Skill.source_skill_id.is_not(None),
             )
         )
-        return {value for value in result.scalars().all() if value}
+        return self._normalize_skill_ids(result.scalars().all())
 
-    async def list_cloned_source_ids(self, user_id: str) -> set[str]:
+    async def _list_cloned_source_ids_from_field(self, user_id: str) -> set[str]:
         result = await self.session.execute(
             select(Skill.cloned_from_skill_id).where(
                 Skill.user_id == user_id,
             )
         )
-        clone_ids = {value for value in result.scalars().all() if isinstance(value, str) and value.strip()}
-        if clone_ids:
-            return clone_ids
+        return self._normalize_skill_ids(result.scalars().all())
 
-        # Backward compatibility for historical clone records that only stored
-        # origin metadata on the first skill version.
+    async def _list_cloned_source_ids_legacy_fallback(self, user_id: str) -> set[str]:
+        # Historical clone records only stored origin metadata on the first
+        # skill version, so we keep this explicit fallback until those records
+        # no longer need to be recognized.
         legacy_result = await self.session.execute(
             select(SkillVersion.metadata_json)
             .join(Skill, Skill.id == SkillVersion.skill_id)
             .where(Skill.user_id == user_id)
         )
+        clone_ids: set[str] = set()
         for metadata in legacy_result.scalars().all():
             if not isinstance(metadata, dict):
                 continue
-            cloned_from_skill_id = metadata.get("cloned_from_skill_id")
-            if isinstance(cloned_from_skill_id, str) and cloned_from_skill_id.strip():
-                clone_ids.add(cloned_from_skill_id)
+            clone_ids.update(self._normalize_skill_ids([metadata.get("cloned_from_skill_id")]))
         return clone_ids
+
+    async def list_cloned_source_ids(self, user_id: str) -> set[str]:
+        clone_ids = await self._list_cloned_source_ids_from_field(user_id)
+        if clone_ids:
+            return clone_ids
+        return await self._list_cloned_source_ids_legacy_fallback(user_id)
 
     async def list_by_user(
         self,

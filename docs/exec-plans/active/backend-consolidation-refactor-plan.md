@@ -169,7 +169,7 @@
 - Milestone 3:
   - `uv run pytest tests/test_skill_service.py tests/test_skill_service_file_ops.py tests/test_skill_service_more.py tests/test_skill_service_advanced.py tests/test_skill_service_integration.py`
 - Milestone 4:
-  - `uv run pytest tests/test_api_skills.py tests/test_skills_api_extended.py tests/test_skill_service_integration.py`
+  - `uv run pytest tests/test_skill_repository.py tests/test_api_skills.py tests/test_skills_api_extended.py tests/test_skill_service_integration.py`
 - Milestone 5:
   - `uv run pytest tests/test_api_auth.py tests/test_api_auth_extended.py tests/test_app_startup.py tests/test_request_metrics.py tests/test_metrics_cleanup_api.py tests/test_metrics_reset_24h_api.py tests/test_api_skill_download.py`
 

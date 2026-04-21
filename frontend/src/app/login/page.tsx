@@ -162,6 +162,7 @@ export default function LoginPage() {
                       onChange={(event) => codeField.setValue(event.target.value)}
                       onBlur={codeField.handleBlur}
                       maxLength={6}
+                      autoComplete="new-password"
                       className="sm:flex-1"
                     />
                     <Button

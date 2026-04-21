@@ -173,6 +173,7 @@ export default function ProfilePage() {
                   onChange={(event) => setVerificationCode(event.target.value)}
                   placeholder={profile.verificationCodePlaceholder}
                   required
+                  autoComplete="new-password"
                   className="sm:flex-1"
                 />
                 <Button

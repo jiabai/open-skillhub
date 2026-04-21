@@ -174,6 +174,7 @@ export default function RegisterPage() {
                     onBlur={codeField.handleBlur}
                     disabled={isLoading}
                     maxLength={6}
+                    autoComplete="new-password"
                     className="sm:flex-1"
                   />
                   <Button

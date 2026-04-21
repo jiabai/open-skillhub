@@ -25,7 +25,7 @@ The `uv` cache is mounted at `/tmp/uv-cache` during build, so repeated builds ca
 
 Operationally this means:
 
-- the first `docker compose up -d --build migrate` can still take a few minutes on small hosts because it must build the backend image and download Python wheels
+- the first `docker compose up -d --build migrate api webui` can still take a few minutes on small hosts because it must build the backend image and download Python wheels
 - later rebuilds should be much faster unless `pyproject.toml` or `uv.lock` changed, or the Docker build cache was cleared
 
 ### 2. `uv.lock` and package index must stay aligned
@@ -54,13 +54,15 @@ grep -n "pypi.org/simple\\|files.pythonhosted.org" uv.lock | head
 
 `NEXT_PUBLIC_API_BASE_URL` is compiled into the frontend build.
 
-Recommended production value:
+For the default stack and the test-preprod overlay, set it to the public origin that browsers actually use.
 
-- `http://YOUR_SERVER_IP`
-- or `https://YOUR_DOMAIN`
+For the test-preprod overlay, a good default is:
+
+- `http://127.0.0.1:3000`
+
+Override it with your LAN IP or domain whenever the browser does not open the frontend on `localhost`.
 
 Do not point it at the internal Docker hostname like `http://api:8001`.
-Do not leave it pointing at another machine's fixed public IP.
 
 If you change this value, rebuild the frontend image.
 
@@ -74,20 +76,27 @@ API_INTERNAL_URL=http://api:8001
 
 This is only used by the Next.js server-side rewrite inside the frontend container.
 
-### 5. Compose now uses repo-local bind mounts for SQLite, skills, and logs
+### 5. Default stack uses a named volume; the dev overlay uses host bind mounts
 
-The default compose file binds these repo-local host paths:
+The default compose file uses the Docker named volume from [docker-compose.yml](/D:/Github/open-skillhub/docker-compose.yml), so it does not require host `./data` or `./logs` directories.
+
+The test-preprod overlay in [docker-compose.dev.yml](/D:/Github/open-skillhub/docker-compose.dev.yml) bind-mounts these repo-local host paths instead:
 
 - `./data` -> `/app/data`
 - `./logs` -> `/app/logs`
+- `./backend` -> `/app/backend`
+- `./frontend` -> `/workspace/frontend`
 
-This means:
+This means, for the overlay:
 
 - SQLite lives at `./data/skillhub.db`
 - skill files live under `./data/skills`
 - API logs live at `./logs/api.log`
+- backend code reloads through `uvicorn --reload`
+- frontend code reloads through `next dev`
+- you can override the container user with `LOCAL_UID` and `LOCAL_GID` if the host user is not `1000:1000`
 
-Backend containers run as UID/GID `1000:1000`, so the repo-local `data/` and `logs/` directories must be writable by that user mapping on the host.
+The repository includes a template at [.env.preprod.example](/D:/Github/open-skillhub/.env.preprod.example) so you can copy it to a local `.env.preprod` file and run the overlay with `docker compose --env-file .env.preprod ...`.
 
 ### 6. Backend runtime capabilities are served by the backend
 
@@ -152,13 +161,19 @@ python -c "import secrets; print(secrets.token_urlsafe(32))"
 
 ### 2. Prepare repo-local directories for bind mounts
 
-Create the directories before starting containers:
+Only create these directories when you are using the test-preprod overlay:
 
 ```bash
 mkdir -p ./data ./logs
 ```
 
-Run this from the repository root. If your deployment user is not UID/GID `1000:1000`, either adjust the compose `user:` mapping or chown these directories accordingly.
+Run this from the repository root. Then prepare a local env file for the overlay:
+
+```bash
+cp .env.preprod.example .env.preprod
+```
+
+If your deployment user is not UID/GID `1000:1000`, update `LOCAL_UID` and `LOCAL_GID` in `.env.preprod` to match the host user before starting the overlay.
 
 ### 3. Set the web UI public origin
 
@@ -168,30 +183,11 @@ Before building images, verify synced catalogs:
 python scripts/sync_shared_catalogs.py --check
 ```
 
-Before building, edit [docker-compose.yml](/D:/Github/open-skillhub/docker-compose.yml).
+For the default stack or the dev overlay, set `NEXT_PUBLIC_API_BASE_URL` to the browser-facing origin. In the overlay, `.env.preprod` should usually default to `http://127.0.0.1:3000`; for LAN or domain access, override it to the actual public origin.
 
-For a server IP deployment:
+Keep `API_INTERNAL_URL=http://api:8001` for the Next.js server-side rewrite inside the frontend container.
 
-```yaml
-args:
-  - NEXT_PUBLIC_API_BASE_URL=http://YOUR_SERVER_IP
-  - API_INTERNAL_URL=http://api:8001
-```
-
-For a domain deployment:
-
-```yaml
-args:
-  - NEXT_PUBLIC_API_BASE_URL=https://YOUR_DOMAIN
-  - API_INTERNAL_URL=http://api:8001
-```
-
-This makes browser requests go to:
-
-- `http://YOUR_SERVER_IP/api/v1/...`
-- or `https://YOUR_DOMAIN/api/v1/...`
-
-Then Next.js forwards those requests to the backend container.
+In the overlay, the browser will call the public frontend origin, and Next.js forwards those requests to the backend container.
 
 ### 4. Configure Nginx reverse proxy
 
@@ -237,33 +233,34 @@ Do not keep unrelated hardcoded public IPs in production config.
 
 ### 6. Run migrations and start services
 
-Recommended first boot sequence:
+Recommended first boot sequence for the default stack:
 
 ```bash
-docker compose down
-docker compose up migrate
-docker compose up api
-docker compose up webui
+docker compose up -d --build migrate api webui
 ```
 
-Once you have validated the services, you can run them in the background:
+This stack keeps runtime logs in Docker and uses the named SQLite volume from the base compose file.
+
+If you want the test-preprod hot-reload overlay instead, use:
 
 ```bash
-docker compose up -d api webui
+mkdir -p ./data ./logs
+cp .env.preprod.example .env.preprod
+docker compose --env-file .env.preprod -f docker-compose.yml -f docker-compose.dev.yml up -d --build migrate api webui
 ```
 
 If your Compose installation does not support `depends_on.condition: service_completed_successfully`, use this fallback instead:
 
 ```bash
-docker compose run --rm migrate
-docker compose up -d api webui
+docker compose --env-file .env.preprod -f docker-compose.yml -f docker-compose.dev.yml run --rm migrate
+docker compose --env-file .env.preprod -f docker-compose.yml -f docker-compose.dev.yml up -d api webui
 ```
 
 `docker compose up api` will also wait for `migrate` because `api` depends on `migrate` completing successfully. That is expected and does not reapply completed revisions.
 
 ### 7. Verify
 
-From the server:
+From the server, for the default stack:
 
 ```bash
 docker compose config
@@ -271,6 +268,16 @@ docker compose ps
 docker compose logs api --tail 50
 docker compose logs webui --tail 50
 docker compose exec api python -c "import urllib.request; print(urllib.request.urlopen('http://127.0.0.1:8001/readyz', timeout=5).read().decode())"
+```
+
+For the test-preprod overlay, use the same checks with `-f docker-compose.yml -f docker-compose.dev.yml`, then verify the host paths:
+
+```bash
+docker compose --env-file .env.preprod -f docker-compose.yml -f docker-compose.dev.yml config
+docker compose --env-file .env.preprod -f docker-compose.yml -f docker-compose.dev.yml ps
+docker compose --env-file .env.preprod -f docker-compose.yml -f docker-compose.dev.yml logs api --tail 50
+docker compose --env-file .env.preprod -f docker-compose.yml -f docker-compose.dev.yml logs webui --tail 50
+docker compose --env-file .env.preprod -f docker-compose.yml -f docker-compose.dev.yml exec api python -c "import urllib.request; print(urllib.request.urlopen('http://127.0.0.1:8001/readyz', timeout=5).read().decode())"
 ls -l ./data
 ls -l ./logs
 tail -n 50 ./logs/api.log
@@ -300,30 +307,31 @@ The overlay file [docker-compose.dev.yml](/D:/Github/open-skillhub/docker-compos
 
 ### 1. Configure the public frontend origin for dev mode
 
-The dev overlay defaults to:
+The dev overlay should default to a browser-facing origin such as `http://127.0.0.1:3000`:
 
-```yaml
-environment:
-  NEXT_PUBLIC_API_BASE_URL: http://39.107.59.41
-  API_INTERNAL_URL: http://api:8001
+```env
+NEXT_PUBLIC_API_BASE_URL=http://127.0.0.1:3000
+API_INTERNAL_URL=http://api:8001
 ```
 
-If your test machine uses a different public IP or domain, edit [docker-compose.dev.yml](/D:/Github/open-skillhub/docker-compose.dev.yml) before starting the stack.
+Copy [.env.preprod.example](/D:/Github/open-skillhub/.env.preprod.example) to `.env.preprod`, then override `NEXT_PUBLIC_API_BASE_URL` if your test machine uses a different public IP or domain.
 
 ### 2. Start or refresh the hot-reload stack
 
 ```bash
-docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build api webui
+mkdir -p ./data ./logs
+cp .env.preprod.example .env.preprod
+docker compose --env-file .env.preprod -f docker-compose.yml -f docker-compose.dev.yml up -d --build migrate api webui
 ```
 
-This uses repo-local bind mounts for `data/`, `logs/`, `backend/`, and `frontend/`, so the whole dev stack can move with the checked-out repository path.
+This uses repo-local bind mounts for `data/`, `logs/`, `backend/`, and `frontend/`, so the whole dev stack can move with the checked-out repository path. If the host user is not UID/GID `1000:1000`, update `LOCAL_UID` and `LOCAL_GID` in `.env.preprod` accordingly.
 
 ### 3. Run migrations manually when schema changes
 
 Hot reload does not apply Alembic migrations automatically. When you pull a migration change or update backend models that require one, run:
 
 ```bash
-docker compose -f docker-compose.yml -f docker-compose.dev.yml run --rm migrate
+docker compose --env-file .env.preprod -f docker-compose.yml -f docker-compose.dev.yml run --rm migrate
 ```
 
 The dev overlay bind-mounts `backend/` into the migration container, so newly pulled Alembic files are visible without rebuilding the backend image.
@@ -342,13 +350,13 @@ Rebuild the affected service when dependency files change:
 Backend rebuild:
 
 ```bash
-docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build api
+docker compose --env-file .env.preprod -f docker-compose.yml -f docker-compose.dev.yml up -d --build api
 ```
 
 Frontend rebuild:
 
 ```bash
-docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build webui
+docker compose --env-file .env.preprod -f docker-compose.yml -f docker-compose.dev.yml up -d --build webui
 ```
 
 ### 5. Verify hot reload behavior
@@ -356,10 +364,10 @@ docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build web
 Recommended checks on the test machine:
 
 ```bash
-docker compose -f docker-compose.yml -f docker-compose.dev.yml ps
-docker compose -f docker-compose.yml -f docker-compose.dev.yml logs api --tail 50
-docker compose -f docker-compose.yml -f docker-compose.dev.yml logs webui --tail 50
-docker compose -f docker-compose.yml -f docker-compose.dev.yml exec api python -c "import urllib.request; print(urllib.request.urlopen('http://127.0.0.1:8001/readyz', timeout=5).status)"
+docker compose --env-file .env.preprod -f docker-compose.yml -f docker-compose.dev.yml ps
+docker compose --env-file .env.preprod -f docker-compose.yml -f docker-compose.dev.yml logs api --tail 50
+docker compose --env-file .env.preprod -f docker-compose.yml -f docker-compose.dev.yml logs webui --tail 50
+docker compose --env-file .env.preprod -f docker-compose.yml -f docker-compose.dev.yml exec api python -c "import urllib.request; print(urllib.request.urlopen('http://127.0.0.1:8001/readyz', timeout=5).status)"
 ```
 
 Then confirm:
@@ -378,7 +386,11 @@ Good for:
 - low traffic
 - evaluation or internal small-team usage
 
-Current default compose setup uses SQLite persisted in the repo-local bind mount:
+Current default compose setup uses SQLite persisted in a Docker named volume:
+
+- the named volume from `docker-compose.yml`
+
+The test-preprod overlay uses the repo-local bind mount:
 
 - `./data/skillhub.db`
 
@@ -399,7 +411,8 @@ If you switch to PostgreSQL, update `DATABASE_URL` and add a `db` service to Com
 - only expose `8001` if you intentionally want the backend reachable directly
 - set a real `SECRET_KEY`
 - set `DEBUG=false`
-- ensure `./data` and `./logs` exist and are writable by UID/GID `1000:1000`
+- ensure `./data` and `./logs` exist and are writable when using the test-preprod overlay
+- set `LOCAL_UID` and `LOCAL_GID` to match the host user if `1000:1000` is not writable
 - use PostgreSQL if this is not a low-traffic single-node deployment
 - rebuild web UI whenever `NEXT_PUBLIC_API_BASE_URL` changes
 
@@ -417,7 +430,7 @@ If you switch to PostgreSQL, update `DATABASE_URL` and add a `db` service to Com
 - Editing backend feature envs but not rebuilding frontend after changing public origin
   Capability flags do not require frontend rebuild, but public API base does.
 
-- Binding `/app/data` and `/app/logs` to host paths without matching write permissions
+- Binding `/app/data` and `/app/logs` in the test-preprod overlay without matching write permissions
   SQLite migration and file logging will fail with `unable to open database file` or file permission errors.
 
 - Regenerating `uv.lock` against one index and building against another

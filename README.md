@@ -47,24 +47,35 @@
 
 ### Docker Setup
 
+The default Compose stack is production-like: it uses a named volume for SQLite, keeps logs on stdout/stderr, and does not require host `./data` or `./logs` directories.
+
 ```bash
 git clone https://github.com/jiabai/open-skillhub.git
 cd open-skillhub
 cp backend/.env.example backend/.env
-mkdir -p ./data ./logs
 # Edit backend/.env — at minimum, change SECRET_KEY to a random 32+ char string
 # Example: python -c "import secrets; print(secrets.token_urlsafe(32))"
 UV_DEFAULT_INDEX=https://pypi.tuna.tsinghua.edu.cn/simple uv lock
 python scripts/sync_shared_catalogs.py --check
-docker compose up -d --build migrate
-docker compose up -d api webui
+docker compose up -d --build migrate api webui
 ```
 
-The first command regenerates `uv.lock` against the configured mirror when you are on a restricted network. The catalog check confirms that committed generated user-status assets are still in sync before container builds. The migration step then initializes the SQLite database under `./data/skillhub.db`, and the final command starts the API plus the web UI service `webui`. API logs are written to `./logs/api.log`.
+If you expose the frontend through a LAN IP or domain instead of `localhost`, export `NEXT_PUBLIC_API_BASE_URL` to that public origin before starting the stack.
+
+If you are using the test-preprod hot-reload overlay, mount source, data, and logs onto the host and keep code reload enabled:
+
+```bash
+mkdir -p ./data ./logs
+cp .env.preprod.example .env.preprod
+# Edit .env.preprod if this host is not using localhost or UID/GID 1000:1000
+docker compose --env-file .env.preprod -f docker-compose.yml -f docker-compose.dev.yml up -d --build migrate api webui
+```
+
+Set `NEXT_PUBLIC_API_BASE_URL` in `.env.preprod` to your LAN IP or domain if you open the frontend through anything other than `localhost`. The overlay keeps `uvicorn --reload` and `next dev` enabled, mounts `./backend`, `./frontend`, `./data`, and `./logs`, and writes backend logs to `./logs/api.log`.
 
 Access the web console through your reverse proxy or through the local bind at `http://127.0.0.1:3000`.
 
-The backend image now uses a multi-stage build. On low-resource hosts, the first `docker compose up -d --build migrate` may still take a few minutes because it must download and install Python dependencies before migration can run. Later rebuilds should be much faster as long as the Docker build cache is retained.
+The backend image now uses a multi-stage build. On low-resource hosts, the first `docker compose up -d --build migrate api webui` may still take a few minutes because it must download and install Python dependencies before migration can run. Later rebuilds should be much faster as long as the Docker build cache is retained.
 
 ### Manual Installation
 

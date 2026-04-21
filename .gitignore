@@ -5,6 +5,7 @@
 .worktrees/
 .env*
 !.env.example
+!.env.preprod.example
 .DS_Store
 .idea
 venv/

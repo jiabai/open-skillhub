@@ -25,7 +25,7 @@
 
 这意味着：
 
-- 首次执行 `docker compose up -d --build migrate` 时，在低配机器上仍可能需要几分钟，因为要先构建镜像并下载 Python 依赖
+- 首次执行 `docker compose up -d --build migrate api webui` 时，在低配机器上仍可能需要几分钟，因为要先构建镜像并下载 Python 依赖
 - 之后的重建通常会快很多，除非 `pyproject.toml`、`uv.lock` 发生变化，或者 Docker 构建缓存被清空
 
 ### 2. `uv.lock` 必须和包源保持一致
@@ -54,13 +54,15 @@ grep -n "pypi.org/simple\\|files.pythonhosted.org" uv.lock | head
 
 `NEXT_PUBLIC_API_BASE_URL` 会在前端构建时写入产物。
 
-生产环境推荐填写：
+默认 Compose 和测试预发覆盖层都应该把它设置成浏览器实际访问的前端地址。
 
-- `http://YOUR_SERVER_IP`
-- 或 `https://YOUR_DOMAIN`
+测试预发覆盖层的推荐默认值是：
 
-不要填 Docker 内部地址，例如 `http://api:8001`。  
-也不要保留旧服务器的公网 IP。
+- `http://127.0.0.1:3000`
+
+如果浏览器不是通过 `localhost` 打开前端，而是通过局域网 IP 或域名访问，请覆盖成对应的公网地址。
+
+不要填 Docker 内部地址，例如 `http://api:8001`。
 
 如果修改了这个值，需要重新构建前端镜像。
 
@@ -74,20 +76,27 @@ API_INTERNAL_URL=http://api:8001
 
 它只用于前端容器内的 Next.js 服务端重写。
 
-### 5. 当前 Compose 使用仓库内相对路径的 bind mount 保存 SQLite、skills 和日志
+### 5. 默认 Compose 使用 named volume，测试预发覆盖层使用宿主机 bind mount
 
-默认 compose 文件映射了这些仓库内相对目录：
+默认 compose 文件使用 [docker-compose.yml](/D:/Github/open-skillhub/docker-compose.yml) 里的 Docker named volume，因此不需要宿主机上的 `./data` 或 `./logs` 目录。
+
+测试预发覆盖层则会改成以下宿主机相对目录映射：
 
 - `./data` -> `/app/data`
 - `./logs` -> `/app/logs`
+- `./backend` -> `/app/backend`
+- `./frontend` -> `/workspace/frontend`
 
-因此：
+在覆盖层模式下：
 
 - SQLite 数据库位于 `./data/skillhub.db`
 - skill 文件位于 `./data/skills`
 - API 日志位于 `./logs/api.log`
+- 后端代码会通过 `uvicorn --reload` 自动重载
+- 前端代码会通过 `next dev` 自动热更新
+- 如果宿主机用户不是 `1000:1000`，可以用 `LOCAL_UID` 和 `LOCAL_GID` 覆盖容器运行用户
 
-后端容器以 UID/GID `1000:1000` 运行，因此仓库内的 `data/` 和 `logs/` 目录需要对这个映射用户可写。
+仓库里提供了一个模板文件 [.env.preprod.example](/D:/Github/open-skillhub/.env.preprod.example)。你可以先复制成本地 `.env.preprod`，再用 `docker compose --env-file .env.preprod ...` 启动测试预发覆盖层。
 
 ### 6. 前端业务能力以服务端运行时配置为准
 
@@ -150,13 +159,19 @@ python -c "import secrets; print(secrets.token_urlsafe(32))"
 
 ### 2. 准备仓库内目录
 
-在启动容器前先创建挂载目录：
+只在使用测试预发覆盖层时需要创建这些目录：
 
 ```bash
 mkdir -p ./data ./logs
 ```
 
-请在仓库根目录执行这条命令。如果你的部署用户不是 UID/GID `1000:1000`，请相应调整 compose 里的 `user:`，或者把目录 `chown` 给对应用户。
+请在仓库根目录执行这条命令，然后准备覆盖层专用的本地环境变量文件：
+
+```bash
+cp .env.preprod.example .env.preprod
+```
+
+如果你的部署用户不是 UID/GID `1000:1000`，请在启动覆盖层前把 `.env.preprod` 里的 `LOCAL_UID` 和 `LOCAL_GID` 改成宿主机用户的值。
 
 ### 3. 设置 Web UI 的公网访问地址
 
@@ -166,30 +181,11 @@ mkdir -p ./data ./logs
 python scripts/sync_shared_catalogs.py --check
 ```
 
-构建前，编辑 [docker-compose.yml](/D:/Github/open-skillhub/docker-compose.yml)。
+默认 Compose 或测试预发覆盖层都要把 `NEXT_PUBLIC_API_BASE_URL` 设成浏览器实际访问的前端地址。覆盖层里的 `.env.preprod` 可以默认用 `http://127.0.0.1:3000`，如果通过局域网 IP 或域名访问，再改成对应公网地址。
 
-如果是服务器 IP 部署：
+`API_INTERNAL_URL=http://api:8001` 继续只用于前端容器里的 Next.js 服务端重写。
 
-```yaml
-args:
-  - NEXT_PUBLIC_API_BASE_URL=http://YOUR_SERVER_IP
-  - API_INTERNAL_URL=http://api:8001
-```
-
-如果是域名部署：
-
-```yaml
-args:
-  - NEXT_PUBLIC_API_BASE_URL=https://YOUR_DOMAIN
-  - API_INTERNAL_URL=http://api:8001
-```
-
-这样浏览器会访问：
-
-- `http://YOUR_SERVER_IP/api/v1/...`
-- 或 `https://YOUR_DOMAIN/api/v1/...`
-
-然后由 Next.js 转发到后端容器。
+这样浏览器会访问前端公网地址，然后由 Next.js 转发到后端容器。
 
 ### 4. 配置 Nginx 反向代理
 
@@ -235,33 +231,34 @@ CORS_ORIGINS=["http://YOUR_SERVER_IP","https://YOUR_DOMAIN"]
 
 ### 6. 启动迁移和服务
 
-推荐首次启动顺序：
+默认 Compose 的推荐启动顺序：
 
 ```bash
-docker compose down
-docker compose up migrate
-docker compose up api
-docker compose up webui
+docker compose up -d --build migrate api webui
 ```
 
-确认服务都正常后，可以改为后台运行：
+这套默认基线会把日志留在 Docker 里，并使用 base compose 里的 named volume。
+
+如果你要使用测试预发的热重载覆盖层，请改用：
 
 ```bash
-docker compose up -d api webui
+mkdir -p ./data ./logs
+cp .env.preprod.example .env.preprod
+docker compose --env-file .env.preprod -f docker-compose.yml -f docker-compose.dev.yml up -d --build migrate api webui
 ```
 
 如果你的 Compose 版本不支持 `depends_on.condition: service_completed_successfully`，可以使用备用方案：
 
 ```bash
-docker compose run --rm migrate
-docker compose up -d api webui
+docker compose --env-file .env.preprod -f docker-compose.yml -f docker-compose.dev.yml run --rm migrate
+docker compose --env-file .env.preprod -f docker-compose.yml -f docker-compose.dev.yml up -d api webui
 ```
 
 注意：`docker compose up api` 会先等待 `migrate` 成功完成，因为 `api` 显式依赖 `migrate`。这属于正常行为，不会重复执行已经完成的 revision。
 
 ### 7. 验证
 
-在服务器上执行：
+默认 Compose 基线下，在服务器上执行：
 
 ```bash
 docker compose config
@@ -269,6 +266,16 @@ docker compose ps
 docker compose logs api --tail 50
 docker compose logs webui --tail 50
 docker compose exec api python -c "import urllib.request; print(urllib.request.urlopen('http://127.0.0.1:8001/readyz', timeout=5).read().decode())"
+```
+
+测试预发覆盖层下，使用同样的检查命令加上 `-f docker-compose.yml -f docker-compose.dev.yml`，然后再看宿主机目录：
+
+```bash
+docker compose --env-file .env.preprod -f docker-compose.yml -f docker-compose.dev.yml config
+docker compose --env-file .env.preprod -f docker-compose.yml -f docker-compose.dev.yml ps
+docker compose --env-file .env.preprod -f docker-compose.yml -f docker-compose.dev.yml logs api --tail 50
+docker compose --env-file .env.preprod -f docker-compose.yml -f docker-compose.dev.yml logs webui --tail 50
+docker compose --env-file .env.preprod -f docker-compose.yml -f docker-compose.dev.yml exec api python -c "import urllib.request; print(urllib.request.urlopen('http://127.0.0.1:8001/readyz', timeout=5).read().decode())"
 ls -l ./data
 ls -l ./logs
 tail -n 50 ./logs/api.log
@@ -298,30 +305,31 @@ tail -n 50 ./logs/api.log
 
 ### 1. 配置开发模式的公网前端地址
 
-开发覆盖文件默认为：
+开发覆盖文件建议默认为：
 
-```yaml
-environment:
-  NEXT_PUBLIC_API_BASE_URL: http://39.107.59.41
-  API_INTERNAL_URL: http://api:8001
+```env
+NEXT_PUBLIC_API_BASE_URL=http://127.0.0.1:3000
+API_INTERNAL_URL=http://api:8001
 ```
 
-如果你的测试机使用不同的公网 IP 或域名，请在启动前编辑 [docker-compose.dev.yml](/D:/Github/open-skillhub/docker-compose.dev.yml)。
+请先把 [.env.preprod.example](/D:/Github/open-skillhub/.env.preprod.example) 复制成 `.env.preprod`；如果你的测试机使用不同的公网 IP 或域名，再修改其中的 `NEXT_PUBLIC_API_BASE_URL`。
 
 ### 2. 启动或刷新热重载环境
 
 ```bash
-docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build api webui
+mkdir -p ./data ./logs
+cp .env.preprod.example .env.preprod
+docker compose --env-file .env.preprod -f docker-compose.yml -f docker-compose.dev.yml up -d --build migrate api webui
 ```
 
-此命令使用仓库内相对路径的 bind mount 挂载 `data/`、`logs/`、`backend/` 和 `frontend/`，因此整个开发环境可以跟随仓库路径移动。
+此命令使用仓库内相对路径的 bind mount 挂载 `data/`、`logs/`、`backend/` 和 `frontend/`，因此整个开发环境可以跟随仓库路径移动。如果宿主机用户不是 `1000:1000`，请相应调整 `.env.preprod` 里的 `LOCAL_UID` 和 `LOCAL_GID`。
 
 ### 3. 数据库变更时手动运行迁移
 
 热重载模式不会自动执行 Alembic 迁移。当你拉取了迁移变更或更新了需要迁移的后端模型时，请运行：
 
 ```bash
-docker compose -f docker-compose.yml -f docker-compose.dev.yml run --rm migrate
+docker compose --env-file .env.preprod -f docker-compose.yml -f docker-compose.dev.yml run --rm migrate
 ```
 
 开发覆盖文件会把 `backend/` bind mount 到迁移容器中，因此新拉取的 Alembic 文件无需重建后端镜像即可被识别。
@@ -340,13 +348,13 @@ docker compose -f docker-compose.yml -f docker-compose.dev.yml run --rm migrate
 后端重建：
 
 ```bash
-docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build api
+docker compose --env-file .env.preprod -f docker-compose.yml -f docker-compose.dev.yml up -d --build api
 ```
 
 前端重建：
 
 ```bash
-docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build webui
+docker compose --env-file .env.preprod -f docker-compose.yml -f docker-compose.dev.yml up -d --build webui
 ```
 
 ### 5. 验证热重载行为
@@ -354,10 +362,10 @@ docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build web
 在测试机上建议执行以下检查：
 
 ```bash
-docker compose -f docker-compose.yml -f docker-compose.dev.yml ps
-docker compose -f docker-compose.yml -f docker-compose.dev.yml logs api --tail 50
-docker compose -f docker-compose.yml -f docker-compose.dev.yml logs webui --tail 50
-docker compose -f docker-compose.yml -f docker-compose.dev.yml exec api python -c "import urllib.request; print(urllib.request.urlopen('http://127.0.0.1:8001/readyz', timeout=5).status)"
+docker compose --env-file .env.preprod -f docker-compose.yml -f docker-compose.dev.yml ps
+docker compose --env-file .env.preprod -f docker-compose.yml -f docker-compose.dev.yml logs api --tail 50
+docker compose --env-file .env.preprod -f docker-compose.yml -f docker-compose.dev.yml logs webui --tail 50
+docker compose --env-file .env.preprod -f docker-compose.yml -f docker-compose.dev.yml exec api python -c "import urllib.request; print(urllib.request.urlopen('http://127.0.0.1:8001/readyz', timeout=5).status)"
 ```
 
 然后确认：
@@ -376,7 +384,11 @@ docker compose -f docker-compose.yml -f docker-compose.dev.yml exec api python -
 - 低流量场景
 - 试用或小团队内部使用
 
-当前默认 compose 配置下，SQLite 文件位于仓库内 bind mount：
+当前默认 compose 配置下，SQLite 文件位于 Docker named volume 中：
+
+- base compose 里的 named volume
+
+测试预发覆盖层下，SQLite 文件位于仓库内 bind mount：
 
 - `./data/skillhub.db`
 
@@ -397,7 +409,8 @@ docker compose -f docker-compose.yml -f docker-compose.dev.yml exec api python -
 - 如果不需要机器直连后端，就不要额外暴露 `8001`
 - 设置一个真实且足够长的 `SECRET_KEY`
 - 设置 `DEBUG=false`
-- 确保 `./data` 和 `./logs` 对 UID/GID `1000:1000` 可写
+- 只有在使用测试预发覆盖层时，才需要确保 `./data` 和 `./logs` 可写
+- 如果 `1000:1000` 不是宿主机用户，请把 `LOCAL_UID` 和 `LOCAL_GID` 设成对应值
 - 如果不是低流量单节点场景，优先使用 PostgreSQL
 - 只要修改了 `NEXT_PUBLIC_API_BASE_URL`，就需要重新构建 Web UI
 
@@ -415,7 +428,7 @@ docker compose -f docker-compose.yml -f docker-compose.dev.yml exec api python -
 - 改了后端能力环境变量，但修改公网前端地址后没有重建前端
   业务能力开关不要求重建前端，但公网 API 地址变更一定需要。
 
-- 把 `/app/data` 和 `/app/logs` 绑定到宿主机目录后，没有给容器用户可写权限
+- 在测试预发覆盖层里把 `/app/data` 和 `/app/logs` 绑定到宿主机目录后，没有给容器用户可写权限
   会导致 SQLite 迁移失败，或者日志文件无法创建，常见报错是 `unable to open database file`。
 
 - `uv.lock` 用一个源生成，构建时又用另一个源

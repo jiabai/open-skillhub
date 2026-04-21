@@ -47,24 +47,35 @@
 
 ### Docker 部署（推荐）
 
+默认 Compose 走的是生产型基线：SQLite 使用 named volume，日志输出到 stdout/stderr，不需要宿主机上的 `./data` 或 `./logs` 目录。
+
 ```bash
 git clone https://github.com/jiabai/open-skillhub.git
 cd open-skillhub
 cp backend/.env.example backend/.env
-mkdir -p ./data ./logs
 # 编辑 backend/.env — 至少需要修改 SECRET_KEY 为 32 位以上的随机字符串
 # 示例：python -c "import secrets; print(secrets.token_urlsafe(32))"
 UV_DEFAULT_INDEX=https://pypi.tuna.tsinghua.edu.cn/simple uv lock
 python scripts/sync_shared_catalogs.py --check
-docker compose up -d --build migrate
-docker compose up -d api webui
+docker compose up -d --build migrate api webui
 ```
 
-第一条命令会在受限网络环境下按当前镜像源重新生成 `uv.lock`；catalog 检查会在构建容器前确认已提交的用户状态生成文件仍然和共享源一致；迁移命令会初始化位于 `./data/skillhub.db` 的 SQLite 数据库；最后一条命令会启动 API 和前端服务 `webui`。API 日志会写入 `./logs/api.log`。
+如果前端不是通过 `localhost` 访问，而是通过局域网 IP 或域名访问，请在启动前把 `NEXT_PUBLIC_API_BASE_URL` 设成对应的公网地址。
+
+如果你要使用测试预发的热重载覆盖层，需要把源码、数据和日志都映射到宿主机：
+
+```bash
+mkdir -p ./data ./logs
+cp .env.preprod.example .env.preprod
+# 如果不是 localhost 或者宿主机 UID/GID 不是 1000:1000，请修改 .env.preprod
+docker compose --env-file .env.preprod -f docker-compose.yml -f docker-compose.dev.yml up -d --build migrate api webui
+```
+
+如果你不是通过 `localhost` 打开前端，而是通过局域网 IP 或域名访问，请把 `.env.preprod` 里的 `NEXT_PUBLIC_API_BASE_URL` 改成对应的公网地址。这个覆盖层会继续启用 `uvicorn --reload` 和 `next dev`，并把 `./backend`、`./frontend`、`./data`、`./logs` 挂进容器，后端日志会写到 `./logs/api.log`。
 
 完成后可通过反向代理访问，或直接在宿主机上访问 `http://127.0.0.1:3000` 打开 Web 控制台。
 
-后端镜像现在使用多阶段构建。在低配置主机上，第一次执行 `docker compose up -d --build migrate` 仍然可能需要几分钟，因为需要先下载并安装 Python 依赖，再执行迁移。只要 Docker 的构建缓存还在，后续重建通常会快很多。
+后端镜像现在使用多阶段构建。在低配置主机上，第一次执行 `docker compose up -d --build migrate api webui` 仍然可能需要几分钟，因为需要先下载并安装 Python 依赖，再执行迁移。只要 Docker 的构建缓存还在，后续重建通常会快很多。
 
 ### 手动安装
 

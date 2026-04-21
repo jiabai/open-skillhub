@@ -1,6 +1,6 @@
 services:
   migrate:
-    user: "1000:1000"
+    user: "${LOCAL_UID:-1000}:${LOCAL_GID:-1000}"
     environment:
       LOG_FILE: /app/logs/api.log
     volumes:
@@ -9,8 +9,7 @@ services:
       - ./backend:/app/backend
 
   api:
-    user: "1000:1000"
-    depends_on: []
+    user: "${LOCAL_UID:-1000}:${LOCAL_GID:-1000}"
     environment:
       LOG_FILE: /app/logs/api.log
       WATCHFILES_FORCE_POLLING: "true"
@@ -39,10 +38,16 @@ services:
         reservations:
           memory: 384M
     build:
+      context: .
+      dockerfile: frontend/Dockerfile
       target: dev
+      args:
+        NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-http://127.0.0.1:3000}
+        API_INTERNAL_URL: ${API_INTERNAL_URL:-http://api:8001}
+        NPM_REGISTRY: https://registry.npmmirror.com
     environment:
-      NEXT_PUBLIC_API_BASE_URL: http://39.107.59.41
-      API_INTERNAL_URL: http://api:8001
+      NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-http://127.0.0.1:3000}
+      API_INTERNAL_URL: ${API_INTERNAL_URL:-http://api:8001}
       WATCHPACK_POLLING: "true"
     command: ["npm", "run", "dev", "--", "--hostname", "0.0.0.0", "--port", "3000"]
     ports:

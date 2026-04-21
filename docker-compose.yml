@@ -62,7 +62,7 @@ services:
       context: .
       dockerfile: frontend/Dockerfile
       args:
-        - NEXT_PUBLIC_API_BASE_URL=${NEXT_PUBLIC_API_BASE_URL:-http://127.0.0.1:3000}
+        - NEXT_PUBLIC_API_BASE_URL=${NEXT_PUBLIC_API_BASE_URL:-http://39.107.59.41}
         - API_INTERNAL_URL=${API_INTERNAL_URL:-http://api:8001}
         - NPM_REGISTRY=https://registry.npmmirror.com
     ports:

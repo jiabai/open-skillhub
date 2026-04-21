@@ -54,15 +54,11 @@ grep -n "pypi.org/simple\\|files.pythonhosted.org" uv.lock | head
 
 `NEXT_PUBLIC_API_BASE_URL` 会在前端构建时写入产物。
 
-默认 Compose 和测试预发覆盖层都应该把它设置成浏览器实际访问的前端地址。
+本地开发或仅限本机访问时，测试预发覆盖层可以保持 `http://127.0.0.1:3000`。
 
-测试预发覆盖层的推荐默认值是：
+如果是预发或任何浏览器要直接访问的环境，就必须填浏览器实际打开的公网 origin。对这台机器来说，就是 `http://39.107.59.41`。
 
-- `http://127.0.0.1:3000`
-
-如果浏览器不是通过 `localhost` 打开前端，而是通过局域网 IP 或域名访问，请覆盖成对应的公网地址。
-
-不要填 Docker 内部地址，例如 `http://api:8001`。
+不要使用 `0.0.0.0`，它只是监听地址，不是浏览器可访问的 origin。也不要填 Docker 内部地址，例如 `http://api:8001`。
 
 如果修改了这个值，需要重新构建前端镜像。
 
@@ -181,7 +177,9 @@ cp .env.preprod.example .env.preprod
 python scripts/sync_shared_catalogs.py --check
 ```
 
-默认 Compose 或测试预发覆盖层都要把 `NEXT_PUBLIC_API_BASE_URL` 设成浏览器实际访问的前端地址。覆盖层里的 `.env.preprod` 可以默认用 `http://127.0.0.1:3000`，如果通过局域网 IP 或域名访问，再改成对应公网地址。
+默认 Compose 或测试预发覆盖层都要把 `NEXT_PUBLIC_API_BASE_URL` 设成浏览器实际访问的前端地址。覆盖层里的 `.env.preprod` 可以默认用 `http://127.0.0.1:3000` 仅供本机访问；如果是预发或通过公网 IP / 域名访问，就改成实际公网 origin，例如这台机器的 `http://39.107.59.41`。
+
+不要使用 `0.0.0.0`，它只是监听地址，不是浏览器可访问地址。也不要填 Docker 内部地址，例如 `http://api:8001`。
 
 `API_INTERNAL_URL=http://api:8001` 继续只用于前端容器里的 Next.js 服务端重写。
 

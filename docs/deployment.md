@@ -54,15 +54,11 @@ grep -n "pypi.org/simple\\|files.pythonhosted.org" uv.lock | head
 
 `NEXT_PUBLIC_API_BASE_URL` is compiled into the frontend build.
 
-For the default stack and the test-preprod overlay, set it to the public origin that browsers actually use.
+For local-only development, the test-preprod overlay can keep `http://127.0.0.1:3000`.
 
-For the test-preprod overlay, a good default is:
+For preprod or any browser-facing deployment, set it to the public origin that browsers actually use. For this host, that means `http://39.107.59.41`.
 
-- `http://127.0.0.1:3000`
-
-Override it with your LAN IP or domain whenever the browser does not open the frontend on `localhost`.
-
-Do not point it at the internal Docker hostname like `http://api:8001`.
+Do not use `0.0.0.0`; that is only a bind/listen address. Do not point it at the internal Docker hostname like `http://api:8001`.
 
 If you change this value, rebuild the frontend image.
 
@@ -183,7 +179,9 @@ Before building images, verify synced catalogs:
 python scripts/sync_shared_catalogs.py --check
 ```
 
-For the default stack or the dev overlay, set `NEXT_PUBLIC_API_BASE_URL` to the browser-facing origin. In the overlay, `.env.preprod` should usually default to `http://127.0.0.1:3000`; for LAN or domain access, override it to the actual public origin.
+For the default stack or the dev overlay, set `NEXT_PUBLIC_API_BASE_URL` to the browser-facing origin. In the overlay, `.env.preprod` can default to `http://127.0.0.1:3000` for local-only access. For preprod or any public browser access, override it to the actual public origin, such as `http://39.107.59.41` on this host or a domain name.
+
+Do not use `0.0.0.0`; it is only a bind/listen address. Do not point it at `http://api:8001`.
 
 Keep `API_INTERNAL_URL=http://api:8001` for the Next.js server-side rewrite inside the frontend container.
 

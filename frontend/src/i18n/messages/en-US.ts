@@ -194,7 +194,7 @@ export const enUSDictionary: AppDictionary = {
   },
   publicSkills: {
     title: "Public Skills",
-    summaryPersonal: "Start here if you want to adopt a public Skill quickly. Use a reference first, and clone only when you need an editable private copy.",
+    summaryPersonal: "Want to use a public Skill fast? Start with \"Reference\" to add it to your space, then \"Clone\" a private copy when you need to edit.",
     summaryGoverned: "Browse reusable public Skills and bring them into your governed workspace with the right ownership model.",
     searchPlaceholder: "Search public Skills",
     search: "Search",

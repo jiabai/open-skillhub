@@ -194,7 +194,7 @@ export const zhCNDictionary: AppDictionary = {
   },
   publicSkills: {
     title: "公共 Skills",
-    summaryPersonal: "如果你想快速采用一个公共 Skill，可以从这里开始。先用引用，只有需要自己的可编辑副本时再克隆。",
+    summaryPersonal: "想快速用上公共 Skill？先选择「引用」将它添加到你的空间，等需要修改时再「克隆」一份副本。",
     summaryGoverned: "浏览可复用的公共 Skills，并用合适的归属方式把它们引入当前治理工作区。",
     searchPlaceholder: "搜索公共 Skills",
     search: "搜索",

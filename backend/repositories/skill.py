@@ -46,6 +46,16 @@ class SkillRepository(BaseRepository):
         return or_(*filters)
 
     @staticmethod
+    def _workspace_filter(
+        user_id: str,
+        enterprise_id: str | None,
+        team_id: str | None,
+    ):
+        if not settings.ENABLE_SKILL_VISIBILITY or not settings.ENABLE_RBAC:
+            return Skill.user_id == user_id
+        return SkillRepository._visibility_filter(user_id, enterprise_id, team_id)
+
+    @staticmethod
     def _apply_active_filter(stmt, include_inactive: bool):
         if include_inactive:
             return stmt
@@ -221,6 +231,38 @@ class SkillRepository(BaseRepository):
         stmt = select(func.count()).select_from(Skill)
         stmt = self._apply_active_filter(stmt, include_inactive)
         stmt = stmt.where(self._visibility_filter(user_id, enterprise_id, team_id))
+        result = await self.session.execute(self._apply_query_filter(stmt, query))
+        return int(result.scalar_one())
+
+    async def list_workspace(
+        self,
+        user_id: str,
+        enterprise_id: str | None,
+        team_id: str | None,
+        skip: int = 0,
+        limit: int = 100,
+        query: str | None = None,
+        include_inactive: bool = False,
+    ) -> list[Skill]:
+        stmt = select(Skill)
+        stmt = self._apply_active_filter(stmt, include_inactive)
+        stmt = stmt.where(self._workspace_filter(user_id, enterprise_id, team_id))
+        stmt = self._apply_query_filter(stmt, query)
+        stmt = self._apply_pagination(stmt, skip, limit)
+        result = await self.session.execute(stmt)
+        return list(result.scalars().all())
+
+    async def count_workspace(
+        self,
+        user_id: str,
+        enterprise_id: str | None,
+        team_id: str | None,
+        query: str | None = None,
+        include_inactive: bool = False,
+    ) -> int:
+        stmt = select(func.count()).select_from(Skill)
+        stmt = self._apply_active_filter(stmt, include_inactive)
+        stmt = stmt.where(self._workspace_filter(user_id, enterprise_id, team_id))
         result = await self.session.execute(self._apply_query_filter(stmt, query))
         return int(result.scalar_one())
 

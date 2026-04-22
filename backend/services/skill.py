@@ -50,6 +50,34 @@ class SkillService:
             include_inactive=include_inactive,
         )
 
+    async def list_workspace_skills(
+        self,
+        user,
+        skip: int = 0,
+        limit: int = 100,
+        query: str | None = None,
+        include_inactive: bool = False,
+    ):
+        return await self.lifecycle.list_workspace_skills(
+            user,
+            skip=skip,
+            limit=limit,
+            query=query,
+            include_inactive=include_inactive,
+        )
+
+    async def count_workspace_skills(
+        self,
+        user,
+        query: str | None = None,
+        include_inactive: bool = False,
+    ) -> int:
+        return await self.lifecycle.count_workspace_skills(
+            user,
+            query=query,
+            include_inactive=include_inactive,
+        )
+
     async def get_skill(self, user, skill_id: str):
         return await self.lifecycle.get_skill(user, skill_id)
 

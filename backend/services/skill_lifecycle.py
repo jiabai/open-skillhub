@@ -43,6 +43,38 @@ class SkillLifecycleCoordinator:
             include_inactive=include_inactive,
         )
 
+    async def list_workspace_skills(
+        self,
+        user: User,
+        skip: int = 0,
+        limit: int = 100,
+        query: str | None = None,
+        include_inactive: bool = False,
+    ) -> list[Skill]:
+        return await self.skill_repo.list_workspace(
+            user.id,
+            user.enterprise_id,
+            user.team_id,
+            skip=skip,
+            limit=limit,
+            query=query,
+            include_inactive=include_inactive,
+        )
+
+    async def count_workspace_skills(
+        self,
+        user: User,
+        query: str | None = None,
+        include_inactive: bool = False,
+    ) -> int:
+        return await self.skill_repo.count_workspace(
+            user.id,
+            user.enterprise_id,
+            user.team_id,
+            query=query,
+            include_inactive=include_inactive,
+        )
+
     async def get_skill(self, user: User, skill_id: str) -> Skill:
         skill = await self.skill_repo.get_by_id(skill_id)
         if not skill:

@@ -1096,6 +1096,39 @@ async def test_public_skill_list_and_detail(client, async_session, tmp_path, mon
 
 
 @pytest.mark.asyncio
+async def test_workspace_skill_list_excludes_public_catalog_entries(client, async_session, tmp_path, monkeypatch):
+    monkeypatch.setattr(settings, "SKILL_STORAGE_PATH", str(tmp_path))
+    monkeypatch.setattr(settings, "ENABLE_RBAC", False)
+    monkeypatch.setattr(settings, "ENABLE_SKILL_VISIBILITY", True)
+
+    public_skill = await _create_public_skill(async_session, tmp_path)
+    headers = await _register_and_login(client, "workspace-list@example.com", "workspacelist")
+
+    created = await client.post(
+        "/api/v1/skills",
+        json={"name": "workspace-owned-skill", "description": "Owned skill"},
+        headers=headers,
+    )
+    assert created.status_code == 201
+
+    workspace_list = await client.get("/api/v1/skills", headers=headers)
+    assert workspace_list.status_code == 200
+    workspace_payload = workspace_list.json()
+    workspace_names = {item["name"] for item in workspace_payload["items"]}
+
+    assert workspace_payload["total"] == 1
+    assert workspace_names == {"workspace-owned-skill"}
+    assert all(item["skill_kind"] != "public" for item in workspace_payload["items"])
+
+    public_list = await client.get("/api/v1/skills/public", headers=headers)
+    assert public_list.status_code == 200
+    public_payload = public_list.json()
+    assert public_payload["total"] == 1
+    assert public_payload["items"][0]["id"] == public_skill.id
+    assert public_payload["items"][0]["name"] == public_skill.name
+
+
+@pytest.mark.asyncio
 async def test_public_skill_list_and_detail_require_auth(client, async_session, tmp_path, monkeypatch):
     monkeypatch.setattr(settings, "SKILL_STORAGE_PATH", str(tmp_path))
     monkeypatch.setattr(settings, "ENABLE_RBAC", False)

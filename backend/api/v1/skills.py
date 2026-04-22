@@ -47,17 +47,15 @@ async def list_skills(
     session=Depends(get_async_session),
 ):
     service = build_skill_service(session)
-    skills = await service.list_skills(
+    skills = await service.list_workspace_skills(
         current_user,
         skip=skip,
         limit=limit,
         query=q,
         include_inactive=include_inactive,
     )
-    total = await service.skill_repo.count_visible(
-        current_user.id,
-        current_user.enterprise_id,
-        current_user.team_id,
+    total = await service.count_workspace_skills(
+        current_user,
         query=q,
         include_inactive=include_inactive,
     )

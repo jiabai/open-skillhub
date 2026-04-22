@@ -1,3 +1,13 @@
+"""同步共享目录中的 user-statuses.json 到后端和前端生成目录。
+
+此脚本用于确保 shared/user-statuses.json 的变更能够自动同步到：
+- backend/domain/user-statuses.json
+- frontend/src/generated/user-statuses.json
+
+用法：
+  python scripts/sync_shared_catalogs.py --check   # 检查是否需要同步
+  python scripts/sync_shared_catalogs.py --write   # 执行同步操作
+"""
 from __future__ import annotations
 
 import argparse

@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { Mail, Wrench, Fingerprint, Building2 } from "lucide-react"
@@ -28,12 +28,6 @@ export default function LoginPage() {
   const codeField = useField<string>("", createVerificationCodeRules(validation.verificationCodeInvalid))
   const [codeMessage, setCodeMessage] = useState<string | null>(null)
   const [resendSeconds, setResendSeconds] = useState(0)
-  const resendSecondsRef = useRef(resendSeconds)
-
-  // 保持 ref 和 state 同步
-  useEffect(() => {
-    resendSecondsRef.current = resendSeconds
-  }, [resendSeconds])
   const [isSending, setIsSending] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -59,14 +53,14 @@ export default function LoginPage() {
   }
 
   useEffect(() => {
-    if (resendSecondsRef.current <= 0) {
+    if (resendSeconds <= 0) {
       return
     }
     const timer = window.setInterval(() => {
       setResendSeconds((current) => (current > 0 ? current - 1 : 0))
     }, 1000)
     return () => window.clearInterval(timer)
-  }, [])
+  }, [resendSeconds])
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()

@@ -1,3 +1,15 @@
+"""同步系统目录中的公开技能到数据库。
+
+此脚本用于将 __system__ 目录下的公开技能同步到数据库，包括：
+- 创建或更新技能记录
+- 同步技能版本信息
+- 自动停用已删除的技能
+
+用法：
+  python backend/scripts/sync_public_skills.py              # 同步所有公开技能
+  python backend/scripts/sync_public_skills.py skill_name   # 同步指定技能
+  python backend/scripts/sync_public_skills.py --storage-root /path/to/root  # 指定存储根目录
+"""
 import argparse
 import asyncio
 import sys
@@ -135,7 +147,6 @@ async def _sync_skill_dir(
     await skill_repo.update(existing, current_version=current_version, is_active=True, skill_dir=stored_skill_dir)
     return skill_dir.name
 
-
 async def sync_public_skills(
     skill_name: str | None = None,
     *,
@@ -182,7 +193,6 @@ async def sync_public_skills(
             deactivated_skill_names=tuple(deactivated_names),
         )
 
-
 def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         description="Sync public skills from the system storage directory.",
@@ -218,7 +228,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     else:
         print(f"No public skills found under {result.system_dir}")
     if result.deactivated_skill_names:
-        print(f"Deactivated {len(result.deactivated_skill_names)} missing public skill(s)")
+        print(f"Deactivated {len(result.deactivated_skill_names)} missing public skill(s): {', '.join(result.deactivated_skill_names)}")
     return 0
 
 

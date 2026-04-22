@@ -2,7 +2,7 @@ import type { AppDictionary } from "@/i18n/messages/types"
 
 export const enUSDictionary: AppDictionary = {
   metadata: {
-    title: "SkillHub Console",
+    title: "SkillDrive Console",
     description: "Multi-user SkillHub console",
   },
   themeToggle: {

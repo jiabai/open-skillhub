@@ -2,7 +2,7 @@ import type { AppDictionary } from "@/i18n/messages/types"
 
 export const zhCNDictionary: AppDictionary = {
   metadata: {
-    title: "SkillHub 控制台",
+    title: "SkillDrive 控制台",
     description: "多用户 SkillHub 控制台",
   },
   themeToggle: {

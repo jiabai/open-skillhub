@@ -99,6 +99,7 @@ describe("console pages", () => {
 
   it("renders login form", () => {
     renderWithRuntimeConfig(<LoginPage />)
+    expect(screen.getByText("8xf SkillDrive")).toBeInTheDocument()
     expect(screen.getAllByRole("textbox").length).toBeGreaterThanOrEqual(2)
     expect(screen.getAllByRole("button").length).toBeGreaterThanOrEqual(1)
   })
@@ -137,6 +138,7 @@ describe("console pages", () => {
 
   it("renders register form", () => {
     renderWithRuntimeConfig(<RegisterPage />)
+    expect(screen.getByText("8xf SkillDrive")).toBeInTheDocument()
     expect(screen.getAllByRole("textbox").length).toBeGreaterThanOrEqual(3)
     expect(screen.getAllByRole("button").length).toBeGreaterThanOrEqual(1)
   })

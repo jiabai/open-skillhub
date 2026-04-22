@@ -47,6 +47,7 @@ export const zhCNDictionary: AppDictionary = {
   appShell: {
     skipToMainContent: "跳到主要内容",
     homeAriaLabel: "SkillHub 首页",
+    brandLabel: "8xf SkillDrive",
     governedConsole: "治理控制台",
     personalWorkspace: "个人工作区",
     workbench: "工作台",

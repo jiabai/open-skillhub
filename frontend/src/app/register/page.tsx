@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { Sparkles } from "lucide-react"
+import { Wrench } from "lucide-react"
 
 import { api, getErrorMessage } from "@/lib/api"
 import { useField, createEmailRules, createVerificationCodeRules, createUsernameRules } from "@/hooks/use-form-validation"
@@ -20,7 +20,7 @@ export default function RegisterPage() {
   const router = useRouter()
   const { config } = useRuntimeConfig()
   const { dictionary } = useI18n()
-  const { register, validation } = dictionary
+  const { appShell, register, validation } = dictionary
   const enablePublicSignup = config.capabilities.public_signup
 
   useEffect(() => {
@@ -209,17 +209,21 @@ export default function RegisterPage() {
           </form>
         </Card>
         <div className="flex flex-col gap-4 sm:gap-6 3xl:gap-8">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-secondary text-secondary-foreground sm:h-12 sm:w-12 3xl:h-14 3xl:w-14">
-              <Sparkles className="h-5 w-5 sm:h-6 sm:w-6 3xl:h-7 3xl:w-7" />
+          <Link
+            href="/"
+            className="flex items-center gap-3 transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+          >
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary text-primary-foreground sm:h-12 sm:w-12 3xl:h-14 3xl:w-14">
+              <Wrench className="h-5 w-5 sm:h-6 sm:w-6 3xl:h-7 3xl:w-7" aria-hidden="true" />
             </div>
             <div>
-              <p className="font-display text-xl sm:text-2xl 3xl:text-3xl">{register.heroTitle}</p>
+              <p className="font-display text-xl sm:text-2xl 3xl:text-3xl">{appShell.brandLabel}</p>
               <p className="text-xs text-muted-foreground sm:text-sm 3xl:text-base">{register.heroSubtitle}</p>
             </div>
-          </div>
+          </Link>
           <div className="rounded-lg border border-border bg-muted/60 p-4 sm:p-6 3xl:p-8">
-            <p className="text-sm text-muted-foreground">{register.heroDescription}</p>
+            <p className="font-display text-xl sm:text-2xl 3xl:text-3xl">{register.heroTitle}</p>
+            <p className="mt-2 text-sm text-muted-foreground">{register.heroDescription}</p>
             <ul className="mt-4 flex flex-col gap-3 text-sm text-muted-foreground">
               <li>{register.featureStorage}</li>
               <li>{register.featureAuth}</li>

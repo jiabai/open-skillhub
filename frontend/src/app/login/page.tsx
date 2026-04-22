@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { Mail, Shield, Fingerprint, Building2 } from "lucide-react"
+import { Mail, Wrench, Fingerprint, Building2 } from "lucide-react"
 
 import { api, apiBaseUrl, storeTokens, getErrorMessage } from "@/lib/api"
 import { useField, createEmailRules, createVerificationCodeRules } from "@/hooks/use-form-validation"
@@ -21,7 +21,7 @@ export default function LoginPage() {
   const router = useRouter()
   const { config } = useRuntimeConfig()
   const { dictionary } = useI18n()
-  const { login, validation } = dictionary
+  const { appShell, login, validation } = dictionary
   const capabilities = config.capabilities
   const showsEmailAuthOnly = capabilities.email_otp_login && !capabilities.sso && !capabilities.ldap
   const emailField = useField<string>("", createEmailRules(validation.emailInvalid))
@@ -112,19 +112,21 @@ export default function LoginPage() {
       <FloatingLanguageToggle />
       <div className="mx-auto grid min-h-screen max-w-screen-xl items-center gap-6 px-4 py-8 sm:px-6 sm:py-12 lg:grid-cols-[1.1fr_0.9fr] lg:gap-10 3xl:max-w-screen-2xl 3xl:gap-14 4k:max-w-screen-3xl 4k:gap-16">
         <div className="flex flex-col gap-4 sm:gap-6 3xl:gap-8">
-          <div className="flex items-center gap-3">
+          <Link
+            href="/"
+            className="flex items-center gap-3 transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+          >
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary text-primary-foreground sm:h-12 sm:w-12 3xl:h-14 3xl:w-14">
-              <Shield className="h-5 w-5 sm:h-6 sm:w-6 3xl:h-7 3xl:w-7" />
+              <Wrench className="h-5 w-5 sm:h-6 sm:w-6 3xl:h-7 3xl:w-7" aria-hidden="true" />
             </div>
             <div>
-              <p className="font-display text-xl sm:text-2xl 3xl:text-3xl">{login.heroTitle}</p>
+              <p className="font-display text-xl sm:text-2xl 3xl:text-3xl">{appShell.brandLabel}</p>
               <p className="text-xs sm:text-sm 3xl:text-base text-muted-foreground">{login.heroSubtitle}</p>
             </div>
-          </div>
+          </Link>
           <div className="rounded-lg border border-border bg-muted/60 p-4 sm:p-6 3xl:p-8">
-            <p className="text-sm text-muted-foreground">
-              {login.heroDescription}
-            </p>
+            <p className="font-display text-xl sm:text-2xl 3xl:text-3xl">{login.heroTitle}</p>
+            <p className="mt-2 text-sm text-muted-foreground">{login.heroDescription}</p>
           </div>
         </div>
         <Card className="w-full max-w-md justify-self-center border-border/80 shadow-lg lg:max-w-none lg:justify-self-auto 3xl:max-w-lg 4k:max-w-xl">

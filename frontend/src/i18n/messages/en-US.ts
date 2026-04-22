@@ -47,6 +47,7 @@ export const enUSDictionary: AppDictionary = {
   appShell: {
     skipToMainContent: "Skip to main content",
     homeAriaLabel: "SkillHub home",
+    brandLabel: "8xf SkillDrive",
     governedConsole: "Governed console",
     personalWorkspace: "Personal workspace",
     workbench: "Workbench",

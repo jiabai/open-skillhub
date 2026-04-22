@@ -45,6 +45,7 @@ export type AppDictionary = {
   appShell: {
     skipToMainContent: string
     homeAriaLabel: string
+    brandLabel: string
     governedConsole: string
     personalWorkspace: string
     workbench: string

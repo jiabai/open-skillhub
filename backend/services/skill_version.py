@@ -68,8 +68,22 @@ class SkillVersionCoordinator:
         source_skill, version, record = await self.resolve_version_and_record(skill, requested_version)
         version_dir = get_skill_versions_dir(source_skill.user_id, source_skill.name) / version
         if not version_dir.exists():
-            raise SkillError(SkillErrorCode.VERSION_FILES_NOT_FOUND)
+            fallback_dir = self._resolve_current_skill_dir_fallback(source_skill, version)
+            if fallback_dir is None:
+                raise SkillError(SkillErrorCode.VERSION_FILES_NOT_FOUND)
+            return source_skill, version, record, fallback_dir
         return source_skill, version, record, version_dir
+
+    @staticmethod
+    def _resolve_current_skill_dir_fallback(source_skill: Skill, version: str) -> Path | None:
+        current_version = str(source_skill.current_version or "").strip()
+        skill_dir = str(source_skill.skill_dir or "").strip()
+        if not current_version or current_version != version or not skill_dir:
+            return None
+        current_dir = Path(skill_dir)
+        if not current_dir.exists() or not current_dir.is_dir():
+            return None
+        return current_dir
 
     async def create_reference_skill(
         self,

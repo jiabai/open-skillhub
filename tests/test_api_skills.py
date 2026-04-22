@@ -87,6 +87,53 @@ async def _create_public_skill(async_session, tmp_path: Path) -> Skill:
     return public_skill
 
 
+async def _create_unversioned_public_skill(async_session, tmp_path: Path) -> Skill:
+    system_user = await async_session.get(User, SYSTEM_USER_ID)
+    if system_user is None:
+        system_user = User(
+            id=SYSTEM_USER_ID,
+            email="system@example.com",
+            username="system",
+            hashed_password="!",
+            is_active=True,
+            is_superuser=True,
+            role="admin",
+        )
+        async_session.add(system_user)
+
+    public_skill = Skill(
+        user_id=SYSTEM_USER_ID,
+        name="public-skill-unversioned",
+        description="Public skill without versions directory",
+        tags=["public", "starter"],
+        visibility="public",
+        skill_dir=str(create_skill_dir(SYSTEM_USER_ID, "public-skill-unversioned")),
+        current_version="1.0.0",
+        is_active=True,
+    )
+    async_session.add(public_skill)
+    await async_session.flush()
+    async_session.add(
+        SkillVersion(
+            skill_id=public_skill.id,
+            version="1.0.0",
+            description="Public skill without versions directory",
+            dependencies=[],
+            metadata_json={},
+        )
+    )
+    await async_session.commit()
+
+    skill_dir = create_skill_dir(SYSTEM_USER_ID, "public-skill-unversioned")
+    (skill_dir / "SKILL.md").write_text(
+        "---\nname: public-skill-unversioned\nversion: 1.0.0\ndescription: Public skill without versions directory\n---\nbody",
+        encoding="utf-8",
+    )
+    (skill_dir / "reference.md").write_text("public reference root", encoding="utf-8")
+    await async_session.refresh(public_skill)
+    return public_skill
+
+
 def _assert_console_skill_hides_internal_fields(payload: dict) -> None:
     assert "user_id" not in payload
     assert "enterprise_id" not in payload
@@ -1199,6 +1246,58 @@ async def test_reference_skill_read_only_and_pin_unpin(client, async_session, tm
     unpinned = await client.put(f"/api/v1/skills/{reference_id}/unpin", headers=headers)
     assert unpinned.status_code == 200
     assert unpinned.json()["pinned_version"] is None
+
+
+@pytest.mark.asyncio
+async def test_reference_skill_reads_files_from_unversioned_public_root(client, async_session, tmp_path, monkeypatch):
+    monkeypatch.setattr(settings, "SKILL_STORAGE_PATH", str(tmp_path))
+    monkeypatch.setattr(settings, "ENABLE_RBAC", False)
+    monkeypatch.setattr(settings, "ENABLE_SKILL_VISIBILITY", True)
+    public_skill = await _create_unversioned_public_skill(async_session, tmp_path)
+    headers = await _register_and_login(client, "reference-root@example.com", "reference-root")
+
+    created = await client.post(
+        f"/api/v1/skills/{public_skill.id}/reference",
+        json={"name": "public-skill-root-ref"},
+        headers=headers,
+    )
+    assert created.status_code == 201
+    reference_id = created.json()["id"]
+
+    files = await client.get(f"/api/v1/skills/{reference_id}/files", headers=headers)
+    assert files.status_code == 200
+    assert "SKILL.md" in files.json()
+    assert "reference.md" in files.json()
+
+    content = await client.get(f"/api/v1/skills/{reference_id}/files/reference.md", headers=headers)
+    assert content.status_code == 200
+    assert content.text == "public reference root"
+
+
+@pytest.mark.asyncio
+async def test_clone_public_skill_reads_files_from_unversioned_public_root(client, async_session, tmp_path, monkeypatch):
+    monkeypatch.setattr(settings, "SKILL_STORAGE_PATH", str(tmp_path))
+    monkeypatch.setattr(settings, "ENABLE_RBAC", False)
+    monkeypatch.setattr(settings, "ENABLE_SKILL_VISIBILITY", True)
+    public_skill = await _create_unversioned_public_skill(async_session, tmp_path)
+    headers = await _register_and_login(client, "clone-root@example.com", "clone-root")
+
+    cloned = await client.post(
+        f"/api/v1/skills/{public_skill.id}/clone",
+        json={"name": "public-skill-root-clone", "visible": "private"},
+        headers=headers,
+    )
+    assert cloned.status_code == 201
+    clone_id = cloned.json()["id"]
+
+    files = await client.get(f"/api/v1/skills/{clone_id}/files", headers=headers)
+    assert files.status_code == 200
+    assert "SKILL.md" in files.json()
+    assert "reference.md" in files.json()
+
+    content = await client.get(f"/api/v1/skills/{clone_id}/files/reference.md", headers=headers)
+    assert content.status_code == 200
+    assert content.text == "public reference root"
 
 
 @pytest.mark.asyncio

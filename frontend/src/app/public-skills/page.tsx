@@ -170,10 +170,12 @@ export default function PublicSkillsPage() {
                 <Button variant="secondary" onClick={() => handleReference(skill)} disabled={skill.has_reference}>
                   {publicSkills.addReference}
                 </Button>
-                <Button variant="outline" onClick={() => handleClone(skill)}>
-                  <Copy className="mr-2 h-4 w-4" />
-                  {publicSkills.clone}
-                </Button>
+                {!skill.has_reference ? (
+                  <Button variant="outline" onClick={() => handleClone(skill)}>
+                    <Copy className="mr-2 h-4 w-4" />
+                    {publicSkills.clone}
+                  </Button>
+                ) : null}
               </div>
             </CardHeader>
           </Card>

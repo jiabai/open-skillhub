@@ -46,6 +46,16 @@ const publicSkillsPayload = {
   total: 1,
 } as any
 
+const referencedPublicSkillsPayload = {
+  items: [
+    {
+      ...publicSkillsPayload.items[0],
+      has_reference: true,
+    },
+  ],
+  total: 1,
+} as any
+
 function renderWithRuntimeConfig(node: React.ReactNode) {
   return render(
     <I18nProvider locale="zh-CN" dictionary={getDictionary("zh-CN")}>
@@ -214,8 +224,9 @@ describe("console pages", () => {
   })
 
   it("triggers public skill actions and shows next steps", async () => {
-    vi.mocked(api.listPublicSkills).mockResolvedValue(publicSkillsPayload)
-    vi.mocked(api.clonePublicSkill).mockResolvedValueOnce({ id: "clone-1", name: "Starter Skill-副本" } as any)
+    vi.mocked(api.listPublicSkills)
+      .mockResolvedValueOnce(publicSkillsPayload)
+      .mockResolvedValueOnce(referencedPublicSkillsPayload)
 
     renderWithRuntimeConfig(<PublicSkillsPage />)
     await screen.findByText("Starter Skill")
@@ -225,12 +236,9 @@ describe("console pages", () => {
       expect(api.referencePublicSkill).toHaveBeenCalledWith("public-1", { name: "Starter Skill" })
     })
     expect(await screen.findByText("引用已创建")).toBeInTheDocument()
-
-    fireEvent.click(screen.getByRole("button", { name: "克隆" }))
     await waitFor(() => {
-      expect(api.clonePublicSkill).toHaveBeenCalledWith("public-1", { name: "Starter Skill-副本", visible: "private" })
+      expect(screen.queryByRole("button", { name: "克隆" })).not.toBeInTheDocument()
     })
-    expect(await screen.findByText("克隆已创建")).toBeInTheDocument()
   })
 
   it("renders skill detail with type explanation", async () => {
@@ -341,6 +349,38 @@ describe("console pages", () => {
     fireEvent.click(await screen.findByRole("button", { name: "固定到 1.2.3" }))
     await waitFor(() => {
       expect(api.pinReferenceSkillVersion).toHaveBeenCalledWith("ref-1", "1.2.3")
+    })
+  })
+
+  it("creates an editable copy from a reference detail page", async () => {
+    vi.mocked(api.getSkill).mockResolvedValueOnce({
+      id: "ref-1",
+      user_id: "user-1",
+      name: "Starter Skill Ref",
+      description: "Public starter",
+      visible: "private",
+      source_skill_id: "public-1",
+      pinned_version: null,
+      resolved_version: "1.2.3",
+      skill_kind: "reference",
+      is_reference_read_only: true,
+      current_version: null,
+      is_active: true,
+      created_at: "2026-04-08T00:00:00Z",
+      updated_at: "2026-04-08T00:00:00Z",
+    } as any)
+    vi.mocked(api.listSkillFiles).mockResolvedValueOnce(["SKILL.md"])
+    vi.mocked(api.clonePublicSkill).mockResolvedValueOnce({ id: "clone-1", name: "Starter Skill Ref-副本" } as any)
+
+    renderWithRuntimeConfig(<SkillDetailPage params={{ skillUuid: "ref-1" }} />)
+    expect(await screen.findByText("需要自己的可编辑副本？")).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole("button", { name: "创建可编辑副本" }))
+    await waitFor(() => {
+      expect(api.clonePublicSkill).toHaveBeenCalledWith("public-1", { name: "Starter Skill Ref-副本", visible: "private" })
+    })
+    await waitFor(() => {
+      expect(replaceMock).toHaveBeenCalledWith("/skills/clone-1")
     })
   })
 

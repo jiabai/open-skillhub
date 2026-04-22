@@ -516,6 +516,13 @@ export type AppDictionary = {
     settingsTitle: string
     settingsDescription: string
     referenceSettingsNotice: string
+    createEditableCopyTitle: string
+    createEditableCopyDescription: string
+    createEditableCopy: string
+    creatingEditableCopy: string
+    cloneSuccess: string
+    cloneFailedTitle: string
+    cloneNameSuffix: string
     nameLabel: string
     descriptionLabel: string
     visibilityLabel: string

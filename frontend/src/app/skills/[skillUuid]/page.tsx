@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { Eye, FileText, Loader2, Save, Trash2 } from "lucide-react"
+import { Copy, Eye, FileText, Loader2, Save, Trash2 } from "lucide-react"
 
 import { api } from "@/lib/api"
 import { useRuntimeConfig } from "@/hooks/use-runtime-config"
@@ -42,12 +42,14 @@ export default function SkillDetailPage({ params }: SkillDetailProps) {
   const [description, setDescription] = useState("")
   const [visible, setVisible] = useState<EditableSkillVisible>("private")
   const [saving, setSaving] = useState(false)
+  const [cloning, setCloning] = useState(false)
   const [previewOpen, setPreviewOpen] = useState(false)
   const [previewFile, setPreviewFile] = useState<string | null>(null)
   const [previewContent, setPreviewContent] = useState("")
   const [previewStatus, setPreviewStatus] = useState<"idle" | "loading" | "ready" | "error">("idle")
   const [previewError, setPreviewError] = useState<string | null>(null)
   const isReference = skill?.skill_kind === "reference" || skill?.is_reference_read_only
+  const canCreateEditableCopy = Boolean(isReference && skill?.source_skill_id)
 
   const fetchData = useCallback(async () => {
     setStatus("loading")
@@ -99,6 +101,24 @@ export default function SkillDetailPage({ params }: SkillDetailProps) {
     if (!skill) return
     await api.deleteSkill(skill.id, deleteArchives)
     router.replace("/skills")
+  }
+
+  const handleCreateEditableCopy = async () => {
+    if (!skill?.source_skill_id) return
+    setCloning(true)
+    try {
+      const created = await api.clonePublicSkill(skill.source_skill_id, {
+        name: `${skill.name}${copy.cloneNameSuffix}`,
+        visible: "private",
+      })
+      success(copy.cloneSuccess)
+      router.replace(`/skills/${created.id}`)
+    } catch (err) {
+      const message = err instanceof Error ? err.message : copy.cloneFailedTitle
+      showError(copy.cloneFailedTitle, { description: message })
+    } finally {
+      setCloning(false)
+    }
   }
 
   const handlePreview = async (file: string) => {
@@ -223,6 +243,16 @@ export default function SkillDetailPage({ params }: SkillDetailProps) {
                   {!config.capabilities.skill_visibility ? <Badge variant="outline">{copy.privateVisibility}</Badge> : null}
                   <Badge variant="accent">{copy.mcpReady}</Badge>
                 </div>
+                {canCreateEditableCopy ? (
+                  <div className="rounded-lg border border-dashed border-border bg-muted/30 p-4">
+                    <p className="font-medium text-foreground">{copy.createEditableCopyTitle}</p>
+                    <p className="mt-1 text-sm text-muted-foreground">{copy.createEditableCopyDescription}</p>
+                    <Button className="mt-3" variant="secondary" onClick={handleCreateEditableCopy} disabled={cloning}>
+                      <Copy className="h-4 w-4" />
+                      {cloning ? copy.creatingEditableCopy : copy.createEditableCopy}
+                    </Button>
+                  </div>
+                ) : null}
               </CardContent>
             </Card>
           </TabsContent>

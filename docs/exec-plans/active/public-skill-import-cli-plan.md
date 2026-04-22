@@ -15,10 +15,10 @@ result.
 
 - [x] (2026-04-22 00:34) Confirmed the current sync script only supports full scans and that the frontend already has a public skills page wired to backend runtime config.
 - [x] (2026-04-22 00:34) Add product spec, design note, and indexed plan/task documents for the new CLI contract.
-- [ ] (2026-04-22 00:34) Refactor `backend/scripts/sync_public_skills.py` to support targeted single-skill import plus an explicit storage-root override.
-- [ ] (2026-04-22 00:34) Extend `tests/test_sync_public_skills.py` to cover targeted import, error cases, host-side storage resolution, and preserved full-sync behavior.
-- [ ] (2026-04-22 00:34) Update deployment guidance so the host-side preprod command and runtime-capability preconditions are explicit.
-- [ ] (2026-04-22 00:34) Run focused validation and capture the outcome in this plan.
+- [x] (2026-04-22 15:56) Refactor `backend/scripts/sync_public_skills.py` to support targeted single-skill import plus an explicit storage-root override.
+- [x] (2026-04-22 15:56) Extend `tests/test_sync_public_skills.py` to cover targeted import, error cases, host-side storage resolution, and preserved full-sync behavior.
+- [x] (2026-04-22 15:56) Update deployment guidance so the host-side preprod command and runtime-capability preconditions are explicit.
+- [x] (2026-04-22 15:56) Run focused validation and capture the outcome in this plan.
 
 ## Surprises & Discoveries
 
@@ -27,6 +27,9 @@ result.
 
 - Observation: The frontend already has a public skills page and does not need a new route for this work.
   Evidence: `frontend/src/app/public-skills/page.tsx` already calls the public-skills API and reads `useRuntimeConfig()`.
+
+- Observation: host-side imports should not persist host filesystem paths into public skill records.
+  Evidence: clone, version-resolution, and runtime storage helpers rely on backend storage conventions, so the CLI now reads from `--storage-root` but persists `skill_dir` using backend settings.
 
 ## Decision Log
 
@@ -48,7 +51,7 @@ result.
 
 ## Outcomes & Retrospective
 
-Not started.
+Implemented targeted import on the existing sync script, added focused test coverage for targeted and host-side behavior, and updated deployment guidance with explicit host commands plus success checks. The remaining manual verification item is a real preprod import against a running stack, which is documented but was not executed in this local coding session.
 
 ## Context and Orientation
 
@@ -106,8 +109,14 @@ Validation flow:
 1. Run `uv run pytest tests/test_sync_public_skills.py -v`
    - Expect the existing full-sync tests to keep passing and the new targeted-mode tests to pass.
 2. Run the host-side command for a single skill against the preprod bind mount.
-   - Expect the specified skill to appear in the public Skills catalog and no unrelated public skills to be deactivated.
-3. Run `python scripts/validate_agents_docs.py --level ERROR`
+   - Expect the process to exit with code `0`.
+3. Verify the backend and API state.
+   - The target skill should be stored as `visibility=public` and `is_active=true`.
+   - `GET /api/v1/skills/public` should include the imported skill.
+4. Verify the runtime config and frontend display.
+   - `GET /api/v1/runtime-config` should report `public_skills=true`.
+   - The public Skills page should show the imported skill.
+5. Run `python scripts/validate_agents_docs.py --level ERROR`
    - Expect no documentation validation errors.
 
 Acceptance criteria:
@@ -116,3 +125,4 @@ Acceptance criteria:
 - Targeted mode imports exactly one named skill.
 - Full mode still performs reconciliation and deactivation of missing public skills.
 - The frontend can render the imported skill once runtime capabilities allow public skills.
+- The import result can be verified through command exit code, backend storage, public API, and frontend display.

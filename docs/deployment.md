@@ -94,6 +94,38 @@ This means, for the overlay:
 
 The repository includes a template at [.env.preprod.example](/D:/Github/open-skillhub/.env.preprod.example) so you can copy it to a local `.env.preprod` file and run the overlay with `docker compose --env-file .env.preprod ...`.
 
+### 5.1 Host-side public skill import for the test-preprod overlay
+
+When the test-preprod overlay is active, host-side skill files live under `./data/skills`, so you can import a public skill without entering the container.
+
+If you want the shortest operator checklist, see [Preprod Public Skill Import SOP](/D:/Github/open-skillhub/docs/references/public-skill-import-preprod-sop.md).
+
+Prepare the skill directory on the host:
+
+```bash
+mkdir -p ./data/skills/__system__/demo-skill
+```
+
+Then run either a targeted import or a full reconciliation from the repository root:
+
+```bash
+uv run python backend/scripts/sync_public_skills.py demo-skill --storage-root ./data/skills
+uv run python backend/scripts/sync_public_skills.py --storage-root ./data/skills
+```
+
+Behavior:
+
+- passing `demo-skill` imports only that public skill and does not deactivate other public skills
+- omitting the skill name runs the historical full sync and will deactivate public skills missing from disk
+- `--storage-root` only changes where the import reads files from; the stored backend `skill_dir` still follows backend settings so container-side runtime paths remain stable
+
+Recommended success checks after a targeted import:
+
+1. The command exits with code `0`.
+2. The imported skill is stored as `visibility=public` and `is_active=true`.
+3. `GET /api/v1/skills/public` returns the imported skill.
+4. `GET /api/v1/runtime-config` reports `public_skills=true`, and the public Skills page shows the same skill.
+
 ### 6. Backend runtime capabilities are served by the backend
 
 Frontend business capability UI no longer comes from frontend env flags.

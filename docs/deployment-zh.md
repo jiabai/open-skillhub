@@ -94,6 +94,38 @@ API_INTERNAL_URL=http://api:8001
 
 仓库里提供了一个模板文件 [.env.preprod.example](/D:/Github/open-skillhub/.env.preprod.example)。你可以先复制成本地 `.env.preprod`，再用 `docker compose --env-file .env.preprod ...` 启动测试预发覆盖层。
 
+### 5.1 测试预发覆盖层下的宿主机公共 Skill 导入
+
+当测试预发覆盖层启用后，宿主机上的 skill 文件位于 `./data/skills`，因此可以不进入容器，直接在宿主机执行公共 Skill 导入。
+
+如果你只想照最短步骤操作，直接看 [预发导入公共 Skill SOP](/D:/Github/open-skillhub/docs/references/public-skill-import-preprod-sop.md)。
+
+先在宿主机准备 skill 目录：
+
+```bash
+mkdir -p ./data/skills/__system__/demo-skill
+```
+
+然后在仓库根目录执行单项导入或全量对账：
+
+```bash
+uv run python backend/scripts/sync_public_skills.py demo-skill --storage-root ./data/skills
+uv run python backend/scripts/sync_public_skills.py --storage-root ./data/skills
+```
+
+行为说明：
+
+- 传入 `demo-skill` 时，只导入这一个 public skill，不会失活其他 public skills
+- 不传 skill 名称时，执行历史上的全量同步，并会把磁盘上已缺失的 public skills 设为 inactive
+- `--storage-root` 只影响导入时读取文件的来源目录；数据库中保存的 `skill_dir` 仍然以 backend settings 为准，这样容器内运行时路径不会被宿主机路径污染
+
+单项导入后，建议按下面 4 步确认成功：
+
+1. 命令退出码为 `0`
+2. 目标 skill 在后端存储中为 `visibility=public` 且 `is_active=true`
+3. `GET /api/v1/skills/public` 可以查到该 skill
+4. `GET /api/v1/runtime-config` 返回 `public_skills=true`，并且前端公共 Skills 页面能看到同一个 skill
+
 ### 6. 前端业务能力以服务端运行时配置为准
 
 前端不再单独维护一套业务开关。

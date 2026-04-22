@@ -36,7 +36,7 @@ import type {
 // 3. Using short-lived tokens with refresh token rotation
 const storageKey = "skillhub.tokens"
 
-export const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000"
+export const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8001"
 
 export function getStoredTokens(): TokenPair | null {
   if (typeof window === "undefined") {

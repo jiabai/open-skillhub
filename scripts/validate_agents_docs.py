@@ -1,5 +1,53 @@
 #!/usr/bin/env python3
-"""Validate Open SkillHub documentation entry points and trackers."""
+"""验证 Open SkillHub 项目文档入口点和任务跟踪器的完整性。
+
+此脚本用于检查项目文档结构是否符合规范，确保所有必需的文档文件存在、
+链接有效、任务跟踪器格式正确。
+
+验证内容：
+1. 必需路径检查
+   - 验证 AGENTS.md、ARCHITECTURE.md、WORKFLOW.md 等核心文档是否存在
+   - 验证各子项目（backend/frontend/desktop-client）的 AGENTS.md 是否存在
+   - 验证 docs/ 目录下的设计文档、产品规格、执行计划索引是否存在
+
+2. 文档链接检查
+   - 检查所有入口文件中的反引号代码块路径引用（`path/to/file.md`）
+   - 验证引用的文档文件是否真实存在，防止死链
+
+3. 执行计划索引检查
+   - 验证 docs/exec-plans/active/index.md 和 completed/index.md 中的引用
+   - 确保索引中列出的执行计划文件都存在
+
+4. 桌面客户端任务跟踪器检查
+   - 验证 desktop-client/task-tracker.md 是否存在
+   - 检查是否包含标准区段：In Progress、Todo、Done
+   - 检查是否使用 checkbox 格式（- [ ] 或 - [x]）
+   - 检查每个任务是否包含验证条件标记（✅）
+   - 统计待办和已完成任务数量
+
+严重级别：
+- ERROR: 必须修复的问题（文件缺失、死链、格式错误）
+- WARN: 建议修复的警告
+- INFO: 信息性提示（如任务统计）
+
+用法：
+  python scripts/validate_agents_docs.py                    # 验证并显示所有级别
+  python scripts/validate_agents_docs.py --level ERROR      # 仅显示错误
+  python scripts/validate_agents_docs.py --level WARN       # 显示错误和警告
+  python scripts/validate_agents_docs.py --level INFO       # 显示所有信息（默认）
+  python scripts/validate_agents_docs.py --project /path    # 指定项目根目录
+
+输出示例：
+  [ERROR] docs/missing-file.md: 必需路径不存在
+  [ERROR] AGENTS.md: 文档死链: ./nonexistent.md
+  [INFO] desktop-client/task-tracker.md: 5 项待办, 10 项已完成
+  
+  验证完成: 2 个错误, 0 个警告
+
+集成：
+  建议在 CI/CD 流程中运行此脚本，确保文档质量：
+  python scripts/validate_agents_docs.py --level ERROR
+"""
 
 from __future__ import annotations
 

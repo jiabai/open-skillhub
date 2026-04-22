@@ -146,7 +146,7 @@ export const enUSDictionary: AppDictionary = {
       title: "Workspace",
       summary: "This is your workspace home. Quickly access public Skills, private Skills, and token management.",
       startHereTitle: "Start Here",
-      startHereSummary: "Pick the fastest path based on what you want to do first.",
+      startHereSummary: "What do you want to do first? Don't overthink it. Just start with what you need most.",
       browsePublicSkillsTitle: "Browse Public Skills",
       browsePublicSkillsDescription: "Start with a reference if you want to use a public Skill quickly without copying files.",
       browsePublicSkillsAction: "Open Public Skills",

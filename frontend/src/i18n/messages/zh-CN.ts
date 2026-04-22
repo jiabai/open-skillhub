@@ -146,7 +146,7 @@ export const zhCNDictionary: AppDictionary = {
       title: "工作区",
       summary: "这里是你的工作区首页，可以快速进入公共 Skills、私有 Skills 和令牌管理。",
       startHereTitle: "从这里开始",
-      startHereSummary: "根据你最先要完成的事情，选择最快的路径。",
+      startHereSummary: "你想先做什么？不用纠结，从你最需要的功能开始。",
       browsePublicSkillsTitle: "浏览公共 Skills",
       browsePublicSkillsDescription: "如果你想快速使用一个公共 Skill 而不复制文件，可以先从引用开始。",
       browsePublicSkillsAction: "打开公共 Skills",

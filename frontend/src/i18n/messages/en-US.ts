@@ -64,7 +64,7 @@ export const enUSDictionary: AppDictionary = {
     },
     personal: {
       badge: "Personal Workspace",
-      text: "This workspace is personal: manage your own Skills, reuse public Skills, and connect your own client tokens.",
+      text: "Current is personal mode: you can manage your own Skills and connect personal client tokens.",
     },
   },
   login: {
@@ -144,7 +144,7 @@ export const enUSDictionary: AppDictionary = {
     },
     noRbac: {
       title: "Workspace",
-      summary: "Use this workspace to discover public Skills, manage your own private Skills, and connect client access with tokens.",
+      summary: "This is your workspace home. Quickly access public Skills, private Skills, and token management.",
       startHereTitle: "Start Here",
       startHereSummary: "Pick the fastest path based on what you want to do first.",
       browsePublicSkillsTitle: "Browse Public Skills",

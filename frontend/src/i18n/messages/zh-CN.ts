@@ -64,7 +64,7 @@ export const zhCNDictionary: AppDictionary = {
     },
     personal: {
       badge: "个人工作区",
-      text: "当前工作区为个人模式：管理你自己的 Skills、复用公共 Skills，并连接你自己的客户端令牌。",
+      text: "当前为个人模式，可管理自己的 Skills，并连接个人客户端令牌。",
     },
   },
   login: {
@@ -144,7 +144,7 @@ export const zhCNDictionary: AppDictionary = {
     },
     noRbac: {
       title: "工作区",
-      summary: "在这个工作区中浏览公共 Skills、管理你自己的私有 Skills，并通过令牌连接客户端访问。",
+      summary: "这里是你的工作区首页，可以快速进入公共 Skills、私有 Skills 和令牌管理。",
       startHereTitle: "从这里开始",
       startHereSummary: "根据你最先要完成的事情，选择最快的路径。",
       browsePublicSkillsTitle: "浏览公共 Skills",

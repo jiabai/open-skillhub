@@ -16,7 +16,7 @@ describe("desktop package scripts", () => {
     expect(packageJson.scripts?.["start:electron"]).toBe("npm run build && electron .")
     expect(packageJson.scripts?.["build"]).toContain("npm run build:electron")
     expect(packageJson.scripts?.["build:electron"]).toBe(
-      "vite build --config vite.electron.config.ts"
+      "vite build --config vite.electron.config.ts && vite build --config vite.preload.config.ts"
     )
   })
 })

@@ -26,8 +26,7 @@ export default defineConfig({
     target: "node20",
     rollupOptions: {
       input: {
-        main: fileURLToPath(new URL("./electron/main.ts", import.meta.url)),
-        preload: fileURLToPath(new URL("./electron/preload.ts", import.meta.url))
+        main: fileURLToPath(new URL("./electron/main.ts", import.meta.url))
       },
       external: [/^node:/, "electron", "keytar", "sql.js"],
       output: {

@@ -35,6 +35,79 @@ Build a Windows desktop client that detects new or updated skills from Open Skil
 - Distribution is global for enabled agents; per-agent routing is deferred.
 - Unsupported encrypted downloads fail closed.
 
+## Skill Review Mechanism
+
+### Definition
+
+Skill review refers to **human inspection and approval** of skill updates detected from the Open SkillHub server before they can be distributed to local agent (Codex, Claude Code, Gemini CLI) installation directories.
+
+### Rationale
+
+**Security Control**
+- No package is written to any agent directory before explicit operator approval
+- Prevents unreviewed code from automatically entering development environments
+
+**Version Management**
+- Pending Updates Panel displays: skill name, ID, local version, remote version, review reason
+- Provides clarity on what will be updated, avoiding accidental overwrites or configuration damage
+
+**Preventing Silent Automation Risks**
+- "Silent automatic rollouts" is explicitly listed as a non-goal
+- Core belief: no skill is written to an agent directory without explicit user approval
+
+**Audit Trail**
+- Activity Panel records all distribution operations with timestamps
+- Provides operation history for tracing and retrospection
+
+### Review Flow
+
+```
+Server discovers update → Download to local staging → Display in pending panel → User clicks "Distribute" → Write to agent directory
+```
+
+This is a **human approval gate** mechanism, ensuring users have complete control and visibility over every skill update entering their development environment.
+
+## Skill Detection Mechanism
+
+### Detection Method
+
+The client uses a **background polling** mechanism to automatically detect skill updates on the Open SkillHub server.
+
+### How It Works
+
+**Polling Orchestration**
+- Electron main process handles background polling orchestration
+- Periodically calls `GET /api/v1/client/skills` API to fetch remote skill status
+- Sync core compares remote status against local SQLite snapshot records
+- Stages updates to pending review state when new skills or version differences are discovered
+
+**Pull Architecture**
+- Client actively queries server for updates (Pull mode)
+- Not server-initiated push notifications (Push mode)
+- "Real-time push sync" is listed as a V1 non-goal
+
+### Detection Flow
+
+```
+Timer triggers → Call remote API → Compare local snapshot → Discover new/updated skills → Add to pending list → Notify user
+```
+
+### Key Rules
+
+**Polling Constraints**
+- Polling only refreshes review state and surfaces pending updates
+- **Polling must never auto-distribute skills**
+- Distribution must be an explicit operator action
+
+**Configurability**
+- Polling interval can be configured in settings panel
+- Users can adjust detection frequency as needed
+
+**State Persistence**
+- Pending updates survive app restarts
+- Local sync snapshot uses SQLite storage
+- Last refresh timestamp displayed in overview panel
+
 ## Expected User Experience
 
 - The app runs as a Windows desktop utility with tray presence.
@@ -43,13 +116,63 @@ Build a Windows desktop client that detects new or updated skills from Open Skil
 - One approval distributes the chosen version to all enabled supported agents.
 - Activity and failures should be understandable enough for manual retry.
 
+## Distribution Warning Prompt
+
+### User Confirmation on Approving Distribution
+
+When the user clicks the "Distribute" button to approve skill sync, an explicit warning prompt must be displayed:
+
+**Warning Content**
+- The sync operation will **overwrite all locally installed skills**
+- After sync, local skills will be **identical to the cloud version**
+- **Manually installed skills will not auto-sync to the cloud**
+- Manually installed skills **may be automatically deleted after sync**
+- Prompt the user to ** proceed with caution** and confirm whether to continue
+
+**Design Intent**
+- Prevent accidental loss of user's local custom skills
+- Clearly inform users of the destructive consequences of sync
+- Ensure users make decisions with full knowledge of the impact
+
 ## Current Implemented Surface
 
-- Renderer UI for overview, pending updates, agents, settings, and activity
+### Core Runtime
 - Electron main process for tray behavior, polling orchestration, notifications, and distribution
 - Client API usage through `GET /api/v1/client/skills` and `POST /api/v1/client/skills/download`
 - Local SQLite-backed sync snapshot with pending updates and distributed-skill records
 - Agent adapters for Codex, Claude Code, and Gemini CLI
+
+### Renderer UI Panels
+The desktop client provides five core UI panels for operator interaction:
+
+**Overview Panel**
+- Displays review snapshot metrics: pending update count, local record count, last refresh timestamp
+- Shows loading state and error messages when bridge communication fails
+- Provides at-a-glance status for the current sync state
+
+**Pending Updates Panel**
+- Primary surface for skill review and distribution approval
+- Lists each pending update with: skill name, ID, local version, remote version, review reason
+- Provides "Distribute" button per item for explicit approval action
+- Shows busy state during distribution operation
+- Empty state indicates no updates awaiting review
+
+**Agents Panel**
+- Displays supported distribution targets: Claude Code, Codex, Gemini CLI
+- Static informational panel showing adapter layer readiness
+- No interactive controls; reflects configured agent support
+
+**Settings Panel**
+- Documents review policy: pending updates stay gated until human review
+- Shows bridge access status (IPC wrapper only, no direct Node access)
+- Displays storage snapshot behavior (state refreshed before/after distribution)
+- Bridge status indicator with last refresh timestamp
+
+**Activity Panel**
+- Shows recent action history with timestamps
+- Entry types: neutral (info), success (completed), warning (issues)
+- Provides audit trail for distribution operations and sync events
+- Empty state when no recent actions recorded
 
 ## Current Implementation Gaps
 

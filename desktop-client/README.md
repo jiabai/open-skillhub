@@ -31,7 +31,7 @@ When Electron is launched manually during development, the main process currentl
 
 - `OPEN_SKILLHUB_API_BASE_URL` - backend base URL, for example `http://127.0.0.1:8001`
 - `OPEN_SKILLHUB_API_TOKEN` - current bootstrap token source for the main process poller
-- `OPEN_SKILLHUB_POLL_INTERVAL_MS` - optional polling interval in milliseconds, defaults to `300000`
+- `OPEN_SKILLHUB_POLL_INTERVAL_MS` - optional polling interval in milliseconds, defaults to `30000`
 - `OPEN_SKILLHUB_CODEX_SKILLS_PATH` - optional override for the Codex skills directory
 - `OPEN_SKILLHUB_CLAUDE_CODE_SKILLS_PATH` - optional override for the Claude Code skills directory
 - `OPEN_SKILLHUB_GEMINI_CLI_SKILLS_PATH` - optional override for the Gemini CLI skills directory

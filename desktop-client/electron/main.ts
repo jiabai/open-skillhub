@@ -85,10 +85,10 @@ function normalizeBaseUrl(value: string): string {
 }
 
 function normalizePollInterval(value: string | undefined): number {
-  const parsed = Number(value ?? 300_000)
+  const parsed = Number(value ?? 30_000)
 
   if (!Number.isFinite(parsed) || parsed <= 0) {
-    return 300_000
+    return 30_000
   }
 
   return parsed

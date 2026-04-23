@@ -1,18 +1,35 @@
 # Client API Contract
 
+> **Last Updated**: 2026-04-23
+> **Version**: v1
+> **Owner**: Desktop Client Team
+
+## Overview
+
+This document defines the backend API routes, request/response shapes, and normalization rules used by the Open SkillHub desktop client. These are client-oriented endpoints that use bearer token authentication, separate from the browser-session JWT console routes.
+
 ## Routes Used By The Desktop Client
 
-- `GET /api/v1/client/skills`
-- `POST /api/v1/client/skills/download`
+| Method | Route | Purpose |
+|--------|-------|---------|
+| `GET` | `/api/v1/client/skills` | List available skills with version metadata |
+| `POST` | `/api/v1/client/skills/download` | Download a specific skill version |
 
 ## Auth Model
 
-- Bearer token auth
-- Current desktop runtime bootstrap reads `OPEN_SKILLHUB_API_TOKEN` from the environment when Electron is launched manually
+- **Type**: Bearer token authentication
+- **Bootstrap Path**: Desktop runtime reads `OPEN_SKILLHUB_API_TOKEN` from the environment when Electron is launched manually
+- **Security Rule**: The token must never be written to plaintext config, renderer state, or logs (see `docs/SECURITY.md`)
 
 ## `GET /api/v1/client/skills`
 
-Response model from `backend/schemas/client_skill.py`:
+### Purpose
+
+Returns a list of skills available for sync, including version metadata and downloadability status.
+
+### Response Model
+
+Source: `backend/schemas/client_skill.py`
 
 ```json
 {
@@ -31,15 +48,29 @@ Response model from `backend/schemas/client_skill.py`:
 }
 ```
 
-Desktop normalization rules in `electron/main.ts`:
+### Desktop Normalization Rules
 
-- Accept `id`, `skill_uuid`, `skillUuid`, or `remoteSkillId` as the remote identifier
-- Accept `version`, `current_version`, `currentVersion`, or `latest_version.version` as the remote version
-- Accept `updatedAt`, `updated_at`, or `latest_version.updated_at` as the update timestamp
+Source: `electron/main.ts`
+
+The desktop client accepts multiple field name variants from the backend to maintain compatibility during API evolution:
+
+| Purpose | Accepted Field Names |
+|---------|---------------------|
+| Remote identifier | `id`, `skill_uuid`, `skillUuid`, `remoteSkillId` |
+| Remote version | `version`, `current_version`, `currentVersion`, `latest_version.version` |
+| Update timestamp | `updatedAt`, `updated_at`, `latest_version.updated_at` |
+
+**Rationale**: These normalization rules allow the desktop client to handle backend API changes without requiring immediate client updates. The rules are implemented in the Electron main process during response parsing.
 
 ## `POST /api/v1/client/skills/download`
 
-Request model from `backend/schemas/skill_download.py`:
+### Purpose
+
+Downloads a specific version of a skill package for installation or distribution.
+
+### Request Model
+
+Source: `backend/schemas/skill_download.py`
 
 ```json
 {
@@ -48,7 +79,9 @@ Request model from `backend/schemas/skill_download.py`:
 }
 ```
 
-Response model from `backend/schemas/skill_download.py`:
+### Response Model
+
+Source: `backend/schemas/skill_download.py`
 
 ```json
 {
@@ -65,13 +98,29 @@ Response model from `backend/schemas/skill_download.py`:
 }
 ```
 
-Desktop handling rules:
+### Desktop Handling Rules
 
-- `encrypted_code` is base64-decoded into the downloaded artifact
-- `checksum` is verified before extraction
-- `expires_at` is enforced before extraction
-- if `encryption_enabled` is `true` and no decryptor dependency exists, package preparation fails closed
+The desktop client must enforce the following validation sequence before extracting or installing packages:
 
-## Verification Path
+1. **Base64 Decode**: `encrypted_code` is base64-decoded into the downloaded artifact
+2. **Checksum Verification**: `checksum` is verified against the decoded payload before extraction
+3. **Expiration Enforcement**: `expires_at` is enforced before extraction; expired packages are rejected
+4. **Encryption Fail-Closed**: If `encryption_enabled` is `true` and no decryptor dependency exists, package preparation fails with a clear error (see `docs/SECURITY.md` - Current V1 Contract Gap)
 
-- `uv run pytest tests/test_client_skills_api.py -q`
+## Related Documentation
+
+- **Security Rules**: `docs/SECURITY.md` - Secret handling, privilege boundaries, package validation
+- **Runtime Surface**: `runtime-and-storage-surface.md` - Environment variables, IPC channels, app paths
+- **Design Rules**: `docs/DESIGN.md` - IPC and contract rules, backend-facing contract ownership
+
+## Verification
+
+```bash
+uv run pytest tests/test_client_skills_api.py -q
+```
+
+## Change History
+
+| Date | Version | Change | Author |
+|------|---------|--------|--------|
+| 2026-04-23 | v1 | Initial contract documentation with normalization rules and handling rules | Desktop Client Team |

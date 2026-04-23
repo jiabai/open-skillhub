@@ -5,14 +5,14 @@ Electron + Vite desktop shell for Open SkillHub.
 ## Quick Links
 
 - `AGENTS.md`
-- `tasks.md`
+- `task-tracker.md`
 - `docs/ARCHITECTURE.md`
 - `docs/design-docs/core-beliefs.md`
 - `docs/SECURITY.md`
 - `docs/product-specs/2026-04-17-skill-distribution-v1.md`
 - `docs/references/index.md`
 - `docs/generated/state-db-schema.md`
-- `docs/exec-plans/active/2026-04-17-operationalize-runtime-bootstrap.md`
+- `docs/exec-plans/index.md`
 - `docs/exec-plans/tech-debt-tracker.md`
 
 ## Local Run
@@ -25,7 +25,10 @@ npm run build
 npm run dev
 ```
 
-`npm run dev` currently starts the Vite renderer only. `npm run build` is the supported verification path for the renderer and Electron TypeScript code. The repository does not yet expose one canonical Electron start command; that work is tracked in `docs/exec-plans/active/2026-04-17-operationalize-runtime-bootstrap.md`.
+`npm run dev` currently starts the Vite renderer only. `npm run build` is the
+supported verification path for the renderer and Electron TypeScript code. The
+repository does not yet expose one canonical Electron start command; that work
+is tracked in `docs/exec-plans/index.md`.
 
 When Electron is launched manually during development, the main process currently reads these environment variables:
 

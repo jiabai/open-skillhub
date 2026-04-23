@@ -42,5 +42,5 @@ The primary job is to show what changed, let the operator approve it once, and m
 ## Documentation Rules
 
 - Product decisions live in `docs/product-specs/`.
-- Execution state lives in `tasks.md` and `docs/exec-plans/active/`.
+- Execution state lives in `task-tracker.md` and `docs/exec-plans/index.md`.
 - Security-sensitive behavior belongs in `docs/SECURITY.md`, not only in README caveats.

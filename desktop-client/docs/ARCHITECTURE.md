@@ -65,7 +65,7 @@ Dependencies should only point downward across those boundaries.
 - Security: token handling, checksum validation, path validation, and log redaction
 - Recoverability: pending updates, local install records, and activity history survive restarts
 - Testability: renderer shell stays stable, most core logic is isolated from Electron UI state
-- Documentation freshness: `AGENTS.md`, `tasks.md`, and the active ExecPlan must stay aligned with the implementation
+- Documentation freshness: `AGENTS.md`, `task-tracker.md`, and `docs/exec-plans/index.md` must stay aligned with the implementation
 
 ## Current Persistence Surface
 

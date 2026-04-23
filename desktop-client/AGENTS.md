@@ -13,7 +13,7 @@ Guidance for AI coding agents working in `desktop-client/`.
 - References: `docs/references/index.md`
 - Generated schema: `docs/generated/state-db-schema.md`
 - Task tracker: `task-tracker.md`
-- Active ExecPlans: `docs/exec-plans/active/`
+- ExecPlans: `docs/exec-plans/index.md`
 - Tech debt: `docs/exec-plans/tech-debt-tracker.md`
 
 ## Core Beliefs
@@ -26,7 +26,8 @@ Guidance for AI coding agents working in `desktop-client/`.
 
 ## Development Flow
 
-- Read `task-tracker.md` and the active ExecPlan before changing code.
+- Read `task-tracker.md` and `docs/exec-plans/index.md` before changing code,
+  then open the relevant active ExecPlan.
 - Read the local product spec and references before changing contracts or persistence.
 - Validate with tests or build commands before closing a task.
 - Update `task-tracker.md`, `docs/ARCHITECTURE.md`, and any touched design, security, or reference docs when behavior changes.
@@ -45,7 +46,9 @@ Guidance for AI coding agents working in `desktop-client/`.
 
 ## Runtime Notes
 
-- The current verified commands are renderer dev (`npm run dev`), tests, and build. A canonical Electron start command is still an active gap.
+- The current verified commands are renderer dev (`npm run dev`), tests, and
+  build. A canonical Electron start command is still an active gap tracked in
+  `docs/exec-plans/index.md`.
 - `OPEN_SKILLHUB_API_BASE_URL` and `OPEN_SKILLHUB_API_TOKEN` are the current runtime bootstrap path when Electron is launched manually.
 - Use `OPEN_SKILLHUB_CODEX_SKILLS_PATH`, `OPEN_SKILLHUB_CLAUDE_CODE_SKILLS_PATH`, and `OPEN_SKILLHUB_GEMINI_CLI_SKILLS_PATH` when auto-detected agent paths are not suitable.
 - Polling should only refresh review state and surface pending updates; it must not auto-distribute skills.

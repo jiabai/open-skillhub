@@ -51,10 +51,10 @@ desktop-client 拥有完整的自包含文档：
 - `docs/DESIGN.md` — 设计规则
 - `docs/QUALITY_SCORE.md` — 质量追踪
 - `docs/product-specs/` — 产品规格
-- `docs/exec-plans/` — 执行计划
+- `docs/exec-plans/index.md` — 执行计划入口索引
 - `docs/references/` — 参考文献
 - `docs/generated/` — 生成文档
-- `tasks.md` — 独立任务列表
+- `task-tracker.md` — 独立任务列表
 
 历史性的跨仓库文档（`docs/superpowers/desktop-client*`）已在 2026-04-17 被清除，本地文档已是唯一真相源。
 
@@ -85,7 +85,7 @@ desktop-client 通过环境变量配置，所有变量都以 `OPEN_SKILLHUB_` �
 
 ### 2.2 不支持独立的论据
 
-**项目成熟度不足**。tasks.md 显示核心功能仍有缺口：Electron 启动命令尚未规范化、secret-store 未接通、分发历史未持久化。在 v1 功能不稳定时拆分会增加协调成本。
+**项目成熟度不足**。`task-tracker.md` 和 active ExecPlan 显示核心功能仍有缺口：Electron 启动命令尚未规范化、secret-store 未接通、分发历史未持久化。在 v1 功能不稳定时拆分会增加协调成本。
 
 **品牌和身份绑定**。项目名 "Open SkillHub Desktop"、环境变量前缀 `OPEN_SKILLHUB_`、后端 API 路径 `/api/v1/client/skills` 都暗示这是同一个产品族的组成部分。独立后需要重新思考命名和身份。
 

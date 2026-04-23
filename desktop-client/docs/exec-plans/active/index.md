@@ -2,7 +2,7 @@
 
 ## Current Plans
 
-- `2026-04-23-api-token-config.md` - API Token 配置界面实现计划
+- `2026-04-23-desktop-client-ui-redesign.md` - Desktop Client UI 重设计执行计划
 
 ## Working Agreement
 

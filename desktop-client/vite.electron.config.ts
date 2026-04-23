@@ -1,8 +1,17 @@
+import { readFileSync } from "node:fs"
 import { fileURLToPath } from "node:url"
 import { defineConfig } from "vite"
 
+// Read icon SVG at build time and embed it
+const iconSvgPath = fileURLToPath(new URL("./resources/icons/icon.svg", import.meta.url))
+const embeddedIconSvg = readFileSync(iconSvgPath, "utf8").trim()
+
 export default defineConfig({
   publicDir: false,
+  define: {
+    // Inject SVG content as global constant
+    __EMBEDDED_ICON_SVG__: JSON.stringify(embeddedIconSvg)
+  },
   resolve: {
     alias: {
       "@": fileURLToPath(new URL("./src", import.meta.url))

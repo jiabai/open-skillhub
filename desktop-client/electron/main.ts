@@ -46,6 +46,7 @@ import { registerDesktopClientIpc } from "./ipc"
 
 const preloadPath = fileURLToPath(new URL("./preload.js", import.meta.url))
 const execFileAsync = promisify(execFile)
+const APP_USER_MODEL_ID = "com.open-skillhub.desktop-client"
 
 type TrayNotificationPayload = {
   title: string
@@ -162,49 +163,22 @@ async function testApiConnection(
   }
 }
 
-function createTrayImage() {
-  const svg = Buffer.from(
-    `
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
-        <defs>
-          <linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stop-color="#60a5fa"/>
-            <stop offset="100%" stop-color="#34d399"/>
-          </linearGradient>
-        </defs>
-        <rect x="8" y="8" width="48" height="48" rx="14" fill="#0f172a"/>
-        <path d="M18 38c0-8 6.5-14 14-14s14 6 14 14" fill="none" stroke="url(#g)" stroke-width="6" stroke-linecap="round"/>
-        <circle cx="32" cy="20" r="5" fill="#f8fafc"/>
-        <circle cx="25" cy="28" r="3" fill="#93c5fd"/>
-        <circle cx="39" cy="28" r="3" fill="#6ee7b7"/>
-      </svg>
-    `.trim()
-  ).toString("base64")
+function createEmbeddedIcon(size = 256) {
+  // Build-time embedded SVG sourced from resources/icons/icon.svg.
+  const svg = Buffer.from(__EMBEDDED_ICON_SVG__, "utf8").toString("base64")
 
-  return nativeImage.createFromDataURL(`data:image/svg+xml;base64,${svg}`)
+  return nativeImage.createFromDataURL(`data:image/svg+xml;base64,${svg}`).resize({
+    height: size,
+    width: size
+  })
 }
 
-function createWindowIcon() {
-  // Embedded 256x256 icon for window/taskbar
-  const svg = Buffer.from(
-    `
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
-        <defs>
-          <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stop-color="#60a5fa"/>
-            <stop offset="100%" stop-color="#34d399"/>
-          </linearGradient>
-        </defs>
-        <rect x="32" y="32" width="192" height="192" rx="56" fill="#0f172a"/>
-        <path d="M72 152c0-32 26-56 56-56s56 24 56 56" fill="none" stroke="url(#grad)" stroke-width="24" stroke-linecap="round"/>
-        <circle cx="128" cy="80" r="20" fill="#f8fafc"/>
-        <circle cx="100" cy="112" r="12" fill="#93c5fd"/>
-        <circle cx="156" cy="112" r="12" fill="#6ee7b7"/>
-      </svg>
-    `.trim()
-  ).toString("base64")
+function createAppIcon(size = 256) {
+  return createEmbeddedIcon(size)
+}
 
-  return nativeImage.createFromDataURL(`data:image/svg+xml;base64,${svg}`)
+function createTrayImage() {
+  return createAppIcon(process.platform === "win32" ? 16 : 18)
 }
 
 function createNotification(payload: TrayNotificationPayload): void {
@@ -217,8 +191,8 @@ function createWindow(): BrowserWindow {
   const window = new BrowserWindow({
     width: 1280,
     height: 840,
-    backgroundColor: "#0b1020",
-    icon: createWindowIcon(),
+    backgroundColor: "#f7f4ed",
+    icon: createAppIcon(256),
     show: true,
     webPreferences: {
       contextIsolation: true,
@@ -397,6 +371,23 @@ function configureWindowLifecycle(window: BrowserWindow): void {
   })
 }
 
+function showMainWindow(): void {
+  if (!mainWindow) {
+    mainWindow = createWindow()
+    configureWindowLifecycle(mainWindow)
+  }
+
+  if (mainWindow.isMinimized()) {
+    mainWindow.restore()
+  }
+
+  if (!mainWindow.isVisible()) {
+    mainWindow.show()
+  }
+
+  mainWindow.focus()
+}
+
 async function closeStateStore(): Promise<void> {
   if (!stateStore) {
     return
@@ -455,26 +446,11 @@ async function createApplicationServices(): Promise<void> {
 
   stopPolling = pollingController.stop
 
-  const refreshWindow = () => {
-    if (!mainWindow) {
-      mainWindow = createWindow()
-      configureWindowLifecycle(mainWindow)
-      return
-    }
-
-    if (mainWindow.isMinimized()) {
-      mainWindow.restore()
-    }
-
-    mainWindow.show()
-    mainWindow.focus()
-  }
-
   tray.setContextMenu(
     Menu.buildFromTemplate([
       {
         label: "Open Open SkillHub",
-        click: () => refreshWindow()
+        click: () => showMainWindow()
       },
       {
         label: "Refresh now",
@@ -498,11 +474,10 @@ async function createApplicationServices(): Promise<void> {
     ])
   )
 
-  tray.on("double-click", () => refreshWindow())
-  tray.on("click", () => refreshWindow())
+  tray.on("double-click", () => showMainWindow())
+  tray.on("click", () => showMainWindow())
 
-  mainWindow = createWindow()
-  configureWindowLifecycle(mainWindow)
+  showMainWindow()
 
   const startPollingIfConfigured = async () => {
     if (!getRuntimeConfig().apiToken) {
@@ -598,24 +573,30 @@ async function createApplicationServices(): Promise<void> {
   }
 }
 
-app.setAppUserModelId("OpenSkillHub")
+app.setAppUserModelId(APP_USER_MODEL_ID)
 
-app.whenReady().then(() => {
-  void createApplicationServices().catch((error: unknown) => {
-    console.error("Failed to bootstrap the desktop client", error)
-    app.exit(1)
-  })
+const singleInstanceLock = app.requestSingleInstanceLock()
 
-  app.on("activate", () => {
-    if (BrowserWindow.getAllWindows().length === 0) {
-      mainWindow = createWindow()
-      configureWindowLifecycle(mainWindow)
-    } else {
-      mainWindow?.show()
-      mainWindow?.focus()
+if (!singleInstanceLock) {
+  app.quit()
+} else {
+  app.on("second-instance", () => {
+    if (app.isReady()) {
+      showMainWindow()
     }
   })
-})
+
+  app.whenReady().then(() => {
+    void createApplicationServices().catch((error: unknown) => {
+      console.error("Failed to bootstrap the desktop client", error)
+      app.exit(1)
+    })
+
+    app.on("activate", () => {
+      showMainWindow()
+    })
+  })
+}
 
 app.on("before-quit", () => {
   isQuitting = true

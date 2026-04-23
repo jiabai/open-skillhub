@@ -50,6 +50,8 @@ agent adapters -> local agent installations and skill directories
 
 - Renderer code never reads Node or Electron privileged APIs directly.
 - Polling, notifications, filesystem writes, token access, and local state persistence stay in the Electron main process.
+- The Electron main process owns the single-instance lock; repeat launches focus the existing window instead of creating another runtime.
+- Window and tray icons use the build-time embedded SVG sourced from `resources/icons/icon.svg`; no runtime filesystem lookup is part of the icon path.
 - Sync code only compares remote and local state; it does not mutate agent skill directories.
 - Distribution only runs for explicitly approved pending updates.
 - Agent adapters own per-agent filesystem conventions and install verification.

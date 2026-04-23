@@ -2,7 +2,7 @@
 
 ## Current Plans
 
-No active desktop-client ExecPlans are currently open.
+- `2026-04-23-api-token-config.md` - API Token 配置界面实现计划
 
 ## Working Agreement
 

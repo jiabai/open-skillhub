@@ -18,8 +18,22 @@ This document defines the backend API routes, request/response shapes, and norma
 ## Auth Model
 
 - **Type**: Bearer token authentication
-- **Bootstrap Path**: Desktop runtime reads `OPEN_SKILLHUB_API_TOKEN` from the environment when Electron is launched manually
+- **Bootstrap Path**: Desktop runtime prefers the keytar-backed secret store.
+  `OPEN_SKILLHUB_API_TOKEN` remains a first-run seed and current-session
+  fallback when secret storage is unavailable.
 - **Security Rule**: The token must never be written to plaintext config, renderer state, or logs (see `docs/SECURITY.md`)
+
+## Configuration Probe
+
+The API token configuration UI should test connection state through a
+client-oriented authenticated route:
+
+| Method | Route | Purpose |
+|--------|-------|---------|
+| `GET` | `/api/v1/client/skills?limit=1` | Verify that the configured base URL is reachable and the bearer token is accepted |
+
+Do not use `/health` as the token validation probe. It is an operational endpoint
+and does not prove that the desktop bearer token is valid.
 
 ## `GET /api/v1/client/skills`
 
@@ -123,4 +137,5 @@ uv run pytest tests/test_client_skills_api.py -q
 
 | Date | Version | Change | Author |
 |------|---------|--------|--------|
+| 2026-04-23 | v1 | Documented secret-store bootstrap and authenticated configuration probe | Codex |
 | 2026-04-23 | v1 | Initial contract documentation with normalization rules and handling rules | Desktop Client Team |

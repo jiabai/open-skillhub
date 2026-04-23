@@ -114,6 +114,10 @@ async function handleTestConnection(config: ConfigurationPayload): Promise<Conne
 }
 ```
 
+This probe is intentionally not a new `/api/v1/health` endpoint. The backend
+already exposes root `/health` for operational readiness, but that route does
+not validate the desktop bearer token.
+
 ### RuntimeConfigManager
 
 `electron/main.ts` currently creates one `runtimeConfig` during startup and passes
@@ -150,6 +154,11 @@ Implementation rules:
 - After a successful save, polling should restart with the current config and the
   UI should refresh review state. If refresh fails, keep the saved configuration
   and surface the network/auth error.
+
+### 是否新增 `/api/v1/health`
+
+**决策**：不新增专用 `/api/v1/health` 端点。连接测试复用现有的
+`GET /api/v1/client/skills?limit=1`，根路径 `/health` 仅作为运维健康检查。
 
 ## Preload 桥接扩展
 

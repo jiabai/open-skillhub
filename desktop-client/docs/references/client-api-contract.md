@@ -32,8 +32,9 @@ client-oriented authenticated route:
 |--------|-------|---------|
 | `GET` | `/api/v1/client/skills?limit=1` | Verify that the configured base URL is reachable and the bearer token is accepted |
 
-Do not use `/health` as the token validation probe. It is an operational endpoint
-and does not prove that the desktop bearer token is valid.
+This is the only token validation probe in the desktop client contract. Do not
+add `/api/v1/health` for this workflow; root `/health` remains an operational
+health check and does not prove that the bearer token is valid.
 
 ## `GET /api/v1/client/skills`
 

@@ -127,6 +127,7 @@ API Base URL 的优先级：
 
 - 连接测试可选，不强制要求成功才能保存
 - 连接测试必须调用带 Bearer Token 的 client-oriented API，例如 `GET /api/v1/client/skills?limit=1`
+- 不新增专用的 `/api/v1/health` 端点；根路径 `/health` 仅用于运维健康检查
 - 离线配置允许（用户可能稍后启动服务器）
 - 环境变量来源的 Token 应显示来源指示器
 - 保存配置后应立即尝试刷新 review state；失败时显示可操作错误，不回滚已保存配置

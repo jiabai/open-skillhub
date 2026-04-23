@@ -94,6 +94,11 @@ environment"指示器。该状态来自 `resolveApiTokenBootstrap()` 的脱敏�
 **决策**：保存或清除配置后必须刷新主进程内存中的 runtime config。实现可使用
 runtime config manager，或在 handler 中重建依赖该配置的 sync/package 服务；无论采用哪种方式，验收标准都是无需重启应用即可使用新配置。
 
+### 是否新增 `/api/v1/health`
+
+**决策**：不新增专用 `/api/v1/health` 端点。连接测试复用现有的
+`GET /api/v1/client/skills?limit=1`，根路径 `/health` 仅作为运维健康检查。
+
 ## 相关文档
 
 - 产品规格：`docs/product-specs/2026-04-23-api-token-config.md`

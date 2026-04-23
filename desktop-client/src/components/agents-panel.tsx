@@ -1,3 +1,5 @@
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui-primitives"
+
 const agents = [
   {
     name: "Claude Code",
@@ -15,52 +17,23 @@ const agents = [
 
 export function AgentsPanel() {
   return (
-    <section
-      aria-labelledby="agents-heading"
-      style={{
-        display: "grid",
-        gap: "1rem",
-        padding: "1.15rem",
-        borderRadius: "1rem",
-        border: "1px solid rgba(255, 255, 255, 0.08)",
-        background: "rgba(255, 255, 255, 0.04)"
-      }}
-    >
-      <div>
-        <span
-          style={{
-            fontSize: "0.72rem",
-            letterSpacing: "0.2em",
-            textTransform: "uppercase",
-            color: "#94a3b8",
-            fontFamily: '"SFMono-Regular", Consolas, "Liberation Mono", monospace'
-          }}
-        >
-          Agents
-        </span>
-        <h2 id="agents-heading" style={{ margin: "0.3rem 0 0", fontSize: "1.35rem" }}>
-          Distribution targets
-        </h2>
-      </div>
+    <Card aria-labelledby="agents-heading" flat>
+      <CardHeader>
+        <span className="section-heading__eyebrow">Agents</span>
+        <CardTitle id="agents-heading">Distribution targets</CardTitle>
+        <CardDescription>Approved local agent targets for reviewed updates.</CardDescription>
+      </CardHeader>
 
-      <div style={{ display: "grid", gap: "0.65rem" }}>
-        {agents.map((agent) => (
-          <article
-            key={agent.name}
-            style={{
-              display: "grid",
-              gap: "0.25rem",
-              padding: "0.85rem",
-              borderRadius: "0.85rem",
-              background: "rgba(12, 16, 22, 0.8)",
-              border: "1px solid rgba(255, 255, 255, 0.06)"
-            }}
-          >
-            <strong>{agent.name}</strong>
-            <p style={{ margin: 0, color: "#94a3b8", lineHeight: 1.5 }}>{agent.detail}</p>
-          </article>
-        ))}
-      </div>
-    </section>
+      <CardContent>
+        <div className="list-stack">
+          {agents.map((agent) => (
+            <article className="update-item" key={agent.name}>
+              <strong>{agent.name}</strong>
+              <p className="card__description">{agent.detail}</p>
+            </article>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
   )
 }

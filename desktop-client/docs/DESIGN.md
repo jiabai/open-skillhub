@@ -7,11 +7,17 @@ The primary job is to show what changed, let the operator approve it once, and m
 
 ## View Priorities
 
-- `Pending Updates` is the primary surface and should stay the easiest screen to understand.
-- `Overview` summarizes connection health, last refresh, and current counts.
-- `Agents` explains where writes will happen and whether each target is valid.
-- `Settings` owns backend URL, token state, path overrides, and polling interval.
-- `Activity` explains what happened after sync or distribution runs.
+- `Home` is the primary surface and should answer whether anything needs review.
+- `Home` shows connection health, last refresh, current counts, and at most the first 3 pending updates.
+- `Updates` owns the full pending update queue and distribution actions.
+- `Settings` is a drawer that owns backend URL, token state, connection testing, target agents, bridge state, and activity.
+- `Activity` explains what happened after sync or distribution runs, but it should not crowd the home page.
+
+## Visual Language
+
+- Align desktop-client with the Web console: light background, restrained cards, clear top navigation, muted supporting text, and compact action buttons.
+- Prefer local design tokens and reusable renderer primitives over spreading inline styles.
+- Do not introduce Tailwind, shadcn, or service-side frontend dependencies into the desktop client unless a future spec explicitly approves it.
 
 ## Interaction Rules
 

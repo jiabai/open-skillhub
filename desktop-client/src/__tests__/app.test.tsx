@@ -163,9 +163,15 @@ describe("App", () => {
     render(<App />)
 
     await waitFor(() => {
-      expect(screen.getByRole("heading", { name: "API token" })).toBeInTheDocument()
+      expect(screen.getByText("API token needed")).toBeInTheDocument()
     })
     expect(mockDesktopClient.refreshSync).not.toHaveBeenCalled()
+
+    fireEvent.click(screen.getByRole("button", { name: "Configure API" }))
+
+    await waitFor(() => {
+      expect(screen.getByRole("heading", { name: "API token" })).toBeInTheDocument()
+    })
 
     fireEvent.change(screen.getByLabelText(/API Token/), {
       target: { value: "ask_live_saved" }
@@ -178,7 +184,63 @@ describe("App", () => {
         apiToken: "ask_live_saved"
       })
       expect(mockDesktopClient.refreshSync).toHaveBeenCalledTimes(1)
-      expect(screen.getByRole("heading", { name: "Pending updates" })).toBeInTheDocument()
+      expect(screen.getByRole("heading", { name: "Needs review" })).toBeInTheDocument()
+    })
+  })
+
+  it("keeps the home page focused and moves the full queue to Updates", async () => {
+    mockDesktopClient.refreshSync.mockResolvedValueOnce({
+      localRecords: [],
+      pendingUpdates: [
+        {
+          remoteSkillId: "skill-a",
+          name: "Skill A",
+          localVersion: null,
+          remoteVersion: "1.0.0",
+          reason: "missing-local-record"
+        },
+        {
+          remoteSkillId: "skill-b",
+          name: "Skill B",
+          localVersion: "1.0.0",
+          remoteVersion: "1.1.0",
+          reason: "version-mismatch"
+        },
+        {
+          remoteSkillId: "skill-c",
+          name: "Skill C",
+          localVersion: null,
+          remoteVersion: "1.0.0",
+          reason: "missing-local-record"
+        },
+        {
+          remoteSkillId: "skill-d",
+          name: "Skill D",
+          localVersion: "1.0.0",
+          remoteVersion: "2.0.0",
+          reason: "version-mismatch"
+        }
+      ],
+      lastRefreshedAt: "2026-04-17T00:00:00.000Z"
+    })
+
+    render(<App />)
+
+    await waitFor(() => {
+      expect(screen.getByRole("heading", { name: "Needs review" })).toBeInTheDocument()
+      expect(screen.getByText("Skill A")).toBeInTheDocument()
+      expect(screen.getByText("Skill C")).toBeInTheDocument()
+    })
+
+    expect(screen.queryByText("Skill D")).not.toBeInTheDocument()
+    expect(screen.queryByRole("heading", { name: "Distribution targets" })).not.toBeInTheDocument()
+    expect(screen.queryByRole("heading", { name: "Recent actions" })).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole("button", { name: "Updates" }))
+
+    await waitFor(() => {
+      expect(screen.getByRole("heading", { name: "All pending updates" })).toBeInTheDocument()
+      expect(screen.getByText("Skill D")).toBeInTheDocument()
     })
   })
 
@@ -224,11 +286,9 @@ describe("App", () => {
 
     render(<App />)
 
-    expect(screen.getByRole("heading", { name: "Pending updates" })).toBeInTheDocument()
-    expect(screen.getByRole("heading", { name: "Review snapshot" })).toBeInTheDocument()
-    expect(screen.getByRole("heading", { name: "Distribution targets" })).toBeInTheDocument()
-    expect(screen.getByRole("heading", { name: "Review controls" })).toBeInTheDocument()
-    expect(screen.getByRole("heading", { name: "Recent actions" })).toBeInTheDocument()
+    expect(screen.getByRole("heading", { name: "Review updates" })).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "Home" })).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "Updates" })).toBeInTheDocument()
 
     await waitFor(() => {
       expect(screen.getByText("Skill A")).toBeInTheDocument()
@@ -239,8 +299,13 @@ describe("App", () => {
 
     await waitFor(() => {
       expect(mockDesktopClient.distributePendingUpdate).toHaveBeenCalledWith("skill-a")
-      expect(screen.getByText("Distribution completed")).toBeInTheDocument()
       expect(screen.getByText("No pending updates are waiting for review.")).toBeInTheDocument()
+    })
+
+    fireEvent.click(screen.getAllByRole("button", { name: "Settings" })[0])
+
+    await waitFor(() => {
+      expect(screen.getByText("Distribution completed")).toBeInTheDocument()
     })
   })
 
@@ -279,6 +344,8 @@ describe("App", () => {
     })
 
     fireEvent.click(screen.getByRole("button", { name: "Distribute Skill A" }))
+
+    fireEvent.click(screen.getAllByRole("button", { name: "Settings" })[0])
 
     await waitFor(() => {
       expect(screen.getByText("Distribution completed with refresh warning")).toBeInTheDocument()
@@ -340,6 +407,8 @@ describe("App", () => {
     })
 
     fireEvent.click(screen.getByRole("button", { name: "Distribute Skill A" }))
+
+    fireEvent.click(screen.getAllByRole("button", { name: "Settings" })[0])
 
     await waitFor(() => {
       expect(screen.getByText("Distribution completed with warnings")).toBeInTheDocument()

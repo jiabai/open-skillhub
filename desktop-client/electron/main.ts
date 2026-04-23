@@ -184,6 +184,29 @@ function createTrayImage() {
   return nativeImage.createFromDataURL(`data:image/svg+xml;base64,${svg}`)
 }
 
+function createWindowIcon() {
+  // Embedded 256x256 icon for window/taskbar
+  const svg = Buffer.from(
+    `
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
+        <defs>
+          <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stop-color="#60a5fa"/>
+            <stop offset="100%" stop-color="#34d399"/>
+          </linearGradient>
+        </defs>
+        <rect x="32" y="32" width="192" height="192" rx="56" fill="#0f172a"/>
+        <path d="M72 152c0-32 26-56 56-56s56 24 56 56" fill="none" stroke="url(#grad)" stroke-width="24" stroke-linecap="round"/>
+        <circle cx="128" cy="80" r="20" fill="#f8fafc"/>
+        <circle cx="100" cy="112" r="12" fill="#93c5fd"/>
+        <circle cx="156" cy="112" r="12" fill="#6ee7b7"/>
+      </svg>
+    `.trim()
+  ).toString("base64")
+
+  return nativeImage.createFromDataURL(`data:image/svg+xml;base64,${svg}`)
+}
+
 function createNotification(payload: TrayNotificationPayload): void {
   if (Notification.isSupported()) {
     new Notification(payload).show()
@@ -195,6 +218,7 @@ function createWindow(): BrowserWindow {
     width: 1280,
     height: 840,
     backgroundColor: "#0b1020",
+    icon: createWindowIcon(),
     show: true,
     webPreferences: {
       contextIsolation: true,

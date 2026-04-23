@@ -1,12 +1,9 @@
 import { useEffect, useMemo, useState } from "react"
 
-import { ActivityPanel } from "@/components/activity-panel"
-import { AgentsPanel } from "@/components/agents-panel"
-import { ConfigPanel } from "@/components/config-panel"
-import { NavShell } from "@/components/nav-shell"
-import { OverviewPanel } from "@/components/overview-panel"
-import { PendingUpdatesPanel } from "@/components/pending-updates-panel"
-import { SettingsPanel } from "@/components/settings-panel"
+import { AppShell, type AppView } from "@/components/app-shell"
+import { HomeView } from "@/components/home-view"
+import { SettingsDrawer } from "@/components/settings-drawer"
+import { UpdatesView } from "@/components/updates-view"
 import { desktopClient } from "@/lib/ipc-client"
 import type {
   ConfigurationPayload,
@@ -95,10 +92,11 @@ export function App() {
   const [connectionTestResult, setConnectionTestResult] = useState<ConnectionTestResult | null>(
     null
   )
+  const [activeView, setActiveView] = useState<AppView>("home")
+  const [settingsOpen, setSettingsOpen] = useState(false)
 
   const bridgeAvailable = desktopClient.isAvailable()
   const configurationReady = Boolean(configState?.hasToken)
-  const showConfiguration = configState !== null && (isConfiguring || !configurationReady)
 
   const bridgeStatus = useMemo(() => {
     if (!bridgeAvailable) {
@@ -109,7 +107,7 @@ export function App() {
       return "Desktop bridge connected, loading configuration"
     }
 
-    if (showConfiguration) {
+    if (isConfiguring || !configurationReady) {
       return configurationReady
         ? "Desktop bridge connected, editing API configuration"
         : "Desktop bridge connected, API token required"
@@ -133,7 +131,7 @@ export function App() {
     configurationReady,
     errorMessage,
     isLoading,
-    showConfiguration,
+    isConfiguring,
     syncState.pendingUpdates.length
   ])
 
@@ -157,6 +155,7 @@ export function App() {
 
         if (!configuration.hasToken) {
           setIsConfiguring(true)
+          setActiveView("home")
           setErrorMessage(null)
           setIsLoading(false)
           setActivity((current) =>
@@ -213,6 +212,8 @@ export function App() {
 
     if (!configurationReady) {
       setIsConfiguring(true)
+      setActiveView("home")
+      setSettingsOpen(true)
       return
     }
 
@@ -258,6 +259,8 @@ export function App() {
       setConfigState(nextConfiguration)
       setConnectionTestResult(null)
       setIsConfiguring(false)
+      setSettingsOpen(false)
+      setActiveView("home")
       setActivity((current) =>
         [createActivityEntry("Configuration saved", "Runtime sync is using the latest API settings.", "success"), ...current].slice(0, 5)
       )
@@ -349,6 +352,8 @@ export function App() {
       setConnectionTestResult(null)
       setErrorMessage(null)
       setIsConfiguring(true)
+      setActiveView("home")
+      setSettingsOpen(true)
       setActivity((current) =>
         [createActivityEntry("Configuration cleared", "Review sync has been paused.", "warning"), ...current].slice(0, 5)
       )
@@ -423,71 +428,57 @@ export function App() {
   }
 
   return (
-    <NavShell
+    <AppShell
+      activeView={activeView}
       bridgeStatus={bridgeStatus}
-      onRefresh={handleRefresh}
+      pendingUpdateCount={syncState.pendingUpdates.length}
       isRefreshing={isLoading}
-      canRefresh={!showConfiguration && configurationReady}
-      activeSection={showConfiguration ? "configuration" : "pending"}
+      canRefresh={configurationReady}
+      onNavigate={setActiveView}
+      onOpenSettings={() => setSettingsOpen(true)}
+      onRefresh={handleRefresh}
     >
-      <section
-        style={{
-          display: "grid",
-          gap: "1rem"
-        }}
-      >
-        {showConfiguration ? (
-          <>
-            <ConfigPanel
-              configState={configState}
-              errorMessage={errorMessage}
-              testResult={connectionTestResult}
-              isSaving={isSavingConfiguration}
-              isTesting={isTestingConnection}
-              onSave={handleSaveConfiguration}
-              onTest={handleTestConnection}
-            />
-            <ActivityPanel entries={activity} />
-          </>
-        ) : (
-          <>
-            <OverviewPanel
-              isLoading={isLoading}
-              lastRefreshedAt={formatLongTimestamp(syncState.lastRefreshedAt)}
-              localRecordCount={syncState.localRecords.length}
-              pendingUpdateCount={syncState.pendingUpdates.length}
-              errorMessage={errorMessage}
-            />
+      {activeView === "home" ? (
+        <HomeView
+          bridgeAvailable={bridgeAvailable}
+          configurationReady={configurationReady}
+          errorMessage={errorMessage}
+          isLoading={isLoading}
+          lastRefreshedAt={formatLongTimestamp(syncState.lastRefreshedAt)}
+          localRecordCount={syncState.localRecords.length}
+          pendingUpdates={syncState.pendingUpdates}
+          busyUpdateId={busyUpdateId}
+          onDistribute={handleDistribute}
+          onOpenSettings={() => setSettingsOpen(true)}
+          onRefresh={handleRefresh}
+          onViewUpdates={() => setActiveView("updates")}
+        />
+      ) : (
+        <UpdatesView
+          isLoading={isLoading}
+          pendingUpdates={syncState.pendingUpdates}
+          busyUpdateId={busyUpdateId}
+          onDistribute={handleDistribute}
+          onRefresh={handleRefresh}
+        />
+      )}
 
-            <PendingUpdatesPanel
-              isLoading={isLoading}
-              pendingUpdates={syncState.pendingUpdates}
-              busyUpdateId={busyUpdateId}
-              onDistribute={handleDistribute}
-            />
-
-            <div
-              style={{
-                display: "grid",
-                gap: "1rem",
-                gridTemplateColumns: "repeat(2, minmax(0, 1fr))"
-              }}
-            >
-              <AgentsPanel />
-              <SettingsPanel
-                bridgeStatus={bridgeStatus}
-                lastRefreshedAt={formatLongTimestamp(syncState.lastRefreshedAt)}
-                configState={configState}
-                isClearingConfiguration={isClearingConfiguration}
-                onEditConfiguration={() => setIsConfiguring(true)}
-                onClearConfiguration={handleClearConfiguration}
-              />
-            </div>
-
-            <ActivityPanel entries={activity} />
-          </>
-        )}
-      </section>
-    </NavShell>
+      <SettingsDrawer
+        activity={activity}
+        bridgeStatus={bridgeStatus}
+        configState={configState}
+        connectionTestResult={connectionTestResult}
+        errorMessage={errorMessage}
+        isClearingConfiguration={isClearingConfiguration}
+        isOpen={settingsOpen}
+        isSavingConfiguration={isSavingConfiguration}
+        isTestingConnection={isTestingConnection}
+        lastRefreshedAt={formatLongTimestamp(syncState.lastRefreshedAt)}
+        onClearConfiguration={handleClearConfiguration}
+        onClose={() => setSettingsOpen(false)}
+        onSaveConfiguration={handleSaveConfiguration}
+        onTestConnection={handleTestConnection}
+      />
+    </AppShell>
   )
 }

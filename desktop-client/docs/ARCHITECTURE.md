@@ -16,7 +16,9 @@ and the full desktop runtime launch through `npm run start:electron`.
 - `src/app/`
   - `App.tsx`: root renderer composition and review-first state handling
 - `src/components/`
-  - navigation shell, overview, pending updates, agents, settings, and activity panels
+  - desktop shell, Home and Updates views, Settings drawer, local UI primitives, and supporting review panels
+- `src/styles.css`
+  - desktop renderer design tokens and shared component classes
 - `src/core/sync/`
   - remote skill comparison, state refresh, and polling control
 - `src/core/distribution/`
@@ -89,6 +91,7 @@ Dependencies should only point downward across those boundaries.
 - `electron/preload.ts`
 - `electron/ipc.ts`
 - `src/app/App.tsx`
+- `src/styles.css`
 - `src/core/sync/sync-service.ts`
 - `src/core/distribution/distribution-service.ts`
 - `src/core/distribution/package-service.ts`

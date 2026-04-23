@@ -10,6 +10,9 @@
 - If secret storage is unavailable, `OPEN_SKILLHUB_API_TOKEN` may be used for the
   current session only; it is not persisted in that fallback path.
 - The token must never be written to plaintext JSON config, renderer state snapshots, or logs.
+- `getConfiguration` IPC returns only desensitized token state: presence, source, persistence status, secret-store availability, and warning.
+- Saving or testing configuration may send the user-entered token from renderer to main, but the main process must not return the raw token.
+- API Base URL is non-secret and may be stored in `config/config.json`; Token remains in `keytar` only.
 
 ## Privilege Boundaries
 
@@ -33,6 +36,7 @@
 
 - The desktop client should call the client-oriented API surface only.
 - Do not reuse browser-session JWT routes for the desktop runtime.
+- API configuration connection tests must use an authenticated client route, currently `GET /api/v1/client/skills?limit=1`, rather than unauthenticated health checks.
 - Treat auth, network, path, package, and verification failures as separate error classes so operators can act on them.
 
 ## Logging

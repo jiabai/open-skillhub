@@ -1,6 +1,13 @@
+import { ConfigStatus } from "@/components/config-status"
+import type { ConfigurationState } from "@/types"
+
 type SettingsPanelProps = {
   bridgeStatus: string
   lastRefreshedAt: string
+  configState: ConfigurationState | null
+  isClearingConfiguration: boolean
+  onEditConfiguration: () => void
+  onClearConfiguration: () => void
 }
 
 const settings = [
@@ -18,7 +25,14 @@ const settings = [
   }
 ]
 
-export function SettingsPanel({ bridgeStatus, lastRefreshedAt }: SettingsPanelProps) {
+export function SettingsPanel({
+  bridgeStatus,
+  lastRefreshedAt,
+  configState,
+  isClearingConfiguration,
+  onEditConfiguration,
+  onClearConfiguration
+}: SettingsPanelProps) {
   return (
     <section
       aria-labelledby="settings-heading"
@@ -66,6 +80,13 @@ export function SettingsPanel({ bridgeStatus, lastRefreshedAt }: SettingsPanelPr
           </div>
         ))}
       </dl>
+
+      <ConfigStatus
+        configState={configState}
+        isClearing={isClearingConfiguration}
+        onEdit={onEditConfiguration}
+        onClear={onClearConfiguration}
+      />
 
       <div
         style={{

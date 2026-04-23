@@ -23,6 +23,8 @@ and the full desktop runtime launch through `npm run start:electron`.
   - package preparation, install orchestration, and distribution result reporting
 - `src/core/storage/`
   - app paths, JSON config, secret storage, and SQLite-backed state
+- `src/core/runtime/`
+  - reloadable runtime configuration assembled from JSON config, secret store, environment bootstrap, cache, and agent paths
 - `src/adapters/agents/`
   - Codex, Claude Code, and Gemini CLI path detection, validation, install, and verification
 - `src/lib/ipc-client.ts`
@@ -72,10 +74,12 @@ Dependencies should only point downward across those boundaries.
 
 - App root path is computed by `src/core/storage/app-paths.ts`
 - Current persisted directories are `config/` and `state/`
+- API Base URL is persisted in `config/config.json` through `src/core/storage/config-store.ts`
 - `electron/main.ts` also creates a runtime `cache/` directory below the app root
-- Runtime API token bootstrap reads from the `keytar` secret store, with
+- Runtime API token bootstrap is coordinated by `src/core/runtime/runtime-config-manager.ts`; it reads from the `keytar` secret store, with
   `OPEN_SKILLHUB_API_TOKEN` as an explicit first-run seed and current-session
   fallback when secret storage is unavailable
+- Saving or clearing API configuration reloads the in-memory runtime config so sync, package download, and distribution paths use the latest URL and token without an app restart
 - `logs/` and `backups/` belong to the target design language but are not yet created by the current implementation
 - State persistence currently stores sync snapshot data, not full per-run distribution history
 
@@ -89,5 +93,6 @@ Dependencies should only point downward across those boundaries.
 - `src/core/distribution/distribution-service.ts`
 - `src/core/distribution/package-service.ts`
 - `src/core/storage/config-store.ts`
+- `src/core/runtime/runtime-config-manager.ts`
 - `src/core/storage/state-db.ts`
 - `src/adapters/agents/base.ts`

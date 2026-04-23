@@ -1,3 +1,25 @@
+export type ApiTokenSource = "secret-store" | "environment" | "missing"
+
+export interface ConfigurationState {
+  apiBaseUrl: string
+  hasToken: boolean
+  tokenSource: ApiTokenSource
+  persistedEnvironmentToken: boolean
+  secretStoreAvailable: boolean
+  warning?: string
+}
+
+export interface ConfigurationPayload {
+  apiBaseUrl: string
+  apiToken: string
+}
+
+export interface ConnectionTestResult {
+  ok: boolean
+  status?: number
+  message: string
+}
+
 export interface RemoteSkillSummary {
   id: string
   name: string

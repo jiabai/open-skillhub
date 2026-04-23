@@ -1,6 +1,16 @@
-import type { DesktopSyncState, SkillDistributionResult } from "@/types"
+import type {
+  ConfigurationPayload,
+  ConfigurationState,
+  ConnectionTestResult,
+  DesktopSyncState,
+  SkillDistributionResult
+} from "@/types"
 
 export interface DesktopClientBridge {
+  getConfiguration(): Promise<ConfigurationState>
+  saveConfiguration(payload: ConfigurationPayload): Promise<ConfigurationState>
+  clearConfiguration(): Promise<ConfigurationState>
+  testConnection(payload: ConfigurationPayload): Promise<ConnectionTestResult>
   refreshSync(): Promise<DesktopSyncState>
   distributePendingUpdate(pendingUpdateId: string): Promise<SkillDistributionResult>
 }
@@ -21,6 +31,46 @@ function getDesktopClientBridge(): DesktopClientBridge | null {
 
 export function isDesktopClientAvailable(): boolean {
   return getDesktopClientBridge() !== null
+}
+
+function invokeGetConfiguration(): Promise<ConfigurationState> {
+  const bridge = getDesktopClientBridge()
+
+  if (!bridge) {
+    throw new Error("Desktop client bridge is unavailable")
+  }
+
+  return bridge.getConfiguration()
+}
+
+function invokeSaveConfiguration(payload: ConfigurationPayload): Promise<ConfigurationState> {
+  const bridge = getDesktopClientBridge()
+
+  if (!bridge) {
+    throw new Error("Desktop client bridge is unavailable")
+  }
+
+  return bridge.saveConfiguration(payload)
+}
+
+function invokeClearConfiguration(): Promise<ConfigurationState> {
+  const bridge = getDesktopClientBridge()
+
+  if (!bridge) {
+    throw new Error("Desktop client bridge is unavailable")
+  }
+
+  return bridge.clearConfiguration()
+}
+
+function invokeTestConnection(payload: ConfigurationPayload): Promise<ConnectionTestResult> {
+  const bridge = getDesktopClientBridge()
+
+  if (!bridge) {
+    throw new Error("Desktop client bridge is unavailable")
+  }
+
+  return bridge.testConnection(payload)
 }
 
 function invokeRefreshSync(): Promise<DesktopSyncState> {
@@ -47,6 +97,10 @@ function invokeDistributePendingUpdate(
 
 export const desktopClient = {
   isAvailable: isDesktopClientAvailable,
+  getConfiguration: invokeGetConfiguration,
+  saveConfiguration: invokeSaveConfiguration,
+  clearConfiguration: invokeClearConfiguration,
+  testConnection: invokeTestConnection,
   refreshSync: invokeRefreshSync,
   distributePendingUpdate: invokeDistributePendingUpdate
 } as const

@@ -3,19 +3,28 @@ import type { ReactNode } from "react"
 type NavShellProps = {
   bridgeStatus: string
   isRefreshing?: boolean
+  canRefresh?: boolean
+  activeSection?: "configuration" | "pending"
   onRefresh: () => void
   children: ReactNode
 }
 
 const navItems = [
-  { label: "Overview", hint: "Snapshot and drift" },
-  { label: "Pending updates", hint: "Review before distribute" },
-  { label: "Agents", hint: "Targets and adapters" },
-  { label: "Settings", hint: "Policy and bridge state" },
-  { label: "Activity", hint: "Latest actions" }
+  { id: "overview", label: "Overview", hint: "Snapshot and drift" },
+  { id: "pending", label: "Pending updates", hint: "Review before distribute" },
+  { id: "agents", label: "Agents", hint: "Targets and adapters" },
+  { id: "configuration", label: "Configuration", hint: "API endpoint and token" },
+  { id: "activity", label: "Activity", hint: "Latest actions" }
 ]
 
-export function NavShell({ bridgeStatus, isRefreshing, onRefresh, children }: NavShellProps) {
+export function NavShell({
+  bridgeStatus,
+  isRefreshing,
+  canRefresh = true,
+  activeSection = "pending",
+  onRefresh,
+  children
+}: NavShellProps) {
   return (
     <main
       style={{
@@ -87,14 +96,17 @@ export function NavShell({ bridgeStatus, isRefreshing, onRefresh, children }: Na
 
             <nav aria-label="Desktop sections">
               <ul style={{ display: "grid", gap: "0.55rem", padding: 0, margin: 0, listStyle: "none" }}>
-                {navItems.map((item, index) => (
+                {navItems.map((item) => {
+                  const isActive = item.id === activeSection
+
+                  return (
                   <li
                     key={item.label}
                     style={{
                       padding: "0.8rem 0.9rem",
                       borderRadius: "0.95rem",
-                      background: index === 1 ? "rgba(96, 165, 250, 0.12)" : "rgba(255, 255, 255, 0.03)",
-                      border: index === 1 ? "1px solid rgba(96, 165, 250, 0.24)" : "1px solid transparent"
+                      background: isActive ? "rgba(96, 165, 250, 0.12)" : "rgba(255, 255, 255, 0.03)",
+                      border: isActive ? "1px solid rgba(96, 165, 250, 0.24)" : "1px solid transparent"
                     }}
                   >
                     <div
@@ -106,7 +118,7 @@ export function NavShell({ bridgeStatus, isRefreshing, onRefresh, children }: Na
                       }}
                     >
                       <strong style={{ fontSize: "0.98rem" }}>{item.label}</strong>
-                      {index === 1 ? (
+                      {isActive ? (
                         <span
                           style={{
                             padding: "0.18rem 0.5rem",
@@ -132,7 +144,8 @@ export function NavShell({ bridgeStatus, isRefreshing, onRefresh, children }: Na
                       {item.hint}
                     </p>
                   </li>
-                ))}
+                  )
+                })}
               </ul>
             </nav>
           </div>
@@ -164,19 +177,20 @@ export function NavShell({ bridgeStatus, isRefreshing, onRefresh, children }: Na
             <button
               type="button"
               onClick={onRefresh}
-              disabled={isRefreshing}
+              disabled={isRefreshing || !canRefresh}
               style={{
                 alignSelf: "start",
                 border: "1px solid rgba(148, 163, 184, 0.22)",
                 borderRadius: "0.8rem",
-                background: isRefreshing ? "rgba(148, 163, 184, 0.12)" : "rgba(96, 165, 250, 0.16)",
+                background:
+                  isRefreshing || !canRefresh ? "rgba(148, 163, 184, 0.12)" : "rgba(96, 165, 250, 0.16)",
                 color: "#f8fafc",
                 padding: "0.65rem 0.9rem",
                 fontFamily: '"SFMono-Regular", Consolas, "Liberation Mono", monospace',
-                cursor: isRefreshing ? "wait" : "pointer"
+                cursor: isRefreshing ? "wait" : canRefresh ? "pointer" : "not-allowed"
               }}
             >
-              {isRefreshing ? "Refreshing..." : "Refresh review state"}
+              {isRefreshing ? "Refreshing..." : canRefresh ? "Refresh review state" : "Configure API token"}
             </button>
           </div>
         </aside>

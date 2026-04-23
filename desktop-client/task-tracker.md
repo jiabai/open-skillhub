@@ -11,6 +11,7 @@ No active desktop-client tracker items are in progress.
 
 ## Done
 
+- [x] Implement API token configuration UI and runtime reload path (2026-04-23) ✅ `npm run typecheck:electron`, `npm test`, and `npm run build` succeed
 - [x] Create one canonical Electron start workflow for local development (2026-04-23) ✅ `desktop-client/package.json` exposes `npm run start:electron` and `desktop-client/README.md` documents the same command
 - [x] Wire runtime auth bootstrap through `src/core/storage/secret-store.ts` (2026-04-23) ✅ `desktop-client/electron/main.ts`, `docs/SECURITY.md`, and `docs/product-specs/2026-04-17-skill-distribution-v1.md` describe the same auth bootstrap path
 - [x] Scaffold the desktop-client sub-app (2026-04-17) ✅ `Get-ChildItem desktop-client/src,desktop-client/electron` lists renderer and Electron runtime directories

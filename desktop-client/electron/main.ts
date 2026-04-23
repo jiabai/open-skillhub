@@ -1,8 +1,7 @@
 import { execFile } from "node:child_process"
 import { createHash } from "node:crypto"
-import { existsSync, mkdirSync } from "node:fs"
 import { mkdtemp, writeFile } from "node:fs/promises"
-import { homedir, tmpdir } from "node:os"
+import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { fileURLToPath } from "node:url"
 import { promisify } from "node:util"
@@ -24,12 +23,19 @@ import {
   createDistributionService
 } from "@/core/distribution/distribution-service"
 import { createPackageService } from "@/core/distribution/package-service"
-import { APP_NAME, ensureAppDirectories } from "@/core/storage/app-paths"
-import { resolveApiTokenBootstrap } from "@/core/storage/auth-bootstrap"
-import { createKeytarSecretStore } from "@/core/storage/secret-store"
+import {
+  createRuntimeConfigManager,
+  type DesktopRuntimeConfig,
+  type RuntimeConfigurationState,
+  validateApiBaseUrl
+} from "@/core/runtime/runtime-config-manager"
+import { ensureAppDirectories } from "@/core/storage/app-paths"
 import { createSqliteStateStore } from "@/core/storage/state-db"
 import { createSyncPollingController, createSyncService } from "@/core/sync/sync-service"
 import type {
+  ConfigurationPayload,
+  ConfigurationState,
+  ConnectionTestResult,
   DesktopSyncState,
   DownloadedSkillArtifact,
   RemoteSkillSummary,
@@ -46,14 +52,6 @@ type TrayNotificationPayload = {
   body: string
 }
 
-type DesktopRuntimeConfig = {
-  apiBaseUrl: string
-  apiToken: string | null
-  pollIntervalMs: number
-  cacheDir: string
-  agentSkillsPaths: Partial<Record<AgentId, string>>
-}
-
 type ClientSkillDownloadPayload = {
   skill_uuid: string
   version: string
@@ -64,45 +62,14 @@ type ClientSkillDownloadPayload = {
   download_filename: string
 }
 
-const agentPathEnvVars: Record<AgentId, string> = {
-  codex: "OPEN_SKILLHUB_CODEX_SKILLS_PATH",
-  "claude-code": "OPEN_SKILLHUB_CLAUDE_CODE_SKILLS_PATH",
-  "gemini-cli": "OPEN_SKILLHUB_GEMINI_CLI_SKILLS_PATH"
-}
-
-const defaultAgentRoots: Record<AgentId, string> = {
-  codex: join(homedir(), ".codex"),
-  "claude-code": join(homedir(), ".claude"),
-  "gemini-cli": join(homedir(), ".gemini")
-}
-
 let mainWindow: BrowserWindow | null = null
 let tray: Tray | null = null
 let stateStore: Awaited<ReturnType<typeof createSqliteStateStore>> | null = null
 let stopPolling: (() => void) | null = null
 let isQuitting = false
 
-function normalizeBaseUrl(value: string): string {
-  return value.trim().replace(/\/+$/, "")
-}
-
-function normalizePollInterval(value: string | undefined): number {
-  const parsed = Number(value ?? 30_000)
-
-  if (!Number.isFinite(parsed) || parsed <= 0) {
-    return 30_000
-  }
-
-  return parsed
-}
-
 function normalizeVersion(version: string | null | undefined): string | null {
   const trimmed = version?.trim()
-  return trimmed ? trimmed : null
-}
-
-function normalizeAgentSkillsPath(value: string | undefined): string | null {
-  const trimmed = value?.trim()
   return trimmed ? trimmed : null
 }
 
@@ -132,43 +99,66 @@ function getErrorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error)
 }
 
-async function createRuntimeConfig(): Promise<DesktopRuntimeConfig> {
-  const appPaths = ensureAppDirectories()
-  const cacheDir = join(appPaths.rootDir, "cache")
-  mkdirSync(cacheDir, { recursive: true })
-  const apiTokenBootstrap = await resolveApiTokenBootstrap({
-    secretStore: createKeytarSecretStore(APP_NAME),
-    envToken: process.env.OPEN_SKILLHUB_API_TOKEN
-  })
+function toConfigurationState(state: RuntimeConfigurationState): ConfigurationState {
+  return {
+    apiBaseUrl: state.config.apiBaseUrl,
+    hasToken: Boolean(state.config.apiToken),
+    tokenSource: state.bootstrap.source,
+    persistedEnvironmentToken: state.bootstrap.persistedEnvironmentToken,
+    secretStoreAvailable: state.bootstrap.secretStoreAvailable,
+    warning: state.bootstrap.warning ?? undefined
+  }
+}
 
-  if (apiTokenBootstrap.warning) {
-    console.warn(apiTokenBootstrap.warning)
+async function testApiConnection(
+  payload: ConfigurationPayload,
+  fallbackToken?: string | null
+): Promise<ConnectionTestResult> {
+  let apiBaseUrl: string
+
+  try {
+    apiBaseUrl = validateApiBaseUrl(payload.apiBaseUrl)
+  } catch (error) {
+    return {
+      ok: false,
+      message: getErrorMessage(error)
+    }
   }
 
-  const agentSkillsPaths = listAgentAdapters().reduce<Partial<Record<AgentId, string>>>(
-    (pathsByAgent, adapter) => {
-      const configuredPath = normalizeAgentSkillsPath(process.env[agentPathEnvVars[adapter.id]])
+  const apiToken = payload.apiToken.trim() || fallbackToken?.trim() || ""
 
-      if (configuredPath) {
-        pathsByAgent[adapter.id] = configuredPath
-        return pathsByAgent
+  if (!apiToken) {
+    return {
+      ok: false,
+      message: "API token is required."
+    }
+  }
+
+  try {
+    const response = await fetch(`${apiBaseUrl}/api/v1/client/skills?limit=1`, {
+      headers: {
+        Authorization: `Bearer ${apiToken}`
       }
+    })
 
-      if (existsSync(defaultAgentRoots[adapter.id])) {
-        pathsByAgent[adapter.id] = join(defaultAgentRoots[adapter.id], "skills")
+    if (!response.ok) {
+      return {
+        ok: false,
+        status: response.status,
+        message: `Connection failed: ${response.status} ${response.statusText}`
       }
+    }
 
-      return pathsByAgent
-    },
-    {}
-  )
-
-  return {
-    apiBaseUrl: normalizeBaseUrl(process.env.OPEN_SKILLHUB_API_BASE_URL ?? "http://127.0.0.1:8001"),
-    apiToken: apiTokenBootstrap.apiToken,
-    pollIntervalMs: normalizePollInterval(process.env.OPEN_SKILLHUB_POLL_INTERVAL_MS),
-    cacheDir,
-    agentSkillsPaths
+    return {
+      ok: true,
+      status: response.status,
+      message: "Connection succeeded."
+    }
+  } catch (error) {
+    return {
+      ok: false,
+      message: getErrorMessage(error)
+    }
   }
 }
 
@@ -329,7 +319,7 @@ async function downloadSkillArtifact(
     `${sanitizeCacheSegment(request.skillId)}-${sanitizeCacheSegment(payload.version)}${
       payload.encryption_enabled ? ".encrypted.bin" : ".zip"
     }`
-  const artifactPath = join(config.cacheDir, fileName)
+  const artifactPath = join(config.cacheDirectory, fileName)
 
   await writeFile(artifactPath, archiveBytes)
 
@@ -395,7 +385,14 @@ async function closeStateStore(): Promise<void> {
 
 async function createApplicationServices(): Promise<void> {
   const appPaths = ensureAppDirectories()
-  const runtimeConfig = await createRuntimeConfig()
+  const runtimeConfigManager = createRuntimeConfigManager()
+  const initialRuntimeState = await runtimeConfigManager.reload()
+  const getRuntimeConfig = () => runtimeConfigManager.getState().config
+
+  if (initialRuntimeState.bootstrap.warning) {
+    console.warn(initialRuntimeState.bootstrap.warning)
+  }
+
   stateStore = await createSqliteStateStore(appPaths.stateDbPath)
 
   tray = new Tray(createTrayImage())
@@ -403,7 +400,7 @@ async function createApplicationServices(): Promise<void> {
 
   const syncService = createSyncService({
     apiClient: {
-      listClientSkills: () => listRemoteSkills(runtimeConfig)
+      listClientSkills: () => listRemoteSkills(getRuntimeConfig())
     },
     stateStore
   })
@@ -411,14 +408,14 @@ async function createApplicationServices(): Promise<void> {
     syncService,
     tray,
     createNotification: (options) => new Notification(options),
-    pollIntervalMs: runtimeConfig.pollIntervalMs,
+    pollIntervalMs: getRuntimeConfig().pollIntervalMs,
     onError: (error: unknown) => {
       console.error("Background sync failed", error)
       tray?.setToolTip("SkillHub Desktop - sync unavailable")
     }
   })
   const packageService = createPackageService({
-    downloadArtifact: (request) => downloadSkillArtifact(runtimeConfig, request),
+    downloadArtifact: (request) => downloadSkillArtifact(getRuntimeConfig(), request),
     extractArtifact: (artifact, extractedPath) => extractArchive(artifact.artifactPath, extractedPath),
     createTempDirectory: async () => mkdtemp(join(tmpdir(), "open-skillhub-package-"))
   })
@@ -427,7 +424,7 @@ async function createApplicationServices(): Promise<void> {
     stateStore,
     resolveAgentAdapter: (agentId) => getAgentAdapter(agentId as AgentId),
     resolveInstallContext: (agentId) => {
-      const skillsPath = runtimeConfig.agentSkillsPaths[agentId as AgentId]
+      const skillsPath = getRuntimeConfig().agentSkillsPaths[agentId as AgentId]
       return skillsPath ? { skillsPath } : null
     }
   })
@@ -483,7 +480,43 @@ async function createApplicationServices(): Promise<void> {
   mainWindow = createWindow()
   configureWindowLifecycle(mainWindow)
 
+  const startPollingIfConfigured = async () => {
+    if (!getRuntimeConfig().apiToken) {
+      pollingController.stop()
+      tray?.setToolTip("SkillHub Desktop - configure API token")
+      return
+    }
+
+    await pollingController.start()
+  }
+
   registerDesktopClientIpc(ipcMain, {
+    getConfiguration: () => toConfigurationState(runtimeConfigManager.getState()),
+    saveConfiguration: async (payload: ConfigurationPayload): Promise<ConfigurationState> => {
+      const nextState = await runtimeConfigManager.saveConfiguration(payload)
+
+      if (nextState.bootstrap.warning) {
+        console.warn(nextState.bootstrap.warning)
+      }
+
+      try {
+        await startPollingIfConfigured()
+      } catch (error) {
+        console.error("Failed to restart background sync after saving configuration", error)
+        tray?.setToolTip("SkillHub Desktop - sync unavailable")
+      }
+
+      return toConfigurationState(nextState)
+    },
+    clearConfiguration: async (): Promise<ConfigurationState> => {
+      const nextState = await runtimeConfigManager.clearConfiguration()
+      pollingController.stop()
+      tray?.setToolTip("SkillHub Desktop - configure API token")
+
+      return toConfigurationState(nextState)
+    },
+    testConnection: (payload: ConfigurationPayload) =>
+      testApiConnection(payload, getRuntimeConfig().apiToken),
     refreshSync: () => pollingController.refreshNow(),
     distributePendingUpdate: async (pendingUpdateId: string): Promise<SkillDistributionResult> => {
       const normalizedPendingUpdateId = pendingUpdateId.trim()
@@ -507,7 +540,7 @@ async function createApplicationServices(): Promise<void> {
         throw new Error(`Unknown pending update: ${normalizedPendingUpdateId}`)
       }
 
-      const enabledAgentIds = getEnabledAgentIds(runtimeConfig)
+      const enabledAgentIds = getEnabledAgentIds(getRuntimeConfig())
 
       if (enabledAgentIds.length === 0) {
         throw new Error(
@@ -534,11 +567,7 @@ async function createApplicationServices(): Promise<void> {
   })
 
   try {
-    if (runtimeConfig.apiToken) {
-      await pollingController.start()
-    } else {
-      tray.setToolTip("SkillHub Desktop - configure API token")
-    }
+    await startPollingIfConfigured()
   } catch (error) {
     console.error("Failed to perform the initial background refresh", error)
     tray.setToolTip("SkillHub Desktop - sync unavailable")

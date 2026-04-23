@@ -2,6 +2,7 @@ import { mkdtempSync, readFileSync, rmSync, statSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { afterEach, describe, expect, it, vi } from "vitest"
+import { createRuntimeConfigManager } from "@/core/runtime/runtime-config-manager"
 import { APP_NAME, createAppPaths, ensureAppDirectories } from "@/core/storage/app-paths"
 import { resolveApiTokenBootstrap } from "@/core/storage/auth-bootstrap"
 import { createJsonConfigStore } from "@/core/storage/config-store"
@@ -166,5 +167,74 @@ describe("storage foundation", () => {
       warning: "Secret store unavailable during API token bootstrap: keytar unavailable"
     })
     expect(store.setApiToken).not.toHaveBeenCalled()
+  })
+
+  it("persists runtime API configuration through the config and secret stores", async () => {
+    const rootDir = createTempRoot()
+    const store = createInMemorySecretStore()
+    const manager = createRuntimeConfigManager({
+      appPathsOptions: { baseDir: rootDir },
+      env: {} as NodeJS.ProcessEnv,
+      secretStore: store
+    })
+
+    await manager.reload()
+    const savedState = await manager.saveConfiguration({
+      apiBaseUrl: "http://127.0.0.1:9000/",
+      apiToken: "  ask_live_saved  "
+    })
+
+    expect(savedState.config.apiBaseUrl).toBe("http://127.0.0.1:9000")
+    expect(savedState.config.apiToken).toBe("ask_live_saved")
+    expect(savedState.bootstrap.source).toBe("secret-store")
+    expect(await store.getApiToken()).toBe("ask_live_saved")
+    expect(JSON.parse(readFileSync(join(rootDir, "config", "config.json"), "utf8"))).toEqual({
+      apiBaseUrl: "http://127.0.0.1:9000"
+    })
+
+    const reloadedState = await manager.reload()
+
+    expect(reloadedState.config.apiBaseUrl).toBe("http://127.0.0.1:9000")
+    expect(reloadedState.config.apiToken).toBe("ask_live_saved")
+  })
+
+  it("does not re-import an environment token after the user clears configuration", async () => {
+    const rootDir = createTempRoot()
+    const store = createInMemorySecretStore()
+    const manager = createRuntimeConfigManager({
+      appPathsOptions: { baseDir: rootDir },
+      env: {
+        OPEN_SKILLHUB_API_BASE_URL: "http://localhost:8001",
+        OPEN_SKILLHUB_API_TOKEN: "ask_live_env"
+      } as NodeJS.ProcessEnv,
+      secretStore: store
+    })
+
+    const bootstrappedState = await manager.reload()
+
+    expect(bootstrappedState.bootstrap.source).toBe("environment")
+    expect(bootstrappedState.config.apiToken).toBe("ask_live_env")
+    expect(await store.getApiToken()).toBe("ask_live_env")
+
+    const clearedState = await manager.clearConfiguration()
+
+    expect(clearedState.bootstrap.source).toBe("missing")
+    expect(clearedState.config.apiToken).toBeNull()
+    expect(await store.getApiToken()).toBeNull()
+  })
+
+  it("preserves per-agent skill path environment overrides in runtime config", async () => {
+    const rootDir = createTempRoot()
+    const manager = createRuntimeConfigManager({
+      appPathsOptions: { baseDir: rootDir },
+      env: {
+        OPEN_SKILLHUB_CODEX_SKILLS_PATH: "D:\\Codex\\skills"
+      } as NodeJS.ProcessEnv,
+      secretStore: createInMemorySecretStore()
+    })
+
+    const state = await manager.reload()
+
+    expect(state.config.agentSkillsPaths.codex).toBe("D:\\Codex\\skills")
   })
 })

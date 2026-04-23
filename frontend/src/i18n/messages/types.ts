@@ -299,6 +299,10 @@ export type AppDictionary = {
     revokeDescription: string
     cancel: string
     revoke: string
+    copySuccessTitle: string
+    copySuccessDescription: string
+    copyFailedTitle: string
+    copyFailedDescription: string
     createSuccessTitle: string
     createSuccessDescription: string
     createFailedTitle: string

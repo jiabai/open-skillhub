@@ -26,16 +26,15 @@ import { createPackageService } from "@/core/distribution/package-service"
 import {
   createRuntimeConfigManager,
   type DesktopRuntimeConfig,
-  type RuntimeConfigurationState,
-  validateApiBaseUrl
+  type RuntimeConfigurationState
 } from "@/core/runtime/runtime-config-manager"
+import { testApiConnection } from "@/core/runtime/api-connection"
 import { ensureAppDirectories } from "@/core/storage/app-paths"
 import { createSqliteStateStore } from "@/core/storage/state-db"
 import { createSyncPollingController, createSyncService } from "@/core/sync/sync-service"
 import type {
   ConfigurationPayload,
   ConfigurationState,
-  ConnectionTestResult,
   DesktopSyncState,
   DownloadedSkillArtifact,
   RemoteSkillSummary,
@@ -108,58 +107,6 @@ function toConfigurationState(state: RuntimeConfigurationState): ConfigurationSt
     persistedEnvironmentToken: state.bootstrap.persistedEnvironmentToken,
     secretStoreAvailable: state.bootstrap.secretStoreAvailable,
     warning: state.bootstrap.warning ?? undefined
-  }
-}
-
-async function testApiConnection(
-  payload: ConfigurationPayload,
-  fallbackToken?: string | null
-): Promise<ConnectionTestResult> {
-  let apiBaseUrl: string
-
-  try {
-    apiBaseUrl = validateApiBaseUrl(payload.apiBaseUrl)
-  } catch (error) {
-    return {
-      ok: false,
-      message: getErrorMessage(error)
-    }
-  }
-
-  const apiToken = payload.apiToken.trim() || fallbackToken?.trim() || ""
-
-  if (!apiToken) {
-    return {
-      ok: false,
-      message: "API token is required."
-    }
-  }
-
-  try {
-    const response = await fetch(`${apiBaseUrl}/api/v1/client/skills?limit=1`, {
-      headers: {
-        Authorization: `Bearer ${apiToken}`
-      }
-    })
-
-    if (!response.ok) {
-      return {
-        ok: false,
-        status: response.status,
-        message: `Connection failed: ${response.status} ${response.statusText}`
-      }
-    }
-
-    return {
-      ok: true,
-      status: response.status,
-      message: "Connection succeeded."
-    }
-  } catch (error) {
-    return {
-      ok: false,
-      message: getErrorMessage(error)
-    }
   }
 }
 

@@ -1,5 +1,5 @@
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react"
-import { beforeEach, vi } from "vitest"
+import { afterEach, beforeEach, vi } from "vitest"
 
 import { RuntimeConfigContext } from "@/components/app/runtime-config-provider"
 import { I18nProvider } from "@/i18n/i18n-provider"
@@ -65,6 +65,11 @@ function renderWithRuntimeConfig(node: React.ReactNode) {
     </I18nProvider>
   )
 }
+
+afterEach(() => {
+  Reflect.deleteProperty(navigator, "clipboard")
+  Reflect.deleteProperty(document, "execCommand")
+})
 
 async function activateTab(name: string) {
   const tab = screen.getByRole("tab", { name })
@@ -445,6 +450,34 @@ describe("console pages", () => {
     renderWithRuntimeConfig(<TokensPage />)
     expect(await screen.findByRole("heading", { name: "令牌" })).toBeInTheDocument()
     expect(await screen.findByRole("heading", { name: "创建令牌" })).toBeInTheDocument()
+  })
+
+  it("copies a newly created token even when navigator clipboard is unavailable", async () => {
+    Object.defineProperty(navigator, "clipboard", {
+      configurable: true,
+      value: undefined
+    })
+    const execCommand = vi.fn(() => true)
+    Object.defineProperty(document, "execCommand", {
+      configurable: true,
+      value: execCommand
+    })
+
+    renderWithRuntimeConfig(<TokensPage />)
+
+    fireEvent.change(screen.getByLabelText("令牌名称"), {
+      target: { value: "local-mcp-client" }
+    })
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "创建令牌" }))
+    })
+
+    const copyButton = await screen.findByRole("button", { name: "复制" })
+    fireEvent.click(copyButton)
+
+    await waitFor(() => {
+      expect(execCommand).toHaveBeenCalledWith("copy")
+    })
   })
 
   it("renders profile identity summary before editable settings", async () => {

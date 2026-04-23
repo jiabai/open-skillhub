@@ -72,6 +72,10 @@ function createActivityEntry(
   }
 }
 
+function createBridgeUnavailableMessage(action: string): string {
+  return `Desktop bridge unavailable. Launch the Electron runtime with \`npm run start:electron\` to ${action}.`
+}
+
 export function App() {
   const [syncState, setSyncState] = useState<DesktopSyncState>(initialState)
   const [activity, setActivity] = useState<ActivityEntry[]>([
@@ -248,11 +252,15 @@ export function App() {
 
   const handleSaveConfiguration = async (payload: ConfigurationPayload) => {
     if (!bridgeAvailable) {
+      const message = createBridgeUnavailableMessage("save configuration")
+      setConnectionTestResult(null)
+      setErrorMessage(message)
       return
     }
 
     setIsSavingConfiguration(true)
     setErrorMessage(null)
+    setConnectionTestResult(null)
 
     try {
       const nextConfiguration = await desktopClient.saveConfiguration(payload)
@@ -305,10 +313,16 @@ export function App() {
 
   const handleTestConnection = async (payload: ConfigurationPayload) => {
     if (!bridgeAvailable) {
+      setErrorMessage(null)
+      setConnectionTestResult({
+        ok: false,
+        message: createBridgeUnavailableMessage("test the connection")
+      })
       return
     }
 
     setIsTestingConnection(true)
+    setErrorMessage(null)
     setConnectionTestResult(null)
 
     try {

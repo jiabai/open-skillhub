@@ -13,6 +13,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
+import { copyTextToClipboard } from "@/lib/clipboard"
 import { api } from "@/lib/api"
 import { useRuntimeConfig } from "@/hooks/use-runtime-config"
 import { createTokenNameRules, useField } from "@/hooks/use-form-validation"
@@ -95,7 +96,13 @@ export default function TokensPage() {
 
   const handleCopy = async () => {
     if (!newToken) return
-    await navigator.clipboard.writeText(newToken)
+
+    try {
+      await copyTextToClipboard(newToken)
+      success(copy.copySuccessTitle, { description: copy.copySuccessDescription })
+    } catch {
+      showError(copy.copyFailedTitle, { description: copy.copyFailedDescription })
+    }
   }
 
   return (
@@ -143,7 +150,7 @@ export default function TokensPage() {
                     <KeyRound className="h-4 w-4 text-primary" />
                     {copy.newTokenShownOnlyOnce}
                   </div>
-                  <Button variant="outline" size="sm" onClick={handleCopy}>
+                  <Button type="button" variant="outline" size="sm" onClick={handleCopy}>
                     <Copy className="h-4 w-4" />
                     {copy.copy}
                   </Button>

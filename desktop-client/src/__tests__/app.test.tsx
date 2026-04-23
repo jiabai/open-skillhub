@@ -66,6 +66,45 @@ describe("App", () => {
     expect(window.desktopClient?.distributePendingUpdate).toBeTypeOf("function")
   })
 
+  it("surfaces a bridge unavailable error when configuration actions run outside Electron", async () => {
+    delete window.desktopClient
+
+    render(<App />)
+
+    await waitFor(() => {
+      expect(screen.getByRole("alert")).toHaveTextContent("Desktop bridge unavailable")
+    })
+
+    fireEvent.click(screen.getByRole("button", { name: "Configure API" }))
+
+    await waitFor(() => {
+      expect(screen.getByRole("heading", { name: "API token" })).toBeInTheDocument()
+    })
+
+    fireEvent.change(screen.getByLabelText(/API Token/), {
+      target: { value: "ask_live_saved" }
+    })
+    fireEvent.click(screen.getByRole("button", { name: "Save configuration" }))
+
+    await waitFor(() => {
+      expect(
+        screen.getByText(
+          "Desktop bridge unavailable. Launch the Electron runtime with `npm run start:electron` to save configuration."
+        )
+      ).toBeInTheDocument()
+    })
+
+    fireEvent.click(screen.getByRole("button", { name: "Test connection" }))
+
+    await waitFor(() => {
+      expect(
+        screen.getByText(
+          "Desktop bridge unavailable. Launch the Electron runtime with `npm run start:electron` to test the connection."
+        )
+      ).toBeInTheDocument()
+    })
+  })
+
   it("proxies the preload bridge through the renderer wrapper", async () => {
     mockDesktopClient.getConfiguration.mockResolvedValue(configuredState)
     mockDesktopClient.saveConfiguration.mockResolvedValue(configuredState)

@@ -2,9 +2,7 @@
 
 ## Current Plans
 
-| File | Focus |
-|------|-------|
-| `2026-04-17-operationalize-runtime-bootstrap.md` | Operationalize desktop runtime bootstrap |
+No active desktop-client ExecPlans are currently open.
 
 ## Working Agreement
 

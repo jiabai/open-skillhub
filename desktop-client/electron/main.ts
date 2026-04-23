@@ -24,7 +24,9 @@ import {
   createDistributionService
 } from "@/core/distribution/distribution-service"
 import { createPackageService } from "@/core/distribution/package-service"
-import { ensureAppDirectories } from "@/core/storage/app-paths"
+import { APP_NAME, ensureAppDirectories } from "@/core/storage/app-paths"
+import { resolveApiTokenBootstrap } from "@/core/storage/auth-bootstrap"
+import { createKeytarSecretStore } from "@/core/storage/secret-store"
 import { createSqliteStateStore } from "@/core/storage/state-db"
 import { createSyncPollingController, createSyncService } from "@/core/sync/sync-service"
 import type {
@@ -130,10 +132,18 @@ function getErrorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error)
 }
 
-function createRuntimeConfig(): DesktopRuntimeConfig {
+async function createRuntimeConfig(): Promise<DesktopRuntimeConfig> {
   const appPaths = ensureAppDirectories()
   const cacheDir = join(appPaths.rootDir, "cache")
   mkdirSync(cacheDir, { recursive: true })
+  const apiTokenBootstrap = await resolveApiTokenBootstrap({
+    secretStore: createKeytarSecretStore(APP_NAME),
+    envToken: process.env.OPEN_SKILLHUB_API_TOKEN
+  })
+
+  if (apiTokenBootstrap.warning) {
+    console.warn(apiTokenBootstrap.warning)
+  }
 
   const agentSkillsPaths = listAgentAdapters().reduce<Partial<Record<AgentId, string>>>(
     (pathsByAgent, adapter) => {
@@ -155,7 +165,7 @@ function createRuntimeConfig(): DesktopRuntimeConfig {
 
   return {
     apiBaseUrl: normalizeBaseUrl(process.env.OPEN_SKILLHUB_API_BASE_URL ?? "http://127.0.0.1:8001"),
-    apiToken: process.env.OPEN_SKILLHUB_API_TOKEN?.trim() || null,
+    apiToken: apiTokenBootstrap.apiToken,
     pollIntervalMs: normalizePollInterval(process.env.OPEN_SKILLHUB_POLL_INTERVAL_MS),
     cacheDir,
     agentSkillsPaths
@@ -243,7 +253,7 @@ function normalizeSkillSummary(item: unknown): RemoteSkillSummary | null {
 
 function createAuthHeaders(config: DesktopRuntimeConfig): Record<string, string> {
   if (!config.apiToken) {
-    throw new Error("OPEN_SKILLHUB_API_TOKEN is required to connect the desktop client")
+    throw new Error("An Open SkillHub API token is required to connect the desktop client")
   }
 
   return {
@@ -385,7 +395,7 @@ async function closeStateStore(): Promise<void> {
 
 async function createApplicationServices(): Promise<void> {
   const appPaths = ensureAppDirectories()
-  const runtimeConfig = createRuntimeConfig()
+  const runtimeConfig = await createRuntimeConfig()
   stateStore = await createSqliteStateStore(appPaths.stateDbPath)
 
   tray = new Tray(createTrayImage())
@@ -527,7 +537,7 @@ async function createApplicationServices(): Promise<void> {
     if (runtimeConfig.apiToken) {
       await pollingController.start()
     } else {
-      tray.setToolTip("SkillHub Desktop - configure OPEN_SKILLHUB_API_TOKEN")
+      tray.setToolTip("SkillHub Desktop - configure API token")
     }
   } catch (error) {
     console.error("Failed to perform the initial background refresh", error)

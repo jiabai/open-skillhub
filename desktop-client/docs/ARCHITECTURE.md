@@ -4,7 +4,8 @@
 
 `desktop-client/` is the local Windows sync and distribution runtime for Open SkillHub.
 It polls the client API, compares remote skills against locally recorded state, surfaces pending updates for review, and distributes approved packages to supported agent skill directories.
-The current repository-verified workflows are test, build, and renderer-only dev. Electron runtime bootstrapping exists in code but still lacks one canonical package script.
+The current repository-verified workflows are test, build, renderer-only dev,
+and the full desktop runtime launch through `npm run start:electron`.
 
 ## Code Map
 
@@ -72,6 +73,9 @@ Dependencies should only point downward across those boundaries.
 - App root path is computed by `src/core/storage/app-paths.ts`
 - Current persisted directories are `config/` and `state/`
 - `electron/main.ts` also creates a runtime `cache/` directory below the app root
+- Runtime API token bootstrap reads from the `keytar` secret store, with
+  `OPEN_SKILLHUB_API_TOKEN` as an explicit first-run seed and current-session
+  fallback when secret storage is unavailable
 - `logs/` and `backups/` belong to the target design language but are not yet created by the current implementation
 - State persistence currently stores sync snapshot data, not full per-run distribution history
 

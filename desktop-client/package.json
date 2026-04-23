@@ -2,10 +2,13 @@
   "name": "open-skillhub-desktop",
   "private": true,
   "type": "module",
+  "main": "dist-electron/main.js",
   "scripts": {
     "dev": "vite",
-    "build": "npm run typecheck:electron && vite build",
+    "build": "npm run typecheck:electron && vite build && npm run build:electron",
+    "build:electron": "vite build --config vite.electron.config.ts",
     "preview": "vite preview",
+    "start:electron": "npm run build && electron .",
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck:electron": "tsc -p tsconfig.node.json --noEmit"

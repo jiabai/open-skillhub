@@ -4,6 +4,7 @@
 
 | File | Outcome |
 |------|---------|
+| `2026-04-17-operationalize-runtime-bootstrap.md` | Desktop runtime launch and API token bootstrap were operationalized |
 | `2026-04-17-normalize-desktop-client-doc-system.md` | Desktop-client docs were normalized into the local canonical docs tree |
 
 ## Notes

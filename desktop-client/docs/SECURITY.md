@@ -2,10 +2,14 @@
 
 ## Current Secret Handling
 
-- The codebase includes `src/core/storage/secret-store.ts`, backed by `keytar`, as the intended secret abstraction.
-- The current Electron bootstrap path in `electron/main.ts` still reads `OPEN_SKILLHUB_API_TOKEN` from the environment.
+- The runtime API token bootstrap reads from `src/core/storage/secret-store.ts`, backed by `keytar`.
+- The `keytar` service is `OpenSkillHub` and the account is `api-token`.
+- `OPEN_SKILLHUB_API_TOKEN` is a supported first-run bootstrap path: when the
+  secret store is empty, the runtime stores the trimmed token through `keytar`
+  and uses it for the current session.
+- If secret storage is unavailable, `OPEN_SKILLHUB_API_TOKEN` may be used for the
+  current session only; it is not persisted in that fallback path.
 - The token must never be written to plaintext JSON config, renderer state snapshots, or logs.
-- Wiring the runtime bootstrap to the secret-store abstraction remains open work and is tracked in the active ExecPlan and tech-debt tracker.
 
 ## Privilege Boundaries
 

@@ -1,5 +1,3 @@
-import keytar from "keytar"
-
 export interface SecretStore {
   getApiToken(): Promise<string | null>
   setApiToken(token: string): Promise<void>
@@ -14,6 +12,14 @@ export interface KeytarLike {
 
 export const SECRET_ACCOUNT = "api-token"
 
+async function loadKeytar(): Promise<KeytarLike> {
+  const keytarModule = (await import("keytar")) as unknown as {
+    default?: KeytarLike
+  } & KeytarLike
+
+  return keytarModule.default ?? keytarModule
+}
+
 function normalizeToken(token: string): string {
   const normalized = token.trim()
 
@@ -26,17 +32,21 @@ function normalizeToken(token: string): string {
 
 export function createKeytarSecretStore(
   serviceName: string,
-  adapter: KeytarLike = keytar
+  adapter?: KeytarLike
 ): SecretStore {
+  async function getAdapter(): Promise<KeytarLike> {
+    return adapter ?? loadKeytar()
+  }
+
   return {
     async getApiToken(): Promise<string | null> {
-      return adapter.getPassword(serviceName, SECRET_ACCOUNT)
+      return (await getAdapter()).getPassword(serviceName, SECRET_ACCOUNT)
     },
     async setApiToken(token: string): Promise<void> {
-      await adapter.setPassword(serviceName, SECRET_ACCOUNT, normalizeToken(token))
+      await (await getAdapter()).setPassword(serviceName, SECRET_ACCOUNT, normalizeToken(token))
     },
     async clearApiToken(): Promise<void> {
-      await adapter.deletePassword(serviceName, SECRET_ACCOUNT)
+      await (await getAdapter()).deletePassword(serviceName, SECRET_ACCOUNT)
     }
   }
 }

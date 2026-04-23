@@ -21,15 +21,15 @@ and the product spec.
   has no canonical Electron start command, `desktop-client/src/core/storage/secret-store.ts`
   already exists, and the docs still describe env-only token bootstrap as the
   current behavior.
-- [ ] (2026-04-23 14:58) Add one canonical Electron start command for the full
+- [x] (2026-04-23 16:32) Add one canonical Electron start command for the full
   desktop runtime.
-- [ ] (2026-04-23 14:58) Wire `electron/main.ts` to the supported token bootstrap
+- [x] (2026-04-23 16:32) Wire `electron/main.ts` to the supported token bootstrap
   path, using `src/core/storage/secret-store.ts` if that remains the chosen
   contract.
-- [ ] (2026-04-23 14:58) Update `desktop-client/README.md`, `desktop-client/docs/SECURITY.md`,
+- [x] (2026-04-23 16:32) Update `desktop-client/README.md`, `desktop-client/docs/SECURITY.md`,
   `desktop-client/docs/references/runtime-and-storage-surface.md`, and the
   desktop-client task and debt trackers so they describe the same runtime contract.
-- [ ] (2026-04-23 14:58) Add or update tests that prove the selected bootstrap
+- [x] (2026-04-23 16:32) Add or update tests that prove the selected bootstrap
   workflow still passes validation.
 
 ## Surprises & Discoveries
@@ -51,6 +51,10 @@ and the product spec.
   both say the bootstrap path still reads `OPEN_SKILLHUB_API_TOKEN` from the
   environment.
 
+- Observation: the Electron runtime needs an explicit Node/SSR Vite build target.
+  Evidence: an initial `npm run build` attempt treated `node:*` imports as browser
+  externals and failed before `vite.electron.config.ts` set `build.ssr: true`.
+
 ## Decision Log
 
 - Decision: Keep the canonical launch command focused on the full Electron runtime,
@@ -65,11 +69,34 @@ and the product spec.
   and keeps the runtime secret handling consistent with the security guidance.
   Date/Author: 2026-04-23 / Codex
 
+- Decision: Use `npm run start:electron` as the canonical full runtime command.
+  Rationale: the command can build the renderer and Electron main/preload bundle
+  with existing dependencies, then launch Electron through the package `main`
+  entry without adding a process runner dependency.
+  Date/Author: 2026-04-23 / Codex
+
+- Decision: Keep `OPEN_SKILLHUB_API_TOKEN` as an explicit first-run seed and
+  current-session fallback, while making the `keytar` secret store the preferred
+  token source.
+  Rationale: local development still needs a simple bootstrap path, but persistent
+  token ownership should move behind the supported secret-store abstraction.
+  Date/Author: 2026-04-23 / Codex
+
 ## Outcomes & Retrospective
 
-Not started yet. Once implementation lands, this section should capture what
-changed, what stayed unresolved, and any follow-up work that should be tracked
-elsewhere.
+Implemented. `desktop-client/package.json` now exposes `npm run start:electron`
+and builds Electron main/preload into `dist-electron/`. Runtime API token
+bootstrap now prefers the `keytar` secret store and uses `OPEN_SKILLHUB_API_TOKEN`
+as a documented first-run seed or current-session fallback when secret storage is
+unavailable. README, security, architecture, runtime reference, product spec,
+task tracker, and tech debt tracker now describe that same contract.
+
+The remaining desktop-client follow-up work is outside this plan: distribution
+history persistence and the destructive distribution warning prompt remain tracked
+in `desktop-client/docs/exec-plans/tech-debt-tracker.md`.
+
+Validated on 2026-04-23 16:35 with `npm run typecheck:electron`, `npm test`,
+`npm run build`, and `python scripts/validate_agents_docs.py --level ERROR`.
 
 ## Context and Orientation
 

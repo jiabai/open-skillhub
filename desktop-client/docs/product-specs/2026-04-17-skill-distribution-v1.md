@@ -138,6 +138,10 @@ When the user clicks the "Distribute" button to approve skill sync, an explicit 
 
 ### Core Runtime
 - Electron main process for tray behavior, polling orchestration, notifications, and distribution
+- Canonical full runtime launch through `npm run start:electron`
+- Runtime API token bootstrap through the `keytar` secret store, with
+  `OPEN_SKILLHUB_API_TOKEN` as an explicit first-run seed and current-session
+  fallback when secret storage is unavailable
 - Client API usage through `GET /api/v1/client/skills` and `POST /api/v1/client/skills/download`
 - Local SQLite-backed sync snapshot with pending updates and distributed-skill records
 - Agent adapters for Codex, Claude Code, and Gemini CLI
@@ -176,8 +180,6 @@ The desktop client provides five core UI panels for operator interaction:
 
 ## Current Implementation Gaps
 
-- There is no canonical package script for launching the full Electron runtime in development yet.
-- `src/core/storage/secret-store.ts` exists, but runtime bootstrap still reads `OPEN_SKILLHUB_API_TOKEN` from the environment.
 - The SQLite state store does not yet persist full distribution history or backup metadata.
 - The broader brainstorming design assumed richer recoverability than the current implementation provides.
 

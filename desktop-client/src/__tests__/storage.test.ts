@@ -3,6 +3,7 @@ import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { afterEach, describe, expect, it, vi } from "vitest"
 import { APP_NAME, createAppPaths, ensureAppDirectories } from "@/core/storage/app-paths"
+import { resolveApiTokenBootstrap } from "@/core/storage/auth-bootstrap"
 import { createJsonConfigStore } from "@/core/storage/config-store"
 import {
   createKeytarSecretStore,
@@ -109,5 +110,61 @@ describe("storage foundation", () => {
     await store.clearApiToken()
 
     expect(await store.getApiToken()).toBeNull()
+  })
+
+  it("prefers a token that already exists in the secret store", async () => {
+    const store = createInMemorySecretStore("ask_live_stored")
+    const result = await resolveApiTokenBootstrap({
+      secretStore: store,
+      envToken: "ask_live_env"
+    })
+
+    expect(result).toEqual({
+      apiToken: "ask_live_stored",
+      source: "secret-store",
+      persistedEnvironmentToken: false,
+      secretStoreAvailable: true,
+      warning: null
+    })
+  })
+
+  it("uses the environment token as an explicit first-run secret-store bootstrap", async () => {
+    const store = createInMemorySecretStore()
+    const result = await resolveApiTokenBootstrap({
+      secretStore: store,
+      envToken: "  ask_live_env  "
+    })
+
+    expect(result).toEqual({
+      apiToken: "ask_live_env",
+      source: "environment",
+      persistedEnvironmentToken: true,
+      secretStoreAvailable: true,
+      warning: null
+    })
+    expect(await store.getApiToken()).toBe("ask_live_env")
+  })
+
+  it("falls back to the environment token for the current session when secret storage fails", async () => {
+    const store = {
+      getApiToken: vi.fn(async () => {
+        throw new Error("keytar unavailable")
+      }),
+      setApiToken: vi.fn(async () => undefined),
+      clearApiToken: vi.fn(async () => undefined)
+    }
+    const result = await resolveApiTokenBootstrap({
+      secretStore: store,
+      envToken: "ask_live_env"
+    })
+
+    expect(result).toEqual({
+      apiToken: "ask_live_env",
+      source: "environment",
+      persistedEnvironmentToken: false,
+      secretStoreAvailable: false,
+      warning: "Secret store unavailable during API token bootstrap: keytar unavailable"
+    })
+    expect(store.setApiToken).not.toHaveBeenCalled()
   })
 })

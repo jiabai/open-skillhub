@@ -23,17 +23,19 @@ npm install
 npm test
 npm run build
 npm run dev
+npm run start:electron
 ```
 
-`npm run dev` currently starts the Vite renderer only. `npm run build` is the
-supported verification path for the renderer and Electron TypeScript code. The
-repository does not yet expose one canonical Electron start command; that work
-is tracked in `docs/exec-plans/index.md`.
+`npm run dev` starts the Vite renderer only. `npm run start:electron` is the
+canonical local command for the full desktop runtime: it builds the renderer,
+builds the Electron main/preload bundle, and launches Electron from
+`dist-electron/main.js`. `npm run build` is the supported verification path for
+the renderer, Electron TypeScript code, and Electron runtime bundle.
 
-When Electron is launched manually during development, the main process currently reads these environment variables:
+The Electron main process reads these environment variables during local development:
 
 - `OPEN_SKILLHUB_API_BASE_URL` - backend base URL, for example `http://127.0.0.1:8001`
-- `OPEN_SKILLHUB_API_TOKEN` - current bootstrap token source for the main process poller
+- `OPEN_SKILLHUB_API_TOKEN` - optional first-run API token bootstrap; when the secret store is empty, the runtime stores this value through `keytar` and then reads the token from the secret store
 - `OPEN_SKILLHUB_POLL_INTERVAL_MS` - optional polling interval in milliseconds, defaults to `30000`
 - `OPEN_SKILLHUB_CODEX_SKILLS_PATH` - optional override for the Codex skills directory
 - `OPEN_SKILLHUB_CLAUDE_CODE_SKILLS_PATH` - optional override for the Claude Code skills directory
@@ -41,9 +43,11 @@ When Electron is launched manually during development, the main process currentl
 
 The current desktop pipeline expects the backend download path to be consumable as plain ZIP content after the server response is normalized. If your backend keeps encrypted downloads enabled end-to-end, distribution must stop with a clear error until an official decryptor boundary is added.
 
-The current codebase contains a `secret-store` abstraction backed by `keytar`, but the Electron bootstrap path is not wired to it yet. Treat persistent token storage as planned capability rather than current behavior.
+If `keytar` is unavailable, `OPEN_SKILLHUB_API_TOKEN` can still be used for the
+current session, but it is not persisted. API tokens must not be stored in
+plaintext config, renderer state, or logs.
 
-`npm run build` runs the Electron TypeScript check and the Vite renderer build. The tray stays resident after the window is closed so background refreshes can continue.
+The tray stays resident after the window is closed so background refreshes can continue.
 
 ## Current Scope
 

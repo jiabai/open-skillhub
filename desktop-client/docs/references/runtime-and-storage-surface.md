@@ -5,13 +5,17 @@
 - `npm test`
 - `npm run build`
 - `npm run dev` (renderer only)
+- `npm run start:electron` (full Electron runtime)
 
-There is not yet one canonical Electron runtime start command in `package.json`.
+`npm run start:electron` builds the renderer, builds the Electron main/preload
+bundle into `dist-electron/`, and launches Electron through the package `main`
+entry.
 
 ## Environment Variables Read By The Runtime
 
 - `OPEN_SKILLHUB_API_BASE_URL`
-- `OPEN_SKILLHUB_API_TOKEN`
+- `OPEN_SKILLHUB_API_TOKEN` (optional first-run secret-store bootstrap and
+  current-session fallback if secret storage is unavailable)
 - `OPEN_SKILLHUB_POLL_INTERVAL_MS`
 - `OPEN_SKILLHUB_CODEX_SKILLS_PATH`
 - `OPEN_SKILLHUB_CLAUDE_CODE_SKILLS_PATH`
@@ -54,6 +58,7 @@ Platform base directory rules:
 ## Current Storage Reality
 
 - `config.json` path exists in the app-path model, but config persistence is not yet the primary auth bootstrap path
+- API token persistence uses the `keytar` secret store through `src/core/storage/secret-store.ts`
 - `state.sqlite3` stores sync snapshot tables only
 - `logs/` and `backups/` are not yet created by the current implementation
 

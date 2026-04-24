@@ -13,7 +13,6 @@ def test_should_track_request_filters_auth_and_non_api():
     assert _should_track_request("/api/v1/auth/login") is False
     assert _should_track_request("/health") is False
     assert _should_track_request("/api/v1/skills") is False
-    assert _should_track_request("/mcp") is False
     assert _should_track_request("/sse") is False
 
 

@@ -241,7 +241,7 @@ export default function SkillDetailPage({ params }: SkillDetailProps) {
                   {skill.resolved_version ? <Badge variant="outline">v{skill.resolved_version}</Badge> : null}
                   {skill.pinned_version ? <Badge variant="outline">{formatMessage(copy.pinned, { version: skill.pinned_version })}</Badge> : null}
                   {!config.capabilities.skill_visibility ? <Badge variant="outline">{copy.privateVisibility}</Badge> : null}
-                  <Badge variant="accent">{copy.mcpReady}</Badge>
+                  <Badge variant="accent">{copy.clientReady}</Badge>
                 </div>
                 {canCreateEditableCopy ? (
                   <div className="rounded-lg border border-dashed border-border bg-muted/30 p-4">

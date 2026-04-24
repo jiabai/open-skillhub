@@ -466,7 +466,7 @@ describe("console pages", () => {
     renderWithRuntimeConfig(<TokensPage />)
 
     fireEvent.change(screen.getByLabelText("令牌名称"), {
-      target: { value: "local-mcp-client" }
+      target: { value: "local-client" }
     })
     await act(async () => {
       fireEvent.click(screen.getByRole("button", { name: "创建令牌" }))

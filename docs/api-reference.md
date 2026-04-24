@@ -22,7 +22,7 @@ Open SkillHub 使用两套独立的认证体系，请根据场景选择：
 | 场景 | 认证方式 | 请求头 |
 |------|----------|--------|
 | Web 控制台、普通用户操作 | **JWT 会话** | `Authorization: Bearer <access_token>` |
-| CLI、CI、自动化脚本、MCP 等程序化调用 | **API Token** | `Authorization: Bearer <api_token>` |
+| CLI、CI、自动化脚本等程序化调用 | **API Token** | `Authorization: Bearer <api_token>` |
 
 > 拿到 Token 后，所有需要认证的接口都通过 `Authorization: Bearer <token>` 传递。
 
@@ -781,7 +781,7 @@ GET /skills/cache-policy
 
 前缀：`/api/v1/client/skills`
 
-> 这组接口面向 **程序化客户端**（CLI、CI、自动化脚本、MCP Server 等），使用 **API Token** 认证。
+> 这组接口面向 **程序化客户端**（CLI、CI、自动化脚本等），使用 **API Token** 认证。
 
 ### 列出可下载的技能
 

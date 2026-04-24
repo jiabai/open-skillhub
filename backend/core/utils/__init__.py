@@ -1,5 +1,5 @@
 from . import skill_archive
-from .service_runner import SkillHubMcpServiceRunner
+from .service_runner import SkillHubServiceRunner
 from .skill_storage import (
     create_skill_dir,
     delete_skill_dir,
@@ -11,7 +11,7 @@ from .skill_storage import (
 from .user_context import get_current_user_id, set_current_user_id
 
 __all__ = [
-    "SkillHubMcpServiceRunner",
+    "SkillHubServiceRunner",
     "skill_archive",
     "create_skill_dir",
     "delete_skill_dir",

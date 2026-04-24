@@ -1,6 +1,6 @@
 """Service runner for Open SkillHub service.
 
-This module provides a context manager for starting and managing the skillhub-mcp
+This module provides a context manager for starting and managing the skillhub
 service as a subprocess, with automatic cleanup on exit.
 """
 
@@ -12,10 +12,10 @@ from typing import List, Optional
 from loguru import logger
 
 
-class SkillHubMcpServiceRunner:
-    """Context manager for running skillhub-mcp service as a subprocess.
+class SkillHubServiceRunner:
+    """Context manager for running skillhub service as a subprocess.
 
-    This class manages the lifecycle of a skillhub-mcp service process:
+    This class manages the lifecycle of a skillhub service process:
     - Starts the service with specified arguments
     - Waits for the service to be ready
     - Provides cleanup on exit
@@ -23,13 +23,13 @@ class SkillHubMcpServiceRunner:
     Example:
         ```python
         service_args = [
-            "skillhub-mcp",
+            "skillhub",
             "config=default",
-            "mcp.transport=http",
+            "transport=http",
             "metadata.skill_dir=./skills",
         ]
 
-        with SkillHubMcpServiceRunner(service_args, port=8001) as service:
+        with SkillHubServiceRunner(service_args, port=8001) as service:
             # Service is ready, use it here
             print(f"Service is running on port {service.port}")
         # Service is automatically terminated on exit
@@ -68,8 +68,8 @@ class SkillHubMcpServiceRunner:
 
         self.service_args.extend(
             [
-                f"mcp.port={port}",
-                f"mcp.host={host}",
+                f"port={port}",
+                f"host={host}",
             ],
         )
 
@@ -133,7 +133,7 @@ class SkillHubMcpServiceRunner:
             self.process = None
             self._is_ready = False
 
-    def __enter__(self) -> "SkillHubMcpServiceRunner":
+    def __enter__(self) -> "SkillHubServiceRunner":
         """Start the service and wait for it to be ready.
 
         Returns:
@@ -142,7 +142,7 @@ class SkillHubMcpServiceRunner:
         Raises:
             RuntimeError: If service fails to start within timeout
         """
-        logger.info(f"Starting skillhub-mcp service with args: {self.service_args}")
+        logger.info(f"Starting skillhub service with args: {self.service_args}")
 
         # Start service in background (non-blocking)
         try:

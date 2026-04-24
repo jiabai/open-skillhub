@@ -18,7 +18,7 @@ Split skill APIs into two clear layers:
   - Path family: `/api/v1/skills/...`
 
 - `Client API`
-  - For programmatic clients such as CLI, CI, automation, MCP, and external integrations
+  - For programmatic clients such as CLI, CI, automation, and external integrations
   - Auth model: API token via `require_api_token_permission(...)` or a dedicated API-token dependency
   - Path family: `/api/v1/client/skills/...`
 

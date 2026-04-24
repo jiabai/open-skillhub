@@ -506,7 +506,7 @@ export type AppDictionary = {
     noDescription: string
     pinned: string
     privateVisibility: string
-    mcpReady: string
+    clientReady: string
     filesTitle: string
     filesDescription: string
     referenceFilesNotice: string

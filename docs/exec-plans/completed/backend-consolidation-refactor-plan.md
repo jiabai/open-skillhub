@@ -70,7 +70,7 @@
 | 位置 | 函数 | 用途 | 返回类型 |
 |------|------|------|----------|
 | `backend/api_app.py` | `_error_payload()` / `_error_payload_from_exception()` | HTTP API 全局异常处理器 | `dict` |
-| `backend/core/utils/skill_storage.py` | `tool_error_payload()` | MCP/tool 输出错误 | `str`（JSON） |
+| `backend/core/utils/skill_storage.py` | `tool_error_payload()` | Tool 输出错误 | `str`（JSON） |
 | `backend/api/v1/auth.py` + `backend/api/v1/users.py` | `_verification_error_messages` + `_verification_error_payload()` | 验证码错误码到中文消息的映射 | `dict` |
 
 需要做的事：

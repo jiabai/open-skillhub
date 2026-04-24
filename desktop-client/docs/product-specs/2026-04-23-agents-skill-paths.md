@@ -65,4 +65,4 @@
 
 - **universal=true** 的 Agent (Amp, Kimi) 会额外读取 `$XDG_CONFIG_HOME/agents/skills` (默认 `~/.config/agents/skills`)
 - **OpenClaw** 是优先级检测，不是多路径同时读取，只会选择第一个存在的路径
-- **不支持 Skills 的 Agent**: Zed、AugmentCode、JetBrains AI (仅支持 MCP)
+- **不支持 Skills 的 Agent**: Zed、AugmentCode、JetBrains AI

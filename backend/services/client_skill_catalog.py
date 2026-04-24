@@ -20,16 +20,16 @@ class ClientSkillCatalogService:
         limit: int = 100,
         query: str | None = None,
     ) -> ClientSkillListResponse:
-        skills = await self.skill_service.list_skills(
-            user,
+        # Client inventory is user-owned only; public catalog rows stay out unless
+        # they have been imported into the caller's own workspace.
+        skills = await self.skill_service.skill_repo.list_by_user(
+            user.id,
             skip=skip,
             limit=limit,
             query=query,
         )
-        total = await self.skill_service.skill_repo.count_visible(
+        total = await self.skill_service.skill_repo.count_by_user(
             user.id,
-            user.enterprise_id,
-            user.team_id,
             query=query,
         )
         items = [await self._build_summary(user, skill) for skill in skills]

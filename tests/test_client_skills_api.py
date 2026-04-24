@@ -209,7 +209,9 @@ async def test_client_skill_summary_returns_latest_version_metadata_for_referenc
     assert response.status_code == 200
 
     payload = response.json()
-    assert payload["total"] == 2
+    assert payload["total"] == 1
+    assert len(payload["items"]) == 1
+    assert all(entry["id"] != public_skill.id for entry in payload["items"])
     item = next(entry for entry in payload["items"] if entry["id"] == reference_skill_id)
     assert item["id"] == reference_skill_id
     assert item["skill_kind"] == "reference"
@@ -218,6 +220,37 @@ async def test_client_skill_summary_returns_latest_version_metadata_for_referenc
     assert item["latest_version"]["version"] == "1.2.3"
     assert item["latest_version"]["metadata_json"]["name"] == "catalog-public-skill"
     assert item["latest_version"]["metadata_json"]["version"] == "1.2.3"
+
+
+@pytest.mark.asyncio
+async def test_client_skill_summary_hides_unowned_public_skills_when_limit_is_one(
+    client,
+    async_session,
+    tmp_path,
+    monkeypatch,
+):
+    monkeypatch.setenv("SKILL_STORAGE_PATH", str(tmp_path))
+    monkeypatch.setattr(settings, "SKILL_STORAGE_PATH", str(tmp_path))
+    monkeypatch.setattr(settings, "ENABLE_RBAC", False)
+    monkeypatch.setattr(settings, "ENABLE_SKILL_VISIBILITY", True)
+
+    await _create_public_skill(async_session, name="catalog-public-only")
+    _, api_token = await _create_client_token(
+        client,
+        email="public-only@example.com",
+        username="publiconly",
+        role="member",
+    )
+
+    response = await client.get(
+        "/api/v1/client/skills?limit=1",
+        headers={"Authorization": f"Bearer {api_token}"},
+    )
+    assert response.status_code == 200
+
+    payload = response.json()
+    assert payload["total"] == 0
+    assert payload["items"] == []
 
 
 @pytest.mark.asyncio

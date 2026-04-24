@@ -1,8 +1,12 @@
 # Skills API Boundary
 
-Updated: 2026-04-12
+Updated: 2026-04-24
 Status: Draft
 Purpose: define a stable boundary between Web console JWT APIs and programmatic API token APIs for skill-related endpoints.
+
+## Progress
+
+- [x] (2026-04-24) Narrowed `GET /api/v1/client/skills` to user-owned private-space records and added regression coverage for the `limit=1` connection-check path.
 
 ## Design Goal
 
@@ -53,6 +57,10 @@ These endpoints belong to the logged-in user console surface and should use JWT-
 
 These endpoints belong to the programmatic integration surface and should use API-token auth.
 
+- `GET /api/v1/client/skills`
+  - Returns the API token owner's own private-space skill inventory
+  - Includes reference and clone records because they are owned by the user
+  - Excludes unowned public catalog rows that were never imported into the user's space
 - `POST /api/v1/client/skills/download`
 
 Future client-oriented endpoints should also live under `/api/v1/client/skills/...`, for example:
@@ -71,6 +79,10 @@ The following existing endpoints are currently implemented as API-token-only but
 - `GET /api/v1/skills/{skill_uuid}/versions`
 - `GET /api/v1/skills/{skill_uuid}/versions/{version}`
 - `GET /api/v1/skills/{skill_uuid}/versions/{version}/install-instructions`
+
+The following client endpoint is already implemented, but its list semantics need to stay tightly scoped to owned workspace records rather than the broader visible-skill catalog:
+
+- `GET /api/v1/client/skills`
 
 ## Auth Rules
 
@@ -91,7 +103,7 @@ The following existing endpoints are currently implemented as API-token-only but
 
 - `skill.list` and `skill.read`
   - Required for console browsing and detail views
-  - May be reused by client APIs only where programmatic read access is explicitly intended
+  - May be reused by client APIs only where programmatic read access is explicitly intended for the caller's own workspace inventory
 
 - `skill.create`, `skill.update`, `skill.delete`, `skill.upload`
   - Console-first capabilities

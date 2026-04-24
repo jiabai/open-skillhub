@@ -57,6 +57,7 @@ export interface SyncComparisonItem {
 export interface DesktopSyncState {
   localRecords: LocalDistributedSkillRecord[]
   pendingUpdates: PendingSyncUpdate[]
+  successfulDistributionCount: number
   lastRefreshedAt: string | null
 }
 

@@ -180,6 +180,45 @@ function writePendingUpdates(database: Database, updates: PendingSyncUpdate[]): 
   }
 }
 
+function readSuccessfulDistributionCount(database: Database): number {
+  const statement = database.prepare(
+    "SELECT value FROM sync_metadata WHERE key = 'successfulDistributionCount' LIMIT 1"
+  )
+
+  try {
+    if (!statement.step()) {
+      return 0
+    }
+
+    const row = statement.getAsObject()
+    const parsedCount = Number.parseInt(
+      typeof row.value === "string" ? row.value : "",
+      10
+    )
+
+    return Number.isFinite(parsedCount) && parsedCount > 0 ? parsedCount : 0
+  } finally {
+    statement.free()
+  }
+}
+
+function writeSuccessfulDistributionCount(database: Database, count: number): void {
+  const normalizedCount = Number.isFinite(count) ? Math.max(0, Math.trunc(count)) : 0
+  const statement = database.prepare(
+    [
+      "INSERT INTO sync_metadata (key, value)",
+      "VALUES ('successfulDistributionCount', ?)",
+      "ON CONFLICT(key) DO UPDATE SET value = excluded.value"
+    ].join(" ")
+  )
+
+  try {
+    statement.run([String(normalizedCount)])
+  } finally {
+    statement.free()
+  }
+}
+
 function readLastRefreshedAt(database: Database): string | null {
   const statement = database.prepare(
     "SELECT value FROM sync_metadata WHERE key = 'lastRefreshedAt' LIMIT 1"
@@ -268,6 +307,7 @@ export async function createSqliteStateStore(dbPath: string): Promise<StateStore
       return {
         localRecords: readLocalRecords(database),
         pendingUpdates: readPendingUpdates(database),
+        successfulDistributionCount: readSuccessfulDistributionCount(database),
         lastRefreshedAt: readLastRefreshedAt(database)
       }
     },
@@ -275,6 +315,7 @@ export async function createSqliteStateStore(dbPath: string): Promise<StateStore
       runInTransaction(database, () => {
         writeLocalRecords(database, state.localRecords)
         writePendingUpdates(database, state.pendingUpdates)
+        writeSuccessfulDistributionCount(database, state.successfulDistributionCount)
         writeLastRefreshedAt(database, state.lastRefreshedAt)
       })
       persistDatabase(dbPath, database)

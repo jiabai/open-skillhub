@@ -58,9 +58,9 @@ export const zhCNDictionary = {
         label: "待审核更新",
         detail: "等待审核的条目。"
       },
-      localRecords: {
-        label: "本地记录",
-        detail: "已分发技能的本地追踪记录。"
+      successfulDistributions: {
+        label: "成功分发次数",
+        detail: "历史上成功完成的分发操作。"
       },
       lastRefresh: {
         label: "最近刷新",

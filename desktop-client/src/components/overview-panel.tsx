@@ -1,6 +1,6 @@
 type OverviewPanelProps = {
   isLoading: boolean
-  localRecordCount: number
+  successfulDistributionCount: number
   pendingUpdateCount: number
   lastRefreshedAt: string
   errorMessage: string | null
@@ -51,7 +51,7 @@ function MetricCard({
 
 export function OverviewPanel({
   isLoading,
-  localRecordCount,
+  successfulDistributionCount,
   pendingUpdateCount,
   lastRefreshedAt,
   errorMessage
@@ -115,9 +115,9 @@ export function OverviewPanel({
           detail="Items waiting for operator review."
         />
         <MetricCard
-          label="Local records"
-          value={String(localRecordCount)}
-          detail="Distributed skills tracked in local storage."
+          label="Successful distributions"
+          value={String(successfulDistributionCount)}
+          detail="Successful distribution operations completed locally."
         />
         <MetricCard
           label="Last refresh"

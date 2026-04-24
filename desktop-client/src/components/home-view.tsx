@@ -8,7 +8,7 @@ type HomeViewProps = {
   errorMessage: string | null
   isLoading: boolean
   lastRefreshedAt: string
-  localRecordCount: number
+  successfulDistributionCount: number
   pendingUpdates: PendingSyncUpdate[]
   busyUpdateId: string | null
   onDistribute: (pendingUpdate: PendingSyncUpdate) => void
@@ -27,7 +27,7 @@ export function HomeView({
   errorMessage,
   isLoading,
   lastRefreshedAt,
-  localRecordCount,
+  successfulDistributionCount,
   pendingUpdates,
   busyUpdateId,
   onDistribute,
@@ -98,9 +98,9 @@ export function HomeView({
             <Card>
               <CardContent>
                 <div className="metric">
-                  <span className="metric__label">{dictionary.homeView.metrics.localRecords.label}</span>
-                  <strong className="metric__value">{localRecordCount}</strong>
-                  <span className="muted">{dictionary.homeView.metrics.localRecords.detail}</span>
+                  <span className="metric__label">{dictionary.homeView.metrics.successfulDistributions.label}</span>
+                  <strong className="metric__value">{successfulDistributionCount}</strong>
+                  <span className="muted">{dictionary.homeView.metrics.successfulDistributions.detail}</span>
                 </div>
               </CardContent>
             </Card>

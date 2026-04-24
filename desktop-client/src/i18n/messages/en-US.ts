@@ -60,9 +60,9 @@ export const enUSDictionary = {
         label: "Pending updates",
         detail: "Items waiting for review."
       },
-      localRecords: {
-        label: "Local records",
-        detail: "Distributed skills tracked locally."
+      successfulDistributions: {
+        label: "Successful distributions",
+        detail: "Completed successful distribution operations."
       },
       lastRefresh: {
         label: "Last refresh",

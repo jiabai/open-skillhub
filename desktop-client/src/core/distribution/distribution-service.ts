@@ -86,6 +86,7 @@ function updateStateAfterSuccessfulDistribution(
     pendingUpdates: currentState.pendingUpdates.filter(
       (update) => update.remoteSkillId !== request.skillId
     ),
+    successfulDistributionCount: currentState.successfulDistributionCount + 1,
     lastRefreshedAt: currentState.lastRefreshedAt
   }
 }

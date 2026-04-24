@@ -134,6 +134,7 @@ describe("App", () => {
     mockDesktopClient.refreshSync.mockResolvedValue({
       localRecords: [],
       pendingUpdates: [],
+      successfulDistributionCount: 0,
       lastRefreshedAt: null
     })
     mockDesktopClient.distributePendingUpdate.mockResolvedValue({
@@ -177,6 +178,7 @@ describe("App", () => {
     await expect(desktopClient.refreshSync()).resolves.toEqual({
       localRecords: [],
       pendingUpdates: [],
+      successfulDistributionCount: 0,
       lastRefreshedAt: null
     })
     await expect(desktopClient.distributePendingUpdate("skill-a")).resolves.toEqual({
@@ -216,6 +218,7 @@ describe("App", () => {
     mockDesktopClient.refreshSync.mockResolvedValueOnce({
       localRecords: [],
       pendingUpdates: [],
+      successfulDistributionCount: 0,
       lastRefreshedAt: "2026-04-23T00:00:00.000Z"
     })
 
@@ -312,6 +315,7 @@ describe("App", () => {
           reason: "version-mismatch"
         }
       ],
+      successfulDistributionCount: 0,
       lastRefreshedAt: "2026-04-17T00:00:00.000Z"
     })
 
@@ -348,6 +352,7 @@ describe("App", () => {
             reason: "missing-local-record"
           }
         ],
+        successfulDistributionCount: 0,
         lastRefreshedAt: "2026-04-17T00:00:00.000Z"
       })
       .mockResolvedValueOnce({
@@ -361,6 +366,7 @@ describe("App", () => {
           }
         ],
         pendingUpdates: [],
+        successfulDistributionCount: 1,
         lastRefreshedAt: "2026-04-17T00:00:05.000Z"
       })
 
@@ -413,6 +419,7 @@ describe("App", () => {
             reason: "missing-local-record"
           }
         ],
+        successfulDistributionCount: 0,
         lastRefreshedAt: "2026-04-17T00:00:00.000Z"
       })
       .mockRejectedValueOnce(new Error("refresh unavailable"))
@@ -461,6 +468,7 @@ describe("App", () => {
             reason: "missing-local-record"
           }
         ],
+        successfulDistributionCount: 0,
         lastRefreshedAt: "2026-04-17T00:00:00.000Z"
       })
       .mockResolvedValueOnce({
@@ -474,6 +482,7 @@ describe("App", () => {
             reason: "missing-local-record"
           }
         ],
+        successfulDistributionCount: 0,
         lastRefreshedAt: "2026-04-17T00:00:05.000Z"
       })
 

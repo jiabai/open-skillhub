@@ -30,6 +30,7 @@ type ActivityEntry = {
 const initialState: DesktopSyncState = {
   localRecords: [],
   pendingUpdates: [],
+  successfulDistributionCount: 0,
   lastRefreshedAt: null
 }
 
@@ -580,7 +581,7 @@ export function App() {
             errorMessage={errorMessage}
             isLoading={isLoading}
             lastRefreshedAt={formattedLastRefreshedAt}
-            localRecordCount={syncState.localRecords.length}
+            successfulDistributionCount={syncState.successfulDistributionCount}
             pendingUpdates={syncState.pendingUpdates}
             busyUpdateId={busyUpdateId}
             onDistribute={handleDistribute}

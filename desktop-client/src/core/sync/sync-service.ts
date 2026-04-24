@@ -76,6 +76,7 @@ export function createSyncService(dependencies: SyncServiceDependencies): SyncSe
       const nextState: DesktopSyncState = {
         localRecords: comparison.localRecords,
         pendingUpdates: comparison.pendingUpdates,
+        successfulDistributionCount: currentState.successfulDistributionCount,
         lastRefreshedAt: comparedAt
       }
 

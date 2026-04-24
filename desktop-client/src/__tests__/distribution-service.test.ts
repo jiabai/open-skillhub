@@ -145,6 +145,7 @@ describe("distribution pipeline", () => {
           reason: "missing-local-record"
         }
       ],
+      successfulDistributionCount: 0,
       lastRefreshedAt: "2026-04-16T10:00:00.000Z"
     })
 
@@ -205,6 +206,7 @@ describe("distribution pipeline", () => {
           reason: "missing-local-record"
         }
       ],
+      successfulDistributionCount: 1,
       lastRefreshedAt: "2026-04-16T10:00:00.000Z"
     })
 
@@ -232,6 +234,7 @@ describe("distribution pipeline", () => {
     await stateStore.writeState({
       localRecords: [],
       pendingUpdates: [],
+      successfulDistributionCount: 0,
       lastRefreshedAt: "2026-04-16T10:00:00.000Z"
     })
 
@@ -261,6 +264,7 @@ describe("distribution pipeline", () => {
     expect(await stateStore.readState()).toEqual({
       localRecords: [],
       pendingUpdates: [],
+      successfulDistributionCount: 0,
       lastRefreshedAt: "2026-04-16T10:00:00.000Z"
     })
 

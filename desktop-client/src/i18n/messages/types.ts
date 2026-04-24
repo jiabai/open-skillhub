@@ -57,7 +57,7 @@ export interface AppDictionary {
         label: string
         detail: string
       }
-      localRecords: {
+      successfulDistributions: {
         label: string
         detail: string
       }

@@ -46,6 +46,7 @@ describe("createSyncService", () => {
         }
       ],
       pendingUpdates: [],
+      successfulDistributionCount: 2,
       lastRefreshedAt: "2026-04-16T08:00:00.000Z"
     })
 
@@ -126,6 +127,7 @@ describe("createSyncService", () => {
           reason: "missing-local-record"
         }
       ],
+      successfulDistributionCount: 2,
       lastRefreshedAt: "2026-04-17T09:00:00.000Z"
     })
 

@@ -525,7 +525,17 @@ async function createApplicationServices(): Promise<void> {
     },
     testConnection: (payload: ConfigurationPayload) =>
       testApiConnection(payload, getRuntimeConfig().apiToken),
-    refreshSync: () => pollingController.refreshNow(),
+    refreshSync: async (): Promise<DesktopSyncState> => {
+      await pollingController.refreshNow()
+
+      const currentStateStore = stateStore
+
+      if (!currentStateStore) {
+        throw new Error("State store unavailable")
+      }
+
+      return currentStateStore.readState()
+    },
     distributePendingUpdate: async (pendingUpdateId: string): Promise<SkillDistributionResult> => {
       const normalizedPendingUpdateId = pendingUpdateId.trim()
 

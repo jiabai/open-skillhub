@@ -99,6 +99,7 @@ export function createEmptySyncState(): DesktopSyncState {
   return {
     localRecords: [],
     pendingUpdates: [],
+    successfulDistributionCount: 0,
     lastRefreshedAt: null
   }
 }

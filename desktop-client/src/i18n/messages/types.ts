@@ -127,7 +127,7 @@ export interface AppDictionary {
     clearing: string
     clearSavedConfig: string
     sourceLabels: {
-      secretStore: string
+      "secret-store": string
       environment: string
       missing: string
     }

@@ -130,7 +130,7 @@ export const enUSDictionary = {
     clearing: "Clearing...",
     clearSavedConfig: "Clear saved config",
     sourceLabels: {
-      secretStore: "Secret store",
+      "secret-store": "Secret store",
       environment: "Environment variable",
       missing: "Missing"
     }

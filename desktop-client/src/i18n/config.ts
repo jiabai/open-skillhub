@@ -1,5 +1,7 @@
 import type { AppLocale } from "@/types"
 
+export type { AppLocale } from "@/types"
+
 export const supportedLocales = ["en-US", "zh-CN"] as const satisfies readonly AppLocale[]
 
 export const defaultLocale: AppLocale = "zh-CN"
@@ -36,4 +38,3 @@ export function normalizeLocale(value?: string | null): AppLocale | null {
 export function resolveLocale(value?: string | null): AppLocale {
   return normalizeLocale(value) ?? defaultLocale
 }
-

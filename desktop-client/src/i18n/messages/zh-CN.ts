@@ -128,7 +128,7 @@ export const zhCNDictionary = {
     clearing: "清除中...",
     clearSavedConfig: "清除已保存配置",
     sourceLabels: {
-      secretStore: "系统凭证存储",
+      "secret-store": "系统凭证存储",
       environment: "环境变量",
       missing: "缺失"
     }

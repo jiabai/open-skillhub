@@ -2,7 +2,7 @@
 
 ## In Progress
 
-No active desktop-client tracker items are in progress.
+- No active items.
 
 ## Todo
 
@@ -11,6 +11,7 @@ No active desktop-client tracker items are in progress.
 
 ## Done
 
+- [x] Desktop client i18n: add local locale persistence, renderer translation, and locale-aware timestamps (2026-04-24) ✅ locale now persists through the Electron runtime config, renderer strings switch between `en-US` and `zh-CN`, and `npm test` / `npm run build` pass
 - [x] Make config save/test fail fast when the Electron bridge is unavailable and time out stalled connection probes (2026-04-23) ✅ `src/app/App.tsx` now surfaces bridge-unavailable feedback, `src/core/runtime/api-connection.ts` adds a timeout-backed probe, and `npm test` plus `npm run build` pass
 - [x] Fix desktop app icon loading and prevent duplicate client instances (2026-04-23) ✅ `electron/main.ts` embeds `resources/icons/icon.svg` at build time and uses Electron single-instance locking
 - [x] Redesign desktop client UI information architecture (2026-04-23) ✅ Home focuses on pending reviews, Updates owns the full queue, and Settings drawer owns configuration/activity

@@ -1,6 +1,7 @@
 import type { PendingSyncUpdate } from "@/types"
 import { Button, PageIntro } from "@/components/ui-primitives"
 import { PendingUpdatesPanel } from "@/components/pending-updates-panel"
+import { useI18n } from "@/i18n/use-i18n"
 
 type UpdatesViewProps = {
   busyUpdateId: string | null
@@ -17,15 +18,17 @@ export function UpdatesView({
   onDistribute,
   onRefresh
 }: UpdatesViewProps) {
+  const { dictionary } = useI18n()
+
   return (
     <section className="page-stack">
       <PageIntro
-        eyebrow="Review queue"
-        title="All pending updates"
-        summary="Inspect every pending skill update before distributing it to configured local agent targets."
+        eyebrow={dictionary.updatesView.eyebrow}
+        title={dictionary.updatesView.title}
+        summary={dictionary.updatesView.summary}
         actions={
           <Button variant="secondary" disabled={isLoading} onClick={onRefresh}>
-            {isLoading ? "Refreshing" : "Refresh queue"}
+            {isLoading ? dictionary.common.refreshing : dictionary.updatesView.refreshQueue}
           </Button>
         }
       />

@@ -1,7 +1,10 @@
 export type ApiTokenSource = "secret-store" | "environment" | "missing"
 
+export type AppLocale = "en-US" | "zh-CN"
+
 export interface ConfigurationState {
   apiBaseUrl: string
+  locale: AppLocale
   hasToken: boolean
   tokenSource: ApiTokenSource
   persistedEnvironmentToken: boolean

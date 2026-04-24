@@ -17,6 +17,8 @@ and the full desktop runtime launch through `npm run start:electron`.
   - `App.tsx`: root renderer composition and review-first state handling
 - `src/components/`
   - desktop shell, Home and Updates views, Settings drawer, local UI primitives, and supporting review panels
+- `src/i18n/`
+  - local locale dictionaries, provider, hook, formatting helpers, and language codes used by the renderer
 - `src/styles.css`
   - desktop renderer design tokens and shared component classes
 - `src/core/sync/`
@@ -79,6 +81,7 @@ Dependencies should only point downward across those boundaries.
 - App root path is computed by `src/core/storage/app-paths.ts`
 - Current persisted directories are `config/` and `state/`
 - API Base URL is persisted in `config/config.json` through `src/core/storage/config-store.ts`
+- Locale is persisted in `config/config.json` through `src/core/runtime/runtime-config-manager.ts` alongside the API Base URL
 - `electron/main.ts` also creates a runtime `cache/` directory below the app root
 - Runtime API token bootstrap is coordinated by `src/core/runtime/runtime-config-manager.ts`; it reads from the `keytar` secret store, with
   `OPEN_SKILLHUB_API_TOKEN` as an explicit first-run seed and current-session

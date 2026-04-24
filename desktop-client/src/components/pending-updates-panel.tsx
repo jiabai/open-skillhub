@@ -1,5 +1,6 @@
 import type { PendingSyncUpdate } from "@/types"
 import { Badge, Button, Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui-primitives"
+import { useI18n } from "@/i18n/use-i18n"
 
 type PendingUpdatesPanelProps = {
   pendingUpdates: PendingSyncUpdate[]
@@ -8,8 +9,8 @@ type PendingUpdatesPanelProps = {
   onDistribute: (pendingUpdate: PendingSyncUpdate) => void
 }
 
-function formatVersion(value: string | null): string {
-  return value ?? "n/a"
+function formatVersion(value: string | null, fallback: string): string {
+  return value ?? fallback
 }
 
 export function PendingUpdatesPanel({
@@ -18,15 +19,17 @@ export function PendingUpdatesPanel({
   isLoading,
   onDistribute
 }: PendingUpdatesPanelProps) {
+  const { dictionary } = useI18n()
+
   return (
     <Card aria-labelledby="pending-updates-heading">
       <CardHeader>
         <div className="page-intro">
           <div className="section-heading">
-            <span className="section-heading__eyebrow">Review queue</span>
-            <CardTitle id="pending-updates-heading">Pending updates</CardTitle>
+            <span className="section-heading__eyebrow">{dictionary.pendingUpdatesPanel.eyebrow}</span>
+            <CardTitle id="pending-updates-heading">{dictionary.pendingUpdatesPanel.title}</CardTitle>
             <CardDescription>
-              {pendingUpdates.length} item{pendingUpdates.length === 1 ? "" : "s"} awaiting approval.
+              {dictionary.pendingUpdatesPanel.description(pendingUpdates.length)}
             </CardDescription>
           </div>
         </div>
@@ -35,12 +38,18 @@ export function PendingUpdatesPanel({
       <CardContent>
         {pendingUpdates.length === 0 ? (
           <div className="callout">
-            {isLoading ? "Loading pending updates..." : "No pending updates are waiting for review."}
+            {isLoading
+              ? dictionary.pendingUpdatesPanel.loading
+              : dictionary.pendingUpdatesPanel.noPendingUpdates}
           </div>
         ) : (
           <div className="list-stack">
             {pendingUpdates.map((pendingUpdate) => {
               const isBusy = busyUpdateId === pendingUpdate.remoteSkillId
+              const reasonLabel =
+                pendingUpdate.reason === "missing-local-record"
+                  ? dictionary.pendingUpdatesPanel.reasonLabels.missingLocalRecord
+                  : dictionary.pendingUpdatesPanel.reasonLabels.versionMismatch
 
               return (
                 <article className="update-item" key={pendingUpdate.remoteSkillId}>
@@ -54,19 +63,27 @@ export function PendingUpdatesPanel({
                       variant="primary"
                       onClick={() => onDistribute(pendingUpdate)}
                       disabled={isBusy}
-                      aria-label={`Distribute ${pendingUpdate.name}`}
+                      aria-label={`${dictionary.pendingUpdatesPanel.distribute} ${pendingUpdate.name}`}
                     >
-                      {isBusy ? "Distributing" : "Distribute"}
+                      {isBusy ? dictionary.pendingUpdatesPanel.distributing : dictionary.pendingUpdatesPanel.distribute}
                     </Button>
                   </div>
 
                   <div className="update-item__meta">
-                    <Badge>Local {formatVersion(pendingUpdate.localVersion)}</Badge>
-                    <Badge tone="accent">Remote {pendingUpdate.remoteVersion}</Badge>
-                    <Badge tone="warning">{pendingUpdate.reason}</Badge>
+                    <Badge>
+                      {dictionary.common.local(
+                        formatVersion(pendingUpdate.localVersion, dictionary.common.nA)
+                      )}
+                    </Badge>
+                    <Badge tone="accent">
+                      {dictionary.common.remote(pendingUpdate.remoteVersion)}
+                    </Badge>
+                    <Badge tone="warning">{reasonLabel}</Badge>
                   </div>
 
-                  <p className="card__description">Review reason: {pendingUpdate.reason}</p>
+                  <p className="card__description">
+                    {dictionary.pendingUpdatesPanel.reviewReasonLabel} {reasonLabel}
+                  </p>
                 </article>
               )
             })}

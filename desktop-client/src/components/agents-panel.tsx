@@ -1,27 +1,30 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui-primitives"
-
-const agents = [
-  {
-    name: "Claude Code",
-    detail: "Adapter layer ready for code-focused agents."
-  },
-  {
-    name: "Codex",
-    detail: "Distributed updates can target this workspace-aware agent."
-  },
-  {
-    name: "Gemini CLI",
-    detail: "Kept visible as an approved distribution target."
-  }
-]
+import { useI18n } from "@/i18n/use-i18n"
 
 export function AgentsPanel() {
+  const { dictionary } = useI18n()
+
+  const agents = [
+    {
+      name: "Claude Code",
+      detail: dictionary.agentsPanel.claudeCodeDetail
+    },
+    {
+      name: "Codex",
+      detail: dictionary.agentsPanel.codexDetail
+    },
+    {
+      name: "Gemini CLI",
+      detail: dictionary.agentsPanel.geminiCliDetail
+    }
+  ]
+
   return (
     <Card aria-labelledby="agents-heading" flat>
       <CardHeader>
-        <span className="section-heading__eyebrow">Agents</span>
-        <CardTitle id="agents-heading">Distribution targets</CardTitle>
-        <CardDescription>Approved local agent targets for reviewed updates.</CardDescription>
+        <span className="section-heading__eyebrow">{dictionary.agentsPanel.eyebrow}</span>
+        <CardTitle id="agents-heading">{dictionary.agentsPanel.title}</CardTitle>
+        <CardDescription>{dictionary.agentsPanel.description}</CardDescription>
       </CardHeader>
 
       <CardContent>

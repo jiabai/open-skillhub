@@ -2,7 +2,7 @@
 
 ## Current Plans
 
-No active execution plans.
+- No active plans.
 
 ## Working Agreement
 

@@ -1,5 +1,6 @@
 import type { IpcMain } from "electron"
 import type {
+  AppLocale,
   ConfigurationPayload,
   ConfigurationState,
   ConnectionTestResult,
@@ -10,6 +11,7 @@ import type {
 export const desktopClientIpcChannels = {
   getConfiguration: "configuration:get",
   saveConfiguration: "configuration:save",
+  saveLocale: "configuration:save-locale",
   clearConfiguration: "configuration:clear",
   testConnection: "configuration:test-connection",
   refreshSync: "sync:refresh",
@@ -19,6 +21,7 @@ export const desktopClientIpcChannels = {
 export interface DesktopClientBridge {
   getConfiguration(): Promise<ConfigurationState>
   saveConfiguration(payload: ConfigurationPayload): Promise<ConfigurationState>
+  saveLocale(locale: AppLocale): Promise<ConfigurationState>
   clearConfiguration(): Promise<ConfigurationState>
   testConnection(payload: ConfigurationPayload): Promise<ConnectionTestResult>
   refreshSync(): Promise<DesktopSyncState>
@@ -28,6 +31,7 @@ export interface DesktopClientBridge {
 export interface DesktopClientIpcHandlers {
   getConfiguration(): Promise<ConfigurationState> | ConfigurationState
   saveConfiguration(payload: ConfigurationPayload): Promise<ConfigurationState>
+  saveLocale(locale: AppLocale): Promise<ConfigurationState>
   clearConfiguration(): Promise<ConfigurationState>
   testConnection(payload: ConfigurationPayload): Promise<ConnectionTestResult>
   refreshSync(): Promise<DesktopSyncState>
@@ -40,6 +44,7 @@ export function registerDesktopClientIpc(
 ): void {
   ipcMain.removeHandler(desktopClientIpcChannels.getConfiguration)
   ipcMain.removeHandler(desktopClientIpcChannels.saveConfiguration)
+  ipcMain.removeHandler(desktopClientIpcChannels.saveLocale)
   ipcMain.removeHandler(desktopClientIpcChannels.clearConfiguration)
   ipcMain.removeHandler(desktopClientIpcChannels.testConnection)
   ipcMain.removeHandler(desktopClientIpcChannels.refreshSync)
@@ -48,6 +53,9 @@ export function registerDesktopClientIpc(
   ipcMain.handle(desktopClientIpcChannels.getConfiguration, async () => handlers.getConfiguration())
   ipcMain.handle(desktopClientIpcChannels.saveConfiguration, async (_event, payload: ConfigurationPayload) =>
     handlers.saveConfiguration(payload)
+  )
+  ipcMain.handle(desktopClientIpcChannels.saveLocale, async (_event, locale: AppLocale) =>
+    handlers.saveLocale(locale)
   )
   ipcMain.handle(desktopClientIpcChannels.clearConfiguration, async () => handlers.clearConfiguration())
   ipcMain.handle(desktopClientIpcChannels.testConnection, async (_event, payload: ConfigurationPayload) =>

@@ -91,10 +91,20 @@ type DrawerProps = {
   title: string
   description: string
   onClose: () => void
+  eyebrow?: string
+  closeLabel?: string
   children: ReactNode
 }
 
-export function Drawer({ open, title, description, onClose, children }: DrawerProps) {
+export function Drawer({
+  open,
+  title,
+  description,
+  onClose,
+  eyebrow = "Settings",
+  closeLabel = "Close",
+  children
+}: DrawerProps) {
   useEffect(() => {
     if (!open) {
       return
@@ -125,14 +135,14 @@ export function Drawer({ open, title, description, onClose, children }: DrawerPr
       >
         <div className="drawer-panel__header">
           <div className="section-heading">
-            <span className="section-heading__eyebrow">Settings</span>
+            <span className="section-heading__eyebrow">{eyebrow}</span>
             <h2 id="settings-drawer-title" className="section-heading__title">
               {title}
             </h2>
             <p className="card__description">{description}</p>
           </div>
-          <Button aria-label="Close settings" variant="ghost" size="sm" onClick={onClose}>
-            Close
+          <Button aria-label={closeLabel} variant="ghost" size="sm" onClick={onClose}>
+            {closeLabel}
           </Button>
         </div>
         <div className="drawer-panel__body">{children}</div>

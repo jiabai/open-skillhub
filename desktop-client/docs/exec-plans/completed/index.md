@@ -4,6 +4,7 @@
 
 | File | Outcome |
 |------|---------|
+| `2026-04-24-desktop-client-i18n.md` | Desktop-client locale persistence, renderer translation, and locale-aware timestamps were implemented |
 | `2026-04-23-desktop-client-ui-redesign.md` | Desktop UI was redesigned around Home, Updates, and a Settings drawer with local design tokens |
 | `2026-04-23-api-token-config.md` | Desktop API token configuration UI, IPC, runtime reload, and validation were implemented |
 | `2026-04-17-operationalize-runtime-bootstrap.md` | Desktop runtime launch and API token bootstrap were operationalized |

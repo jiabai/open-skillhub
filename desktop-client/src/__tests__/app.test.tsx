@@ -7,6 +7,7 @@ import { desktopClient } from "@/lib/ipc-client"
 type MockDesktopClientBridge = {
   getConfiguration: ReturnType<typeof vi.fn>
   saveConfiguration: ReturnType<typeof vi.fn>
+  saveLocale: ReturnType<typeof vi.fn>
   clearConfiguration: ReturnType<typeof vi.fn>
   testConnection: ReturnType<typeof vi.fn>
   refreshSync: ReturnType<typeof vi.fn>
@@ -16,6 +17,7 @@ type MockDesktopClientBridge = {
 const mockDesktopClient = {
   getConfiguration: vi.fn(),
   saveConfiguration: vi.fn(),
+  saveLocale: vi.fn(),
   clearConfiguration: vi.fn(),
   testConnection: vi.fn(),
   refreshSync: vi.fn(),
@@ -24,6 +26,7 @@ const mockDesktopClient = {
 
 const configuredState = {
   apiBaseUrl: "http://localhost:8001",
+  locale: "en-US" as const,
   hasToken: true,
   tokenSource: "secret-store" as const,
   persistedEnvironmentToken: false,
@@ -31,8 +34,13 @@ const configuredState = {
 }
 
 beforeEach(() => {
+  Object.defineProperty(window.navigator, "language", {
+    configurable: true,
+    value: "en-US"
+  })
   mockDesktopClient.getConfiguration.mockResolvedValue(configuredState)
   mockDesktopClient.saveConfiguration.mockResolvedValue(configuredState)
+  mockDesktopClient.saveLocale.mockResolvedValue(configuredState)
   mockDesktopClient.clearConfiguration.mockResolvedValue({
     ...configuredState,
     hasToken: false,
@@ -60,6 +68,7 @@ describe("App", () => {
     expect(window.desktopClient).toBeDefined()
     expect(window.desktopClient?.getConfiguration).toBeTypeOf("function")
     expect(window.desktopClient?.saveConfiguration).toBeTypeOf("function")
+    expect(window.desktopClient?.saveLocale).toBeTypeOf("function")
     expect(window.desktopClient?.clearConfiguration).toBeTypeOf("function")
     expect(window.desktopClient?.testConnection).toBeTypeOf("function")
     expect(window.desktopClient?.refreshSync).toBeTypeOf("function")
@@ -108,6 +117,10 @@ describe("App", () => {
   it("proxies the preload bridge through the renderer wrapper", async () => {
     mockDesktopClient.getConfiguration.mockResolvedValue(configuredState)
     mockDesktopClient.saveConfiguration.mockResolvedValue(configuredState)
+    mockDesktopClient.saveLocale.mockResolvedValue({
+      ...configuredState,
+      locale: "zh-CN"
+    })
     mockDesktopClient.clearConfiguration.mockResolvedValue({
       ...configuredState,
       hasToken: false,
@@ -141,8 +154,13 @@ describe("App", () => {
         apiToken: "ask_live"
       })
     ).resolves.toEqual(configuredState)
+    await expect(desktopClient.saveLocale("zh-CN")).resolves.toEqual({
+      ...configuredState,
+      locale: "zh-CN"
+    })
     await expect(desktopClient.clearConfiguration()).resolves.toEqual({
       ...configuredState,
+      locale: "en-US",
       hasToken: false,
       tokenSource: "missing"
     })
@@ -177,6 +195,7 @@ describe("App", () => {
       apiBaseUrl: "http://localhost:8001",
       apiToken: "ask_live"
     })
+    expect(mockDesktopClient.saveLocale).toHaveBeenCalledWith("zh-CN")
     expect(mockDesktopClient.clearConfiguration).toHaveBeenCalledTimes(1)
     expect(mockDesktopClient.testConnection).toHaveBeenCalledWith({
       apiBaseUrl: "http://localhost:8001",
@@ -193,6 +212,7 @@ describe("App", () => {
       tokenSource: "missing" as const
     })
     mockDesktopClient.saveConfiguration.mockResolvedValueOnce(configuredState)
+    mockDesktopClient.saveLocale.mockResolvedValueOnce(configuredState)
     mockDesktopClient.refreshSync.mockResolvedValueOnce({
       localRecords: [],
       pendingUpdates: [],
@@ -224,6 +244,38 @@ describe("App", () => {
       })
       expect(mockDesktopClient.refreshSync).toHaveBeenCalledTimes(1)
       expect(screen.getByRole("heading", { name: "Needs review" })).toBeInTheDocument()
+    })
+  })
+
+  it("persists a language switch through the locale bridge", async () => {
+    mockDesktopClient.getConfiguration.mockResolvedValueOnce(configuredState)
+    mockDesktopClient.saveLocale = vi.fn(async () => ({
+      ...configuredState,
+      locale: "zh-CN"
+    }))
+    Object.defineProperty(window, "desktopClient", {
+      configurable: true,
+      value: mockDesktopClient
+    })
+
+    render(<App />)
+
+    await waitFor(() => {
+      expect(screen.getAllByRole("button", { name: "Settings" })[0]).toBeInTheDocument()
+    })
+
+    fireEvent.click(screen.getAllByRole("button", { name: "Settings" })[0])
+
+    await waitFor(() => {
+      expect(screen.getByRole("heading", { name: "Desktop settings" })).toBeInTheDocument()
+    })
+
+    fireEvent.click(screen.getByRole("button", { name: "Switch to Chinese" }))
+
+    await waitFor(() => {
+      expect(mockDesktopClient.saveLocale).toHaveBeenCalledWith("zh-CN")
+      expect(screen.getByRole("heading", { name: "审核更新" })).toBeInTheDocument()
+      expect(screen.getByRole("button", { name: "切换到中文" })).toBeInTheDocument()
     })
   })
 

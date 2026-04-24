@@ -4,16 +4,18 @@ import { join } from "node:path";
 
 import type { AgentId } from "@/adapters/agents/base";
 import { listAgentAdapters } from "@/adapters/agents/registry";
+import { resolveLocale } from "@/i18n/config";
 import { APP_NAME, ensureAppDirectories, type AppPathsOptions } from "@/core/storage/app-paths";
 import { resolveApiTokenBootstrap, type ApiTokenBootstrapResult } from "@/core/storage/auth-bootstrap";
 import { createJsonConfigStore, type ConfigStore, type JsonRecord } from "@/core/storage/config-store";
 import { createKeytarSecretStore, type SecretStore } from "@/core/storage/secret-store";
-import type { ConfigurationPayload } from "@/types";
+import type { AppLocale, ConfigurationPayload } from "@/types";
 
 export const DEFAULT_API_BASE_URL = "http://127.0.0.1:8001";
 
 export interface DesktopRuntimeConfig {
   apiBaseUrl: string;
+  locale: AppLocale;
   apiToken: string | null;
   pollIntervalMs: number;
   cacheDirectory: string;
@@ -22,6 +24,7 @@ export interface DesktopRuntimeConfig {
 
 export type DesktopLocalConfig = JsonRecord & {
   apiBaseUrl: string;
+  locale: AppLocale;
 };
 
 export interface RuntimeConfigurationState {
@@ -33,6 +36,7 @@ export interface RuntimeConfigManager {
   reload(): Promise<RuntimeConfigurationState>;
   getState(): RuntimeConfigurationState;
   saveConfiguration(payload: ConfigurationPayload): Promise<RuntimeConfigurationState>;
+  saveLocale(locale: AppLocale): Promise<RuntimeConfigurationState>;
   clearConfiguration(): Promise<RuntimeConfigurationState>;
 }
 
@@ -95,6 +99,7 @@ export function createRuntimeConfigManager(options: RuntimeConfigManagerOptions 
     options.configStore ??
     createJsonConfigStore<DesktopLocalConfig>(paths.configFilePath, {
       apiBaseUrl: normalizeBaseUrl(env.OPEN_SKILLHUB_API_BASE_URL),
+      locale: resolveInitialLocale(env),
     });
 
   let currentState: RuntimeConfigurationState | null = null;
@@ -103,6 +108,7 @@ export function createRuntimeConfigManager(options: RuntimeConfigManagerOptions 
   const buildRuntimeConfig = async (): Promise<RuntimeConfigurationState> => {
     const localConfig = await configStore.read();
     const apiBaseUrl = validateApiBaseUrl(localConfig.apiBaseUrl ?? env.OPEN_SKILLHUB_API_BASE_URL);
+    const locale = resolveLocale(localConfig.locale);
     const bootstrap = await resolveApiTokenBootstrap({
       envToken: environmentBootstrapEnabled ? env.OPEN_SKILLHUB_API_TOKEN : undefined,
       secretStore,
@@ -115,6 +121,7 @@ export function createRuntimeConfigManager(options: RuntimeConfigManagerOptions 
       config: {
         agentSkillsPaths: resolveAgentSkillsPaths(env),
         apiBaseUrl,
+        locale,
         apiToken: bootstrap.apiToken,
         cacheDirectory,
         pollIntervalMs: normalizePollInterval(env.OPEN_SKILLHUB_POLL_INTERVAL_MS),
@@ -145,14 +152,31 @@ export function createRuntimeConfigManager(options: RuntimeConfigManagerOptions 
 
       environmentBootstrapEnabled = false;
       await secretStore.setApiToken(apiToken);
-      await configStore.write({ apiBaseUrl });
+      const currentLocalConfig = await configStore.read();
+      await configStore.write({
+        apiBaseUrl,
+        locale: resolveLocale(currentLocalConfig.locale),
+      });
+
+      return this.reload();
+    },
+    async saveLocale(locale: AppLocale) {
+      const currentLocalConfig = await configStore.read();
+      await configStore.write({
+        apiBaseUrl: currentLocalConfig.apiBaseUrl ?? normalizeBaseUrl(env.OPEN_SKILLHUB_API_BASE_URL),
+        locale: resolveLocale(locale),
+      });
 
       return this.reload();
     },
     async clearConfiguration() {
       environmentBootstrapEnabled = false;
       await secretStore.clearApiToken();
-      await configStore.clear();
+      const currentLocalConfig = await configStore.read();
+      await configStore.write({
+        apiBaseUrl: normalizeBaseUrl(env.OPEN_SKILLHUB_API_BASE_URL),
+        locale: resolveLocale(currentLocalConfig.locale),
+      });
 
       return this.reload();
     },
@@ -179,4 +203,10 @@ function resolveAgentSkillsPaths(env: NodeJS.ProcessEnv): Partial<Record<AgentId
 function normalizeAgentSkillsPath(value: string | undefined): string | null {
   const trimmed = value?.trim();
   return trimmed ? trimmed : null;
+}
+
+function resolveInitialLocale(env: NodeJS.ProcessEnv): AppLocale {
+  return resolveLocale(
+    env.OPEN_SKILLHUB_LOCALE ?? env.LANG ?? env.LC_ALL ?? env.LC_MESSAGES ?? env.LANGUAGE
+  );
 }

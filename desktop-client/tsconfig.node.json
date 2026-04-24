@@ -11,6 +11,7 @@
     "vite.electron.config.ts",
     "vitest.config.ts",
     "electron/**/*.ts",
+    "src/i18n/config.ts",
     "src/types/**/*.ts",
     "src/core/**/*.ts",
     "src/adapters/**/*.ts"

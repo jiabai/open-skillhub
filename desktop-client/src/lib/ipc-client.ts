@@ -1,4 +1,5 @@
 import type {
+  AppLocale,
   ConfigurationPayload,
   ConfigurationState,
   ConnectionTestResult,
@@ -9,6 +10,7 @@ import type {
 export interface DesktopClientBridge {
   getConfiguration(): Promise<ConfigurationState>
   saveConfiguration(payload: ConfigurationPayload): Promise<ConfigurationState>
+  saveLocale(locale: AppLocale): Promise<ConfigurationState>
   clearConfiguration(): Promise<ConfigurationState>
   testConnection(payload: ConfigurationPayload): Promise<ConnectionTestResult>
   refreshSync(): Promise<DesktopSyncState>
@@ -51,6 +53,16 @@ function invokeSaveConfiguration(payload: ConfigurationPayload): Promise<Configu
   }
 
   return bridge.saveConfiguration(payload)
+}
+
+function invokeSaveLocale(locale: AppLocale): Promise<ConfigurationState> {
+  const bridge = getDesktopClientBridge()
+
+  if (!bridge) {
+    throw new Error("Desktop client bridge is unavailable")
+  }
+
+  return bridge.saveLocale(locale)
 }
 
 function invokeClearConfiguration(): Promise<ConfigurationState> {
@@ -99,6 +111,7 @@ export const desktopClient = {
   isAvailable: isDesktopClientAvailable,
   getConfiguration: invokeGetConfiguration,
   saveConfiguration: invokeSaveConfiguration,
+  saveLocale: invokeSaveLocale,
   clearConfiguration: invokeClearConfiguration,
   testConnection: invokeTestConnection,
   refreshSync: invokeRefreshSync,

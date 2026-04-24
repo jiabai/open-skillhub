@@ -33,6 +33,7 @@ import { ensureAppDirectories } from "@/core/storage/app-paths"
 import { createSqliteStateStore } from "@/core/storage/state-db"
 import { createSyncPollingController, createSyncService } from "@/core/sync/sync-service"
 import type {
+  AppLocale,
   ConfigurationPayload,
   ConfigurationState,
   DesktopSyncState,
@@ -102,6 +103,7 @@ function getErrorMessage(error: unknown): string {
 function toConfigurationState(state: RuntimeConfigurationState): ConfigurationState {
   return {
     apiBaseUrl: state.config.apiBaseUrl,
+    locale: state.config.locale,
     hasToken: Boolean(state.config.apiToken),
     tokenSource: state.bootstrap.source,
     persistedEnvironmentToken: state.bootstrap.persistedEnvironmentToken,
@@ -451,6 +453,11 @@ async function createApplicationServices(): Promise<void> {
         console.error("Failed to restart background sync after saving configuration", error)
         tray?.setToolTip("SkillHub Desktop - sync unavailable")
       }
+
+      return toConfigurationState(nextState)
+    },
+    saveLocale: async (locale: AppLocale): Promise<ConfigurationState> => {
+      const nextState = await runtimeConfigManager.saveLocale(locale)
 
       return toConfigurationState(nextState)
     },

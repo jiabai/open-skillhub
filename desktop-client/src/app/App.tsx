@@ -1,11 +1,16 @@
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 
 import { AppShell, type AppView } from "@/components/app-shell"
 import { HomeView } from "@/components/home-view"
 import { SettingsDrawer } from "@/components/settings-drawer"
 import { UpdatesView } from "@/components/updates-view"
+import { formatDateTime } from "@/i18n/format-date"
+import { getDictionary } from "@/i18n/get-dictionary"
+import { I18nProvider } from "@/i18n/i18n-provider"
+import { resolveLocale } from "@/i18n/config"
 import { desktopClient } from "@/lib/ipc-client"
 import type {
+  AppLocale,
   ConfigurationPayload,
   ConfigurationState,
   ConnectionTestResult,
@@ -32,29 +37,6 @@ function getErrorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error)
 }
 
-function createDistributionDetail(result: SkillDistributionResult): string {
-  if (result.failedAgentIds.length === 0) {
-    return `${result.name} was sent to ${result.succeededAgentIds.length} configured agent target${
-      result.succeededAgentIds.length === 1 ? "" : "s"
-    }.`
-  }
-
-  return `${result.name} reached ${result.succeededAgentIds.length} agent target${
-    result.succeededAgentIds.length === 1 ? "" : "s"
-  }, but failed on ${result.failedAgentIds.join(", ")}.`
-}
-
-function formatLongTimestamp(value: string | null): string {
-  if (!value) {
-    return "Not refreshed yet"
-  }
-
-  return new Intl.DateTimeFormat("en-US", {
-    dateStyle: "medium",
-    timeStyle: "short"
-  }).format(new Date(value))
-}
-
 function createActivityEntry(
   title: string,
   detail: string,
@@ -65,23 +47,52 @@ function createActivityEntry(
     title,
     detail,
     tone,
-    timestamp: new Intl.DateTimeFormat("en-US", {
-      hour: "2-digit",
-      minute: "2-digit"
-    }).format(new Date())
+    timestamp: new Date().toISOString()
   }
 }
 
-function createBridgeUnavailableMessage(action: string): string {
-  return `Desktop bridge unavailable. Launch the Electron runtime with \`npm run start:electron\` to ${action}.`
+function createDistributionDetail(locale: AppLocale, result: SkillDistributionResult): string {
+  const succeededCount = result.succeededAgentIds.length
+  const succeededLabel = succeededCount === 1 ? "1 configured agent target" : `${succeededCount} configured agent targets`
+
+  if (locale === "zh-CN") {
+    if (result.failedAgentIds.length === 0) {
+      return `${result.name} 已发送到 ${succeededCount} 个已配置代理目标。`
+    }
+
+    return `${result.name} 已到达 ${succeededCount} 个代理目标，但在 ${result.failedAgentIds.join("、")} 上失败。`
+  }
+
+  if (result.failedAgentIds.length === 0) {
+    return `${result.name} was sent to ${succeededLabel}.`
+  }
+
+  return `${result.name} reached ${succeededCount} agent target${
+    succeededCount === 1 ? "" : "s"
+  }, but failed on ${result.failedAgentIds.join(", ")}.`
+}
+
+function createBridgeUnavailableMessage(locale: AppLocale, action: string): string {
+  return getDictionary(locale).common.bridgeUnavailable(action)
+}
+
+function formatLongTimestamp(locale: AppLocale, value: string | null, fallback: string): string {
+  return formatDateTime(locale, value, {
+    dateStyle: "medium",
+    timeStyle: "short"
+  }, fallback)
 }
 
 export function App() {
+  const bridgeAvailable = desktopClient.isAvailable()
+  const initialLocale = resolveLocale(typeof navigator !== "undefined" ? navigator.language : null)
+  const initialDictionary = getDictionary(initialLocale)
+
   const [syncState, setSyncState] = useState<DesktopSyncState>(initialState)
   const [activity, setActivity] = useState<ActivityEntry[]>([
     createActivityEntry(
-      "Console ready",
-      "Pending updates will stay visible until an operator distributes them.",
+      initialDictionary.activity.consoleReadyTitle,
+      initialDictionary.activity.consoleReadyDetail,
       "neutral"
     )
   ])
@@ -91,6 +102,7 @@ export function App() {
   const [configState, setConfigState] = useState<ConfigurationState | null>(null)
   const [isConfiguring, setIsConfiguring] = useState(false)
   const [isSavingConfiguration, setIsSavingConfiguration] = useState(false)
+  const [isSavingLocale, setIsSavingLocale] = useState(false)
   const [isTestingConnection, setIsTestingConnection] = useState(false)
   const [isClearingConfiguration, setIsClearingConfiguration] = useState(false)
   const [connectionTestResult, setConnectionTestResult] = useState<ConnectionTestResult | null>(
@@ -98,41 +110,46 @@ export function App() {
   )
   const [activeView, setActiveView] = useState<AppView>("home")
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const [selectedLocale, setSelectedLocale] = useState<AppLocale>(initialLocale)
+  const hasLocaleOverride = useRef(false)
 
-  const bridgeAvailable = desktopClient.isAvailable()
+  const dictionary = useMemo(() => getDictionary(selectedLocale), [selectedLocale])
   const configurationReady = Boolean(configState?.hasToken)
+
+  useEffect(() => {
+    document.documentElement.lang = selectedLocale
+  }, [selectedLocale])
 
   const bridgeStatus = useMemo(() => {
     if (!bridgeAvailable) {
-      return "Desktop bridge unavailable"
+      return dictionary.appShell.bridgeStatus.unavailable
     }
 
     if (isLoading && configState === null) {
-      return "Desktop bridge connected, loading configuration"
+      return dictionary.appShell.bridgeStatus.loadingConfiguration
     }
 
     if (isConfiguring || !configurationReady) {
       return configurationReady
-        ? "Desktop bridge connected, editing API configuration"
-        : "Desktop bridge connected, API token required"
+        ? dictionary.appShell.bridgeStatus.editingConfiguration
+        : dictionary.appShell.bridgeStatus.tokenRequired
     }
 
     if (errorMessage) {
-      return `Desktop bridge error: ${errorMessage}`
+      return dictionary.appShell.bridgeStatus.error(errorMessage)
     }
 
     if (isLoading) {
-      return "Desktop bridge connected, loading review state"
+      return dictionary.appShell.bridgeStatus.loadingReviewState
     }
 
     const pendingUpdateCount = syncState.pendingUpdates.length
-    return `Desktop bridge connected, ${pendingUpdateCount} pending update${
-      pendingUpdateCount === 1 ? "" : "s"
-    }`
+    return dictionary.appShell.bridgeStatus.connectedWithPending(pendingUpdateCount)
   }, [
     bridgeAvailable,
     configState,
     configurationReady,
+    dictionary.appShell.bridgeStatus,
     errorMessage,
     isLoading,
     isConfiguring,
@@ -141,6 +158,7 @@ export function App() {
 
   useEffect(() => {
     let active = true
+    let loadedLocale = initialLocale
 
     if (!bridgeAvailable) {
       setIsLoading(false)
@@ -156,6 +174,12 @@ export function App() {
         }
 
         setConfigState(configuration)
+        setSelectedLocale((currentLocale) =>
+          hasLocaleOverride.current ? currentLocale : configuration.locale
+        )
+        loadedLocale = configuration.locale
+
+        const localizedDictionary = getDictionary(loadedLocale)
 
         if (!configuration.hasToken) {
           setIsConfiguring(true)
@@ -163,7 +187,14 @@ export function App() {
           setErrorMessage(null)
           setIsLoading(false)
           setActivity((current) =>
-            [createActivityEntry("API token needed", "Review sync is paused until configuration is saved.", "warning"), ...current].slice(0, 5)
+            [
+              createActivityEntry(
+                localizedDictionary.activity.apiTokenNeededTitle,
+                localizedDictionary.activity.apiTokenNeededDetail,
+                "warning"
+              ),
+              ...current
+            ].slice(0, 5)
           )
           return
         }
@@ -181,10 +212,8 @@ export function App() {
         setActivity((current) =>
           [
             createActivityEntry(
-              "Review snapshot loaded",
-              `${state.pendingUpdates.length} pending update${
-                state.pendingUpdates.length === 1 ? "" : "s"
-              } are ready for review.`,
+              localizedDictionary.activity.reviewSnapshotLoadedTitle,
+              localizedDictionary.activity.reviewSnapshotLoadedDetail(state.pendingUpdates.length),
               "neutral"
             ),
             ...current
@@ -196,10 +225,18 @@ export function App() {
         }
 
         const message = getErrorMessage(error)
+        const localizedDictionary = getDictionary(loadedLocale)
         setErrorMessage(message)
         setIsLoading(false)
         setActivity((current) =>
-          [createActivityEntry("Refresh failed", message, "warning"), ...current].slice(0, 5)
+          [
+            createActivityEntry(
+              localizedDictionary.activity.refreshFailedTitle,
+              localizedDictionary.activity.refreshFailedDetail(message),
+              "warning"
+            ),
+            ...current
+          ].slice(0, 5)
         )
       }
     })()
@@ -207,7 +244,7 @@ export function App() {
     return () => {
       active = false
     }
-  }, [bridgeAvailable])
+  }, [bridgeAvailable, initialLocale])
 
   const handleRefresh = async () => {
     if (!bridgeAvailable) {
@@ -230,10 +267,8 @@ export function App() {
       setActivity((current) =>
         [
           createActivityEntry(
-            "Review snapshot refreshed",
-            `${state.pendingUpdates.length} pending update${
-              state.pendingUpdates.length === 1 ? "" : "s"
-            } are visible again.`,
+            dictionary.activity.reviewSnapshotRefreshedTitle,
+            dictionary.activity.reviewSnapshotRefreshedDetail(state.pendingUpdates.length),
             "neutral"
           ),
           ...current
@@ -243,7 +278,14 @@ export function App() {
       const message = getErrorMessage(error)
       setErrorMessage(message)
       setActivity((current) =>
-        [createActivityEntry("Refresh failed", message, "warning"), ...current].slice(0, 5)
+        [
+          createActivityEntry(
+            dictionary.activity.refreshFailedTitle,
+            dictionary.activity.refreshFailedDetail(message),
+            "warning"
+          ),
+          ...current
+        ].slice(0, 5)
       )
     } finally {
       setIsLoading(false)
@@ -252,7 +294,7 @@ export function App() {
 
   const handleSaveConfiguration = async (payload: ConfigurationPayload) => {
     if (!bridgeAvailable) {
-      const message = createBridgeUnavailableMessage("save configuration")
+      const message = createBridgeUnavailableMessage(selectedLocale, dictionary.configPanel.saveAction)
       setConnectionTestResult(null)
       setErrorMessage(message)
       return
@@ -265,12 +307,23 @@ export function App() {
     try {
       const nextConfiguration = await desktopClient.saveConfiguration(payload)
       setConfigState(nextConfiguration)
+      hasLocaleOverride.current = true
+      setSelectedLocale(nextConfiguration.locale)
       setConnectionTestResult(null)
       setIsConfiguring(false)
       setSettingsOpen(false)
       setActiveView("home")
+
+      const localizedDictionary = getDictionary(nextConfiguration.locale)
       setActivity((current) =>
-        [createActivityEntry("Configuration saved", "Runtime sync is using the latest API settings.", "success"), ...current].slice(0, 5)
+        [
+          createActivityEntry(
+            localizedDictionary.activity.configurationSavedTitle,
+            localizedDictionary.activity.configurationSavedDetail,
+            "success"
+          ),
+          ...current
+        ].slice(0, 5)
       )
 
       if (nextConfiguration.hasToken) {
@@ -281,10 +334,8 @@ export function App() {
           setActivity((current) =>
             [
               createActivityEntry(
-                "Review snapshot refreshed",
-                `${state.pendingUpdates.length} pending update${
-                  state.pendingUpdates.length === 1 ? "" : "s"
-                } are visible again.`,
+                localizedDictionary.activity.reviewSnapshotRefreshedTitle,
+                localizedDictionary.activity.reviewSnapshotRefreshedDetail(state.pendingUpdates.length),
                 "neutral"
               ),
               ...current
@@ -294,7 +345,14 @@ export function App() {
           const message = getErrorMessage(error)
           setErrorMessage(message)
           setActivity((current) =>
-            [createActivityEntry("Refresh failed", message, "warning"), ...current].slice(0, 5)
+            [
+              createActivityEntry(
+                localizedDictionary.activity.refreshFailedTitle,
+                localizedDictionary.activity.refreshFailedDetail(message),
+                "warning"
+              ),
+              ...current
+            ].slice(0, 5)
           )
         } finally {
           setIsLoading(false)
@@ -304,10 +362,41 @@ export function App() {
       const message = getErrorMessage(error)
       setErrorMessage(message)
       setActivity((current) =>
-        [createActivityEntry("Configuration save failed", message, "warning"), ...current].slice(0, 5)
+        [
+          createActivityEntry(
+            dictionary.activity.configurationSaveFailedTitle,
+            dictionary.activity.configurationSaveFailedDetail(message),
+            "warning"
+          ),
+          ...current
+        ].slice(0, 5)
       )
     } finally {
       setIsSavingConfiguration(false)
+    }
+  }
+
+  const handleChangeLocale = async (locale: AppLocale) => {
+    hasLocaleOverride.current = true
+    setSelectedLocale(locale)
+
+    if (!bridgeAvailable) {
+      return
+    }
+
+    setIsSavingLocale(true)
+    setErrorMessage(null)
+
+    try {
+      const nextConfiguration = await desktopClient.saveLocale(locale)
+      setConfigState(nextConfiguration)
+      hasLocaleOverride.current = true
+      setSelectedLocale(nextConfiguration.locale)
+    } catch (error: unknown) {
+      const message = getErrorMessage(error)
+      setErrorMessage(message)
+    } finally {
+      setIsSavingLocale(false)
     }
   }
 
@@ -316,7 +405,7 @@ export function App() {
       setErrorMessage(null)
       setConnectionTestResult({
         ok: false,
-        message: createBridgeUnavailableMessage("test the connection")
+        message: createBridgeUnavailableMessage(selectedLocale, dictionary.configPanel.testAction)
       })
       return
     }
@@ -331,7 +420,9 @@ export function App() {
       setActivity((current) =>
         [
           createActivityEntry(
-            result.ok ? "Connection test succeeded" : "Connection test failed",
+            result.ok
+              ? dictionary.activity.connectionTestSucceededTitle
+              : dictionary.activity.connectionTestFailedTitle,
             result.message,
             result.ok ? "success" : "warning"
           ),
@@ -345,7 +436,10 @@ export function App() {
         message
       })
       setActivity((current) =>
-        [createActivityEntry("Connection test failed", message, "warning"), ...current].slice(0, 5)
+        [
+          createActivityEntry(dictionary.activity.connectionTestFailedTitle, message, "warning"),
+          ...current
+        ].slice(0, 5)
       )
     } finally {
       setIsTestingConnection(false)
@@ -362,20 +456,38 @@ export function App() {
     try {
       const nextConfiguration = await desktopClient.clearConfiguration()
       setConfigState(nextConfiguration)
+      hasLocaleOverride.current = true
+      setSelectedLocale(nextConfiguration.locale)
       setSyncState(initialState)
       setConnectionTestResult(null)
       setErrorMessage(null)
       setIsConfiguring(true)
       setActiveView("home")
       setSettingsOpen(true)
+
+      const localizedDictionary = getDictionary(nextConfiguration.locale)
       setActivity((current) =>
-        [createActivityEntry("Configuration cleared", "Review sync has been paused.", "warning"), ...current].slice(0, 5)
+        [
+          createActivityEntry(
+            localizedDictionary.activity.configurationClearedTitle,
+            localizedDictionary.activity.configurationClearedDetail,
+            "warning"
+          ),
+          ...current
+        ].slice(0, 5)
       )
     } catch (error: unknown) {
       const message = getErrorMessage(error)
       setErrorMessage(message)
       setActivity((current) =>
-        [createActivityEntry("Configuration clear failed", message, "warning"), ...current].slice(0, 5)
+        [
+          createActivityEntry(
+            dictionary.activity.configurationClearFailedTitle,
+            dictionary.activity.configurationClearFailedDetail(message),
+            "warning"
+          ),
+          ...current
+        ].slice(0, 5)
       )
     } finally {
       setIsClearingConfiguration(false)
@@ -397,13 +509,14 @@ export function App() {
         const refreshedState = await desktopClient.refreshSync()
         setSyncState(refreshedState)
         setErrorMessage(null)
+        const detail = createDistributionDetail(selectedLocale, distributionResult)
         setActivity((current) =>
           [
             createActivityEntry(
               distributionResult.failedAgentIds.length === 0
-                ? "Distribution completed"
-                : "Distribution completed with warnings",
-              createDistributionDetail(distributionResult),
+                ? dictionary.activity.distributionCompletedTitle
+                : dictionary.activity.distributionCompletedWithWarningsTitle,
+              dictionary.activity.distributionCompletedDetail(detail),
               distributionResult.failedAgentIds.length === 0 ? "success" : "warning"
             ),
             ...current
@@ -412,11 +525,12 @@ export function App() {
       } catch (error: unknown) {
         const message = getErrorMessage(error)
         setErrorMessage(message)
+        const detail = createDistributionDetail(selectedLocale, distributionResult)
         setActivity((current) =>
           [
             createActivityEntry(
-              "Distribution completed with refresh warning",
-              `${createDistributionDetail(distributionResult)} Refreshing the review snapshot then failed: ${message}`,
+              dictionary.activity.distributionCompletedWithRefreshWarningTitle,
+              dictionary.activity.distributionCompletedWithRefreshWarningDetail(detail, message),
               "warning"
             ),
             ...current
@@ -429,8 +543,8 @@ export function App() {
       setActivity((current) =>
         [
           createActivityEntry(
-            "Distribution failed",
-            `${pendingUpdate.name} could not be distributed: ${message}`,
+            dictionary.activity.distributionFailedTitle,
+            dictionary.activity.distributionFailedDetail(pendingUpdate.name, message),
             "warning"
           ),
           ...current
@@ -441,58 +555,69 @@ export function App() {
     }
   }
 
-  return (
-    <AppShell
-      activeView={activeView}
-      bridgeStatus={bridgeStatus}
-      pendingUpdateCount={syncState.pendingUpdates.length}
-      isRefreshing={isLoading}
-      canRefresh={configurationReady}
-      onNavigate={setActiveView}
-      onOpenSettings={() => setSettingsOpen(true)}
-      onRefresh={handleRefresh}
-    >
-      {activeView === "home" ? (
-        <HomeView
-          bridgeAvailable={bridgeAvailable}
-          configurationReady={configurationReady}
-          errorMessage={errorMessage}
-          isLoading={isLoading}
-          lastRefreshedAt={formatLongTimestamp(syncState.lastRefreshedAt)}
-          localRecordCount={syncState.localRecords.length}
-          pendingUpdates={syncState.pendingUpdates}
-          busyUpdateId={busyUpdateId}
-          onDistribute={handleDistribute}
-          onOpenSettings={() => setSettingsOpen(true)}
-          onRefresh={handleRefresh}
-          onViewUpdates={() => setActiveView("updates")}
-        />
-      ) : (
-        <UpdatesView
-          isLoading={isLoading}
-          pendingUpdates={syncState.pendingUpdates}
-          busyUpdateId={busyUpdateId}
-          onDistribute={handleDistribute}
-          onRefresh={handleRefresh}
-        />
-      )}
+  const formattedLastRefreshedAt = formatLongTimestamp(
+    selectedLocale,
+    syncState.lastRefreshedAt,
+    dictionary.common.notRefreshedYet
+  )
 
-      <SettingsDrawer
-        activity={activity}
+  return (
+    <I18nProvider locale={selectedLocale} dictionary={dictionary}>
+      <AppShell
+        activeView={activeView}
         bridgeStatus={bridgeStatus}
-        configState={configState}
-        connectionTestResult={connectionTestResult}
-        errorMessage={errorMessage}
-        isClearingConfiguration={isClearingConfiguration}
-        isOpen={settingsOpen}
-        isSavingConfiguration={isSavingConfiguration}
-        isTestingConnection={isTestingConnection}
-        lastRefreshedAt={formatLongTimestamp(syncState.lastRefreshedAt)}
-        onClearConfiguration={handleClearConfiguration}
-        onClose={() => setSettingsOpen(false)}
-        onSaveConfiguration={handleSaveConfiguration}
-        onTestConnection={handleTestConnection}
-      />
-    </AppShell>
+        pendingUpdateCount={syncState.pendingUpdates.length}
+        isRefreshing={isLoading}
+        canRefresh={configurationReady}
+        onNavigate={setActiveView}
+        onOpenSettings={() => setSettingsOpen(true)}
+        onRefresh={handleRefresh}
+      >
+        {activeView === "home" ? (
+          <HomeView
+            bridgeAvailable={bridgeAvailable}
+            configurationReady={configurationReady}
+            errorMessage={errorMessage}
+            isLoading={isLoading}
+            lastRefreshedAt={formattedLastRefreshedAt}
+            localRecordCount={syncState.localRecords.length}
+            pendingUpdates={syncState.pendingUpdates}
+            busyUpdateId={busyUpdateId}
+            onDistribute={handleDistribute}
+            onOpenSettings={() => setSettingsOpen(true)}
+            onRefresh={handleRefresh}
+            onViewUpdates={() => setActiveView("updates")}
+          />
+        ) : (
+          <UpdatesView
+            isLoading={isLoading}
+            pendingUpdates={syncState.pendingUpdates}
+            busyUpdateId={busyUpdateId}
+            onDistribute={handleDistribute}
+            onRefresh={handleRefresh}
+          />
+        )}
+
+        <SettingsDrawer
+          activity={activity}
+          bridgeStatus={bridgeStatus}
+          configState={configState}
+          connectionTestResult={connectionTestResult}
+          errorMessage={errorMessage}
+          isClearingConfiguration={isClearingConfiguration}
+          isSavingLocale={isSavingLocale}
+          isOpen={settingsOpen}
+          isSavingConfiguration={isSavingConfiguration}
+          isTestingConnection={isTestingConnection}
+          lastRefreshedAt={formattedLastRefreshedAt}
+          currentLocale={selectedLocale}
+          onChangeLocale={handleChangeLocale}
+          onClearConfiguration={handleClearConfiguration}
+          onClose={() => setSettingsOpen(false)}
+          onSaveConfiguration={handleSaveConfiguration}
+          onTestConnection={handleTestConnection}
+        />
+      </AppShell>
+    </I18nProvider>
   )
 }

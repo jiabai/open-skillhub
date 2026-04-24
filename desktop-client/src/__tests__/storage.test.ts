@@ -185,17 +185,47 @@ describe("storage foundation", () => {
     })
 
     expect(savedState.config.apiBaseUrl).toBe("http://127.0.0.1:9000")
+    expect(savedState.config.locale).toBe("zh-CN")
     expect(savedState.config.apiToken).toBe("ask_live_saved")
     expect(savedState.bootstrap.source).toBe("secret-store")
     expect(await store.getApiToken()).toBe("ask_live_saved")
     expect(JSON.parse(readFileSync(join(rootDir, "config", "config.json"), "utf8"))).toEqual({
-      apiBaseUrl: "http://127.0.0.1:9000"
+      apiBaseUrl: "http://127.0.0.1:9000",
+      locale: "zh-CN"
     })
 
     const reloadedState = await manager.reload()
 
     expect(reloadedState.config.apiBaseUrl).toBe("http://127.0.0.1:9000")
+    expect(reloadedState.config.locale).toBe("zh-CN")
     expect(reloadedState.config.apiToken).toBe("ask_live_saved")
+  })
+
+  it("persists locale changes through the runtime config manager", async () => {
+    const rootDir = createTempRoot()
+    const manager = createRuntimeConfigManager({
+      appPathsOptions: { baseDir: rootDir },
+      env: {
+        OPEN_SKILLHUB_API_BASE_URL: "http://localhost:8001"
+      } as NodeJS.ProcessEnv,
+      secretStore: createInMemorySecretStore()
+    })
+
+    const initialState = await manager.reload()
+
+    expect(initialState.config.locale).toBe("zh-CN")
+
+    const updatedState = await manager.saveLocale("en-US")
+
+    expect(updatedState.config.locale).toBe("en-US")
+    expect(JSON.parse(readFileSync(join(rootDir, "config", "config.json"), "utf8"))).toEqual({
+      apiBaseUrl: "http://localhost:8001",
+      locale: "en-US"
+    })
+
+    const reloadedState = await manager.reload()
+
+    expect(reloadedState.config.locale).toBe("en-US")
   })
 
   it("does not re-import an environment token after the user clears configuration", async () => {
@@ -220,6 +250,7 @@ describe("storage foundation", () => {
 
     expect(clearedState.bootstrap.source).toBe("missing")
     expect(clearedState.config.apiToken).toBeNull()
+    expect(clearedState.config.locale).toBe("zh-CN")
     expect(await store.getApiToken()).toBeNull()
   })
 

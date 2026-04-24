@@ -1,5 +1,6 @@
 import type { PendingSyncUpdate } from "@/types"
 import { Badge, Button, Card, CardContent, CardDescription, CardHeader, CardTitle, PageIntro } from "@/components/ui-primitives"
+import { useI18n } from "@/i18n/use-i18n"
 
 type HomeViewProps = {
   bridgeAvailable: boolean
@@ -16,8 +17,8 @@ type HomeViewProps = {
   onViewUpdates: () => void
 }
 
-function formatVersion(value: string | null): string {
-  return value ?? "n/a"
+function formatVersion(value: string | null, fallback: string): string {
+  return value ?? fallback
 }
 
 export function HomeView({
@@ -34,22 +35,23 @@ export function HomeView({
   onRefresh,
   onViewUpdates
 }: HomeViewProps) {
+  const { dictionary } = useI18n()
   const previewUpdates = pendingUpdates.slice(0, 3)
   const pendingCount = pendingUpdates.length
 
   return (
     <section className="page-stack" aria-labelledby="home-heading">
       <PageIntro
-        eyebrow="Desktop client"
-        title="Review updates"
-        summary="A quiet desktop surface for checking pending skill updates and approving distribution only when you are ready."
+        eyebrow={dictionary.homeView.eyebrow}
+        title={dictionary.homeView.title}
+        summary={dictionary.homeView.summary}
         actions={
           <>
             <Button variant="secondary" disabled={!configurationReady || isLoading} onClick={onRefresh}>
-              {isLoading ? "Refreshing" : "Refresh state"}
+              {isLoading ? dictionary.common.refreshing : dictionary.homeView.refreshState}
             </Button>
             <Button variant="outline" onClick={onOpenSettings}>
-              Settings
+              {dictionary.homeView.settings}
             </Button>
           </>
         }
@@ -57,18 +59,18 @@ export function HomeView({
 
       {!bridgeAvailable ? (
         <div className="callout callout--error" role="alert">
-          <strong>Desktop bridge unavailable</strong>
-          <span>The renderer cannot reach the preload bridge in this environment.</span>
+          <strong>{dictionary.homeView.bridgeUnavailableTitle}</strong>
+          <span>{dictionary.homeView.bridgeUnavailableDetail}</span>
         </div>
       ) : null}
 
       {!configurationReady ? (
         <div className="callout callout--warning">
-          <strong>API token needed</strong>
-          <span>Review sync is paused until API configuration is saved.</span>
+          <strong>{dictionary.homeView.tokenNeededTitle}</strong>
+          <span>{dictionary.homeView.tokenNeededDetail}</span>
           <div>
             <Button variant="primary" onClick={onOpenSettings}>
-              Configure API
+              {dictionary.common.configureApi}
             </Button>
           </div>
         </div>
@@ -76,7 +78,7 @@ export function HomeView({
 
       {errorMessage && configurationReady ? (
         <div className="callout callout--error" role="alert">
-          <strong>Refresh failed</strong>
+          <strong>{dictionary.homeView.refreshFailedTitle}</strong>
           <span>{errorMessage}</span>
         </div>
       ) : null}
@@ -85,27 +87,27 @@ export function HomeView({
         <Card>
           <CardContent>
             <div className="metric">
-              <span className="metric__label">Pending updates</span>
+              <span className="metric__label">{dictionary.homeView.metrics.pendingUpdates.label}</span>
               <strong className="metric__value">{pendingCount}</strong>
-              <span className="muted">Items waiting for review.</span>
+              <span className="muted">{dictionary.homeView.metrics.pendingUpdates.detail}</span>
             </div>
           </CardContent>
         </Card>
         <Card>
           <CardContent>
             <div className="metric">
-              <span className="metric__label">Local records</span>
+              <span className="metric__label">{dictionary.homeView.metrics.localRecords.label}</span>
               <strong className="metric__value">{localRecordCount}</strong>
-              <span className="muted">Distributed skills tracked locally.</span>
+              <span className="muted">{dictionary.homeView.metrics.localRecords.detail}</span>
             </div>
           </CardContent>
         </Card>
         <Card>
           <CardContent>
             <div className="metric">
-              <span className="metric__label">Last refresh</span>
+              <span className="metric__label">{dictionary.homeView.metrics.lastRefresh.label}</span>
               <strong style={{ fontSize: "1.1rem", lineHeight: 1.25 }}>{lastRefreshedAt}</strong>
-              <span className="muted">Latest bridge snapshot.</span>
+              <span className="muted">{dictionary.homeView.metrics.lastRefresh.detail}</span>
             </div>
           </CardContent>
         </Card>
@@ -113,20 +115,24 @@ export function HomeView({
 
       <Card aria-labelledby="home-heading">
         <CardHeader>
-          <CardTitle id="home-heading">Needs review</CardTitle>
-          <CardDescription>
-            Showing up to 3 pending updates here. The full queue lives in Updates.
-          </CardDescription>
+          <CardTitle id="home-heading">{dictionary.homeView.needsReviewTitle}</CardTitle>
+          <CardDescription>{dictionary.homeView.needsReviewDescription}</CardDescription>
         </CardHeader>
         <CardContent>
           {previewUpdates.length === 0 ? (
             <div className="callout">
-              {isLoading ? "Loading pending updates..." : "No pending updates are waiting for review."}
+              {isLoading
+                ? dictionary.homeView.loadingPendingUpdates
+                : dictionary.homeView.noPendingUpdates}
             </div>
           ) : (
             <div className="list-stack">
               {previewUpdates.map((pendingUpdate) => {
                 const isBusy = busyUpdateId === pendingUpdate.remoteSkillId
+                const reasonLabel =
+                  pendingUpdate.reason === "missing-local-record"
+                    ? dictionary.homeView.reasonLabels.missingLocalRecord
+                    : dictionary.homeView.reasonLabels.versionMismatch
 
                 return (
                   <article className="update-item" key={pendingUpdate.remoteSkillId}>
@@ -138,16 +144,22 @@ export function HomeView({
                       <Button
                         variant="primary"
                         disabled={isBusy}
-                        aria-label={`Distribute ${pendingUpdate.name}`}
+                        aria-label={dictionary.homeView.distribute(pendingUpdate.name)}
                         onClick={() => onDistribute(pendingUpdate)}
                       >
-                        {isBusy ? "Distributing" : "Distribute"}
+                        {isBusy ? dictionary.homeView.distributing : dictionary.common.distribute}
                       </Button>
                     </div>
                     <div className="update-item__meta">
-                      <Badge>Local {formatVersion(pendingUpdate.localVersion)}</Badge>
-                      <Badge tone="accent">Remote {pendingUpdate.remoteVersion}</Badge>
-                      <Badge tone="warning">{pendingUpdate.reason}</Badge>
+                      <Badge>
+                        {dictionary.homeView.badges.local(
+                          formatVersion(pendingUpdate.localVersion, dictionary.common.nA)
+                        )}
+                      </Badge>
+                      <Badge tone="accent">
+                        {dictionary.homeView.badges.remote(pendingUpdate.remoteVersion)}
+                      </Badge>
+                      <Badge tone="warning">{reasonLabel}</Badge>
                     </div>
                   </article>
                 )
@@ -157,7 +169,7 @@ export function HomeView({
 
           <div style={{ marginTop: "1rem" }}>
             <Button variant="outline" onClick={onViewUpdates}>
-              View all updates
+              {dictionary.homeView.viewAllUpdates}
             </Button>
           </div>
         </CardContent>

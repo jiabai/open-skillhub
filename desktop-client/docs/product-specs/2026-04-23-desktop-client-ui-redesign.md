@@ -47,6 +47,10 @@
 
 ## 信息架构
 
+### Desktop shell
+
+客户端应作为 Windows 通知区域常驻的小工具运行，而不是传统菜单栏桌面程序。启动后打开一个紧凑面板；关闭窗口时隐藏到托盘；点击托盘图标可显示或隐藏面板；右键托盘菜单保留打开、刷新、退出等低频命令。原生 `File / Edit / View / Window / Help` 菜单栏不应出现在主界面里。
+
 ### Home
 
 Home 是客户端默认首页。
@@ -88,6 +92,7 @@ Settings 抽屉承载低频但必要的操作：
 本次包含：
 
 - 重构 desktop-client renderer 信息架构
+- 将 Electron 外壳收敛为通知区域常驻的小面板
 - 新增或调整本地 UI primitives 和样式 tokens
 - 简化首页
 - 将配置、代理目标、活动日志迁入 Settings 抽屉
@@ -115,7 +120,8 @@ Settings 抽屉承载低频但必要的操作：
 4. API 配置仍然可发现，并能通过 Settings 抽屉完成。
 5. 完整待审核列表和分发流程仍然可用。
 6. 原有 refresh、save configuration、clear configuration、test connection、distribute flows 行为不变。
-7. `npm run typecheck:electron`、`npm test`、`npm run build` 通过。
+7. Windows 上客户端以紧凑窗口 + 通知区域托盘入口运行，不显示原生菜单栏，也不作为普通大窗口常驻任务栏。
+8. `npm run typecheck:electron`、`npm test`、`npm run build` 通过。
 
 ## 相关文档
 

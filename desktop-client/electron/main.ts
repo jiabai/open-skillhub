@@ -161,11 +161,20 @@ function createNotification(payload: TrayNotificationPayload): void {
 
 function createWindow(): BrowserWindow {
   const window = new BrowserWindow({
-    width: 1280,
-    height: 840,
+    width: 460,
+    height: 720,
+    minWidth: 420,
+    minHeight: 560,
+    maxWidth: 560,
+    maxHeight: 900,
     backgroundColor: "#f7f4ed",
     icon: createAppIcon(256),
+    autoHideMenuBar: true,
+    fullscreenable: false,
+    maximizable: false,
+    skipTaskbar: process.platform === "win32",
     show: true,
+    title: "Open SkillHub",
     webPreferences: {
       contextIsolation: true,
       nodeIntegration: false,
@@ -360,6 +369,15 @@ function showMainWindow(): void {
   mainWindow.focus()
 }
 
+function toggleMainWindow(): void {
+  if (mainWindow?.isVisible()) {
+    mainWindow.hide()
+    return
+  }
+
+  showMainWindow()
+}
+
 async function closeStateStore(): Promise<void> {
   if (!stateStore) {
     return
@@ -418,6 +436,8 @@ async function createApplicationServices(): Promise<void> {
 
   stopPolling = pollingController.stop
 
+  Menu.setApplicationMenu(null)
+
   tray.setContextMenu(
     Menu.buildFromTemplate([
       {
@@ -446,8 +466,7 @@ async function createApplicationServices(): Promise<void> {
     ])
   )
 
-  tray.on("double-click", () => showMainWindow())
-  tray.on("click", () => showMainWindow())
+  tray.on("click", () => toggleMainWindow())
 
   showMainWindow()
 

@@ -72,14 +72,14 @@ input:focus-visible {
 
 .app-header__inner,
 .app-main {
-  width: min(1180px, calc(100vw - 2rem));
+  width: min(30rem, calc(100vw - 1.25rem));
   margin: 0 auto;
 }
 
 .app-header__inner {
   display: grid;
-  gap: 0.9rem;
-  padding: 1rem 0;
+  gap: 0.75rem;
+  padding: 0.8rem 0;
 }
 
 .app-header__top {
@@ -127,12 +127,12 @@ input:focus-visible {
 }
 
 .app-main {
-  padding: 2rem 0 2.5rem;
+  padding: 1rem 0 1.25rem;
 }
 
 .page-stack {
   display: grid;
-  gap: 1.25rem;
+  gap: 1rem;
 }
 
 .page-intro {
@@ -157,7 +157,7 @@ input:focus-visible {
 .page-intro__title {
   margin: 0;
   font-family: var(--osh-font-display);
-  font-size: clamp(2rem, 5vw, 3.45rem);
+  font-size: 2rem;
   line-height: 1;
 }
 
@@ -277,6 +277,7 @@ input:focus-visible {
 .badge {
   display: inline-flex;
   width: fit-content;
+  max-width: 100%;
   align-items: center;
   border: 1px solid var(--osh-border);
   border-radius: 999px;
@@ -285,6 +286,8 @@ input:focus-visible {
   color: var(--osh-muted);
   font-family: var(--osh-font-mono);
   font-size: 0.74rem;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
 }
 
 .badge--primary {

@@ -13,7 +13,7 @@
 
 - [x] Desktop client i18n: add local locale persistence, renderer translation, and locale-aware timestamps (2026-04-24) ✅ locale now persists through the Electron runtime config, renderer strings switch between `en-US` and `zh-CN`, and `npm test` / `npm run build` pass
 - [x] Make config save/test fail fast when the Electron bridge is unavailable and time out stalled connection probes (2026-04-23) ✅ `src/app/App.tsx` now surfaces bridge-unavailable feedback, `src/core/runtime/api-connection.ts` adds a timeout-backed probe, and `npm test` plus `npm run build` pass
-- [x] Fix desktop app icon loading and prevent duplicate client instances (2026-04-23) ✅ `electron/main.ts` embeds `resources/icons/icon.svg` at build time and uses Electron single-instance locking
+- [x] Fix desktop app icon loading and prevent duplicate client instances (2026-04-23) ✅ `electron/main.ts` uses a Windows-native `resources/icons/icon.ico` with the embedded SVG as fallback, and keeps Electron single-instance locking
 - [x] Redesign desktop client UI information architecture (2026-04-23) ✅ Home focuses on pending reviews, Updates owns the full queue, and Settings drawer owns configuration/activity
 - [x] Implement API token configuration UI and runtime reload path (2026-04-23) ✅ `npm run typecheck:electron`, `npm test`, and `npm run build` succeed
 - [x] Create one canonical Electron start workflow for local development (2026-04-23) ✅ `desktop-client/package.json` exposes `npm run start:electron` and `desktop-client/README.md` documents the same command

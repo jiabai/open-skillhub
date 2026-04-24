@@ -1,5 +1,6 @@
 import { execFile } from "node:child_process"
 import { createHash } from "node:crypto"
+import { existsSync } from "node:fs"
 import { mkdtemp, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
@@ -45,6 +46,7 @@ import type {
 import { registerDesktopClientIpc } from "./ipc"
 
 const preloadPath = fileURLToPath(new URL("./preload.js", import.meta.url))
+const windowsIconPath = fileURLToPath(new URL("../resources/icons/icon.ico", import.meta.url))
 const execFileAsync = promisify(execFile)
 const APP_USER_MODEL_ID = "com.open-skillhub.desktop-client"
 
@@ -122,7 +124,28 @@ function createEmbeddedIcon(size = 256) {
   })
 }
 
+function createWindowsIcon(size = 256) {
+  if (!existsSync(windowsIconPath)) {
+    return null
+  }
+
+  const icon = nativeImage.createFromPath(windowsIconPath)
+
+  if (icon.isEmpty()) {
+    return null
+  }
+
+  return icon.resize({
+    height: size,
+    width: size
+  })
+}
+
 function createAppIcon(size = 256) {
+  if (process.platform === "win32") {
+    return createWindowsIcon(size) ?? createEmbeddedIcon(size)
+  }
+
   return createEmbeddedIcon(size)
 }
 

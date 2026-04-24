@@ -145,7 +145,7 @@ export function App() {
     }
 
     const pendingUpdateCount = syncState.pendingUpdates.length
-    return dictionary.appShell.bridgeStatus.connectedWithPending(pendingUpdateCount)
+    return dictionary.appShell.bridgeStatus.connected
   }, [
     bridgeAvailable,
     configState,

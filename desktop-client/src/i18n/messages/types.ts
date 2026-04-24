@@ -37,6 +37,7 @@ export interface AppDictionary {
       editingConfiguration: string
       tokenRequired: string
       loadingReviewState: string
+      connected: string
       connectedWithPending: (count: number) => string
       error: (message: string) => string
     }

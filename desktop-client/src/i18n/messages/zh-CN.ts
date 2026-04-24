@@ -38,6 +38,7 @@ export const zhCNDictionary = {
       editingConfiguration: "桌面桥接已连接，正在编辑 API 配置",
       tokenRequired: "桌面桥接已连接，需要 API Token",
       loadingReviewState: "桌面桥接已连接，正在加载审核状态",
+      connected: "桌面桥接已连接",
       connectedWithPending: (count: number) => `桌面桥接已连接，${count} 个待审核更新`,
       error: (message: string) => `桌面桥接错误：${message}`
     }

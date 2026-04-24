@@ -38,6 +38,7 @@ export const enUSDictionary = {
       editingConfiguration: "Desktop bridge connected, editing API configuration",
       tokenRequired: "Desktop bridge connected, API token required",
       loadingReviewState: "Desktop bridge connected, loading review state",
+      connected: "Desktop bridge connected",
       connectedWithPending: (count: number) =>
         `Desktop bridge connected, ${count} pending update${count === 1 ? "" : "s"}`,
       error: (message: string) => `Desktop bridge error: ${message}`

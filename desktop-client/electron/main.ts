@@ -14,7 +14,8 @@ import {
   Notification,
   Tray,
   ipcMain,
-  nativeImage
+  nativeImage,
+  screen
 } from "electron"
 
 import type { AgentId } from "@/adapters/agents/base"
@@ -49,6 +50,10 @@ const preloadPath = fileURLToPath(new URL("./preload.js", import.meta.url))
 const windowsIconPath = fileURLToPath(new URL("../resources/icons/icon.ico", import.meta.url))
 const execFileAsync = promisify(execFile)
 const APP_USER_MODEL_ID = "com.open-skillhub.desktop-client"
+const TARGET_RENDERER_PHYSICAL_SIZE = {
+  width: 1984,
+  height: 1168
+} as const
 
 type TrayNotificationPayload = {
   title: string
@@ -70,6 +75,15 @@ let tray: Tray | null = null
 let stateStore: Awaited<ReturnType<typeof createSqliteStateStore>> | null = null
 let stopPolling: (() => void) | null = null
 let isQuitting = false
+
+function getTargetWindowContentSize() {
+  const scaleFactor = screen.getPrimaryDisplay().scaleFactor || 1
+
+  return {
+    width: Math.round(TARGET_RENDERER_PHYSICAL_SIZE.width / scaleFactor),
+    height: Math.round(TARGET_RENDERER_PHYSICAL_SIZE.height / scaleFactor)
+  }
+}
 
 function normalizeVersion(version: string | null | undefined): string | null {
   const trimmed = version?.trim()
@@ -160,19 +174,18 @@ function createNotification(payload: TrayNotificationPayload): void {
 }
 
 function createWindow(): BrowserWindow {
+  const initialContentSize = getTargetWindowContentSize()
   const window = new BrowserWindow({
-    width: 1984,
-    height: 1168,
-    minWidth: 420,
-    minHeight: 560,
-    maxWidth: 1984,
-    maxHeight: 1168,
+    width: initialContentSize.width,
+    height: initialContentSize.height,
+    useContentSize: true,
     backgroundColor: "#f7f4ed",
     icon: createAppIcon(256),
     autoHideMenuBar: true,
     fullscreenable: false,
     maximizable: false,
-    skipTaskbar: process.platform === "win32",
+    resizable: false,
+    skipTaskbar: false,
     show: true,
     title: "Open SkillHub",
     webPreferences: {

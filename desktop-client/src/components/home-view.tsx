@@ -83,97 +83,103 @@ export function HomeView({
         </div>
       ) : null}
 
-      <div className="grid-3">
-        <Card>
-          <CardContent>
-            <div className="metric">
-              <span className="metric__label">{dictionary.homeView.metrics.pendingUpdates.label}</span>
-              <strong className="metric__value">{pendingCount}</strong>
-              <span className="muted">{dictionary.homeView.metrics.pendingUpdates.detail}</span>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent>
-            <div className="metric">
-              <span className="metric__label">{dictionary.homeView.metrics.localRecords.label}</span>
-              <strong className="metric__value">{localRecordCount}</strong>
-              <span className="muted">{dictionary.homeView.metrics.localRecords.detail}</span>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent>
-            <div className="metric">
-              <span className="metric__label">{dictionary.homeView.metrics.lastRefresh.label}</span>
-              <strong style={{ fontSize: "1.1rem", lineHeight: 1.25 }}>{lastRefreshedAt}</strong>
-              <span className="muted">{dictionary.homeView.metrics.lastRefresh.detail}</span>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      <Card aria-labelledby="home-heading">
-        <CardHeader>
-          <CardTitle id="home-heading">{dictionary.homeView.needsReviewTitle}</CardTitle>
-          <CardDescription>{dictionary.homeView.needsReviewDescription}</CardDescription>
-        </CardHeader>
-        <CardContent>
-          {previewUpdates.length === 0 ? (
-            <div className="callout">
-              {isLoading
-                ? dictionary.homeView.loadingPendingUpdates
-                : dictionary.homeView.noPendingUpdates}
-            </div>
-          ) : (
-            <div className="list-stack">
-              {previewUpdates.map((pendingUpdate) => {
-                const isBusy = busyUpdateId === pendingUpdate.remoteSkillId
-                const reasonLabel =
-                  pendingUpdate.reason === "missing-local-record"
-                    ? dictionary.homeView.reasonLabels.missingLocalRecord
-                    : dictionary.homeView.reasonLabels.versionMismatch
-
-                return (
-                  <article className="update-item" key={pendingUpdate.remoteSkillId}>
-                    <div className="update-item__header">
-                      <div className="section-heading">
-                        <h3 className="section-heading__title">{pendingUpdate.name}</h3>
-                        <span className="muted mono">{pendingUpdate.remoteSkillId}</span>
-                      </div>
-                      <Button
-                        variant="primary"
-                        disabled={isBusy}
-                        aria-label={dictionary.homeView.distribute(pendingUpdate.name)}
-                        onClick={() => onDistribute(pendingUpdate)}
-                      >
-                        {isBusy ? dictionary.homeView.distributing : dictionary.common.distribute}
-                      </Button>
-                    </div>
-                    <div className="update-item__meta">
-                      <Badge>
-                        {dictionary.homeView.badges.local(
-                          formatVersion(pendingUpdate.localVersion, dictionary.common.nA)
-                        )}
-                      </Badge>
-                      <Badge tone="accent">
-                        {dictionary.homeView.badges.remote(pendingUpdate.remoteVersion)}
-                      </Badge>
-                      <Badge tone="warning">{reasonLabel}</Badge>
-                    </div>
-                  </article>
-                )
-              })}
-            </div>
-          )}
-
-          <div style={{ marginTop: "1rem" }}>
-            <Button variant="outline" onClick={onViewUpdates}>
-              {dictionary.homeView.viewAllUpdates}
-            </Button>
+      <div className="home-layout">
+        <div className="home-layout__primary">
+          <div className="grid-3">
+            <Card>
+              <CardContent>
+                <div className="metric">
+                  <span className="metric__label">{dictionary.homeView.metrics.pendingUpdates.label}</span>
+                  <strong className="metric__value">{pendingCount}</strong>
+                  <span className="muted">{dictionary.homeView.metrics.pendingUpdates.detail}</span>
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent>
+                <div className="metric">
+                  <span className="metric__label">{dictionary.homeView.metrics.localRecords.label}</span>
+                  <strong className="metric__value">{localRecordCount}</strong>
+                  <span className="muted">{dictionary.homeView.metrics.localRecords.detail}</span>
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent>
+                <div className="metric">
+                  <span className="metric__label">{dictionary.homeView.metrics.lastRefresh.label}</span>
+                  <strong style={{ fontSize: "1.1rem", lineHeight: 1.25 }}>{lastRefreshedAt}</strong>
+                  <span className="muted">{dictionary.homeView.metrics.lastRefresh.detail}</span>
+                </div>
+              </CardContent>
+            </Card>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+
+        <div className="home-layout__secondary">
+          <Card aria-labelledby="home-heading">
+            <CardHeader>
+              <CardTitle id="home-heading">{dictionary.homeView.needsReviewTitle}</CardTitle>
+              <CardDescription>{dictionary.homeView.needsReviewDescription}</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {previewUpdates.length === 0 ? (
+                <div className="callout">
+                  {isLoading
+                    ? dictionary.homeView.loadingPendingUpdates
+                    : dictionary.homeView.noPendingUpdates}
+                </div>
+              ) : (
+                <div className="list-stack">
+                  {previewUpdates.map((pendingUpdate) => {
+                    const isBusy = busyUpdateId === pendingUpdate.remoteSkillId
+                    const reasonLabel =
+                      pendingUpdate.reason === "missing-local-record"
+                        ? dictionary.homeView.reasonLabels.missingLocalRecord
+                        : dictionary.homeView.reasonLabels.versionMismatch
+
+                    return (
+                      <article className="update-item" key={pendingUpdate.remoteSkillId}>
+                        <div className="update-item__header">
+                          <div className="section-heading">
+                            <h3 className="section-heading__title">{pendingUpdate.name}</h3>
+                            <span className="muted mono">{pendingUpdate.remoteSkillId}</span>
+                          </div>
+                          <Button
+                            variant="primary"
+                            disabled={isBusy}
+                            aria-label={dictionary.homeView.distribute(pendingUpdate.name)}
+                            onClick={() => onDistribute(pendingUpdate)}
+                          >
+                            {isBusy ? dictionary.homeView.distributing : dictionary.common.distribute}
+                          </Button>
+                        </div>
+                        <div className="update-item__meta">
+                          <Badge>
+                            {dictionary.homeView.badges.local(
+                              formatVersion(pendingUpdate.localVersion, dictionary.common.nA)
+                            )}
+                          </Badge>
+                          <Badge tone="accent">
+                            {dictionary.homeView.badges.remote(pendingUpdate.remoteVersion)}
+                          </Badge>
+                          <Badge tone="warning">{reasonLabel}</Badge>
+                        </div>
+                      </article>
+                    )
+                  })}
+                </div>
+              )}
+
+              <div style={{ marginTop: "1rem" }}>
+                <Button variant="outline" onClick={onViewUpdates}>
+                  {dictionary.homeView.viewAllUpdates}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
     </section>
   )
 }

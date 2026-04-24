@@ -11,7 +11,8 @@
 
 ## Done
 
-- [x] Convert desktop shell into a compact Windows notification-area utility (2026-04-24) ✅ `electron/main.ts` now hides the native menu, uses a compact tray-first window, keeps the window out of the Windows taskbar, and toggles visibility from the tray icon
+- [x] Expand the desktop client to `1984x1168` and reflow the Home view for wide-screen use (2026-04-24) ✅ the Electron renderer targets a physical `1984x1168` content area after display-scale conversion, the shell container and drawer widen with it, Home splits the metrics and review queue into a two-column layout, and the shell stays visible in Windows Alt+Tab
+- [x] Convert desktop shell into a compact Windows notification-area utility (2026-04-24) ✅ `electron/main.ts` now hides the native menu, uses a tray-first window, keeps the app resident in the tray, and toggles visibility from the tray icon while remaining visible in task switching on Windows
 - [x] Desktop client i18n: add local locale persistence, renderer translation, and locale-aware timestamps (2026-04-24) ✅ locale now persists through the Electron runtime config, renderer strings switch between `en-US` and `zh-CN`, and `npm test` / `npm run build` pass
 - [x] Make config save/test fail fast when the Electron bridge is unavailable and time out stalled connection probes (2026-04-23) ✅ `src/app/App.tsx` now surfaces bridge-unavailable feedback, `src/core/runtime/api-connection.ts` adds a timeout-backed probe, and `npm test` plus `npm run build` pass
 - [x] Fix desktop app icon loading and prevent duplicate client instances (2026-04-23) ✅ `electron/main.ts` uses a Windows-native `resources/icons/icon.ico` with the embedded SVG as fallback, and keeps Electron single-instance locking

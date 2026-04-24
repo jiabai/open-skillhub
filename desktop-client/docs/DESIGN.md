@@ -4,12 +4,13 @@
 
 The desktop client should feel like a review-first sync utility, not a second admin console.
 The primary job is to show what changed, let the operator approve it once, and make the resulting filesystem changes understandable.
-On Windows, it should behave like a notification-area utility: a tray-opened window, no native application menu bar, and close-to-tray rather than close-to-quit.
+On Windows, it should behave like a notification-area utility: a tray-opened window, no native application menu bar, and close-to-tray rather than close-to-quit. The rendered content area targets `1984x1168` physical pixels by converting through the active display scale factor at startup, and the page content should sit with a little more inset so text does not press against the shell edges.
 
 ## View Priorities
 
 - `Home` is the primary surface and should answer whether anything needs review.
 - `Home` shows connection health, last refresh, current counts, and at most the first 3 pending updates.
+- On wide desktop windows, `Home` should split the summary metrics and the review queue into separate columns so the larger canvas carries more usable information.
 - `Updates` owns the full pending update queue and distribution actions.
 - `Settings` is a drawer that owns backend URL, token state, connection testing, target agents, bridge state, and activity.
 - `Activity` explains what happened after sync or distribution runs, but it should not crowd the home page.

@@ -8,6 +8,26 @@ type SettingsPanelProps = {
   onChangeLocale: (locale: AppLocale) => void
 }
 
+const settingsSummaryStyle = {
+  display: "grid",
+  gap: "1rem",
+  padding: "1.15rem",
+  borderRadius: "1rem",
+  border: "1px solid rgba(222, 214, 200, 0.95)",
+  background: "rgba(255, 253, 248, 0.92)",
+  boxShadow: "0 16px 40px rgba(23, 32, 51, 0.06)"
+} as const
+
+const settingsSummaryTileStyle = {
+  display: "grid",
+  gap: "0.25rem",
+  padding: "0.85rem",
+  borderRadius: "0.85rem",
+  background: "rgba(255, 255, 255, 0.82)",
+  border: "1px solid rgba(222, 214, 200, 0.92)",
+  boxShadow: "inset 0 1px 0 rgba(255, 255, 255, 0.55)"
+} as const
+
 export function SettingsPanel({
   currentLocale,
   isSavingLocale,
@@ -21,12 +41,7 @@ export function SettingsPanel({
     <section
       aria-labelledby="settings-summary-heading"
       style={{
-        display: "grid",
-        gap: "1rem",
-        padding: "1.15rem",
-        borderRadius: "1rem",
-        border: "1px solid rgba(255, 255, 255, 0.08)",
-        background: "rgba(255, 255, 255, 0.04)"
+        ...settingsSummaryStyle
       }}
     >
       <div>
@@ -35,7 +50,7 @@ export function SettingsPanel({
             fontSize: "0.72rem",
             letterSpacing: "0.2em",
             textTransform: "uppercase",
-            color: "#94a3b8",
+            color: "var(--osh-muted)",
             fontFamily: '"SFMono-Regular", Consolas, "Liberation Mono", monospace'
           }}
         >
@@ -49,46 +64,31 @@ export function SettingsPanel({
       <dl style={{ display: "grid", gap: "0.75rem", margin: 0 }}>
         <div
           style={{
-            display: "grid",
-            gap: "0.25rem",
-            padding: "0.85rem",
-            borderRadius: "0.85rem",
-            background: "rgba(12, 16, 22, 0.8)",
-            border: "1px solid rgba(255, 255, 255, 0.06)"
+            ...settingsSummaryTileStyle
           }}
         >
           <dt style={{ fontWeight: 700 }}>{dictionary.settingsPanel.reviewPolicyLabel}</dt>
-          <dd style={{ margin: 0, color: "#94a3b8", lineHeight: 1.5 }}>
+          <dd style={{ margin: 0, color: "var(--osh-muted)", lineHeight: 1.5 }}>
             {dictionary.settingsPanel.reviewPolicyValue}
           </dd>
         </div>
         <div
           style={{
-            display: "grid",
-            gap: "0.25rem",
-            padding: "0.85rem",
-            borderRadius: "0.85rem",
-            background: "rgba(12, 16, 22, 0.8)",
-            border: "1px solid rgba(255, 255, 255, 0.06)"
+            ...settingsSummaryTileStyle
           }}
         >
           <dt style={{ fontWeight: 700 }}>{dictionary.settingsPanel.bridgeAccessLabel}</dt>
-          <dd style={{ margin: 0, color: "#94a3b8", lineHeight: 1.5 }}>
+          <dd style={{ margin: 0, color: "var(--osh-muted)", lineHeight: 1.5 }}>
             {dictionary.settingsPanel.bridgeAccessValue}
           </dd>
         </div>
         <div
           style={{
-            display: "grid",
-            gap: "0.25rem",
-            padding: "0.85rem",
-            borderRadius: "0.85rem",
-            background: "rgba(12, 16, 22, 0.8)",
-            border: "1px solid rgba(255, 255, 255, 0.06)"
+            ...settingsSummaryTileStyle
           }}
         >
           <dt style={{ fontWeight: 700 }}>{dictionary.settingsPanel.storageSnapshotLabel}</dt>
-          <dd style={{ margin: 0, color: "#94a3b8", lineHeight: 1.5 }}>
+          <dd style={{ margin: 0, color: "var(--osh-muted)", lineHeight: 1.5 }}>
             {dictionary.settingsPanel.storageSnapshotValue}
           </dd>
         </div>
@@ -105,10 +105,10 @@ export function SettingsPanel({
         }}
       >
         <strong>{dictionary.language.title}</strong>
-        <p style={{ margin: 0, color: "#cbd5e1", lineHeight: 1.5 }}>
+        <p style={{ margin: 0, color: "var(--osh-muted)", lineHeight: 1.5 }}>
           {dictionary.language.description}
         </p>
-        <p style={{ margin: 0, color: "#94a3b8", lineHeight: 1.5 }}>
+        <p style={{ margin: 0, color: "var(--osh-muted)", lineHeight: 1.5 }}>
           {dictionary.language.currentPrefix} {currentLanguageLabel}
         </p>
         <div className="page-intro__actions" style={{ justifyContent: "flex-start" }}>

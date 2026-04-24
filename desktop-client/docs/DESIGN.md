@@ -4,7 +4,7 @@
 
 The desktop client should feel like a review-first sync utility, not a second admin console.
 The primary job is to show what changed, let the operator approve it once, and make the resulting filesystem changes understandable.
-On Windows, it should behave like a notification-area utility: a compact panel opened from the tray, no native application menu bar, and close-to-tray rather than close-to-quit.
+On Windows, it should behave like a notification-area utility: a tray-opened window, no native application menu bar, and close-to-tray rather than close-to-quit.
 
 ## View Priorities
 

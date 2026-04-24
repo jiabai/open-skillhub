@@ -4,11 +4,11 @@ import { join } from "node:path"
 import { describe, expect, it } from "vitest"
 
 describe("Electron shell behavior", () => {
-  it("runs as a compact tray-first desktop panel on Windows", () => {
+  it("runs as a tray-first desktop window on Windows", () => {
     const mainSource = readFileSync(join(process.cwd(), "electron", "main.ts"), "utf8")
 
-    expect(mainSource).toContain("width: 460")
-    expect(mainSource).toContain("height: 720")
+    expect(mainSource).toContain("width: 1984")
+    expect(mainSource).toContain("height: 1168")
     expect(mainSource).toContain("autoHideMenuBar: true")
     expect(mainSource).toContain("skipTaskbar: process.platform === \"win32\"")
     expect(mainSource).toContain("Menu.setApplicationMenu(null)")

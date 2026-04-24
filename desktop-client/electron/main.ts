@@ -161,12 +161,12 @@ function createNotification(payload: TrayNotificationPayload): void {
 
 function createWindow(): BrowserWindow {
   const window = new BrowserWindow({
-    width: 460,
-    height: 720,
+    width: 1984,
+    height: 1168,
     minWidth: 420,
     minHeight: 560,
-    maxWidth: 560,
-    maxHeight: 900,
+    maxWidth: 1984,
+    maxHeight: 1168,
     backgroundColor: "#f7f4ed",
     icon: createAppIcon(256),
     autoHideMenuBar: true,

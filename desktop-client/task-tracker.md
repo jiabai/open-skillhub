@@ -11,6 +11,7 @@
 
 ## Done
 
+- [x] Implement explicit package artifact cleanup ownership (2026-04-27) ✅ `npm test`, `npm run build`, and `python scripts/validate_agents_docs.py --level ERROR` pass
 - [x] Implement pre-distribution skill checks for configured agent targets (2026-04-26) ✅ `npm test`, `npm run build`, and `python scripts/validate_agents_docs.py --level ERROR` pass
 - [x] Expand the desktop client to `1984x1168` and reflow the Home view for wide-screen use (2026-04-24) ✅ the Electron renderer targets a physical `1984x1168` content area after display-scale conversion, the shell container and drawer widen with it, Home splits the metrics and review queue into a two-column layout, and the shell stays visible in Windows Alt+Tab
 - [x] Convert desktop shell into a compact Windows notification-area utility (2026-04-24) ✅ `electron/main.ts` now hides the native menu, uses a tray-first window, keeps the app resident in the tray, and toggles visibility from the tray icon while remaining visible in task switching on Windows

@@ -171,6 +171,7 @@ describe("distribution pipeline", () => {
       { agentId: "claude-code", success: true, errorMessage: null }
     ])
     expect(existsSync(result.extractedPath ?? "")).toBe(false)
+    expect(existsSync(packageSource)).toBe(true)
 
     for (const agentId of ["codex", "claude-code"]) {
       const skillDir = join(skillsPathByAgent[agentId], "skill-x")
@@ -220,7 +221,8 @@ describe("distribution pipeline", () => {
     const packageSource = createPackageSource(rootDir, "# Partial Install")
     const { service: packageService } = buildPackageService({
       artifactPath: packageSource,
-      encrypted: false
+      encrypted: false,
+      cleanupPaths: [packageSource]
     })
     const { resolveAgentAdapter, resolveInstallContext, skillsPathByAgent } =
       createDistributionDependencies(rootDir)
@@ -261,6 +263,7 @@ describe("distribution pipeline", () => {
     expect(readFileSync(join(skillsPathByAgent.codex, "skill-y", "README.md"), "utf8")).toBe(
       "# Partial Install"
     )
+    expect(existsSync(packageSource)).toBe(false)
     expect(await stateStore.readState()).toEqual({
       localRecords: [],
       pendingUpdates: [],

@@ -149,6 +149,7 @@ export interface SkillPackageRequest {
 export interface DownloadedSkillArtifact {
   artifactPath: string
   encrypted: boolean
+  cleanupPaths?: string[]
 }
 
 export interface PreparedSkillPackage {

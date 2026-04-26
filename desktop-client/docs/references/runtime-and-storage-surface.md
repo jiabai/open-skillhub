@@ -62,7 +62,8 @@ Computed in `src/core/storage/app-paths.ts`:
   state/
     state.json
     state.sqlite3
-  cache/          # created at runtime by electron/main.ts
+  cache/
+    package-*/    # per-download package staging, removed after distribution cleanup
 ```
 
 Platform base directory rules:
@@ -77,6 +78,10 @@ Platform base directory rules:
 - `config.json` path exists in the app-path model, but config persistence is not yet the primary auth bootstrap path
 - API token persistence uses the `keytar` secret store through `src/core/storage/secret-store.ts`
 - `state.sqlite3` stores sync snapshot tables only
+- package downloads are written to unique staging directories below `cache/`;
+  those directories are declared as cleanup-owned artifacts and removed after
+  package extraction, installation success, installation failure, or package
+  validation failure
 - `logs/` and `backups/` are not yet created by the current implementation
 
 ## Agent Runtime Surface

@@ -1,7 +1,7 @@
 import { execFile } from "node:child_process"
 import { createHash } from "node:crypto"
 import { existsSync } from "node:fs"
-import { mkdtemp, writeFile } from "node:fs/promises"
+import { mkdtemp, rm, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { fileURLToPath } from "node:url"
@@ -94,6 +94,25 @@ function normalizeVersion(version: string | null | undefined): string | null {
 
 function sanitizeCacheSegment(value: string): string {
   return value.replace(/[^a-zA-Z0-9._-]+/g, "_")
+}
+
+function createPackageArtifactFileName(
+  payload: Pick<ClientSkillDownloadPayload, "download_filename" | "encryption_enabled" | "version">,
+  request: SkillPackageRequest
+): string {
+  const sanitizedDownloadFileName = sanitizeCacheSegment(payload.download_filename.trim())
+
+  if (
+    sanitizedDownloadFileName &&
+    sanitizedDownloadFileName !== "." &&
+    sanitizedDownloadFileName !== ".."
+  ) {
+    return sanitizedDownloadFileName
+  }
+
+  return `${sanitizeCacheSegment(request.skillId)}-${sanitizeCacheSegment(payload.version)}${
+    payload.encryption_enabled ? ".encrypted.bin" : ".zip"
+  }`
 }
 
 function computeSha256(bytes: Buffer): string {
@@ -308,18 +327,23 @@ async function downloadSkillArtifact(
   const archiveBytes = Buffer.from(payload.encrypted_code, "base64")
   assertChecksum(archiveBytes, payload.checksum)
 
-  const fileName =
-    payload.download_filename ||
-    `${sanitizeCacheSegment(request.skillId)}-${sanitizeCacheSegment(payload.version)}${
-      payload.encryption_enabled ? ".encrypted.bin" : ".zip"
-    }`
-  const artifactPath = join(config.cacheDirectory, fileName)
+  const fileName = createPackageArtifactFileName(payload, request)
+  const artifactRoot = await mkdtemp(join(config.cacheDirectory, "package-"))
+  const artifactPath = join(artifactRoot, fileName)
 
-  await writeFile(artifactPath, archiveBytes)
+  try {
+    await writeFile(artifactPath, archiveBytes)
+  } catch (error) {
+    await rm(artifactRoot, { recursive: true, force: true }).catch((cleanupError: unknown) => {
+      console.warn(`Failed to clean up incomplete package artifact staging: ${artifactRoot}`, cleanupError)
+    })
+    throw error
+  }
 
   return {
     artifactPath,
-    encrypted: payload.encryption_enabled
+    encrypted: payload.encryption_enabled,
+    cleanupPaths: [artifactRoot]
   }
 }
 
@@ -567,10 +591,7 @@ async function createApplicationServices(): Promise<void> {
       const runtimeConfig = getRuntimeConfig()
       const preDistributionCheckService = createPreDistributionCheckService({
         stateStore: currentStateStore,
-        targets: getPreDistributionCheckTargets(runtimeConfig),
-        options: {
-          snapshotTtlMs: runtimeConfig.pollIntervalMs
-        }
+        targets: getPreDistributionCheckTargets(runtimeConfig)
       })
 
       return preDistributionCheckService.refresh()

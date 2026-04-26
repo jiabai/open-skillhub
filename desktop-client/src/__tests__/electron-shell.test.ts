@@ -21,4 +21,15 @@ describe("Electron shell behavior", () => {
     expect(mainSource).toContain("function toggleMainWindow")
     expect(mainSource).toContain("tray.on(\"click\", () => toggleMainWindow())")
   })
+
+  it("stages downloaded packages in owned cache directories for cleanup", () => {
+    const mainSource = readFileSync(join(process.cwd(), "electron", "main.ts"), "utf8")
+
+    expect(mainSource).toContain("mkdtemp(join(config.cacheDirectory, \"package-\"))")
+    expect(mainSource).toContain("createPackageArtifactFileName(payload, request)")
+    expect(mainSource).toContain("sanitizedDownloadFileName !== \"..\"")
+    expect(mainSource).toContain("const artifactPath = join(artifactRoot, fileName)")
+    expect(mainSource).toContain("cleanupPaths: [artifactRoot]")
+    expect(mainSource).toContain("rm(artifactRoot, { recursive: true, force: true })")
+  })
 })

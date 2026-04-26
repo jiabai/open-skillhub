@@ -28,7 +28,7 @@ and the full desktop runtime launch through `npm run start:electron`.
 - `src/core/pre-distribution-check/`
   - read-only target-directory metadata checks, strict version comparison, transient snapshots, and stale-check fingerprints
 - `src/core/distribution/`
-  - package preparation, install orchestration, and distribution result reporting
+  - package preparation, owned artifact cleanup, install orchestration, and distribution result reporting
 - `src/core/storage/`
   - app paths, JSON config, secret storage, and SQLite-backed state
 - `src/core/runtime/`
@@ -97,6 +97,10 @@ Dependencies should only point downward across those boundaries.
 - Saving or clearing API configuration reloads the in-memory runtime config so sync, package download, and distribution paths use the latest URL and token without an app restart
 - `logs/` and `backups/` belong to the target design language but are not yet created by the current implementation
 - State persistence currently stores sync snapshot data, not full per-run distribution history
+- Runtime package downloads are staged in unique directories under `cache/`.
+  Staging directories are temporary package artifacts and are removed through
+  the package-service cleanup ownership contract after distribution succeeds or
+  fails.
 
 ## Key Files
 

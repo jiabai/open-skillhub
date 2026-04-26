@@ -55,7 +55,3 @@ Guidance for AI coding agents working in `desktop-client/`.
 - Use `OPEN_SKILLHUB_CODEX_SKILLS_PATH`, `OPEN_SKILLHUB_CLAUDE_CODE_SKILLS_PATH`, and `OPEN_SKILLHUB_GEMINI_CLI_SKILLS_PATH` when auto-detected agent paths are not suitable.
 - Polling should only refresh review state and surface pending updates; it must not auto-distribute skills.
 - When the window closes, the tray should keep the app resident so review state stays current.
-
-## Historical Note
-
-The earlier brainstorming design and implementation plan drafts that lived in `docs/superpowers/` have been retired. Local canonical docs in `desktop-client/docs/` are the sole source of truth.

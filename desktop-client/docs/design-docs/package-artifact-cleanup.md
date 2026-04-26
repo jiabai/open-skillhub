@@ -4,11 +4,11 @@ Status: final design for implementation handoff
 Last updated: 2026-04-26
 Scope: `desktop-client/`
 
-> 分发流程完成或失败后，桌面端必须清理本次分发创建的下载包、解密产物和解压目录。清理必须显式基于产物所有权，不能因为某个路径出现在 `artifactPath` 中就默认递归删除。
+> After the distribution process completes or fails, the desktop client must clean up the downloaded packages, decrypted artifacts, and extraction directories created during this distribution. Cleanup must be explicitly based on artifact ownership and must not recursively delete paths simply because they appear in `artifactPath`.
 
 ## 1. Problem Statement
 
-当前 `src/core/distribution/package-service.ts` 只清理 `validateAndExtract()` 创建的 `tempRoot`：
+Currently `src/core/distribution/package-service.ts` only cleans up the `tempRoot` created by `validateAndExtract()`:
 
 ```text
 downloadArtifact()        -> creates or returns artifactPath
@@ -19,49 +19,49 @@ distribution-service      -> installs from extractedPath
 preparedPackage.cleanup() -> removes tempRoot only
 ```
 
-这会留下两类风险：
+This leaves two categories of risk:
 
-1. **磁盘冗余**：当前 Electron 下载实现把包写入 runtime `cache/`，分发结束后没有删除。
-2. **敏感内容残留**：未加密下载包、未来的解密明文包、以及解压目录都可能包含 skill 源码。
+1. **Disk redundancy**: The current Electron download implementation writes packages to the runtime `cache/`, but does not delete them after distribution completes.
+2. **Sensitive content residue**: Unencrypted download packages, future decrypted plaintext packages, and extraction directories may all contain skill source code.
 
-上一版草案的问题是把 `downloadedArtifact.artifactPath` 直接加入删除列表。这个逻辑不安全，因为 `DownloadedSkillArtifact` 当前没有说明 `artifactPath` 是否由本次分发创建、是否允许删除。测试和未来依赖实现可能返回外部 fixture、持久缓存或用户选择的文件路径。最终设计必须先补齐所有权合约，再执行清理。
+The problem with the previous draft was directly adding `downloadedArtifact.artifactPath` to the deletion list. This logic is unsafe because `DownloadedSkillArtifact` currently does not specify whether `artifactPath` was created by this distribution or whether it is allowed to be deleted. Tests and future dependency implementations may return external fixtures, persistent caches, or user-selected file paths. The final design must first complete the ownership contract before executing cleanup.
 
 ## 2. Goals
 
-- 清理本次分发创建且声明可删除的 package artifacts。
-- 继续通过 `PreparedSkillPackage.cleanup()` 作为 `distribution-service` 的唯一清理入口。
-- 在提取、验证、缺少 decryptor、安装失败、部分安装失败和成功安装后都执行同一套清理。
-- 清理失败不能覆盖原始分发错误，也不能改变分发结果。
-- 清理逻辑必须避免递归删除未声明所有权的外部路径。
+- Clean up package artifacts created and declared as deletable by this distribution.
+- Continue using `PreparedSkillPackage.cleanup()` as the sole cleanup entry point for `distribution-service`.
+- Execute the same cleanup routine after extraction, validation, missing decryptor, installation failure, partial installation failure, and successful installation.
+- Cleanup failures must not overwrite the original distribution error or change the distribution result.
+- Cleanup logic must avoid recursively deleting external paths that have not declared ownership.
 
 ## 3. Non-Goals
 
-- 不实现持久化 distribution history。
-- 不实现 backup 或 rollback。
-- 不改变 renderer、IPC 或用户交互。
-- 不清理 agent 安装目标目录。
-- 不尝试清理 `downloadArtifact()` 抛错前可能留下的部分文件；这种文件在 package service 没有路径，必须由 `downloadArtifact()` 实现自行处理。
+- Do not implement persistent distribution history.
+- Do not implement backup or rollback.
+- Do not change renderer, IPC, or user interaction.
+- Do not clean up agent installation target directories.
+- Do not attempt to clean up partial files that may have been left before `downloadArtifact()` throws; such files are not in the package service's path and must be handled by the `downloadArtifact()` implementation itself.
 
 ## 4. Current Code Facts
 
-这些事实来自当前实现，编码时必须保持一致：
+These facts come from the current implementation and must be kept consistent during coding:
 
-- `distribution-service.distribute()` 已经在 `finally` 中调用 `preparedPackage.cleanup()`。
-- `PreparedSkillPackage` 公开类型包含 `cleanup(): Promise<void>`，调用方不需要知道内部产物路径。
-- `DownloadedSkillArtifact` 当前只有 `artifactPath` 和 `encrypted`。
-- `downloadSkillArtifact()` 位于 `electron/main.ts`，当前把下载内容写到 `config.cacheDirectory` 下的文件。
-- `PackageServiceDependencies` 已有 `removePath?` 注入点，测试可以替换删除行为。
-- 当前没有 `decryptArtifact` 实现；加密包在没有 decryptor 时 fail closed。
+- `distribution-service.distribute()` already calls `preparedPackage.cleanup()` in a `finally` block.
+- `PreparedSkillPackage` exposes a public type containing `cleanup(): Promise<void>`; callers do not need to know internal artifact paths.
+- `DownloadedSkillArtifact` currently only has `artifactPath` and `encrypted`.
+- `downloadSkillArtifact()` is located in `electron/main.ts` and currently writes downloaded content to files under `config.cacheDirectory`.
+- `PackageServiceDependencies` already has a `removePath?` injection point; tests can substitute deletion behavior.
+- There is currently no `decryptArtifact` implementation; encrypted packages fail closed when no decryptor exists.
 
 ## 5. Final Architecture Decision
 
-采用 **explicit cleanup ownership**：
+Adopt **explicit cleanup ownership**:
 
-- artifact producer 声明自己创建且允许删除的路径。
-- `package-service` 只清理这些显式声明的路径，加上自己创建的 extraction temp root。
-- `package-service` 永远不因为 `artifactPath` 存在就默认删除它。
+- Artifact producers declare paths they created and allow to be deleted.
+- `package-service` only cleans these explicitly declared paths, plus the extraction temp root it creates itself.
+- `package-service` never defaults to deleting a path simply because `artifactPath` exists.
 
-数据流：
+Data flow:
 
 ```text
 downloadArtifact()

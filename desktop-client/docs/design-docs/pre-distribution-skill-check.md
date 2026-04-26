@@ -4,43 +4,43 @@ Status: final design for implementation handoff
 Last updated: 2026-04-26
 Scope: `desktop-client/`
 
-> 在用户把 pending skill 分发到本地 agent 目录之前，桌面端先只读检查目标目录中是否已经存在同名 skill、已安装版本是什么、这次分发是否可能造成降级。检查结果用于辅助审批，不写入 agent 目录，也不写入 State DB。
+> Before the user distributes pending skills to local agent directories, the desktop client performs a read-only check to determine whether a skill with the same name already exists in the target directory, what version is installed, and whether this distribution might cause a downgrade. The check results are used to assist with approval decisions; they are not written to agent directories or to the State DB.
 
 ## 1. Problem Statement
 
-当前分发路径中，用户点击 `Distribute` 后，`distribution-service` 会把已下载并校验的 skill package 安装到所有已配置的 agent 目标目录。现有审核列表只显示远端版本和本地 State DB 中的 `localRecords` 版本，不读取 agent 目录的真实状态。
+In the current distribution flow, after the user clicks `Distribute`, the `distribution-service` installs the downloaded and verified skill package into all configured agent target directories. The existing review list only shows the remote version and the `localRecords` version from the local State DB, without reading the actual state of agent directories.
 
-这会产生三个问题：
+This creates three problems:
 
-1. **目录真实状态不可见**：如果用户手动修改过 agent skills 目录，UI 审批时看不到实际已安装版本。
-2. **潜在降级不可见**：如果 agent 目录里的同名 skill 版本高于远端 pending 版本，当前分发会覆盖为远端版本，但 UI 没有提前提示。
-3. **State DB 与文件系统不一致时缺少解释**：`localRecords` 只是桌面端上次成功分发后的快照，不一定等于 agent 目录当前内容。
+1. **Directory true state is invisible**: If the user manually modified the agent skills directory, the UI approval view cannot see the actually installed version.
+2. **Potential downgrades are invisible**: If a skill with the same name in the agent directory has a higher version than the remote pending version, the current distribution would overwrite it with the remote version, but the UI provides no advance warning.
+3. **Missing explanation when State DB and filesystem diverge**: `localRecords` is only a snapshot from the desktop client's last successful distribution and does not necessarily equal the current contents of the agent directory.
 
-本设计增加一个只读的 pre-distribution check。它读取已配置 agent 目标目录中的同名 skill 元数据，并把结果显示在 Home/Updates 的审核队列中，帮助用户在点击分发前看到真实目标状态。
+This design adds a read-only pre-distribution check. It reads metadata for skills with the same name from configured agent target directories and displays the results in the Home/Updates review queue, helping users see the true target state before clicking distribute.
 
 ## 2. Non-Goals
 
-- 不自动解决版本冲突。
-- 不做 skill 内容 diff、合并或回滚。
-- 不改变 `DesktopSyncState` 的持久化 schema。
-- 不把检查结果持久化到 SQLite、JSON config 或 agent 目录。
-- 不让 renderer 直接访问 Node、Electron 或文件系统 API。
-- 不改变分发写入策略；用户仍可在看到警告后继续分发。
+- Do not automatically resolve version conflicts.
+- Do not perform skill content diff, merge, or rollback.
+- Do not change the `DesktopSyncState` persistence schema.
+- Do not persist check results to SQLite, JSON config, or agent directories.
+- Do not allow the renderer to directly access Node, Electron, or filesystem APIs.
+- Do not change the distribution write strategy; users may still proceed with distribution after seeing warnings.
 
 ## 3. Current Code Facts
 
-这些事实来自当前实现，编码时必须保持一致：
+These facts come from the current implementation and must be kept consistent during coding:
 
-- `DesktopSyncState` 只持久化 `localRecords`、`pendingUpdates`、`successfulDistributionCount` 和 `lastRefreshedAt`。
-- `PendingSyncUpdate.remoteVersion` 是非空 `string`。远端版本为 `null` 时，`compareRemoteSkills()` 不会创建 pending update。
-- `sync-service.refresh()` 的职责是读取远端列表、比较 `localRecords`、写入 sync snapshot；它不应该读取 agent 文件系统。
-- renderer 只能通过 `src/lib/ipc-client.ts` -> `electron/preload.ts` -> `electron/ipc.ts` 调用 main process。
-- agent 目录约定属于 `src/adapters/agents/`；sync 和 UI 不应硬编码 Codex、Claude Code、Gemini CLI 的路径规则。
-- 当前“enabled agents”实际等价于 runtime config 中已解析到 `skillsPath` 的 supported agents。未配置路径的 agent 不参与分发，也不应该在 pre-check 中显示错误。
+- `DesktopSyncState` only persists `localRecords`, `pendingUpdates`, `successfulDistributionCount`, and `lastRefreshedAt`.
+- `PendingSyncUpdate.remoteVersion` is a non-null `string`. When the remote version is `null`, `compareRemoteSkills()` does not create a pending update.
+- `sync-service.refresh()` is responsible for reading the remote list, comparing `localRecords`, and writing the sync snapshot; it should not read the agent filesystem.
+- The renderer can only call the main process through `src/lib/ipc-client.ts` -> `electron/preload.ts` -> `electron/ipc.ts`.
+- Agent directory conventions belong to `src/adapters/agents/`; sync and UI should not hardcode path rules for Codex, Claude Code, or Gemini CLI.
+- The current "enabled agents" actually equate to supported agents that have resolved `skillsPath` in the runtime config. Agents without configured paths do not participate in distribution and should not show errors in the pre-check.
 
 ## 4. Final Architecture Decision
 
-Pre-check 放在 **main process orchestration + core pre-check service + agent adapter metadata reader** 这条路径中。
+The pre-check is placed in the **main process orchestration + core pre-check service + agent adapter metadata reader** path.
 
 ```
 Renderer review refresh

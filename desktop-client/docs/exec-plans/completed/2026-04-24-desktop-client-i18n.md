@@ -29,6 +29,12 @@ Implement a local i18n system for `desktop-client` with `zh-CN` and `en-US`, per
 
 - Keep the behavior aligned with frontend locale codes, but do not reuse Next.js cookie/request plumbing.
 - Treat desktop local config as the source of truth for the selected locale.
+- Initial discovery confirmed that the desktop renderer had inline English copy,
+  hardcoded `en-US` timestamp formatting, and no persisted locale field in local
+  runtime config. The frontend i18n boundary provided the behavioral model, while
+  desktop required local config persistence instead of cookie/request plumbing.
+- Work began on 2026-04-24 after reviewing the desktop runtime config, IPC
+  bridge, renderer shell, and frontend i18n patterns.
 
 ## Status
 

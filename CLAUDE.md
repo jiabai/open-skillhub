@@ -5,6 +5,7 @@ Start with `AGENTS.md` at the repository root. It is the map for this project.
 ## Fast Entry Points
 
 - Architecture: `ARCHITECTURE.md`
+- Execution gates: `docs/EXECUTION_GATES.md`
 - Design guidance: `docs/DESIGN.md`
 - Security guidance: `docs/SECURITY.md`
 - Backend details: `backend/AGENTS.md`
@@ -15,6 +16,7 @@ Start with `AGENTS.md` at the repository root. It is the map for this project.
 ## Practical Rules
 
 - Keep changes small and aligned with existing boundaries.
+- Before calling work complete, apply `docs/EXECUTION_GATES.md` for the affected area.
 - Treat `AGENTS.md` files as concise entry points, not encyclopedias.
 - Put detailed plans, decisions, and references under `docs/`.
 - Use the backend runtime capability contract as the source of truth for frontend feature availability.

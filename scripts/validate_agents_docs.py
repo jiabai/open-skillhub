@@ -6,7 +6,7 @@
 
 验证内容：
 1. 必需路径检查
-   - 验证 AGENTS.md、ARCHITECTURE.md、WORKFLOW.md 等核心文档是否存在
+   - 验证 AGENTS.md、ARCHITECTURE.md、WORKFLOW.md、docs/EXECUTION_GATES.md 等核心文档是否存在
    - 验证各子项目（backend/frontend/desktop-client）的 AGENTS.md 是否存在
    - 验证 docs/ 目录下的设计文档、产品规格、执行计划索引是否存在
 
@@ -87,6 +87,7 @@ ROOT_REQUIRED_PATHS = [
     Path("AGENTS.md"),
     Path("ARCHITECTURE.md"),
     Path("WORKFLOW.md"),
+    Path("docs/EXECUTION_GATES.md"),
     Path("docs/DESIGN.md"),
     Path("docs/SECURITY.md"),
     Path("docs/design-docs/index.md"),

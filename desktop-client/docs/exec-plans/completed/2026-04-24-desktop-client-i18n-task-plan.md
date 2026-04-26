@@ -1,4 +1,11 @@
-# Task Plan
+# Desktop Client i18n Task Plan
+
+Status: completed historical task checklist
+
+This file was moved from the repository root `task_plan.md` so the root stays
+reserved for project entry points. The canonical completed ExecPlan is
+`2026-04-24-desktop-client-i18n.md`; this file preserves the original phase
+checklist for historical context.
 
 ## Goal
 
@@ -23,4 +30,4 @@ Add desktop-client i18n support with shared locale codes, persistent locale sele
 
 ## Status
 
-- `in_progress`: phase 3.
+- `completed`: superseded by `2026-04-24-desktop-client-i18n.md`.

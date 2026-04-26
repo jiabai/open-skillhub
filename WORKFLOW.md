@@ -129,6 +129,7 @@ Execution expectations:
 - inspect the code path before editing
 - implement the smallest end-to-end change that satisfies the approved task
 - validate with the narrowest useful tests first, then broader checks if needed
+- apply the affected-area completion gates in `docs/EXECUTION_GATES.md`
 - update the active plan as a living document while work proceeds
 
 When an active plan is complete:
@@ -160,13 +161,15 @@ For lightweight work, the required path is:
 1. read the constitution sources and relevant local `AGENTS.md`
 2. inspect the code path to change
 3. implement the smallest end-to-end fix
-4. run focused validation
+4. run the relevant focused validation and any documentation gate required by
+   `docs/EXECUTION_GATES.md`
 5. update docs only if durable behavior or structure changed
 
 ## File Placement Rules
 
 Use these default locations:
 
+- completion standards and validation gates: `docs/EXECUTION_GATES.md`
 - durable cross-cutting rules and decisions: `docs/design-docs/`
 - user-visible feature intent: `docs/product-specs/`
 - active implementation plans and task lists: `docs/exec-plans/active/`
@@ -196,6 +199,7 @@ following by default:
 
 - start from `AGENTS.md`
 - follow this document for task shape and review gates
+- use `docs/EXECUTION_GATES.md` before claiming implementation work is complete
 - create specs and ExecPlans before non-trivial implementation
 - keep active plans live during execution
 - archive finished plans into `docs/exec-plans/completed/`

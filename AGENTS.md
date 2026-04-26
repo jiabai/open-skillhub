@@ -4,6 +4,7 @@
 
 - Architecture map: `ARCHITECTURE.md`
 - Mandatory workflow: `WORKFLOW.md`
+- Execution gates: `docs/EXECUTION_GATES.md`
 - Repository validator: `scripts/validate_agents_docs.py`
 - Design rules: `docs/DESIGN.md`
 - Security rules: `docs/SECURITY.md`
@@ -40,7 +41,7 @@
 ## Working Rules
 
 - Start with the narrowest relevant `AGENTS.md`, then read deeper docs only as needed.
-- Follow `WORKFLOW.md` as the mandatory project workflow; use the lightweight path only when `WORKFLOW.md` explicitly allows it.
+- Follow `WORKFLOW.md` as the mandatory project workflow and `docs/EXECUTION_GATES.md` before closing work; use the lightweight path only when `WORKFLOW.md` explicitly allows it.
 - Repo-wide active work lives under `docs/exec-plans/active/`; use sibling task checklist files in that directory when a plan needs explicit execution checkpoints.
 - `desktop-client/` keeps its own `desktop-client/task-tracker.md`; do not create a second parallel tracker inside that subproject.
 - When architecture or process changes, update the matching file in `docs/`.
@@ -55,7 +56,7 @@
 2. Read the relevant spec or plan in `docs/product-specs/` or `docs/exec-plans/`, or create/update them when the workflow requires it.
 3. Inspect the code path you are about to change.
 4. Implement the smallest end-to-end change that satisfies the approved scope.
-5. Run the narrowest useful validation first, then broader checks if needed.
+5. Run the execution gates for the affected area, starting with the narrowest useful validation and broadening when risk requires it.
 6. Update documentation when structure, decisions, process, or operational guidance changed.
 
 ## Common Commands

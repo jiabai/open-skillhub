@@ -1,5 +1,7 @@
 # API Token Configuration - Technical Design
 
+范围：`desktop-client/`
+
 ## IPC 扩展
 
 ### 新增 Channel

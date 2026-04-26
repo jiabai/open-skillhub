@@ -1,5 +1,7 @@
 # Desktop Client 独立可行性分析报告
 
+范围：`desktop-client/`
+
 ## Executive Summary
 
 desktop-client 具备较高的独立性条件：零代码级依赖、独立的构建/测试链路、完整的自包含文档体系、仅通过 HTTP API 与后端交互。但它目前仍处于早期阶段（Electron 启动命令尚未规范化、secret-store 未接通、分发历史未持久化），且与主仓库共享品牌、API 合约和发布节奏。短期内独立收益有限，中期（v1 稳定后）是最佳拆分窗口。

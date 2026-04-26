@@ -155,12 +155,40 @@ export interface AppDictionary {
     description: (count: number) => string
     loading: string
     noPendingUpdates: string
+    refreshCheck: string
+    refreshingCheck: string
     distribute: string
     distributing: string
     reviewReasonLabel: string
     reasonLabels: {
       missingLocalRecord: string
       versionMismatch: string
+    }
+  }
+  preDistributionCheck: {
+    loading: string
+    refreshNeeded: string
+    stale: string
+    noTargets: string
+    globalErrorsTitle: string
+    targetCheckTitle: string
+    lastChecked: (value: string) => string
+    warningBeforeDistribute: string
+    targetDirectory: (value: string) => string
+    installedVersion: (value: string) => string
+    versionSourceLabels: {
+      "skill-frontmatter": string
+      "manifest-json": string
+      "nested-manifest-json": string
+      unknown: string
+    }
+    comparisonLabels: {
+      "not-installed": string
+      "installed-older": (installed: string, remote: string) => string
+      same: (version: string) => string
+      "installed-newer": (installed: string, remote: string) => string
+      unknown: (installed: string, remote: string) => string
+      error: (message: string) => string
     }
   }
   agentsPanel: {

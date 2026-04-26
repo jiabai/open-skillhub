@@ -94,4 +94,71 @@ describe("agent adapters", () => {
     expect(createClaudeCodeAgentAdapter().id).toBe("claude-code")
     expect(createGeminiCliAgentAdapter().id).toBe("gemini-cli")
   })
+
+  it("reads installed metadata from SKILL.md frontmatter first", async () => {
+    const skillsPath = createTempRoot()
+    const skillDir = join(skillsPath, "sample-skill")
+    mkdirSync(skillDir, { recursive: true })
+    writeFileSync(join(skillDir, "SKILL.md"), "---\nversion: 2.0.0\n---\n# Sample")
+    writeFileSync(join(skillDir, "manifest.json"), JSON.stringify({ version: "1.0.0" }))
+
+    await expect(
+      getAgentAdapter("codex").readInstalledSkillMetadata("sample-skill", { skillsPath })
+    ).resolves.toEqual({
+      exists: true,
+      skillDir,
+      version: "2.0.0",
+      versionSource: "skill-frontmatter"
+    })
+  })
+
+  it("falls back to root and nested manifest metadata", async () => {
+    const skillsPath = createTempRoot()
+    const rootManifestDir = join(skillsPath, "root-manifest")
+    const nestedManifestDir = join(skillsPath, "nested-manifest")
+
+    mkdirSync(rootManifestDir, { recursive: true })
+    writeFileSync(join(rootManifestDir, "manifest.json"), JSON.stringify({ version: "1.2.0" }))
+
+    mkdirSync(join(nestedManifestDir, "skills"), { recursive: true })
+    writeFileSync(join(nestedManifestDir, "manifest.json"), "{")
+    writeFileSync(
+      join(nestedManifestDir, "skills", "manifest.json"),
+      JSON.stringify({ version: "1.3.0" })
+    )
+
+    await expect(
+      getAgentAdapter("codex").readInstalledSkillMetadata("root-manifest", { skillsPath })
+    ).resolves.toMatchObject({
+      version: "1.2.0",
+      versionSource: "manifest-json"
+    })
+    await expect(
+      getAgentAdapter("codex").readInstalledSkillMetadata("nested-manifest", { skillsPath })
+    ).resolves.toMatchObject({
+      version: "1.3.0",
+      versionSource: "nested-manifest-json"
+    })
+  })
+
+  it("reports missing installed skill directories without creating them", async () => {
+    const skillsPath = createTempRoot()
+    const skillDir = join(skillsPath, "missing-skill")
+
+    await expect(
+      getAgentAdapter("codex").readInstalledSkillMetadata("missing-skill", { skillsPath })
+    ).resolves.toEqual({
+      exists: false,
+      skillDir,
+      version: null,
+      versionSource: null
+    })
+    expect(() => statSync(skillDir)).toThrow()
+  })
+
+  it("rejects unsafe skill identifiers for metadata reads", async () => {
+    await expect(
+      getAgentAdapter("codex").readInstalledSkillMetadata("../unsafe", { skillsPath: createTempRoot() })
+    ).rejects.toThrow("Invalid skill identifier")
+  })
 })

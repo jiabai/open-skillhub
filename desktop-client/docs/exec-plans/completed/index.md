@@ -4,6 +4,7 @@
 
 | File | Outcome |
 |------|---------|
+| `2026-04-26-pre-distribution-skill-check.md` | Desktop-client read-only pre-distribution target checks were implemented across adapters, core service, IPC, renderer UI, tests, and docs |
 | `2026-04-24-desktop-client-i18n.md` | Desktop-client locale persistence, renderer translation, and locale-aware timestamps were implemented |
 | `2026-04-24-desktop-client-i18n-task-plan.md` | Historical phase checklist for the desktop-client i18n work |
 | `2026-04-23-desktop-client-ui-redesign.md` | Desktop UI was redesigned around Home, Updates, and a Settings drawer with local design tokens |

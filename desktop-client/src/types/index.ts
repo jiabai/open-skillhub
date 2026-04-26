@@ -2,6 +2,8 @@ export type ApiTokenSource = "secret-store" | "environment" | "missing"
 
 export type AppLocale = "en-US" | "zh-CN"
 
+export type AgentId = "codex" | "claude-code" | "gemini-cli"
+
 export interface ConfigurationState {
   apiBaseUrl: string
   locale: AppLocale
@@ -59,6 +61,61 @@ export interface DesktopSyncState {
   pendingUpdates: PendingSyncUpdate[]
   successfulDistributionCount: number
   lastRefreshedAt: string | null
+}
+
+export type InstalledSkillVersionSource =
+  | "skill-frontmatter"
+  | "manifest-json"
+  | "nested-manifest-json"
+  | null
+
+export interface InstalledSkillMetadataV1 {
+  exists: boolean
+  skillDir: string
+  version: string | null
+  versionSource: InstalledSkillVersionSource
+}
+
+export type PreDistributionVersionFormat = "semver" | "unknown"
+
+export type PreDistributionVersionComparison =
+  | "not-installed"
+  | "installed-older"
+  | "same"
+  | "installed-newer"
+  | "unknown"
+  | "error"
+
+export interface AgentPreDistributionCheckResult {
+  agentId: AgentId
+  displayName: string
+  skillDir: string | null
+  exists: boolean
+  installedVersion: string | null
+  installedVersionSource: InstalledSkillVersionSource
+  remoteVersion: string
+  installedVersionFormat: PreDistributionVersionFormat
+  remoteVersionFormat: PreDistributionVersionFormat
+  versionComparison: PreDistributionVersionComparison
+  checkedAt: string
+  durationMs: number
+  errorCode: string | null
+  errorMessage: string | null
+}
+
+export type PreDistributionCheckResults = Record<
+  string,
+  Partial<Record<AgentId, AgentPreDistributionCheckResult>>
+>
+
+export interface PreDistributionCheckSnapshot {
+  results: PreDistributionCheckResults
+  checkedAt: string
+  expiresAt: string
+  pendingUpdateFingerprint: string
+  targetAgentIds: AgentId[]
+  totalDurationMs: number
+  globalErrors: string[]
 }
 
 export interface SyncComparisonResult {

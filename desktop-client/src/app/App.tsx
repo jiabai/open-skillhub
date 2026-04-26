@@ -16,6 +16,7 @@ import type {
   ConnectionTestResult,
   DesktopSyncState,
   PendingSyncUpdate,
+  PreDistributionCheckSnapshot,
   SkillDistributionResult
 } from "@/types"
 
@@ -84,12 +85,23 @@ function formatLongTimestamp(locale: AppLocale, value: string | null, fallback: 
   }, fallback)
 }
 
+function createPendingUpdateFingerprint(pendingUpdates: PendingSyncUpdate[]): string {
+  return pendingUpdates
+    .map((update) => `${update.remoteSkillId}@${update.remoteVersion}`)
+    .sort()
+    .join("|")
+}
+
 export function App() {
   const bridgeAvailable = desktopClient.isAvailable()
   const initialLocale = resolveLocale(typeof navigator !== "undefined" ? navigator.language : null)
   const initialDictionary = getDictionary(initialLocale)
 
   const [syncState, setSyncState] = useState<DesktopSyncState>(initialState)
+  const [preDistributionCheckSnapshot, setPreDistributionCheckSnapshot] =
+    useState<PreDistributionCheckSnapshot | null>(null)
+  const [isPreDistributionChecking, setIsPreDistributionChecking] = useState(false)
+  const [preDistributionCheckClock, setPreDistributionCheckClock] = useState(() => Date.now())
   const [activity, setActivity] = useState<ActivityEntry[]>([
     createActivityEntry(
       initialDictionary.activity.consoleReadyTitle,
@@ -116,10 +128,80 @@ export function App() {
 
   const dictionary = useMemo(() => getDictionary(selectedLocale), [selectedLocale])
   const configurationReady = Boolean(configState?.hasToken)
+  const pendingUpdateFingerprint = useMemo(
+    () => createPendingUpdateFingerprint(syncState.pendingUpdates),
+    [syncState.pendingUpdates]
+  )
+  const isPreDistributionCheckExpired =
+    preDistributionCheckSnapshot !== null &&
+    Number.isFinite(Date.parse(preDistributionCheckSnapshot.expiresAt)) &&
+    Date.parse(preDistributionCheckSnapshot.expiresAt) <= preDistributionCheckClock
+  const isPreDistributionCheckStale =
+    preDistributionCheckSnapshot !== null &&
+    (preDistributionCheckSnapshot.pendingUpdateFingerprint !== pendingUpdateFingerprint ||
+      isPreDistributionCheckExpired)
 
   useEffect(() => {
     document.documentElement.lang = selectedLocale
   }, [selectedLocale])
+
+  useEffect(() => {
+    if (!preDistributionCheckSnapshot) {
+      return
+    }
+
+    const expiresAtMs = Date.parse(preDistributionCheckSnapshot.expiresAt)
+
+    if (!Number.isFinite(expiresAtMs)) {
+      return
+    }
+
+    const delayMs = Math.max(0, expiresAtMs - Date.now())
+    const maxBrowserTimeoutMs = 2_147_483_647
+    const timeout = window.setTimeout(() => {
+      setPreDistributionCheckClock(Date.now())
+    }, Math.min(delayMs, maxBrowserTimeoutMs))
+
+    return () => window.clearTimeout(timeout)
+  }, [preDistributionCheckSnapshot])
+
+  const refreshPreDistributionCheckForState = async (
+    state: DesktopSyncState,
+    localizedDictionary = dictionary
+  ) => {
+    if (!bridgeAvailable || state.pendingUpdates.length === 0) {
+      setPreDistributionCheckSnapshot(null)
+      setIsPreDistributionChecking(false)
+      return
+    }
+
+    setIsPreDistributionChecking(true)
+
+    try {
+      const snapshot = await desktopClient.refreshPreDistributionCheck()
+      const expectedFingerprint = createPendingUpdateFingerprint(state.pendingUpdates)
+
+      setPreDistributionCheckClock(Date.now())
+      setPreDistributionCheckSnapshot(
+        snapshot.pendingUpdateFingerprint === expectedFingerprint ? snapshot : null
+      )
+    } catch (error: unknown) {
+      const message = getErrorMessage(error)
+      setPreDistributionCheckSnapshot(null)
+      setActivity((current) =>
+        [
+          createActivityEntry(
+            localizedDictionary.activity.refreshFailedTitle,
+            localizedDictionary.activity.refreshFailedDetail(`Pre-distribution check: ${message}`),
+            "warning"
+          ),
+          ...current
+        ].slice(0, 5)
+      )
+    } finally {
+      setIsPreDistributionChecking(false)
+    }
+  }
 
   const bridgeStatus = useMemo(() => {
     if (!bridgeAvailable) {
@@ -186,6 +268,7 @@ export function App() {
           setIsConfiguring(true)
           setActiveView("home")
           setErrorMessage(null)
+          setPreDistributionCheckSnapshot(null)
           setIsLoading(false)
           setActivity((current) =>
             [
@@ -220,6 +303,7 @@ export function App() {
             ...current
           ].slice(0, 5)
         )
+        await refreshPreDistributionCheckForState(state, localizedDictionary)
       } catch (error: unknown) {
         if (!active) {
           return
@@ -265,6 +349,7 @@ export function App() {
       const state = await desktopClient.refreshSync()
       setSyncState(state)
       setErrorMessage(null)
+      await refreshPreDistributionCheckForState(state)
       setActivity((current) =>
         [
           createActivityEntry(
@@ -332,6 +417,7 @@ export function App() {
         try {
           const state = await desktopClient.refreshSync()
           setSyncState(state)
+          await refreshPreDistributionCheckForState(state, localizedDictionary)
           setActivity((current) =>
             [
               createActivityEntry(
@@ -460,6 +546,7 @@ export function App() {
       hasLocaleOverride.current = true
       setSelectedLocale(nextConfiguration.locale)
       setSyncState(initialState)
+      setPreDistributionCheckSnapshot(null)
       setConnectionTestResult(null)
       setErrorMessage(null)
       setIsConfiguring(true)
@@ -509,6 +596,7 @@ export function App() {
       try {
         const refreshedState = await desktopClient.refreshSync()
         setSyncState(refreshedState)
+        await refreshPreDistributionCheckForState(refreshedState)
         setErrorMessage(null)
         const detail = createDistributionDetail(selectedLocale, distributionResult)
         setActivity((current) =>
@@ -556,6 +644,10 @@ export function App() {
     }
   }
 
+  const handleRefreshPreDistributionCheck = async () => {
+    await refreshPreDistributionCheckForState(syncState)
+  }
+
   const formattedLastRefreshedAt = formatLongTimestamp(
     selectedLocale,
     syncState.lastRefreshedAt,
@@ -583,6 +675,9 @@ export function App() {
             lastRefreshedAt={formattedLastRefreshedAt}
             successfulDistributionCount={syncState.successfulDistributionCount}
             pendingUpdates={syncState.pendingUpdates}
+            preDistributionCheckSnapshot={preDistributionCheckSnapshot}
+            isPreDistributionChecking={isPreDistributionChecking}
+            isPreDistributionCheckStale={isPreDistributionCheckStale}
             busyUpdateId={busyUpdateId}
             onDistribute={handleDistribute}
             onOpenSettings={() => setSettingsOpen(true)}
@@ -592,9 +687,13 @@ export function App() {
         ) : (
           <UpdatesView
             isLoading={isLoading}
+            isPreDistributionChecking={isPreDistributionChecking}
+            isPreDistributionCheckStale={isPreDistributionCheckStale}
             pendingUpdates={syncState.pendingUpdates}
+            preDistributionCheckSnapshot={preDistributionCheckSnapshot}
             busyUpdateId={busyUpdateId}
             onDistribute={handleDistribute}
+            onRefreshPreDistributionCheck={handleRefreshPreDistributionCheck}
             onRefresh={handleRefresh}
           />
         )}

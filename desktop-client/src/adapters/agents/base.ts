@@ -1,7 +1,11 @@
-import { mkdir, readdir, stat, copyFile } from "node:fs/promises"
+import { mkdir, readdir, stat, copyFile, readFile } from "node:fs/promises"
 import { isAbsolute, join, normalize, relative } from "node:path"
 
-export type AgentId = "codex" | "claude-code" | "gemini-cli"
+import type {
+  AgentId,
+  InstalledSkillMetadataV1,
+  InstalledSkillVersionSource
+} from "@/types"
 
 export interface ExtractedSkillPayloadV1 {
   skillId: string
@@ -23,6 +27,7 @@ export interface AgentAdapterV1 {
   displayName: string
   installSkill(payload: ExtractedSkillPayloadV1, context: AgentInstallContextV1): Promise<InstalledSkillV1>
   verifyInstalledSkill(payload: ExtractedSkillPayloadV1, installed: InstalledSkillV1): Promise<boolean>
+  readInstalledSkillMetadata(skillId: string, context: AgentInstallContextV1): Promise<InstalledSkillMetadataV1>
 }
 
 export interface AgentAdapterDefinition {
@@ -30,14 +35,142 @@ export interface AgentAdapterDefinition {
   displayName: string
 }
 
-function createSkillDirectoryName(payload: ExtractedSkillPayloadV1): string {
-  const skillId = payload.skillId.trim()
+export function createSafeSkillDirectoryName(skillIdValue: string): string {
+  const skillId = skillIdValue.trim()
 
   if (!skillId || skillId === "." || skillId === ".." || skillId.includes("/") || skillId.includes("\\")) {
-    throw new Error(`Invalid skill identifier: ${payload.skillId}`)
+    throw new Error(`Invalid skill identifier: ${skillIdValue}`)
   }
 
   return skillId
+}
+
+function createSkillDirectoryName(payload: ExtractedSkillPayloadV1): string {
+  return createSafeSkillDirectoryName(payload.skillId)
+}
+
+function isMissingFileError(error: unknown): boolean {
+  return typeof error === "object" && error !== null && "code" in error && (error as { code?: string }).code === "ENOENT"
+}
+
+function cleanMetadataVersion(value: unknown): string | null {
+  if (typeof value !== "string") {
+    return null
+  }
+
+  const trimmed = value.trim()
+  return trimmed || null
+}
+
+function unquoteYamlValue(value: string): string {
+  const trimmed = value.trim()
+
+  if (
+    (trimmed.startsWith("\"") && trimmed.endsWith("\"")) ||
+    (trimmed.startsWith("'") && trimmed.endsWith("'"))
+  ) {
+    return trimmed.slice(1, -1).trim()
+  }
+
+  return trimmed
+}
+
+function readFrontmatterVersion(markdown: string): string | null {
+  const normalized = markdown.replace(/\r\n/g, "\n")
+
+  if (!normalized.startsWith("---\n")) {
+    return null
+  }
+
+  const endIndex = normalized.indexOf("\n---", 4)
+
+  if (endIndex < 0) {
+    return null
+  }
+
+  const frontmatter = normalized.slice(4, endIndex)
+
+  for (const line of frontmatter.split("\n")) {
+    const separatorIndex = line.indexOf(":")
+
+    if (separatorIndex < 0) {
+      continue
+    }
+
+    const key = line.slice(0, separatorIndex).trim()
+
+    if (key !== "version") {
+      continue
+    }
+
+    return cleanMetadataVersion(unquoteYamlValue(line.slice(separatorIndex + 1)))
+  }
+
+  return null
+}
+
+async function readSkillFrontmatterVersion(skillDir: string): Promise<string | null> {
+  try {
+    return readFrontmatterVersion(await readFile(join(skillDir, "SKILL.md"), "utf8"))
+  } catch (error) {
+    if (isMissingFileError(error)) {
+      return null
+    }
+
+    throw error
+  }
+}
+
+async function readManifestVersion(manifestPath: string): Promise<string | null> {
+  try {
+    const parsed = JSON.parse(await readFile(manifestPath, "utf8")) as Record<string, unknown>
+
+    return cleanMetadataVersion(parsed.version)
+  } catch (error) {
+    if (isMissingFileError(error) || error instanceof SyntaxError) {
+      return null
+    }
+
+    throw error
+  }
+}
+
+async function readInstalledMetadataVersion(
+  skillDir: string
+): Promise<{ version: string | null; versionSource: InstalledSkillVersionSource }> {
+  const readers: Array<{
+    versionSource: Exclude<InstalledSkillVersionSource, null>
+    read(): Promise<string | null>
+  }> = [
+    {
+      versionSource: "skill-frontmatter",
+      read: () => readSkillFrontmatterVersion(skillDir)
+    },
+    {
+      versionSource: "manifest-json",
+      read: () => readManifestVersion(join(skillDir, "manifest.json"))
+    },
+    {
+      versionSource: "nested-manifest-json",
+      read: () => readManifestVersion(join(skillDir, "skills", "manifest.json"))
+    }
+  ]
+
+  for (const reader of readers) {
+    const version = await reader.read()
+
+    if (version !== null) {
+      return {
+        version,
+        versionSource: reader.versionSource
+      }
+    }
+  }
+
+  return {
+    version: null,
+    versionSource: null
+  }
 }
 
 async function ensureDirectoryContents(path: string): Promise<boolean> {
@@ -145,6 +278,41 @@ export function createFilesystemAgentAdapter(definition: AgentAdapterDefinition)
         return await ensureDirectoryContents(installed.skillDir)
       } catch {
         return false
+      }
+    },
+    async readInstalledSkillMetadata(
+      skillId: string,
+      context: AgentInstallContextV1
+    ): Promise<InstalledSkillMetadataV1> {
+      const safeSkillId = createSafeSkillDirectoryName(skillId)
+      const skillDir = join(context.skillsPath, safeSkillId)
+
+      try {
+        const skillDirStat = await stat(skillDir)
+
+        if (!skillDirStat.isDirectory()) {
+          throw new Error(`Installed skill path is not a directory: ${skillDir}`)
+        }
+
+        const metadata = await readInstalledMetadataVersion(skillDir)
+
+        return {
+          exists: true,
+          skillDir,
+          version: metadata.version,
+          versionSource: metadata.versionSource
+        }
+      } catch (error) {
+        if (isMissingFileError(error)) {
+          return {
+            exists: false,
+            skillDir,
+            version: null,
+            versionSource: null
+          }
+        }
+
+        throw error
       }
     }
   }

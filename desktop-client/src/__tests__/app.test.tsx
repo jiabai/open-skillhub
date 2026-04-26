@@ -11,6 +11,7 @@ type MockDesktopClientBridge = {
   clearConfiguration: ReturnType<typeof vi.fn>
   testConnection: ReturnType<typeof vi.fn>
   refreshSync: ReturnType<typeof vi.fn>
+  refreshPreDistributionCheck: ReturnType<typeof vi.fn>
   distributePendingUpdate: ReturnType<typeof vi.fn>
 }
 
@@ -21,6 +22,7 @@ const mockDesktopClient = {
   clearConfiguration: vi.fn(),
   testConnection: vi.fn(),
   refreshSync: vi.fn(),
+  refreshPreDistributionCheck: vi.fn(),
   distributePendingUpdate: vi.fn()
 } satisfies MockDesktopClientBridge
 
@@ -51,6 +53,15 @@ beforeEach(() => {
     status: 200,
     message: "Connection succeeded."
   })
+  mockDesktopClient.refreshPreDistributionCheck.mockResolvedValue({
+    results: {},
+    checkedAt: "2026-04-17T00:00:00.000Z",
+    expiresAt: "2099-04-17T00:00:00.000Z",
+    pendingUpdateFingerprint: "",
+    targetAgentIds: [],
+    totalDurationMs: 0,
+    globalErrors: []
+  })
 
   Object.defineProperty(window, "desktopClient", {
     configurable: true,
@@ -72,6 +83,7 @@ describe("App", () => {
     expect(window.desktopClient?.clearConfiguration).toBeTypeOf("function")
     expect(window.desktopClient?.testConnection).toBeTypeOf("function")
     expect(window.desktopClient?.refreshSync).toBeTypeOf("function")
+    expect(window.desktopClient?.refreshPreDistributionCheck).toBeTypeOf("function")
     expect(window.desktopClient?.distributePendingUpdate).toBeTypeOf("function")
   })
 
@@ -137,6 +149,15 @@ describe("App", () => {
       successfulDistributionCount: 0,
       lastRefreshedAt: null
     })
+    mockDesktopClient.refreshPreDistributionCheck.mockResolvedValue({
+      results: {},
+      checkedAt: "2026-04-17T00:00:00.000Z",
+      expiresAt: "2099-04-17T00:00:00.000Z",
+      pendingUpdateFingerprint: "",
+      targetAgentIds: [],
+      totalDurationMs: 0,
+      globalErrors: []
+    })
     mockDesktopClient.distributePendingUpdate.mockResolvedValue({
       skillId: "skill-a",
       name: "Skill A",
@@ -181,6 +202,15 @@ describe("App", () => {
       successfulDistributionCount: 0,
       lastRefreshedAt: null
     })
+    await expect(desktopClient.refreshPreDistributionCheck()).resolves.toEqual({
+      results: {},
+      checkedAt: "2026-04-17T00:00:00.000Z",
+      expiresAt: "2099-04-17T00:00:00.000Z",
+      pendingUpdateFingerprint: "",
+      targetAgentIds: [],
+      totalDurationMs: 0,
+      globalErrors: []
+    })
     await expect(desktopClient.distributePendingUpdate("skill-a")).resolves.toEqual({
       skillId: "skill-a",
       name: "Skill A",
@@ -204,6 +234,7 @@ describe("App", () => {
       apiToken: "ask_live"
     })
     expect(mockDesktopClient.refreshSync).toHaveBeenCalledTimes(1)
+    expect(mockDesktopClient.refreshPreDistributionCheck).toHaveBeenCalledTimes(1)
     expect(mockDesktopClient.distributePendingUpdate).toHaveBeenCalledWith("skill-a")
   })
 
@@ -336,6 +367,157 @@ describe("App", () => {
     await waitFor(() => {
       expect(screen.getByRole("heading", { name: "All pending updates" })).toBeInTheDocument()
       expect(screen.getByText("Skill D")).toBeInTheDocument()
+    })
+  })
+
+  it("runs a pre-distribution check after loading pending updates", async () => {
+    mockDesktopClient.refreshSync.mockResolvedValueOnce({
+      localRecords: [],
+      pendingUpdates: [
+        {
+          remoteSkillId: "skill-a",
+          name: "Skill A",
+          localVersion: "2.0.0",
+          remoteVersion: "1.0.0",
+          reason: "version-mismatch"
+        }
+      ],
+      successfulDistributionCount: 0,
+      lastRefreshedAt: "2026-04-17T00:00:00.000Z"
+    })
+    mockDesktopClient.refreshPreDistributionCheck.mockResolvedValueOnce({
+      results: {
+        "skill-a": {
+          codex: {
+            agentId: "codex",
+            displayName: "Codex",
+            skillDir: "C:\\Users\\test\\.codex\\skills\\skill-a",
+            exists: true,
+            installedVersion: "2.0.0",
+            installedVersionSource: "skill-frontmatter",
+            remoteVersion: "1.0.0",
+            installedVersionFormat: "semver",
+            remoteVersionFormat: "semver",
+            versionComparison: "installed-newer",
+            checkedAt: "2026-04-17T00:00:01.000Z",
+            durationMs: 4,
+            errorCode: null,
+            errorMessage: null
+          }
+        }
+      },
+      checkedAt: "2026-04-17T00:00:01.000Z",
+      expiresAt: "2099-04-17T00:00:01.000Z",
+      pendingUpdateFingerprint: "skill-a@1.0.0",
+      targetAgentIds: ["codex"],
+      totalDurationMs: 4,
+      globalErrors: []
+    })
+
+    render(<App />)
+
+    await waitFor(() => {
+      expect(mockDesktopClient.refreshPreDistributionCheck).toHaveBeenCalledTimes(1)
+      expect(screen.getByText("Review target warnings before distributing.")).toBeInTheDocument()
+      expect(screen.getByText("Codex: 2.0.0")).toBeInTheDocument()
+    })
+  })
+
+  it("does not show stale pre-distribution claims when the fingerprint mismatches", async () => {
+    mockDesktopClient.refreshSync.mockResolvedValueOnce({
+      localRecords: [],
+      pendingUpdates: [
+        {
+          remoteSkillId: "skill-a",
+          name: "Skill A",
+          localVersion: null,
+          remoteVersion: "1.0.0",
+          reason: "missing-local-record"
+        }
+      ],
+      successfulDistributionCount: 0,
+      lastRefreshedAt: "2026-04-17T00:00:00.000Z"
+    })
+    mockDesktopClient.refreshPreDistributionCheck.mockResolvedValueOnce({
+      results: {
+        "skill-old": {
+          codex: {
+            agentId: "codex",
+            displayName: "Codex",
+            skillDir: "C:\\Users\\test\\.codex\\skills\\skill-old",
+            exists: true,
+            installedVersion: "9.0.0",
+            installedVersionSource: "skill-frontmatter",
+            remoteVersion: "1.0.0",
+            installedVersionFormat: "semver",
+            remoteVersionFormat: "semver",
+            versionComparison: "installed-newer",
+            checkedAt: "2026-04-17T00:00:01.000Z",
+            durationMs: 4,
+            errorCode: null,
+            errorMessage: null
+          }
+        }
+      },
+      checkedAt: "2026-04-17T00:00:01.000Z",
+      expiresAt: "2099-04-17T00:00:01.000Z",
+      pendingUpdateFingerprint: "skill-old@1.0.0",
+      targetAgentIds: ["codex"],
+      totalDurationMs: 4,
+      globalErrors: []
+    })
+
+    render(<App />)
+
+    await waitFor(() => {
+      expect(screen.getByText("Refresh check to read installed target versions before distribution.")).toBeInTheDocument()
+      expect(screen.queryByText("Codex: 9.0.0")).not.toBeInTheDocument()
+    })
+  })
+
+  it("refreshes the pre-distribution check without reloading the remote queue", async () => {
+    mockDesktopClient.refreshSync.mockResolvedValue({
+      localRecords: [],
+      pendingUpdates: [
+        {
+          remoteSkillId: "skill-a",
+          name: "Skill A",
+          localVersion: null,
+          remoteVersion: "1.0.0",
+          reason: "missing-local-record"
+        }
+      ],
+      successfulDistributionCount: 0,
+      lastRefreshedAt: "2026-04-17T00:00:00.000Z"
+    })
+    mockDesktopClient.refreshPreDistributionCheck.mockResolvedValue({
+      results: {},
+      checkedAt: "2026-04-17T00:00:01.000Z",
+      expiresAt: "2099-04-17T00:00:01.000Z",
+      pendingUpdateFingerprint: "skill-a@1.0.0",
+      targetAgentIds: [],
+      totalDurationMs: 1,
+      globalErrors: ["No configured agent skill directories are available for pre-distribution checks."]
+    })
+
+    render(<App />)
+
+    await waitFor(() => {
+      expect(mockDesktopClient.refreshSync).toHaveBeenCalledTimes(1)
+      expect(mockDesktopClient.refreshPreDistributionCheck).toHaveBeenCalledTimes(1)
+    })
+
+    fireEvent.click(screen.getByRole("button", { name: "Updates" }))
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Refresh Check" })).toBeInTheDocument()
+    })
+
+    fireEvent.click(screen.getByRole("button", { name: "Refresh Check" }))
+
+    await waitFor(() => {
+      expect(mockDesktopClient.refreshSync).toHaveBeenCalledTimes(1)
+      expect(mockDesktopClient.refreshPreDistributionCheck).toHaveBeenCalledTimes(2)
     })
   })
 

@@ -156,12 +156,43 @@ export const zhCNDictionary = {
     description: (count: number) => `${count} 个条目等待批准。`,
     loading: "正在加载待审核更新...",
     noPendingUpdates: "没有待审核更新。",
+    refreshCheck: "刷新检查",
+    refreshingCheck: "检查中...",
     distribute: "分发",
     distributing: "分发中",
     reviewReasonLabel: "审核原因：",
     reasonLabels: {
       missingLocalRecord: "缺少本地记录",
       versionMismatch: "版本不一致"
+    }
+  },
+  preDistributionCheck: {
+    loading: "正在检查已配置代理目标...",
+    refreshNeeded: "刷新检查以读取分发前的目标已安装版本。",
+    stale: "检查结果已过期。请先刷新，再依赖目标版本判断。",
+    noTargets: "没有可用于此检查的已配置代理目标。",
+    globalErrorsTitle: "分发前检查警告",
+    targetCheckTitle: "目标检查",
+    lastChecked: (value: string) => `最近检查：${value}`,
+    warningBeforeDistribute: "分发前请先查看目标警告。",
+    targetDirectory: (value: string) => `目录 ${value}`,
+    installedVersion: (value: string) => `已安装 ${value}`,
+    versionSourceLabels: {
+      "skill-frontmatter": "SKILL.md",
+      "manifest-json": "manifest.json",
+      "nested-manifest-json": "skills/manifest.json",
+      unknown: "版本来源未知"
+    },
+    comparisonLabels: {
+      "not-installed": "此目标尚未安装。",
+      "installed-older": (installed: string, remote: string) =>
+        `已安装 ${installed} 低于远程 ${remote}；分发会升级它。`,
+      same: (version: string) => `同为 ${version}；分发会执行幂等覆盖。`,
+      "installed-newer": (installed: string, remote: string) =>
+        `已安装 ${installed} 高于远程 ${remote}；分发可能造成降级。`,
+      unknown: (installed: string, remote: string) =>
+        `无法判断版本顺序：已安装 ${installed}，远程 ${remote}。`,
+      error: (message: string) => `检查失败：${message}`
     }
   },
   agentsPanel: {

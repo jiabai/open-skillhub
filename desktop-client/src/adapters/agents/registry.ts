@@ -1,7 +1,8 @@
-import type { AgentAdapterV1, AgentId } from "@/adapters/agents/base"
+import type { AgentAdapterV1 } from "@/adapters/agents/base"
 import { claudeCodeAgentAdapter } from "@/adapters/agents/claude-code"
 import { codexAgentAdapter } from "@/adapters/agents/codex"
 import { geminiCliAgentAdapter } from "@/adapters/agents/gemini-cli"
+import type { AgentId } from "@/types"
 
 const agentAdapters: Record<AgentId, AgentAdapterV1> = {
   codex: codexAgentAdapter,

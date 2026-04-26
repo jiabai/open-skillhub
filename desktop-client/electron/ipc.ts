@@ -5,6 +5,7 @@ import type {
   ConfigurationState,
   ConnectionTestResult,
   DesktopSyncState,
+  PreDistributionCheckSnapshot,
   SkillDistributionResult
 } from "@/types"
 
@@ -15,6 +16,7 @@ export const desktopClientIpcChannels = {
   clearConfiguration: "configuration:clear",
   testConnection: "configuration:test-connection",
   refreshSync: "sync:refresh",
+  refreshPreDistributionCheck: "pre-distribution-check:refresh",
   distributePendingUpdate: "distribution:run"
 } as const
 
@@ -25,6 +27,7 @@ export interface DesktopClientBridge {
   clearConfiguration(): Promise<ConfigurationState>
   testConnection(payload: ConfigurationPayload): Promise<ConnectionTestResult>
   refreshSync(): Promise<DesktopSyncState>
+  refreshPreDistributionCheck(): Promise<PreDistributionCheckSnapshot>
   distributePendingUpdate(pendingUpdateId: string): Promise<SkillDistributionResult>
 }
 
@@ -35,6 +38,7 @@ export interface DesktopClientIpcHandlers {
   clearConfiguration(): Promise<ConfigurationState>
   testConnection(payload: ConfigurationPayload): Promise<ConnectionTestResult>
   refreshSync(): Promise<DesktopSyncState>
+  refreshPreDistributionCheck(): Promise<PreDistributionCheckSnapshot>
   distributePendingUpdate(pendingUpdateId: string): Promise<SkillDistributionResult>
 }
 
@@ -48,6 +52,7 @@ export function registerDesktopClientIpc(
   ipcMain.removeHandler(desktopClientIpcChannels.clearConfiguration)
   ipcMain.removeHandler(desktopClientIpcChannels.testConnection)
   ipcMain.removeHandler(desktopClientIpcChannels.refreshSync)
+  ipcMain.removeHandler(desktopClientIpcChannels.refreshPreDistributionCheck)
   ipcMain.removeHandler(desktopClientIpcChannels.distributePendingUpdate)
 
   ipcMain.handle(desktopClientIpcChannels.getConfiguration, async () => handlers.getConfiguration())
@@ -62,6 +67,9 @@ export function registerDesktopClientIpc(
     handlers.testConnection(payload)
   )
   ipcMain.handle(desktopClientIpcChannels.refreshSync, async () => handlers.refreshSync())
+  ipcMain.handle(desktopClientIpcChannels.refreshPreDistributionCheck, async () =>
+    handlers.refreshPreDistributionCheck()
+  )
   ipcMain.handle(
     desktopClientIpcChannels.distributePendingUpdate,
     async (_event, pendingUpdateId: string) => handlers.distributePendingUpdate(pendingUpdateId)

@@ -4,6 +4,7 @@ import type {
   ConfigurationState,
   ConnectionTestResult,
   DesktopSyncState,
+  PreDistributionCheckSnapshot,
   SkillDistributionResult
 } from "@/types"
 
@@ -14,6 +15,7 @@ export interface DesktopClientBridge {
   clearConfiguration(): Promise<ConfigurationState>
   testConnection(payload: ConfigurationPayload): Promise<ConnectionTestResult>
   refreshSync(): Promise<DesktopSyncState>
+  refreshPreDistributionCheck(): Promise<PreDistributionCheckSnapshot>
   distributePendingUpdate(pendingUpdateId: string): Promise<SkillDistributionResult>
 }
 
@@ -95,6 +97,16 @@ function invokeRefreshSync(): Promise<DesktopSyncState> {
   return bridge.refreshSync()
 }
 
+function invokeRefreshPreDistributionCheck(): Promise<PreDistributionCheckSnapshot> {
+  const bridge = getDesktopClientBridge()
+
+  if (!bridge) {
+    throw new Error("Desktop client bridge is unavailable")
+  }
+
+  return bridge.refreshPreDistributionCheck()
+}
+
 function invokeDistributePendingUpdate(
   pendingUpdateId: string
 ): Promise<SkillDistributionResult> {
@@ -115,5 +127,6 @@ export const desktopClient = {
   clearConfiguration: invokeClearConfiguration,
   testConnection: invokeTestConnection,
   refreshSync: invokeRefreshSync,
+  refreshPreDistributionCheck: invokeRefreshPreDistributionCheck,
   distributePendingUpdate: invokeDistributePendingUpdate
 } as const

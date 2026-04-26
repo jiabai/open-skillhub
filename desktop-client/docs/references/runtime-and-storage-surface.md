@@ -26,13 +26,30 @@ entry.
 
 Defined in `electron/ipc.ts`:
 
+- `configuration:get`
+- `configuration:save`
+- `configuration:save-locale`
+- `configuration:clear`
+- `configuration:test-connection`
 - `sync:refresh`
+- `pre-distribution-check:refresh`
 - `distribution:run`
 
 Renderer bridge methods:
 
+- `getConfiguration()`
+- `saveConfiguration(payload)`
+- `saveLocale(locale)`
+- `clearConfiguration()`
+- `testConnection(payload)`
 - `refreshSync()`
+- `refreshPreDistributionCheck()`
 - `distributePendingUpdate(pendingUpdateId)`
+
+The pre-distribution check channel reads the current pending updates from the
+main-process StateStore and inspects configured agent skill directories through
+agent adapters. Its result is a transient renderer snapshot only; it is not
+written to SQLite, JSON config, or agent directories.
 
 ## App Paths
 

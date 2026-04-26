@@ -25,6 +25,8 @@ and the full desktop runtime launch through `npm run start:electron`.
   - desktop renderer design tokens and shared component classes
 - `src/core/sync/`
   - remote skill comparison, state refresh, and polling control
+- `src/core/pre-distribution-check/`
+  - read-only target-directory metadata checks, strict version comparison, transient snapshots, and stale-check fingerprints
 - `src/core/distribution/`
   - package preparation, install orchestration, and distribution result reporting
 - `src/core/storage/`
@@ -46,6 +48,8 @@ Renderer UI -> `src/lib/ipc-client.ts` -> `electron/preload.ts` -> `electron/ipc
 
 sync core -> backend client API + state store
 
+pre-distribution check core -> state store + configured agent adapters
+
 distribution core -> package service + agent adapters + state store
 
 agent adapters -> local agent installations and skill directories
@@ -58,6 +62,7 @@ agent adapters -> local agent installations and skill directories
 - The Windows shell behaves as a notification-area utility: fixed-size BrowserWindow, no native menu bar, taskbar and Alt+Tab visibility, and tray click toggling.
 - Window and tray icons prefer the Windows-native `resources/icons/icon.ico` on Windows, with the build-time embedded SVG from `resources/icons/icon.svg` kept as the fallback path.
 - Sync code only compares remote and local state; it does not mutate agent skill directories.
+- Pre-distribution checks are read-only and transient; results are returned through IPC for review context and are not persisted.
 - Distribution only runs for explicitly approved pending updates.
 - Agent adapters own per-agent filesystem conventions and install verification.
 - Shared type contracts live in `src/types/` instead of being redefined across layers.

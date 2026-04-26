@@ -18,13 +18,13 @@ import {
   screen
 } from "electron"
 
-import type { AgentId } from "@/adapters/agents/base"
 import { getAgentAdapter, listAgentAdapters } from "@/adapters/agents/registry"
 import {
   createDistributionNotification,
   createDistributionService
 } from "@/core/distribution/distribution-service"
 import { createPackageService } from "@/core/distribution/package-service"
+import { createPreDistributionCheckService } from "@/core/pre-distribution-check/pre-distribution-check-service"
 import {
   createRuntimeConfigManager,
   type DesktopRuntimeConfig,
@@ -36,10 +36,12 @@ import { createSqliteStateStore } from "@/core/storage/state-db"
 import { createSyncPollingController, createSyncService } from "@/core/sync/sync-service"
 import type {
   AppLocale,
+  AgentId,
   ConfigurationPayload,
   ConfigurationState,
   DesktopSyncState,
   DownloadedSkillArtifact,
+  PreDistributionCheckSnapshot,
   RemoteSkillSummary,
   SkillDistributionResult,
   SkillPackageRequest
@@ -353,6 +355,25 @@ function getEnabledAgentIds(config: DesktopRuntimeConfig): AgentId[] {
     .filter((agentId) => Boolean(config.agentSkillsPaths[agentId]))
 }
 
+function getPreDistributionCheckTargets(config: DesktopRuntimeConfig) {
+  return listAgentAdapters().flatMap((adapter) => {
+    const skillsPath = config.agentSkillsPaths[adapter.id]
+
+    if (!skillsPath) {
+      return []
+    }
+
+    return [
+      {
+        adapter,
+        installContext: {
+          skillsPath
+        }
+      }
+    ]
+  })
+}
+
 function configureWindowLifecycle(window: BrowserWindow): void {
   window.on("close", (event) => {
     if (!isQuitting) {
@@ -535,6 +556,24 @@ async function createApplicationServices(): Promise<void> {
       }
 
       return currentStateStore.readState()
+    },
+    refreshPreDistributionCheck: async (): Promise<PreDistributionCheckSnapshot> => {
+      const currentStateStore = stateStore
+
+      if (!currentStateStore) {
+        throw new Error("State store unavailable")
+      }
+
+      const runtimeConfig = getRuntimeConfig()
+      const preDistributionCheckService = createPreDistributionCheckService({
+        stateStore: currentStateStore,
+        targets: getPreDistributionCheckTargets(runtimeConfig),
+        options: {
+          snapshotTtlMs: runtimeConfig.pollIntervalMs
+        }
+      })
+
+      return preDistributionCheckService.refresh()
     },
     distributePendingUpdate: async (pendingUpdateId: string): Promise<SkillDistributionResult> => {
       const normalizedPendingUpdateId = pendingUpdateId.trim()

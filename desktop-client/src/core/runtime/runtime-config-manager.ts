@@ -2,14 +2,13 @@ import { existsSync, mkdirSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 
-import type { AgentId } from "@/adapters/agents/base";
 import { listAgentAdapters } from "@/adapters/agents/registry";
 import { resolveLocale } from "@/i18n/config";
 import { APP_NAME, ensureAppDirectories, type AppPathsOptions } from "@/core/storage/app-paths";
 import { resolveApiTokenBootstrap, type ApiTokenBootstrapResult } from "@/core/storage/auth-bootstrap";
 import { createJsonConfigStore, type ConfigStore, type JsonRecord } from "@/core/storage/config-store";
 import { createKeytarSecretStore, type SecretStore } from "@/core/storage/secret-store";
-import type { AppLocale, ConfigurationPayload } from "@/types";
+import type { AgentId, AppLocale, ConfigurationPayload } from "@/types";
 
 export const DEFAULT_API_BASE_URL = "http://127.0.0.1:8001";
 

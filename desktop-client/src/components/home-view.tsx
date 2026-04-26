@@ -1,5 +1,9 @@
-import type { PendingSyncUpdate } from "@/types"
+import type { PendingSyncUpdate, PreDistributionCheckSnapshot } from "@/types"
 import { Badge, Button, Card, CardContent, CardDescription, CardHeader, CardTitle, PageIntro } from "@/components/ui-primitives"
+import {
+  PreDistributionActionWarning,
+  PreDistributionCheckSummary
+} from "@/components/pre-distribution-check-summary"
 import { useI18n } from "@/i18n/use-i18n"
 
 type HomeViewProps = {
@@ -10,6 +14,9 @@ type HomeViewProps = {
   lastRefreshedAt: string
   successfulDistributionCount: number
   pendingUpdates: PendingSyncUpdate[]
+  preDistributionCheckSnapshot: PreDistributionCheckSnapshot | null
+  isPreDistributionChecking: boolean
+  isPreDistributionCheckStale: boolean
   busyUpdateId: string | null
   onDistribute: (pendingUpdate: PendingSyncUpdate) => void
   onOpenSettings: () => void
@@ -29,6 +36,9 @@ export function HomeView({
   lastRefreshedAt,
   successfulDistributionCount,
   pendingUpdates,
+  preDistributionCheckSnapshot,
+  isPreDistributionChecking,
+  isPreDistributionCheckStale,
   busyUpdateId,
   onDistribute,
   onOpenSettings,
@@ -145,14 +155,21 @@ export function HomeView({
                             <h3 className="section-heading__title">{pendingUpdate.name}</h3>
                             <span className="muted mono">{pendingUpdate.remoteSkillId}</span>
                           </div>
-                          <Button
-                            variant="primary"
-                            disabled={isBusy}
-                            aria-label={dictionary.homeView.distribute(pendingUpdate.name)}
-                            onClick={() => onDistribute(pendingUpdate)}
-                          >
-                            {isBusy ? dictionary.homeView.distributing : dictionary.common.distribute}
-                          </Button>
+                          <div className="update-item__actions">
+                            <PreDistributionActionWarning
+                              pendingUpdate={pendingUpdate}
+                              snapshot={preDistributionCheckSnapshot}
+                              isStale={isPreDistributionCheckStale}
+                            />
+                            <Button
+                              variant="primary"
+                              disabled={isBusy}
+                              aria-label={dictionary.homeView.distribute(pendingUpdate.name)}
+                              onClick={() => onDistribute(pendingUpdate)}
+                            >
+                              {isBusy ? dictionary.homeView.distributing : dictionary.common.distribute}
+                            </Button>
+                          </div>
                         </div>
                         <div className="update-item__meta">
                           <Badge>
@@ -165,6 +182,13 @@ export function HomeView({
                           </Badge>
                           <Badge tone="warning">{reasonLabel}</Badge>
                         </div>
+                        <PreDistributionCheckSummary
+                          pendingUpdate={pendingUpdate}
+                          snapshot={preDistributionCheckSnapshot}
+                          isChecking={isPreDistributionChecking}
+                          isStale={isPreDistributionCheckStale}
+                          variant="compact"
+                        />
                       </article>
                     )
                   })}

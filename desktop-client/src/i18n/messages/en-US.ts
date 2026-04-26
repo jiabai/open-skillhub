@@ -158,12 +158,43 @@ export const enUSDictionary = {
     description: (count: number) => `${count} item${count === 1 ? "" : "s"} awaiting approval.`,
     loading: "Loading pending updates...",
     noPendingUpdates: "No pending updates are waiting for review.",
+    refreshCheck: "Refresh Check",
+    refreshingCheck: "Checking...",
     distribute: "Distribute",
     distributing: "Distributing",
     reviewReasonLabel: "Review reason:",
     reasonLabels: {
       missingLocalRecord: "Missing local record",
       versionMismatch: "Version mismatch"
+    }
+  },
+  preDistributionCheck: {
+    loading: "Checking configured agent targets...",
+    refreshNeeded: "Refresh check to read installed target versions before distribution.",
+    stale: "Check results are stale. Refresh before relying on target version claims.",
+    noTargets: "No configured agent targets are available for this check.",
+    globalErrorsTitle: "Pre-distribution check warning",
+    targetCheckTitle: "Target check",
+    lastChecked: (value: string) => `Last checked ${value}`,
+    warningBeforeDistribute: "Review target warnings before distributing.",
+    targetDirectory: (value: string) => `Directory ${value}`,
+    installedVersion: (value: string) => `Installed ${value}`,
+    versionSourceLabels: {
+      "skill-frontmatter": "SKILL.md",
+      "manifest-json": "manifest.json",
+      "nested-manifest-json": "skills/manifest.json",
+      unknown: "version source unknown"
+    },
+    comparisonLabels: {
+      "not-installed": "Not installed on this target.",
+      "installed-older": (installed: string, remote: string) =>
+        `Installed ${installed} is older than remote ${remote}; distribution upgrades it.`,
+      same: (version: string) => `Same version ${version}; distribution is an overwrite.`,
+      "installed-newer": (installed: string, remote: string) =>
+        `Installed ${installed} is newer than remote ${remote}; distribution may downgrade it.`,
+      unknown: (installed: string, remote: string) =>
+        `Version ordering cannot be determined: installed ${installed}, remote ${remote}.`,
+      error: (message: string) => `Check failed: ${message}`
     }
   },
   agentsPanel: {

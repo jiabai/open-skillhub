@@ -1,12 +1,20 @@
-import type { PendingSyncUpdate } from "@/types"
+import type { PendingSyncUpdate, PreDistributionCheckSnapshot } from "@/types"
 import { Badge, Button, Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui-primitives"
+import {
+  PreDistributionActionWarning,
+  PreDistributionCheckSummary
+} from "@/components/pre-distribution-check-summary"
 import { useI18n } from "@/i18n/use-i18n"
 
 type PendingUpdatesPanelProps = {
   pendingUpdates: PendingSyncUpdate[]
+  preDistributionCheckSnapshot: PreDistributionCheckSnapshot | null
   busyUpdateId: string | null
   isLoading: boolean
+  isPreDistributionChecking: boolean
+  isPreDistributionCheckStale: boolean
   onDistribute: (pendingUpdate: PendingSyncUpdate) => void
+  onRefreshPreDistributionCheck: () => void
 }
 
 function formatVersion(value: string | null, fallback: string): string {
@@ -15,11 +23,16 @@ function formatVersion(value: string | null, fallback: string): string {
 
 export function PendingUpdatesPanel({
   pendingUpdates,
+  preDistributionCheckSnapshot,
   busyUpdateId,
   isLoading,
-  onDistribute
+  isPreDistributionChecking,
+  isPreDistributionCheckStale,
+  onDistribute,
+  onRefreshPreDistributionCheck
 }: PendingUpdatesPanelProps) {
   const { dictionary } = useI18n()
+  const hasGlobalErrors = (preDistributionCheckSnapshot?.globalErrors.length ?? 0) > 0
 
   return (
     <Card aria-labelledby="pending-updates-heading">
@@ -32,10 +45,30 @@ export function PendingUpdatesPanel({
               {dictionary.pendingUpdatesPanel.description(pendingUpdates.length)}
             </CardDescription>
           </div>
+          {pendingUpdates.length > 0 ? (
+            <Button
+              variant="secondary"
+              disabled={isPreDistributionChecking}
+              onClick={onRefreshPreDistributionCheck}
+            >
+              {isPreDistributionChecking
+                ? dictionary.pendingUpdatesPanel.refreshingCheck
+                : dictionary.pendingUpdatesPanel.refreshCheck}
+            </Button>
+          ) : null}
         </div>
       </CardHeader>
 
       <CardContent>
+        {hasGlobalErrors ? (
+          <div className="callout callout--warning">
+            <strong>{dictionary.preDistributionCheck.globalErrorsTitle}</strong>
+            {preDistributionCheckSnapshot?.globalErrors.map((message) => (
+              <span key={message}>{message}</span>
+            ))}
+          </div>
+        ) : null}
+
         {pendingUpdates.length === 0 ? (
           <div className="callout">
             {isLoading
@@ -59,14 +92,21 @@ export function PendingUpdatesPanel({
                       <span className="muted mono">{pendingUpdate.remoteSkillId}</span>
                     </div>
 
-                    <Button
-                      variant="primary"
-                      onClick={() => onDistribute(pendingUpdate)}
-                      disabled={isBusy}
-                      aria-label={`${dictionary.pendingUpdatesPanel.distribute} ${pendingUpdate.name}`}
-                    >
-                      {isBusy ? dictionary.pendingUpdatesPanel.distributing : dictionary.pendingUpdatesPanel.distribute}
-                    </Button>
+                    <div className="update-item__actions">
+                      <PreDistributionActionWarning
+                        pendingUpdate={pendingUpdate}
+                        snapshot={preDistributionCheckSnapshot}
+                        isStale={isPreDistributionCheckStale}
+                      />
+                      <Button
+                        variant="primary"
+                        onClick={() => onDistribute(pendingUpdate)}
+                        disabled={isBusy}
+                        aria-label={`${dictionary.pendingUpdatesPanel.distribute} ${pendingUpdate.name}`}
+                      >
+                        {isBusy ? dictionary.pendingUpdatesPanel.distributing : dictionary.pendingUpdatesPanel.distribute}
+                      </Button>
+                    </div>
                   </div>
 
                   <div className="update-item__meta">
@@ -84,6 +124,13 @@ export function PendingUpdatesPanel({
                   <p className="card__description">
                     {dictionary.pendingUpdatesPanel.reviewReasonLabel} {reasonLabel}
                   </p>
+                  <PreDistributionCheckSummary
+                    pendingUpdate={pendingUpdate}
+                    snapshot={preDistributionCheckSnapshot}
+                    isChecking={isPreDistributionChecking}
+                    isStale={isPreDistributionCheckStale}
+                    variant="detailed"
+                  />
                 </article>
               )
             })}

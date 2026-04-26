@@ -15,6 +15,7 @@ Guidance for AI coding agents working in `desktop-client/`.
 - Task tracker: `task-tracker.md`
 - ExecPlans: `docs/exec-plans/index.md`
 - Tech debt: `docs/exec-plans/tech-debt-tracker.md`
+- Execution gates: `../docs/EXECUTION_GATES.md`
 
 ## Core Beliefs
 

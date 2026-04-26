@@ -49,6 +49,8 @@
 - Keep `AGENTS.md` files as maps; move detailed or fast-changing material into `docs/`.
 - Do not commit secrets, machine-specific environment paths, or generated local state.
 - Avoid unrelated refactors while working on a feature or bug.
+- Use the backend runtime capability contract as the source of truth for frontend feature availability.
+- Avoid changing `desktop-client/` unless the task explicitly includes it.
 
 ## Development Flow
 

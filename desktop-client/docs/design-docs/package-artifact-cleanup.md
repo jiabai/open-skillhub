@@ -1,232 +1,349 @@
-# Package Artifact Cleanup - Technical Design
+# Package Artifact Cleanup - Final Technical Design
 
-## Problem Statement
+Status: final design for implementation handoff
+Last updated: 2026-04-26
+Scope: `desktop-client/`
 
-当前 `package-service.ts` 的分发流程中，下载的原始产物和解密后的中间文件**从未被清理**，
-导致磁盘上的文件冗余：
+> 分发流程完成或失败后，桌面端必须清理本次分发创建的下载包、解密产物和解压目录。清理必须显式基于产物所有权，不能因为某个路径出现在 `artifactPath` 中就默认递归删除。
 
+## 1. Problem Statement
+
+当前 `src/core/distribution/package-service.ts` 只清理 `validateAndExtract()` 创建的 `tempRoot`：
+
+```text
+downloadArtifact()        -> creates or returns artifactPath
+decryptArtifact()?        -> may create a decrypted artifact
+createTempDirectory()     -> creates tempRoot
+extractArtifact()         -> extracts into tempRoot/extracted
+distribution-service      -> installs from extractedPath
+preparedPackage.cleanup() -> removes tempRoot only
 ```
-1. downloadArtifact()        → 下载到 cache/ 或临时位置（未清理）
-2. decryptArtifact()         → 可能解密到新位置（未清理）
-3. createTempDirectory()     → 创建 tempRoot
-4. extractArtifact()         → 解压到 tempRoot/extracted
-5. adapter.installSkill()    → 复制到 agent 目录
-6. finally { cleanup() }     → 只清理 tempRoot ← 上游产物残留
+
+这会留下两类风险：
+
+1. **磁盘冗余**：当前 Electron 下载实现把包写入 runtime `cache/`，分发结束后没有删除。
+2. **敏感内容残留**：未加密下载包、未来的解密明文包、以及解压目录都可能包含 skill 源码。
+
+上一版草案的问题是把 `downloadedArtifact.artifactPath` 直接加入删除列表。这个逻辑不安全，因为 `DownloadedSkillArtifact` 当前没有说明 `artifactPath` 是否由本次分发创建、是否允许删除。测试和未来依赖实现可能返回外部 fixture、持久缓存或用户选择的文件路径。最终设计必须先补齐所有权合约，再执行清理。
+
+## 2. Goals
+
+- 清理本次分发创建且声明可删除的 package artifacts。
+- 继续通过 `PreparedSkillPackage.cleanup()` 作为 `distribution-service` 的唯一清理入口。
+- 在提取、验证、缺少 decryptor、安装失败、部分安装失败和成功安装后都执行同一套清理。
+- 清理失败不能覆盖原始分发错误，也不能改变分发结果。
+- 清理逻辑必须避免递归删除未声明所有权的外部路径。
+
+## 3. Non-Goals
+
+- 不实现持久化 distribution history。
+- 不实现 backup 或 rollback。
+- 不改变 renderer、IPC 或用户交互。
+- 不清理 agent 安装目标目录。
+- 不尝试清理 `downloadArtifact()` 抛错前可能留下的部分文件；这种文件在 package service 没有路径，必须由 `downloadArtifact()` 实现自行处理。
+
+## 4. Current Code Facts
+
+这些事实来自当前实现，编码时必须保持一致：
+
+- `distribution-service.distribute()` 已经在 `finally` 中调用 `preparedPackage.cleanup()`。
+- `PreparedSkillPackage` 公开类型包含 `cleanup(): Promise<void>`，调用方不需要知道内部产物路径。
+- `DownloadedSkillArtifact` 当前只有 `artifactPath` 和 `encrypted`。
+- `downloadSkillArtifact()` 位于 `electron/main.ts`，当前把下载内容写到 `config.cacheDirectory` 下的文件。
+- `PackageServiceDependencies` 已有 `removePath?` 注入点，测试可以替换删除行为。
+- 当前没有 `decryptArtifact` 实现；加密包在没有 decryptor 时 fail closed。
+
+## 5. Final Architecture Decision
+
+采用 **explicit cleanup ownership**：
+
+- artifact producer 声明自己创建且允许删除的路径。
+- `package-service` 只清理这些显式声明的路径，加上自己创建的 extraction temp root。
+- `package-service` 永远不因为 `artifactPath` 存在就默认删除它。
+
+数据流：
+
+```text
+downloadArtifact()
+  -> returns { artifactPath, encrypted, cleanupPaths? }
+
+package-service
+  -> validates artifactPath
+  -> records cleanupPaths only
+  -> creates tempRoot and records tempRoot
+  -> extracts and validates package
+  -> returns PreparedSkillPackage with cleanup() closure
+
+distribution-service
+  -> installs or records per-target failures
+  -> finally awaits preparedPackage.cleanup()
 ```
 
-## Scope
+## 6. Artifact Ownership Contract
 
-- 确保分发流程结束后，所有中间产物（下载文件、解密文件、临时目录）都被清理
-- 保持 `PreparedSkillPackage` 的 `cleanup()` 作为唯一的清理入口
-- 不改变现有的下载、解密、解压接口签名
-
-## Non-Goals
-
-- 不改变下载/解密的实现逻辑
-- 不引入新的持久化层来跟踪历史产物
-- 不处理上传场景的临时文件（上传功能尚未实现）
-
-## Design Decisions
-
-### Decision 1: 清理责任归属
-
-**选择**：由 `package-service.ts` 统一追踪所有中间产物，在 `cleanup()` 中一次性清理。
-
-**理由**：
-- `package-service` 是中间产物的创建协调者，最清楚产生了哪些临时文件
-- 调用方（`distribution-service`）只关心 `cleanup()` 这一个入口
-- 避免清理逻辑散落在多个依赖注入的回调中
-
-**替代方案**：
-- 让 `downloadArtifact` 和 `decryptArtifact` 各自负责清理 → 拒绝，这些回调可能由外部提供，不应假设它们会清理
-- 在 `distribution-service` 中清理 → 拒绝，违反关注点分离
-
-### Decision 2: 中间产物追踪方式
-
-**选择**：在 `validateAndExtract` 函数内部通过局部变量追踪中间产物，`cleanup()` 通过闭包访问，不修改 `PreparedSkillPackage` 类型。
+Extend `DownloadedSkillArtifact` with one optional field:
 
 ```typescript
-// 不改 PreparedSkillPackage 接口，用闭包追踪
-const artifactPaths: string[] = [downloadedArtifact.artifactPath]
+export interface DownloadedSkillArtifact {
+  artifactPath: string
+  encrypted: boolean
 
-if (currentArtifact.artifactPath !== downloadedArtifact.artifactPath) {
-  artifactPaths.push(currentArtifact.artifactPath)
+  /**
+   * Absolute files or directories created for this artifact that package-service
+   * may remove after extraction/installation finishes.
+   *
+   * package-service must never infer cleanup ownership from artifactPath alone.
+   */
+  cleanupPaths?: string[]
 }
+```
+
+Rules:
+
+- `cleanupPaths` is additive and backward-compatible; existing tests or dependencies that omit it still compile.
+- If `cleanupPaths` is omitted, `package-service` extracts from `artifactPath` but does not delete that path.
+- Paths in `cleanupPaths` must be absolute and must not be filesystem roots.
+- Directory cleanup is recursive.
+- Duplicate paths are normalized and deleted once.
+- Nested paths are allowed, but producers should prefer a single per-package staging directory.
+
+## 7. Runtime Download Staging
+
+Update `electron/main.ts` so `downloadSkillArtifact()` creates a unique staging directory under runtime cache:
+
+```typescript
+const artifactRoot = await mkdtemp(join(config.cacheDirectory, "package-"))
+const artifactPath = join(artifactRoot, fileName)
+await writeFile(artifactPath, archiveBytes)
 
 return {
-  skillId, name, version, extractedPath,
-  async cleanup(): Promise<void> {
-    await removePath(tempRoot)
-    for (const path of artifactPaths) {
-      try { await removePath(path) } catch { /* skip */ }
+  artifactPath,
+  encrypted: payload.encryption_enabled,
+  cleanupPaths: [artifactRoot]
+}
+```
+
+Why this matters:
+
+- The whole staging directory is owned by the current package run.
+- Cleanup does not delete the shared `cache/` directory.
+- Concurrent distributions cannot trample a deterministic cache filename.
+- Future decrypted files can be written into the same staging directory and cleaned by the existing `cleanupPaths`.
+
+If `writeFile()` fails after creating `artifactRoot`, `downloadSkillArtifact()` should best-effort remove `artifactRoot` before rethrowing, because package-service will not receive the path when the dependency throws.
+
+## 8. Decryption Contract
+
+When a future `decryptArtifact()` implementation exists:
+
+- It must return `encrypted: false` after successful decryption.
+- If it writes a new artifact outside already registered cleanup roots, it must include that path or parent directory in `cleanupPaths`.
+- If it decrypts in place, it can return the same `artifactPath`; existing cleanup roots still apply.
+- If it writes the decrypted file into the download staging directory returned by `downloadArtifact()`, no extra cleanup path is required because the staging directory is already tracked.
+
+Fail closed rule:
+
+- If `decryptArtifact()` returns `encrypted: true`, package-service must throw before extraction.
+- If the decrypted `artifactPath` is outside all known cleanup roots and is not declared in `cleanupPaths`, package-service must throw before extraction. This prevents installing from an ambiguous plaintext path that may be left behind.
+
+## 9. Cleanup Algorithm
+
+Add a small cleanup tracker inside `package-service.ts`; do not expose paths through `PreparedSkillPackage`.
+
+```typescript
+type CleanupTarget = {
+  path: string
+  label: "download-artifact" | "decrypted-artifact" | "extraction-root"
+}
+
+function createCleanupTracker(options: {
+  removePath(path: string): Promise<void>
+  warn(message: string, error: unknown): void
+}) {
+  const targets: CleanupTarget[] = []
+  const seen = new Set<string>()
+
+  function add(path: string, label: CleanupTarget["label"]): void {
+    const normalized = normalizeCleanupPath(path)
+
+    if (seen.has(normalized)) {
+      return
+    }
+
+    seen.add(normalized)
+    targets.push({ path: normalized, label })
+  }
+
+  async function cleanupAll(): Promise<void> {
+    for (const target of [...targets].reverse()) {
+      try {
+        await options.removePath(target.path)
+      } catch (error) {
+        options.warn(`Failed to clean up ${target.label}: ${target.path}`, error)
+      }
     }
   }
+
+  return { add, cleanupAll }
 }
 ```
 
-**理由**：
-- `PreparedSkillPackage` 是公开类型（`types/index.ts`），`distribution-service.ts` 也依赖它，不应污染
-- TypeScript 的 `_` 前缀只是约定，编译器不强制私有，调用方可随意访问
-- 闭包天然封装了 `artifactPaths`，无需暴露到接口上
-- `types/index.ts` 完全不需要修改
+Required behavior:
 
-### Decision 3: 清理失败策略
+- Register `downloadedArtifact.cleanupPaths` immediately after `downloadArtifact()` resolves.
+- Register decrypted artifact cleanup paths immediately after `decryptArtifact()` resolves.
+- Register `tempRoot` immediately after `createTempDirectory()` resolves.
+- Wrap the whole post-download flow in `try/catch`; on any error, call `cleanupAll()` and then rethrow the original error.
+- The returned `PreparedSkillPackage.cleanup()` calls the same `cleanupAll()` closure.
+- `cleanupAll()` must be best-effort and non-throwing, so it cannot mask distribution success or the original failure.
 
-| 场景 | 行为 | 日志 |
-|------|------|------|
-| 某个中间文件清理失败 | 继续清理其他文件，不抛出异常 | `console.warn` 输出路径和错误原因 |
-| 所有清理都失败 | 不阻断主流程 | 每个失败单独 `console.warn` |
-| 清理时文件已不存在 | 静默跳过（可能已被其他进程清理） | 无 |
+## 10. Path Safety
 
-**日志策略**：
-- 使用 Electron main process 的 `console.warn`，无需引入额外日志框架
-- 清理失败是运维信号，`warn` 级别足以引起注意但不会触发告警
+Before a cleanup path is registered:
 
-**理由**：
-- 清理是善后操作，不应影响主流程的成功/失败判断
-- 分发成功后，即使临时文件残留，用户也可以手动清理
-- 静默处理已不存在的文件避免不必要的错误
+- Resolve it to an absolute normalized path.
+- Reject non-absolute paths.
+- Reject filesystem roots such as `C:\`, `/`, or a drive root.
+- Reject empty paths.
 
-### Decision 4: 加密场景的处理
+Invalid cleanup paths are contract errors:
 
-如果 `decryptArtifact` 返回的是**原地解密**（覆盖原文件），则：
-- `downloadedArtifact.artifactPath` 和 `decryptedArtifact.artifactPath` 是同一个路径
-- 去重后只记录一次
+- During `validateAndExtract()`, throw a clear error and run cleanup for already registered targets.
+- Do not call `removePath()` for invalid cleanup paths.
 
-如果 `decryptArtifact` 返回的是**新文件解密**，则：
-- 两个路径都需要记录
-- 清理时按顺序删除
+This is separate from `validateArtifactPath()`: an external artifact may be valid to read but not owned for cleanup.
 
-## Implementation Plan
+## 11. Error Handling
 
-### 修改文件
+Cleanup must not alter distribution semantics.
 
-| 文件 | 修改内容 |
-|------|---------|
-| `src/core/distribution/package-service.ts` | 追踪中间产物，扩展 `cleanup()` 逻辑，覆盖异常路径 |
+| Scenario | Behavior |
+| --- | --- |
+| `downloadArtifact()` throws before returning | package-service cannot clean unknown paths; dependency owns partial cleanup. |
+| `downloadArtifact()` returns invalid artifact path | clean declared cleanup paths, then throw validation error. |
+| encrypted package has no decryptor | clean declared download cleanup paths, then throw existing decryptor error. |
+| `decryptArtifact()` throws | clean already registered targets, then rethrow decrypt error. |
+| `decryptArtifact()` returns invalid/ambiguous artifact | clean registered targets, then throw contract error. |
+| extract or validation fails | clean download/decrypt/temp targets, then rethrow original error. |
+| install succeeds or partially fails | `distribution-service` finally calls cleanup once. |
+| cleanup target is already gone | no warning required if `removePath` is idempotent; otherwise warn and continue. |
+| cleanup target removal fails | warn and continue remaining cleanup targets. |
 
-> `src/types/index.ts` 无需修改——`PreparedSkillPackage` 接口不变。
+Default warning behavior:
 
-### 核心流程变更
-
-**修改前**：
 ```typescript
-return {
-  skillId,
-  name,
-  version,
-  extractedPath,
-  async cleanup(): Promise<void> {
-    await removePath(tempRoot)  // 只清理解压目录
-  }
-}
+const warn = dependencies.warn ?? ((message, error) => console.warn(message, error))
 ```
 
-**修改后**：
+Add optional dependency:
+
 ```typescript
-const artifactPaths: string[] = [downloadedArtifact.artifactPath]
-
-// 如果解密产生新文件，记录解密产物
-if (currentArtifact.artifactPath !== downloadedArtifact.artifactPath) {
-  artifactPaths.push(currentArtifact.artifactPath)
-}
-
-// 提取中间产物的清理逻辑（catch 和 finally 共用）
-async function cleanupArtifacts(): Promise<void> {
-  await removePath(tempRoot)
-  for (const path of artifactPaths) {
-    try {
-      await removePath(path)
-    } catch (error) {
-      console.warn(`Failed to clean up artifact: ${path}`, error)
-    }
-  }
-}
-
-const tempRoot = await createTempDirectory()
-const extractedPath = join(tempRoot, "extracted")
-
-try {
-  await mkdir(extractedPath, { recursive: true })
-  await dependencies.extractArtifact(currentArtifact, extractedPath, validatedRequest)
-
-  if (dependencies.validateExtractedArtifact) {
-    await dependencies.validateExtractedArtifact(extractedPath, validatedRequest)
-  } else {
-    await validateExtractedDirectory(extractedPath)
-  }
-} catch (error) {
-  // 提取或验证失败时，也必须清理所有中间产物
-  await cleanupArtifacts()
-  throw error
-}
-
-return {
-  skillId,
-  name,
-  version,
-  extractedPath,
-  async cleanup(): Promise<void> {
-    await cleanupArtifacts()
-  }
-}
+warn?(message: string, error: unknown): void
 ```
 
-## Security Considerations
+This keeps tests deterministic without introducing a logging framework.
 
-遵循 `core-beliefs.md` 原则：
+## 12. Type And API Impact
 
-### Principle 4: Fail Closed On Contract Gaps
+Modify `src/types/index.ts`:
 
-- 清理失败不抛出异常，避免掩盖真正的分发错误
-- 如果清理逻辑本身有 bug，不应影响分发结果的正确性
+- Add optional `cleanupPaths?: string[]` to `DownloadedSkillArtifact`.
+- Keep `PreparedSkillPackage` unchanged.
 
-### 敏感数据残留
+Modify `src/core/distribution/package-service.ts`:
 
-- 下载的技能包可能包含未加密的源代码
-- 及时清理临时文件减少敏感数据在磁盘上的暴露时间
-- 对于加密包，解密后的明文文件应优先清理
+- Add cleanup tracker.
+- Add cleanup path validation.
+- Add optional `warn` dependency.
+- Use cleanup tracker in success and all post-download error paths.
 
-## Testing Strategy
+Modify `electron/main.ts`:
 
-### 单元测试
+- Change download artifact writes to a per-package staging directory.
+- Return `cleanupPaths: [artifactRoot]`.
+- Best-effort remove `artifactRoot` if writing the archive fails before return.
 
-| 测试场景 | 验证点 |
-|---------|--------|
-| 正常流程（无加密） | 下载产物和 tempRoot 都被清理 |
-| 加密流程（新文件解密） | 下载、解密、解压产物都被清理 |
-| 加密流程（原地解密） | 不重复记录路径，清理一次 |
-| 清理时文件已不存在 | 不抛出异常 |
-| 清理部分失败 | 继续清理其他文件，`console.warn` 被调用 |
-| 提取/验证失败 | catch 分支中所有中间产物也被清理 |
-| `cleanup()` 被调用两次 | 不抛出异常（`force: true` 保证幂等） |
-| 连续两次 `validateAndExtract` | 各自独立追踪 `artifactPaths`，互不干扰 |
-| 磁盘满导致提取失败 | catch 中清理也失败，`console.warn` 被调用，原始错误仍被抛出 |
+No renderer, IPC, State DB, or product API changes are required.
 
-### 集成测试
+## 13. Implementation File Map
 
-- 完整分发流程后，检查临时目录是否为空
-- 模拟磁盘权限问题，验证清理失败不阻断主流程
+Create:
 
-## Migration Notes
+| File | Responsibility |
+| --- | --- |
+| `src/__tests__/package-service.test.ts` | Focused tests for cleanup ownership, errors, decryption, idempotency, and path safety. |
 
-- 现有代码中 `cleanup()` 只清理 `tempRoot`，修改后会额外清理下载/解密产物
-- 如果外部提供的 `downloadArtifact` 已经自行清理，`removePath` 会静默跳过不存在的文件
-- `PreparedSkillPackage` 接口不变，`types/index.ts` 无需修改，无破坏性变更
-- 提取/验证失败时的 catch 分支也会清理中间产物（当前只清理 `tempRoot`）
-- 不需要数据迁移或 schema 变更
+Modify:
 
-## Open Questions
+| File | Change |
+| --- | --- |
+| `src/types/index.ts` | Add `cleanupPaths?: string[]` to `DownloadedSkillArtifact`. |
+| `src/core/distribution/package-service.ts` | Implement cleanup tracker and safe cleanup contract. |
+| `electron/main.ts` | Use unique runtime-cache staging directories and return cleanup ownership. |
+| `src/__tests__/distribution-service.test.ts` | Keep distribution assertions aligned; avoid assuming external artifact paths are deleted unless `cleanupPaths` is supplied. |
+| `desktop-client/docs/ARCHITECTURE.md` | After implementation, document that runtime package cache is staging, not durable package storage. |
+| `desktop-client/docs/references/runtime-and-storage-surface.md` | After implementation, document cache staging cleanup behavior. |
 
-> 以下问题需在实现前通过查看实际代码关闭。
+## 14. Testing Strategy
 
-1. **下载位置**：查看 `downloadArtifact` 的实际实现，确认产物路径。无论下载到 `cache/` 还是系统临时目录，清理逻辑不变——都通过 `artifactPaths` 追踪。
-2. **解密实现**：查看 `decryptArtifact` 的实际实现。如果是原地解密，`artifactPaths` 去重逻辑会自动处理；如果是新文件解密，两个路径都会被记录。
-3. ~~**日志级别**~~：已决定——清理失败使用 `console.warn` 输出路径和错误原因，见 Decision 3。
+Package-service unit tests:
 
-## References
+- unencrypted artifact with `cleanupPaths` cleans artifact staging dir and extraction temp root
+- unencrypted artifact without `cleanupPaths` does not delete external `artifactPath`
+- encrypted artifact with no decryptor cleans declared download staging dir
+- decryptor that returns `encrypted: true` fails closed and cleans registered paths
+- decryptor that writes inside an already registered staging dir is accepted
+- decryptor that writes outside cleanup roots without declaring ownership fails closed
+- extraction failure cleans all registered targets and rethrows the extraction error
+- validation failure cleans all registered targets and rethrows the validation error
+- cleanup warning path continues deleting later targets
+- invalid cleanup paths are rejected and never passed to `removePath`
+- duplicate cleanup paths are deleted once
+- calling `cleanup()` twice does not throw when `removePath` is idempotent
+
+Runtime/download tests:
+
+- `downloadSkillArtifact()` writes into a unique staging directory below runtime cache; if it remains private in `electron/main.ts`, cover this with the existing source-level Electron runtime tests instead of exporting runtime internals only for tests
+- returned artifact includes `cleanupPaths: [artifactRoot]`
+- failed archive write best-effort removes `artifactRoot`
+
+Distribution tests:
+
+- successful distribution still removes `result.extractedPath`
+- partial distribution still calls cleanup
+- external test fixture artifact is not deleted unless it declares `cleanupPaths`
+
+Validation commands:
+
+```bash
+cd desktop-client && npm test
+cd desktop-client && npm run build
+```
+
+## 15. Migration Notes
+
+- No data migration is required.
+- Existing dependencies returning `{ artifactPath, encrypted }` still work.
+- Only dependencies that opt in with `cleanupPaths` have those paths removed.
+- The Electron runtime download implementation must opt in so downloaded package files no longer remain in `cache/` after distribution.
+- Existing `PreparedSkillPackage` consumers remain unchanged.
+
+## 16. Resolved Issues From Earlier Draft
+
+- Removed the unsafe assumption that every `artifactPath` is disposable.
+- Added explicit cleanup ownership via optional `cleanupPaths`.
+- Added a unique staging directory so runtime cache cleanup cannot delete unrelated cache content or collide across concurrent distributions.
+- Required `cleanup()` to be best-effort and non-throwing so cleanup failures do not mask distribution results.
+- Added handling for errors before extraction, including missing decryptor and invalid artifact paths.
+- Added path safety rules for cleanup targets.
+- Resolved the earlier unknowns by verifying current download behavior in `electron/main.ts` and confirming that no decryptor exists today.
+
+## 17. References
 
 - Core beliefs: `core-beliefs.md`
 - Architecture: `../ARCHITECTURE.md`
+- Security: `../SECURITY.md`
+- Runtime/storage reference: `../references/runtime-and-storage-surface.md`
 - Package service: `../../src/core/distribution/package-service.ts`
 - Distribution service: `../../src/core/distribution/distribution-service.ts`
+- Electron runtime download: `../../electron/main.ts`

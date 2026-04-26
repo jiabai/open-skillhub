@@ -5,5 +5,6 @@
 - `2026-04-23-api-token-config.md` - API Token 配置界面产品规格
 - `2026-04-23-desktop-client-ui-redesign.md` - Desktop Client UI 重设计产品规格
 - `2026-04-24-desktop-client-i18n.md` - Desktop Client i18n 产品规格
+- `2026-04-27-agent-detection-and-distribution.md` - AI 编程助手感知与定向分发产品规格
 
 Canonical rule: work from the local product spec first.

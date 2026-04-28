@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest"
 
 import { createPreDistributionCheckService } from "@/core/pre-distribution-check/pre-distribution-check-service"
 import type {
+  AgentId,
   DesktopSyncState,
   InstalledSkillMetadataV1,
   PendingSyncUpdate,
@@ -34,9 +35,10 @@ function createPendingUpdate(version = "1.0.0"): PendingSyncUpdate {
 }
 
 function createTarget(
-  id: "codex" | "claude-code" | "gemini-cli",
+  id: AgentId,
   displayName: string,
-  readInstalledSkillMetadata: () => Promise<InstalledSkillMetadataV1>
+  readInstalledSkillMetadata: () => Promise<InstalledSkillMetadataV1>,
+  coveredAgentIds: AgentId[] = [id]
 ) {
   return {
     adapter: {
@@ -44,8 +46,20 @@ function createTarget(
       displayName,
       readInstalledSkillMetadata
     },
+    coveredAdapters: coveredAgentIds.map((coveredAgentId) => ({
+      id: coveredAgentId,
+      displayName: coveredAgentId === id ? displayName : `Covered ${coveredAgentId}`
+    })),
     installContext: {
       skillsPath: `C:\\skills\\${id}`
+    },
+    target: {
+      targetId: `target-${id}`,
+      targetPath: `C:\\skills\\${id}`,
+      primaryAgentId: id,
+      coveredAgentIds,
+      sharedPathKey: coveredAgentIds.length > 1 ? "shared-target" : null,
+      source: "auto-detected" as const
     }
   }
 }
@@ -120,6 +134,37 @@ describe("pre-distribution check service", () => {
       exists: false,
       installedVersion: null,
       versionComparison: "not-installed"
+    })
+  })
+
+  it("fans out one shared physical target result to every covered assistant", async () => {
+    const readInstalledSkillMetadata = vi.fn(async () => ({
+      exists: true,
+      skillDir: "C:\\skills\\shared\\skill-a",
+      version: "1.0.0",
+      versionSource: "manifest-json" as const
+    }))
+    const service = createPreDistributionCheckService({
+      stateStore: createStateStore([createPendingUpdate("1.0.0")]),
+      targets: [
+        createTarget("cline", "Cline", readInstalledSkillMetadata, ["cline", "warp"])
+      ],
+      now: () => new Date("2026-04-17T00:00:00.000Z")
+    })
+
+    const snapshot = await service.refresh()
+
+    expect(readInstalledSkillMetadata).toHaveBeenCalledTimes(1)
+    expect(snapshot.targetAgentIds).toEqual(["cline", "warp"])
+    expect(snapshot.results["skill-a"]?.cline).toMatchObject({
+      agentId: "cline",
+      displayName: "Cline",
+      versionComparison: "same"
+    })
+    expect(snapshot.results["skill-a"]?.warp).toMatchObject({
+      agentId: "warp",
+      displayName: "Covered warp",
+      versionComparison: "same"
     })
   })
 

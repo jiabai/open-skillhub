@@ -1,14 +1,14 @@
-import { existsSync, mkdirSync } from "node:fs";
+import { mkdirSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 
-import { listAgentAdapters } from "@/adapters/agents/registry";
+import { createAgentDetectionService } from "@/core/detection/agent-detection-service";
 import { resolveLocale } from "@/i18n/config";
 import { APP_NAME, ensureAppDirectories, type AppPathsOptions } from "@/core/storage/app-paths";
 import { resolveApiTokenBootstrap, type ApiTokenBootstrapResult } from "@/core/storage/auth-bootstrap";
 import { createJsonConfigStore, type ConfigStore, type JsonRecord } from "@/core/storage/config-store";
 import { createKeytarSecretStore, type SecretStore } from "@/core/storage/secret-store";
-import type { AgentId, AppLocale, ConfigurationPayload } from "@/types";
+import type { AgentDetectionSnapshot, AppLocale, ConfigurationPayload } from "@/types";
 
 export const DEFAULT_API_BASE_URL = "http://127.0.0.1:8001";
 
@@ -18,7 +18,7 @@ export interface DesktopRuntimeConfig {
   apiToken: string | null;
   pollIntervalMs: number;
   cacheDirectory: string;
-  agentSkillsPaths: Partial<Record<AgentId, string>>;
+  agentDetection: AgentDetectionSnapshot;
 }
 
 export type DesktopLocalConfig = JsonRecord & {
@@ -45,18 +45,6 @@ export interface RuntimeConfigManagerOptions {
   env?: NodeJS.ProcessEnv;
   secretStore?: SecretStore;
 }
-
-const agentPathEnvVars: Record<AgentId, string> = {
-  codex: "OPEN_SKILLHUB_CODEX_SKILLS_PATH",
-  "claude-code": "OPEN_SKILLHUB_CLAUDE_CODE_SKILLS_PATH",
-  "gemini-cli": "OPEN_SKILLHUB_GEMINI_CLI_SKILLS_PATH",
-};
-
-const defaultAgentRoots: Record<AgentId, string> = {
-  codex: join(homedir(), ".codex"),
-  "claude-code": join(homedir(), ".claude"),
-  "gemini-cli": join(homedir(), ".gemini"),
-};
 
 export function normalizeBaseUrl(value: string | undefined): string {
   const trimmed = (value ?? DEFAULT_API_BASE_URL).trim();
@@ -114,11 +102,15 @@ export function createRuntimeConfigManager(options: RuntimeConfigManagerOptions 
     });
     const cacheDirectory = env.OPEN_SKILLHUB_CACHE_DIR ?? join(paths.rootDir, "cache");
     mkdirSync(cacheDirectory, { recursive: true });
+    const agentDetection = await createAgentDetectionService({
+      env,
+      homeDir: () => homedir()
+    }).refresh();
 
     return {
       bootstrap,
       config: {
-        agentSkillsPaths: resolveAgentSkillsPaths(env),
+        agentDetection,
         apiBaseUrl,
         locale,
         apiToken: bootstrap.apiToken,
@@ -180,28 +172,6 @@ export function createRuntimeConfigManager(options: RuntimeConfigManagerOptions 
       return this.reload();
     },
   };
-}
-
-function resolveAgentSkillsPaths(env: NodeJS.ProcessEnv): Partial<Record<AgentId, string>> {
-  return listAgentAdapters().reduce<Partial<Record<AgentId, string>>>((pathsByAgent, adapter) => {
-    const configuredPath = normalizeAgentSkillsPath(env[agentPathEnvVars[adapter.id]]);
-
-    if (configuredPath) {
-      pathsByAgent[adapter.id] = configuredPath;
-      return pathsByAgent;
-    }
-
-    if (existsSync(defaultAgentRoots[adapter.id])) {
-      pathsByAgent[adapter.id] = join(defaultAgentRoots[adapter.id], "skills");
-    }
-
-    return pathsByAgent;
-  }, {});
-}
-
-function normalizeAgentSkillsPath(value: string | undefined): string | null {
-  const trimmed = value?.trim();
-  return trimmed ? trimmed : null;
 }
 
 function resolveInitialLocale(env: NodeJS.ProcessEnv): AppLocale {

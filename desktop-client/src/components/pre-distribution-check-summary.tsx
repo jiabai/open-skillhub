@@ -56,6 +56,22 @@ export function hasPreDistributionActionWarning(
   )
 }
 
+export function areAllPreDistributionTargetsSame(
+  pendingUpdate: PendingSyncUpdate,
+  snapshot: PreDistributionCheckSnapshot | null,
+  isStale: boolean
+): boolean {
+  if (!snapshot || isStale || snapshot.targetAgentIds.length === 0) {
+    return false
+  }
+
+  const resultsByAgent = snapshot.results[pendingUpdate.remoteSkillId] ?? {}
+
+  return snapshot.targetAgentIds.every(
+    (agentId) => resultsByAgent[agentId]?.versionComparison === "same"
+  )
+}
+
 function getBadgeTone(comparison: PreDistributionVersionComparison) {
   if (comparison === "installed-older") {
     return "success" as const

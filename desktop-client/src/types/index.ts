@@ -2,7 +2,71 @@ export type ApiTokenSource = "secret-store" | "environment" | "missing"
 
 export type AppLocale = "en-US" | "zh-CN"
 
-export type AgentId = "codex" | "claude-code" | "gemini-cli"
+export type AgentId =
+  | "claude-code"
+  | "cursor"
+  | "windsurf"
+  | "copilot"
+  | "roocode"
+  | "cline"
+  | "gemini-cli"
+  | "codex"
+  | "opencode"
+  | "kilocode"
+  | "amp"
+  | "kiro"
+  | "warp"
+  | "trae"
+  | "factory"
+  | "kimi"
+  | "mistral"
+  | "pi"
+  | "antigravity"
+  | "openclaw"
+
+export type AgentInstallSource = "auto-detected" | "environment" | "missing"
+
+export interface AgentInstallStatus {
+  agentId: AgentId
+  displayName: string
+  installed: boolean
+  source: AgentInstallSource
+  detectionDirs: string[]
+  targetPaths: string[]
+  compatibleReadPaths: string[]
+  reason: string | null
+}
+
+export interface AgentSkillTarget {
+  targetId: string
+  targetPath: string
+  primaryAgentId: AgentId
+  coveredAgentIds: AgentId[]
+  sharedPathKey: string | null
+  source: AgentInstallSource
+}
+
+export interface AgentDetectionSnapshot {
+  checkedAt: string
+  supportedAgentCount: number
+  installedAgentIds: AgentId[]
+  agentStatuses: AgentInstallStatus[]
+  uniqueTargets: AgentSkillTarget[]
+}
+
+export type SkillDistributionTargetStatus =
+  | "success"
+  | "covered-by-shared-path"
+  | "skipped-agent-not-installed"
+  | "skipped-same-version"
+  | "failed"
+
+export type SkillDistributionWriteMode = "write" | "skip-same-version"
+
+export interface SkillDistributionTarget extends AgentSkillTarget {
+  writeMode?: SkillDistributionWriteMode
+  adapterAgentId?: string
+}
 
 export interface ConfigurationState {
   apiBaseUrl: string
@@ -173,11 +237,13 @@ export interface SkillDistributionRequest {
   name: string
   version: string | null
   packageSource: unknown
-  enabledAgentIds: string[]
+  targets: SkillDistributionTarget[]
 }
 
 export interface SkillDistributionTargetResult {
   agentId: string
+  targetPath: string
+  status: SkillDistributionTargetStatus
   success: boolean
   errorMessage: string | null
 }

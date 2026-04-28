@@ -84,16 +84,20 @@ This preserves the existing polling model while ensuring the visible review surf
 
 Pre-check uses the same effective target set as distribution:
 
-1. Start from `listAgentAdapters()`.
-2. Keep only agent IDs with `getRuntimeConfig().agentSkillsPaths[agentId]`.
-3. Build `{ adapter, installContext: { skillsPath } }` for each configured target.
+1. Refresh the runtime `agentDetection` snapshot.
+2. Start from `agentDetection.uniqueTargets`.
+3. Build one target job per unique physical `targetPath`, with `coveredAdapters`
+   for every assistant represented by that shared target.
+4. Use `{ adapter, installContext: { skillsPath: targetPath } }` for the
+   primary adapter and fan out one metadata result to every covered assistant.
 
 Rules:
 
-- Unconfigured supported agents are omitted, not marked as errors.
-- If no agent target is configured, return an empty result plus a global warning. Distribution already fails this case with a clear error.
-- If a configured `skillsPath` does not exist, treat the individual skill as `not-installed`; distribution can create the directory later.
-- If `skillsPath` exists but cannot be read, mark that agent result as `error`.
+- Missing supported agents are omitted from the target jobs, not marked as errors.
+- If no detected/configured target is available, return an empty result plus a global warning. Distribution already fails this case with a clear error.
+- If a target `skillsPath` does not contain the skill, treat the covered assistants as `not-installed`; distribution can create the directory later.
+- If a target `skillsPath` exists but cannot be read, mark every covered assistant result as `error`.
+- Shared paths are read once per `remoteSkillId + targetPath`.
 
 ## 7. Adapter Metadata Contract
 

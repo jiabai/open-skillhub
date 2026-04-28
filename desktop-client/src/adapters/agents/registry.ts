@@ -1,21 +1,26 @@
 import type { AgentAdapterV1 } from "@/adapters/agents/base"
-import { claudeCodeAgentAdapter } from "@/adapters/agents/claude-code"
-import { codexAgentAdapter } from "@/adapters/agents/codex"
-import { geminiCliAgentAdapter } from "@/adapters/agents/gemini-cli"
+import { createFilesystemAgentAdapter } from "@/adapters/agents/base"
+import { supportedAgentDefinitions } from "@/adapters/agents/definitions"
 import type { AgentId } from "@/types"
 
-const agentAdapters: Record<AgentId, AgentAdapterV1> = {
-  codex: codexAgentAdapter,
-  "claude-code": claudeCodeAgentAdapter,
-  "gemini-cli": geminiCliAgentAdapter
-}
+const agentAdapters = supportedAgentDefinitions.reduce<Record<AgentId, AgentAdapterV1>>(
+  (adapters, definition) => {
+    adapters[definition.id] = createFilesystemAgentAdapter({
+      id: definition.id,
+      displayName: definition.displayName
+    })
+
+    return adapters
+  },
+  {} as Record<AgentId, AgentAdapterV1>
+)
 
 export function getAgentAdapter(agentId: AgentId): AgentAdapterV1 {
   return agentAdapters[agentId]
 }
 
 export function listAgentAdapters(): AgentAdapterV1[] {
-  return [agentAdapters.codex, agentAdapters["claude-code"], agentAdapters["gemini-cli"]]
+  return supportedAgentDefinitions.map((definition) => agentAdapters[definition.id])
 }
 
 export function hasAgentAdapter(agentId: string): agentId is AgentId {

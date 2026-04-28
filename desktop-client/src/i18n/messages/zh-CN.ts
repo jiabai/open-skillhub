@@ -16,6 +16,8 @@ export const zhCNDictionary = {
     testingConnection: "测试中...",
     distribute: "分发",
     distributing: "分发中",
+    syncRecord: "同步记录",
+    syncingRecord: "同步中...",
     pending: (count: number) => `${count} 个待审核更新`,
     local: (value: string) => `本地 ${value}`,
     remote: (value: string) => `远程 ${value}`,
@@ -63,6 +65,10 @@ export const zhCNDictionary = {
         label: "成功分发次数",
         detail: "历史上成功完成的分发操作。"
       },
+      installedAgents: {
+        label: "已安装助手",
+        detail: "检测到的本地 SKILL 助手。"
+      },
       lastRefresh: {
         label: "最近刷新",
         detail: "最新的桥接快照。"
@@ -74,6 +80,7 @@ export const zhCNDictionary = {
     noPendingUpdates: "没有待审核更新。",
     viewAllUpdates: "查看全部更新",
     distribute: (name: string) => `分发 ${name}`,
+    syncLocalRecord: (name: string) => `同步 ${name} 的本地记录`,
     distributing: "分发中",
     badges: {
       local: (value: string) => `本地 ${value}`,
@@ -160,6 +167,8 @@ export const zhCNDictionary = {
     refreshingCheck: "检查中...",
     distribute: "分发",
     distributing: "分发中",
+    syncLocalRecord: "同步记录",
+    syncingRecord: "同步中...",
     reviewReasonLabel: "审核原因：",
     reasonLabels: {
       missingLocalRecord: "缺少本地记录",
@@ -195,13 +204,37 @@ export const zhCNDictionary = {
       error: (message: string) => `检查失败：${message}`
     }
   },
+  distributionConfirmation: {
+    title: "确认分发",
+    description: (name: string) => `分发 ${name} 前，请先确认检测到的目标。`,
+    destructiveWarning:
+      "分发可能覆盖目标技能目录中的文件。请在确认本地变更后继续。",
+    writeTargetsTitle: "将写入",
+    skippedTargetsTitle: "已是最新",
+    missingAgentsTitle: "未安装并跳过的助手",
+    noWriteTargets: "没有检测到写入目标。",
+    noSkippedTargets: "没有同版本目标。",
+    noMissingAgents: "没有缺失的受支持助手。",
+    confirm: "确认分发",
+    cancel: "取消"
+  },
   agentsPanel: {
     eyebrow: "代理",
     title: "分发目标",
-    description: "已批准的本地代理目标，可用于分发已审核更新。",
-    claudeCodeDetail: "面向代码型代理的适配层已经就绪。",
-    codexDetail: "已分发的更新可以投递到这个支持工作区的代理。",
-    geminiCliDetail: "这个代理会继续作为已批准的分发目标显示。"
+    description: "本地助手检测结果决定哪些目标能接收已审核更新。",
+    rediscover: "重新检测",
+    rediscovering: "检测中...",
+    noSnapshot: "尚未执行助手检测。",
+    summary: (installed: number, supported: number) =>
+      `已安装 ${installed} 个，共支持 ${supported} 个助手。`,
+    statusLabels: {
+      installed: "已安装",
+      missing: "未安装",
+      environment: "环境变量配置",
+      autoDetected: "自动检测"
+    },
+    targetPath: (value: string) => `目标 ${value}`,
+    detectionDirs: (value: string) => `检测 ${value}`
   },
   activityPanel: {
     eyebrow: "活动",
@@ -237,6 +270,12 @@ export const zhCNDictionary = {
     distributionCompletedWithRefreshWarningDetail: (detail: string, message: string) =>
       `${detail} 刷新审核快照时失败：${message}`,
     distributionFailedTitle: "分发失败",
-    distributionFailedDetail: (name: string, message: string) => `${name} 无法分发：${message}`
+    distributionFailedDetail: (name: string, message: string) => `${name} 无法分发：${message}`,
+    localRecordSyncedTitle: "本地记录已同步",
+    localRecordSyncedDetail: (name: string) =>
+      `${name} 已安装在所有检测到的目标上，因此已更新本地审核记录。`,
+    localRecordSyncFailedTitle: "本地记录同步失败",
+    localRecordSyncFailedDetail: (name: string, message: string) =>
+      `${name} 无法标记为已同步：${message}`
   }
 } satisfies AppDictionary

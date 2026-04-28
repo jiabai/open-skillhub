@@ -11,7 +11,9 @@ type MockDesktopClientBridge = {
   clearConfiguration: ReturnType<typeof vi.fn>
   testConnection: ReturnType<typeof vi.fn>
   refreshSync: ReturnType<typeof vi.fn>
+  refreshAgentDetection: ReturnType<typeof vi.fn>
   refreshPreDistributionCheck: ReturnType<typeof vi.fn>
+  reconcileInstalledSkill: ReturnType<typeof vi.fn>
   distributePendingUpdate: ReturnType<typeof vi.fn>
 }
 
@@ -22,7 +24,9 @@ const mockDesktopClient = {
   clearConfiguration: vi.fn(),
   testConnection: vi.fn(),
   refreshSync: vi.fn(),
+  refreshAgentDetection: vi.fn(),
   refreshPreDistributionCheck: vi.fn(),
+  reconcileInstalledSkill: vi.fn(),
   distributePendingUpdate: vi.fn()
 } satisfies MockDesktopClientBridge
 
@@ -33,6 +37,62 @@ const configuredState = {
   tokenSource: "secret-store" as const,
   persistedEnvironmentToken: false,
   secretStoreAvailable: true
+}
+
+const defaultAgentDetection = {
+  checkedAt: "2026-04-28T00:00:00.000Z",
+  supportedAgentCount: 20,
+  installedAgentIds: ["codex", "claude-code"],
+  agentStatuses: [
+    {
+      agentId: "codex",
+      displayName: "Codex",
+      installed: true,
+      source: "auto-detected",
+      detectionDirs: ["C:\\Users\\test\\.codex"],
+      targetPaths: ["C:\\Users\\test\\.codex\\skills"],
+      compatibleReadPaths: ["C:\\Users\\test\\.agents\\skills"],
+      reason: null
+    },
+    {
+      agentId: "claude-code",
+      displayName: "Claude Code",
+      installed: true,
+      source: "environment",
+      detectionDirs: ["C:\\Users\\test\\.claude"],
+      targetPaths: ["D:\\Claude\\skills"],
+      compatibleReadPaths: [],
+      reason: null
+    },
+    {
+      agentId: "gemini-cli",
+      displayName: "Gemini CLI",
+      installed: false,
+      source: "missing",
+      detectionDirs: ["C:\\Users\\test\\.gemini"],
+      targetPaths: [],
+      compatibleReadPaths: [],
+      reason: "No detection directory found."
+    }
+  ],
+  uniqueTargets: [
+    {
+      targetId: "target-codex",
+      targetPath: "C:\\Users\\test\\.codex\\skills",
+      primaryAgentId: "codex",
+      coveredAgentIds: ["codex"],
+      sharedPathKey: null,
+      source: "auto-detected"
+    },
+    {
+      targetId: "target-claude",
+      targetPath: "D:\\Claude\\skills",
+      primaryAgentId: "claude-code",
+      coveredAgentIds: ["claude-code"],
+      sharedPathKey: null,
+      source: "environment"
+    }
+  ]
 }
 
 beforeEach(() => {
@@ -62,6 +122,13 @@ beforeEach(() => {
     totalDurationMs: 0,
     globalErrors: []
   })
+  mockDesktopClient.refreshAgentDetection.mockResolvedValue(defaultAgentDetection)
+  mockDesktopClient.reconcileInstalledSkill.mockResolvedValue({
+    localRecords: [],
+    pendingUpdates: [],
+    successfulDistributionCount: 0,
+    lastRefreshedAt: "2026-04-17T00:00:00.000Z"
+  })
 
   Object.defineProperty(window, "desktopClient", {
     configurable: true,
@@ -83,7 +150,9 @@ describe("App", () => {
     expect(window.desktopClient?.clearConfiguration).toBeTypeOf("function")
     expect(window.desktopClient?.testConnection).toBeTypeOf("function")
     expect(window.desktopClient?.refreshSync).toBeTypeOf("function")
+    expect(window.desktopClient?.refreshAgentDetection).toBeTypeOf("function")
     expect(window.desktopClient?.refreshPreDistributionCheck).toBeTypeOf("function")
+    expect(window.desktopClient?.reconcileInstalledSkill).toBeTypeOf("function")
     expect(window.desktopClient?.distributePendingUpdate).toBeTypeOf("function")
   })
 
@@ -158,6 +227,13 @@ describe("App", () => {
       totalDurationMs: 0,
       globalErrors: []
     })
+    mockDesktopClient.refreshAgentDetection.mockResolvedValue(defaultAgentDetection)
+    mockDesktopClient.reconcileInstalledSkill.mockResolvedValue({
+      localRecords: [],
+      pendingUpdates: [],
+      successfulDistributionCount: 0,
+      lastRefreshedAt: null
+    })
     mockDesktopClient.distributePendingUpdate.mockResolvedValue({
       skillId: "skill-a",
       name: "Skill A",
@@ -202,6 +278,7 @@ describe("App", () => {
       successfulDistributionCount: 0,
       lastRefreshedAt: null
     })
+    await expect(desktopClient.refreshAgentDetection()).resolves.toEqual(defaultAgentDetection)
     await expect(desktopClient.refreshPreDistributionCheck()).resolves.toEqual({
       results: {},
       checkedAt: "2026-04-17T00:00:00.000Z",
@@ -210,6 +287,12 @@ describe("App", () => {
       targetAgentIds: [],
       totalDurationMs: 0,
       globalErrors: []
+    })
+    await expect(desktopClient.reconcileInstalledSkill("skill-a")).resolves.toEqual({
+      localRecords: [],
+      pendingUpdates: [],
+      successfulDistributionCount: 0,
+      lastRefreshedAt: null
     })
     await expect(desktopClient.distributePendingUpdate("skill-a")).resolves.toEqual({
       skillId: "skill-a",
@@ -234,7 +317,9 @@ describe("App", () => {
       apiToken: "ask_live"
     })
     expect(mockDesktopClient.refreshSync).toHaveBeenCalledTimes(1)
+    expect(mockDesktopClient.refreshAgentDetection).toHaveBeenCalledTimes(1)
     expect(mockDesktopClient.refreshPreDistributionCheck).toHaveBeenCalledTimes(1)
+    expect(mockDesktopClient.reconcileInstalledSkill).toHaveBeenCalledWith("skill-a")
     expect(mockDesktopClient.distributePendingUpdate).toHaveBeenCalledWith("skill-a")
   })
 
@@ -370,6 +455,34 @@ describe("App", () => {
     })
   })
 
+  it("shows detected agent counts and dynamic agent status", async () => {
+    mockDesktopClient.refreshSync.mockResolvedValueOnce({
+      localRecords: [],
+      pendingUpdates: [],
+      successfulDistributionCount: 0,
+      lastRefreshedAt: "2026-04-17T00:00:00.000Z"
+    })
+    mockDesktopClient.refreshAgentDetection.mockResolvedValueOnce(defaultAgentDetection)
+
+    render(<App />)
+
+    await waitFor(() => {
+      expect(mockDesktopClient.refreshAgentDetection).toHaveBeenCalledTimes(1)
+      expect(screen.getByText("Installed agents")).toBeInTheDocument()
+      expect(screen.getByText("2")).toBeInTheDocument()
+    })
+
+    fireEvent.click(screen.getAllByRole("button", { name: "Settings" })[0])
+
+    await waitFor(() => {
+      expect(screen.getByText("Claude Code")).toBeInTheDocument()
+      expect(screen.getByText("Configured by environment")).toBeInTheDocument()
+      expect(screen.getByText(/D:\\Claude\\skills/)).toBeInTheDocument()
+      expect(screen.getByText("Gemini CLI")).toBeInTheDocument()
+      expect(screen.getAllByText("Not installed").length).toBeGreaterThan(0)
+    })
+  })
+
   it("runs a pre-distribution check after loading pending updates", async () => {
     mockDesktopClient.refreshSync.mockResolvedValueOnce({
       localRecords: [],
@@ -475,6 +588,88 @@ describe("App", () => {
     })
   })
 
+  it("syncs the local record instead of distributing when every target already has the remote version", async () => {
+    mockDesktopClient.refreshSync.mockResolvedValueOnce({
+      localRecords: [],
+      pendingUpdates: [
+        {
+          remoteSkillId: "skill-a",
+          name: "Skill A",
+          localVersion: null,
+          remoteVersion: "1.0.0",
+          reason: "missing-local-record"
+        }
+      ],
+      successfulDistributionCount: 0,
+      lastRefreshedAt: "2026-04-17T00:00:00.000Z"
+    })
+    mockDesktopClient.refreshPreDistributionCheck.mockResolvedValueOnce({
+      results: {
+        "skill-a": {
+          codex: {
+            agentId: "codex",
+            displayName: "Codex",
+            skillDir: "C:\\Users\\test\\.codex\\skills\\skill-a",
+            exists: true,
+            installedVersion: "1.0.0",
+            installedVersionSource: "skill-frontmatter",
+            remoteVersion: "1.0.0",
+            installedVersionFormat: "semver",
+            remoteVersionFormat: "semver",
+            versionComparison: "same",
+            checkedAt: "2026-04-17T00:00:01.000Z",
+            durationMs: 4,
+            errorCode: null,
+            errorMessage: null
+          }
+        }
+      },
+      checkedAt: "2026-04-17T00:00:01.000Z",
+      expiresAt: "2099-04-17T00:00:01.000Z",
+      pendingUpdateFingerprint: "skill-a@1.0.0",
+      targetAgentIds: ["codex"],
+      totalDurationMs: 4,
+      globalErrors: []
+    })
+    mockDesktopClient.reconcileInstalledSkill.mockResolvedValueOnce({
+      localRecords: [
+        {
+          remoteSkillId: "skill-a",
+          name: "Skill A",
+          installedVersion: "1.0.0",
+          remoteVersion: "1.0.0",
+          lastComparedAt: "2026-04-17T00:00:05.000Z"
+        }
+      ],
+      pendingUpdates: [],
+      successfulDistributionCount: 0,
+      lastRefreshedAt: "2026-04-17T00:00:05.000Z"
+    })
+
+    render(<App />)
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole("button", { name: "Sync local record for Skill A" })
+      ).toBeInTheDocument()
+      expect(screen.queryByRole("button", { name: "Distribute Skill A" })).not.toBeInTheDocument()
+    })
+
+    fireEvent.click(screen.getByRole("button", { name: "Sync local record for Skill A" }))
+
+    await waitFor(() => {
+      expect(mockDesktopClient.reconcileInstalledSkill).toHaveBeenCalledWith("skill-a")
+      expect(mockDesktopClient.distributePendingUpdate).not.toHaveBeenCalled()
+      expect(screen.getByText("No pending updates are waiting for review.")).toBeInTheDocument()
+    })
+
+    fireEvent.click(screen.getAllByRole("button", { name: "Settings" })[0])
+
+    await waitFor(() => {
+      expect(screen.getByText("Local record synced")).toBeInTheDocument()
+    })
+  })
+
   it("refreshes the pre-distribution check without reloading the remote queue", async () => {
     mockDesktopClient.refreshSync.mockResolvedValue({
       localRecords: [],
@@ -577,6 +772,18 @@ describe("App", () => {
     fireEvent.click(screen.getByRole("button", { name: "Distribute Skill A" }))
 
     await waitFor(() => {
+      expect(screen.getByRole("dialog", { name: "Confirm distribution" })).toBeInTheDocument()
+      expect(screen.getByText("Will write to")).toBeInTheDocument()
+      expect(screen.getByText(/Codex/)).toBeInTheDocument()
+      expect(screen.getByText(/Claude Code/)).toBeInTheDocument()
+      expect(screen.getByText("Missing assistants skipped")).toBeInTheDocument()
+      expect(screen.getByText("Gemini CLI")).toBeInTheDocument()
+      expect(mockDesktopClient.distributePendingUpdate).not.toHaveBeenCalled()
+    })
+
+    fireEvent.click(screen.getByRole("button", { name: "Confirm distribution" }))
+
+    await waitFor(() => {
       expect(mockDesktopClient.distributePendingUpdate).toHaveBeenCalledWith("skill-a")
       expect(screen.getByText("No pending updates are waiting for review.")).toBeInTheDocument()
     })
@@ -624,6 +831,7 @@ describe("App", () => {
     })
 
     fireEvent.click(screen.getByRole("button", { name: "Distribute Skill A" }))
+    fireEvent.click(screen.getByRole("button", { name: "Confirm distribution" }))
 
     fireEvent.click(screen.getAllByRole("button", { name: "Settings" })[0])
 
@@ -689,6 +897,7 @@ describe("App", () => {
     })
 
     fireEvent.click(screen.getByRole("button", { name: "Distribute Skill A" }))
+    fireEvent.click(screen.getByRole("button", { name: "Confirm distribution" }))
 
     fireEvent.click(screen.getAllByRole("button", { name: "Settings" })[0])
 

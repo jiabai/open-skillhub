@@ -1,41 +1,75 @@
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui-primitives"
+import type { AgentDetectionSnapshot } from "@/types"
+import { Badge, Button, Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui-primitives"
 import { useI18n } from "@/i18n/use-i18n"
 
-export function AgentsPanel() {
-  const { dictionary } = useI18n()
+type AgentsPanelProps = {
+  detectionSnapshot: AgentDetectionSnapshot | null
+  isRefreshing: boolean
+  onRefresh: () => void
+}
 
-  const agents = [
-    {
-      name: "Claude Code",
-      detail: dictionary.agentsPanel.claudeCodeDetail
-    },
-    {
-      name: "Codex",
-      detail: dictionary.agentsPanel.codexDetail
-    },
-    {
-      name: "Gemini CLI",
-      detail: dictionary.agentsPanel.geminiCliDetail
-    }
-  ]
+export function AgentsPanel({ detectionSnapshot, isRefreshing, onRefresh }: AgentsPanelProps) {
+  const { dictionary } = useI18n()
+  const copy = dictionary.agentsPanel
 
   return (
     <Card aria-labelledby="agents-heading" flat>
       <CardHeader>
-        <span className="section-heading__eyebrow">{dictionary.agentsPanel.eyebrow}</span>
-        <CardTitle id="agents-heading">{dictionary.agentsPanel.title}</CardTitle>
-        <CardDescription>{dictionary.agentsPanel.description}</CardDescription>
+        <div className="page-intro">
+          <div className="section-heading">
+            <span className="section-heading__eyebrow">{copy.eyebrow}</span>
+            <CardTitle id="agents-heading">{copy.title}</CardTitle>
+            <CardDescription>{copy.description}</CardDescription>
+          </div>
+          <Button variant="secondary" disabled={isRefreshing} onClick={onRefresh}>
+            {isRefreshing ? copy.rediscovering : copy.rediscover}
+          </Button>
+        </div>
       </CardHeader>
 
       <CardContent>
-        <div className="list-stack">
-          {agents.map((agent) => (
-            <article className="update-item" key={agent.name}>
-              <strong>{agent.name}</strong>
-              <p className="card__description">{agent.detail}</p>
-            </article>
-          ))}
-        </div>
+        {!detectionSnapshot ? (
+          <div className="callout">{copy.noSnapshot}</div>
+        ) : (
+          <div className="list-stack">
+            <p className="card__description">
+              {copy.summary(
+                detectionSnapshot.installedAgentIds.length,
+                detectionSnapshot.supportedAgentCount
+              )}
+            </p>
+            {detectionSnapshot.agentStatuses.map((agent) => {
+              const statusLabel = agent.installed
+                ? agent.source === "environment"
+                  ? copy.statusLabels.environment
+                  : copy.statusLabels.autoDetected
+                : copy.statusLabels.missing
+
+              return (
+                <article className="update-item" key={agent.agentId}>
+                  <div className="update-item__header">
+                    <strong>{agent.displayName}</strong>
+                    <Badge tone={agent.installed ? "success" : "warning"}>
+                      {agent.installed ? copy.statusLabels.installed : copy.statusLabels.missing}
+                    </Badge>
+                  </div>
+                  <div className="update-item__meta">
+                    <Badge>{statusLabel}</Badge>
+                  </div>
+                  {agent.targetPaths.length > 0 ? (
+                    <p className="card__description mono">
+                      {copy.targetPath(agent.targetPaths.join(", "))}
+                    </p>
+                  ) : (
+                    <p className="card__description mono">
+                      {copy.detectionDirs(agent.detectionDirs.join(", "))}
+                    </p>
+                  )}
+                </article>
+              )
+            })}
+          </div>
+        )}
       </CardContent>
     </Card>
   )

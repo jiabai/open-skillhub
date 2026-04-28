@@ -18,7 +18,7 @@ import {
   screen
 } from "electron"
 
-import { getAgentAdapter, listAgentAdapters } from "@/adapters/agents/registry"
+import { getAgentAdapter } from "@/adapters/agents/registry"
 import {
   createDistributionNotification,
   createDistributionService
@@ -35,14 +35,17 @@ import { ensureAppDirectories } from "@/core/storage/app-paths"
 import { createSqliteStateStore } from "@/core/storage/state-db"
 import { createSyncPollingController, createSyncService } from "@/core/sync/sync-service"
 import type {
+  AgentDetectionSnapshot,
   AppLocale,
   AgentId,
   ConfigurationPayload,
   ConfigurationState,
   DesktopSyncState,
   DownloadedSkillArtifact,
+  PendingSyncUpdate,
   PreDistributionCheckSnapshot,
   RemoteSkillSummary,
+  SkillDistributionTarget,
   SkillDistributionResult,
   SkillPackageRequest
 } from "@/types"
@@ -373,29 +376,88 @@ async function extractArchive(artifactPath: string, extractedPath: string): Prom
   }
 }
 
-function getEnabledAgentIds(config: DesktopRuntimeConfig): AgentId[] {
-  return listAgentAdapters()
-    .map((adapter) => adapter.id)
-    .filter((agentId) => Boolean(config.agentSkillsPaths[agentId]))
+function getPreDistributionCheckTargets(config: DesktopRuntimeConfig) {
+  return config.agentDetection.uniqueTargets.map((target) => {
+    const adapter = getAgentAdapter(target.primaryAgentId)
+    const coveredAdapters = target.coveredAgentIds.map((agentId) => {
+      const coveredAdapter = getAgentAdapter(agentId)
+
+      return {
+        id: coveredAdapter.id,
+        displayName: coveredAdapter.displayName
+      }
+    })
+
+    return {
+      adapter,
+      coveredAdapters,
+      target,
+      installContext: {
+        skillsPath: target.targetPath
+      }
+    }
+  })
 }
 
-function getPreDistributionCheckTargets(config: DesktopRuntimeConfig) {
-  return listAgentAdapters().flatMap((adapter) => {
-    const skillsPath = config.agentSkillsPaths[adapter.id]
+function getDistributionTargets(
+  config: DesktopRuntimeConfig,
+  snapshot?: PreDistributionCheckSnapshot,
+  pendingUpdateId?: string
+): SkillDistributionTarget[] {
+  const resultsByAgent =
+    snapshot && pendingUpdateId ? snapshot.results[pendingUpdateId] ?? {} : {}
 
-    if (!skillsPath) {
-      return []
-    }
+  return config.agentDetection.uniqueTargets.map((target) => ({
+    ...target,
+    writeMode:
+      target.coveredAgentIds.length > 0 &&
+      target.coveredAgentIds.every(
+        (agentId) => resultsByAgent[agentId]?.versionComparison === "same"
+      )
+        ? "skip-same-version"
+        : "write"
+  }))
+}
 
-    return [
-      {
-        adapter,
-        installContext: {
-          skillsPath
-        }
-      }
-    ]
-  })
+function findPendingUpdate(state: DesktopSyncState, pendingUpdateId: string): PendingSyncUpdate | null {
+  return (
+    state.pendingUpdates.find(
+      (update) => update.remoteSkillId === pendingUpdateId || update.name === pendingUpdateId
+    ) ?? null
+  )
+}
+
+function reconcileStateAfterInstalled(
+  currentState: DesktopSyncState,
+  pendingUpdate: PendingSyncUpdate,
+  comparedAt: string
+): DesktopSyncState {
+  const nextLocalRecords = [...currentState.localRecords]
+  const existingRecordIndex = nextLocalRecords.findIndex(
+    (record) => record.remoteSkillId === pendingUpdate.remoteSkillId
+  )
+  const nextRecord = {
+    remoteSkillId: pendingUpdate.remoteSkillId,
+    name: pendingUpdate.name,
+    installedVersion: pendingUpdate.remoteVersion,
+    remoteVersion: pendingUpdate.remoteVersion,
+    lastComparedAt: comparedAt
+  }
+
+  if (existingRecordIndex >= 0) {
+    nextLocalRecords[existingRecordIndex] = nextRecord
+  } else {
+    nextLocalRecords.push(nextRecord)
+  }
+
+  return {
+    localRecords: nextLocalRecords,
+    pendingUpdates: currentState.pendingUpdates.filter(
+      (update) => update.remoteSkillId !== pendingUpdate.remoteSkillId
+    ),
+    successfulDistributionCount: currentState.successfulDistributionCount,
+    lastRefreshedAt: currentState.lastRefreshedAt
+  }
 }
 
 function configureWindowLifecycle(window: BrowserWindow): void {
@@ -485,11 +547,7 @@ async function createApplicationServices(): Promise<void> {
   const distributionService = createDistributionService({
     packageService,
     stateStore,
-    resolveAgentAdapter: (agentId) => getAgentAdapter(agentId as AgentId),
-    resolveInstallContext: (agentId) => {
-      const skillsPath = getRuntimeConfig().agentSkillsPaths[agentId as AgentId]
-      return skillsPath ? { skillsPath } : null
-    }
+    resolveAgentAdapter: (agentId) => getAgentAdapter(agentId as AgentId)
   })
 
   stopPolling = pollingController.stop
@@ -581,6 +639,11 @@ async function createApplicationServices(): Promise<void> {
 
       return currentStateStore.readState()
     },
+    refreshAgentDetection: async (): Promise<AgentDetectionSnapshot> => {
+      const nextRuntimeState = await runtimeConfigManager.reload()
+
+      return nextRuntimeState.config.agentDetection
+    },
     refreshPreDistributionCheck: async (): Promise<PreDistributionCheckSnapshot> => {
       const currentStateStore = stateStore
 
@@ -588,13 +651,63 @@ async function createApplicationServices(): Promise<void> {
         throw new Error("State store unavailable")
       }
 
-      const runtimeConfig = getRuntimeConfig()
+      const runtimeConfig = (await runtimeConfigManager.reload()).config
       const preDistributionCheckService = createPreDistributionCheckService({
         stateStore: currentStateStore,
         targets: getPreDistributionCheckTargets(runtimeConfig)
       })
 
       return preDistributionCheckService.refresh()
+    },
+    reconcileInstalledSkill: async (pendingUpdateId: string): Promise<DesktopSyncState> => {
+      const normalizedPendingUpdateId = pendingUpdateId.trim()
+
+      if (!normalizedPendingUpdateId) {
+        throw new Error("pendingUpdateId cannot be empty")
+      }
+
+      const currentStateStore = stateStore
+
+      if (!currentStateStore) {
+        throw new Error("State store unavailable")
+      }
+
+      const currentState = await currentStateStore.readState()
+      const pendingUpdate = findPendingUpdate(currentState, normalizedPendingUpdateId)
+
+      if (!pendingUpdate) {
+        throw new Error(`Unknown pending update: ${normalizedPendingUpdateId}`)
+      }
+
+      const runtimeConfig = (await runtimeConfigManager.reload()).config
+      const preDistributionCheckService = createPreDistributionCheckService({
+        stateStore: currentStateStore,
+        targets: getPreDistributionCheckTargets(runtimeConfig)
+      })
+      const snapshot = await preDistributionCheckService.refresh()
+      const results = Object.values(snapshot.results[pendingUpdate.remoteSkillId] ?? {}).filter(
+        (result) => result !== undefined
+      )
+
+      if (snapshot.targetAgentIds.length === 0) {
+        throw new Error("No supported agent skills directories were detected.")
+      }
+
+      if (
+        results.length !== snapshot.targetAgentIds.length ||
+        !results.every((result) => result.versionComparison === "same")
+      ) {
+        throw new Error("Installed target versions are not all identical to the remote version.")
+      }
+
+      const nextState = reconcileStateAfterInstalled(
+        currentState,
+        pendingUpdate,
+        new Date().toISOString()
+      )
+      await currentStateStore.writeState(nextState)
+
+      return nextState
     },
     distributePendingUpdate: async (pendingUpdateId: string): Promise<SkillDistributionResult> => {
       const normalizedPendingUpdateId = pendingUpdateId.trim()
@@ -603,24 +716,32 @@ async function createApplicationServices(): Promise<void> {
         throw new Error("pendingUpdateId cannot be empty")
       }
 
-      const currentState = await stateStore?.readState()
+      const currentStateStore = stateStore
 
-      if (!currentState) {
+      if (!currentStateStore) {
         throw new Error("State store unavailable")
       }
 
-      const pendingUpdate = currentState.pendingUpdates.find(
-        (update) =>
-          update.remoteSkillId === normalizedPendingUpdateId || update.name === normalizedPendingUpdateId
-      )
+      const currentState = await currentStateStore.readState()
+      const pendingUpdate = findPendingUpdate(currentState, normalizedPendingUpdateId)
 
       if (!pendingUpdate) {
         throw new Error(`Unknown pending update: ${normalizedPendingUpdateId}`)
       }
 
-      const enabledAgentIds = getEnabledAgentIds(getRuntimeConfig())
+      const runtimeConfig = (await runtimeConfigManager.reload()).config
+      const preDistributionCheckService = createPreDistributionCheckService({
+        stateStore: currentStateStore,
+        targets: getPreDistributionCheckTargets(runtimeConfig)
+      })
+      const preDistributionCheckSnapshot = await preDistributionCheckService.refresh()
+      const distributionTargets = getDistributionTargets(
+        runtimeConfig,
+        preDistributionCheckSnapshot,
+        pendingUpdate.remoteSkillId
+      )
 
-      if (enabledAgentIds.length === 0) {
+      if (distributionTargets.length === 0) {
         throw new Error(
           "No supported agent skills directories were detected. Configure OPEN_SKILLHUB_*_SKILLS_PATH to continue."
         )
@@ -633,7 +754,7 @@ async function createApplicationServices(): Promise<void> {
         packageSource: {
           source: "client-download"
         },
-        enabledAgentIds
+        targets: distributionTargets
       })
       const notification = createDistributionNotification(result)
       createNotification({

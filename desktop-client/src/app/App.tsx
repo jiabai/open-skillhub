@@ -4,6 +4,7 @@ import { AppShell, type AppView } from "@/components/app-shell"
 import { HomeView } from "@/components/home-view"
 import { SettingsDrawer } from "@/components/settings-drawer"
 import { UpdatesView } from "@/components/updates-view"
+import { Button, Dialog } from "@/components/ui-primitives"
 import { formatDateTime } from "@/i18n/format-date"
 import { getDictionary } from "@/i18n/get-dictionary"
 import { I18nProvider } from "@/i18n/i18n-provider"
@@ -11,6 +12,8 @@ import { resolveLocale } from "@/i18n/config"
 import { desktopClient } from "@/lib/ipc-client"
 import type {
   AppLocale,
+  AgentDetectionSnapshot,
+  AgentId,
   ConfigurationPayload,
   ConfigurationState,
   ConnectionTestResult,
@@ -26,6 +29,12 @@ type ActivityEntry = {
   detail: string
   timestamp: string
   tone: "neutral" | "success" | "warning"
+}
+
+type DistributionConfirmationSummary = {
+  writeTargets: string[]
+  skippedTargets: string[]
+  missingAgents: string[]
 }
 
 const initialState: DesktopSyncState = {
@@ -92,6 +101,86 @@ function createPendingUpdateFingerprint(pendingUpdates: PendingSyncUpdate[]): st
     .join("|")
 }
 
+function getAgentDisplayName(snapshot: AgentDetectionSnapshot, agentId: AgentId): string {
+  return (
+    snapshot.agentStatuses.find((status) => status.agentId === agentId)?.displayName ?? agentId
+  )
+}
+
+function createDistributionTargetLabel(
+  snapshot: AgentDetectionSnapshot,
+  coveredAgentIds: AgentId[],
+  targetPath: string
+): string {
+  const names = coveredAgentIds.map((agentId) => getAgentDisplayName(snapshot, agentId)).join(", ")
+
+  return `${names} (${targetPath})`
+}
+
+function createDistributionConfirmationSummary(
+  pendingUpdate: PendingSyncUpdate,
+  detectionSnapshot: AgentDetectionSnapshot | null,
+  preDistributionCheckSnapshot: PreDistributionCheckSnapshot | null,
+  isPreDistributionCheckStale: boolean
+): DistributionConfirmationSummary {
+  if (!detectionSnapshot) {
+    return {
+      writeTargets: [],
+      skippedTargets: [],
+      missingAgents: []
+    }
+  }
+
+  const resultsByAgent =
+    preDistributionCheckSnapshot && !isPreDistributionCheckStale
+      ? preDistributionCheckSnapshot.results[pendingUpdate.remoteSkillId] ?? {}
+      : {}
+
+  const writeTargets: string[] = []
+  const skippedTargets: string[] = []
+
+  for (const target of detectionSnapshot.uniqueTargets) {
+    const targetLabel = createDistributionTargetLabel(
+      detectionSnapshot,
+      target.coveredAgentIds,
+      target.targetPath
+    )
+    const everyCoveredAgentIsSame =
+      target.coveredAgentIds.length > 0 &&
+      target.coveredAgentIds.every(
+        (agentId) => resultsByAgent[agentId]?.versionComparison === "same"
+      )
+
+    if (everyCoveredAgentIsSame) {
+      skippedTargets.push(targetLabel)
+    } else {
+      writeTargets.push(targetLabel)
+    }
+  }
+
+  return {
+    writeTargets,
+    skippedTargets,
+    missingAgents: detectionSnapshot.agentStatuses
+      .filter((status) => !status.installed)
+      .map((status) => status.displayName)
+  }
+}
+
+function renderDialogList(items: string[], fallback: string) {
+  if (items.length === 0) {
+    return <p className="card__description">{fallback}</p>
+  }
+
+  return (
+    <ul className="dialog-list">
+      {items.map((item) => (
+        <li key={item}>{item}</li>
+      ))}
+    </ul>
+  )
+}
+
 export function App() {
   const bridgeAvailable = desktopClient.isAvailable()
   const initialLocale = resolveLocale(typeof navigator !== "undefined" ? navigator.language : null)
@@ -100,7 +189,10 @@ export function App() {
   const [syncState, setSyncState] = useState<DesktopSyncState>(initialState)
   const [preDistributionCheckSnapshot, setPreDistributionCheckSnapshot] =
     useState<PreDistributionCheckSnapshot | null>(null)
+  const [agentDetectionSnapshot, setAgentDetectionSnapshot] =
+    useState<AgentDetectionSnapshot | null>(null)
   const [isPreDistributionChecking, setIsPreDistributionChecking] = useState(false)
+  const [isAgentDetectionRefreshing, setIsAgentDetectionRefreshing] = useState(false)
   const [preDistributionCheckClock, setPreDistributionCheckClock] = useState(() => Date.now())
   const [activity, setActivity] = useState<ActivityEntry[]>([
     createActivityEntry(
@@ -111,6 +203,8 @@ export function App() {
   ])
   const [isLoading, setIsLoading] = useState(true)
   const [busyUpdateId, setBusyUpdateId] = useState<string | null>(null)
+  const [pendingDistributionConfirmation, setPendingDistributionConfirmation] =
+    useState<PendingSyncUpdate | null>(null)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [configState, setConfigState] = useState<ConfigurationState | null>(null)
   const [isConfiguring, setIsConfiguring] = useState(false)
@@ -203,6 +297,37 @@ export function App() {
     }
   }
 
+  const refreshAgentDetectionState = async (localizedDictionary = dictionary) => {
+    if (!bridgeAvailable) {
+      setAgentDetectionSnapshot(null)
+      setIsAgentDetectionRefreshing(false)
+      return null
+    }
+
+    setIsAgentDetectionRefreshing(true)
+
+    try {
+      const snapshot = await desktopClient.refreshAgentDetection()
+      setAgentDetectionSnapshot(snapshot)
+      return snapshot
+    } catch (error: unknown) {
+      const message = getErrorMessage(error)
+      setActivity((current) =>
+        [
+          createActivityEntry(
+            localizedDictionary.activity.refreshFailedTitle,
+            localizedDictionary.activity.refreshFailedDetail(`Agent detection: ${message}`),
+            "warning"
+          ),
+          ...current
+        ].slice(0, 5)
+      )
+      return null
+    } finally {
+      setIsAgentDetectionRefreshing(false)
+    }
+  }
+
   const bridgeStatus = useMemo(() => {
     if (!bridgeAvailable) {
       return dictionary.appShell.bridgeStatus.unavailable
@@ -263,6 +388,11 @@ export function App() {
         loadedLocale = configuration.locale
 
         const localizedDictionary = getDictionary(loadedLocale)
+        await refreshAgentDetectionState(localizedDictionary)
+
+        if (!active) {
+          return
+        }
 
         if (!configuration.hasToken) {
           setIsConfiguring(true)
@@ -347,6 +477,7 @@ export function App() {
 
     try {
       const state = await desktopClient.refreshSync()
+      await refreshAgentDetectionState()
       setSyncState(state)
       setErrorMessage(null)
       await refreshPreDistributionCheckForState(state)
@@ -416,6 +547,7 @@ export function App() {
         setIsLoading(true)
         try {
           const state = await desktopClient.refreshSync()
+          await refreshAgentDetectionState(localizedDictionary)
           setSyncState(state)
           await refreshPreDistributionCheckForState(state, localizedDictionary)
           setActivity((current) =>
@@ -546,6 +678,7 @@ export function App() {
       hasLocaleOverride.current = true
       setSelectedLocale(nextConfiguration.locale)
       setSyncState(initialState)
+      setAgentDetectionSnapshot(null)
       setPreDistributionCheckSnapshot(null)
       setConnectionTestResult(null)
       setErrorMessage(null)
@@ -582,7 +715,11 @@ export function App() {
     }
   }
 
-  const handleDistribute = async (pendingUpdate: PendingSyncUpdate) => {
+  const requestDistributionConfirmation = (pendingUpdate: PendingSyncUpdate) => {
+    setPendingDistributionConfirmation(pendingUpdate)
+  }
+
+  const executeDistribution = async (pendingUpdate: PendingSyncUpdate) => {
     if (!bridgeAvailable) {
       return
     }
@@ -644,8 +781,65 @@ export function App() {
     }
   }
 
+  const handleConfirmDistribution = async () => {
+    if (!pendingDistributionConfirmation) {
+      return
+    }
+
+    const pendingUpdate = pendingDistributionConfirmation
+    setPendingDistributionConfirmation(null)
+    await executeDistribution(pendingUpdate)
+  }
+
+  const handleReconcileInstalled = async (pendingUpdate: PendingSyncUpdate) => {
+    if (!bridgeAvailable) {
+      return
+    }
+
+    setBusyUpdateId(pendingUpdate.remoteSkillId)
+
+    try {
+      const refreshedState = await desktopClient.reconcileInstalledSkill(
+        pendingUpdate.remoteSkillId
+      )
+
+      setSyncState(refreshedState)
+      setErrorMessage(null)
+      await refreshPreDistributionCheckForState(refreshedState)
+      setActivity((current) =>
+        [
+          createActivityEntry(
+            dictionary.activity.localRecordSyncedTitle,
+            dictionary.activity.localRecordSyncedDetail(pendingUpdate.name),
+            "success"
+          ),
+          ...current
+        ].slice(0, 5)
+      )
+    } catch (error: unknown) {
+      const message = getErrorMessage(error)
+      setErrorMessage(message)
+      setActivity((current) =>
+        [
+          createActivityEntry(
+            dictionary.activity.localRecordSyncFailedTitle,
+            dictionary.activity.localRecordSyncFailedDetail(pendingUpdate.name, message),
+            "warning"
+          ),
+          ...current
+        ].slice(0, 5)
+      )
+    } finally {
+      setBusyUpdateId(null)
+    }
+  }
+
   const handleRefreshPreDistributionCheck = async () => {
     await refreshPreDistributionCheckForState(syncState)
+  }
+
+  const handleRefreshAgentDetection = async () => {
+    await refreshAgentDetectionState()
   }
 
   const formattedLastRefreshedAt = formatLongTimestamp(
@@ -653,6 +847,14 @@ export function App() {
     syncState.lastRefreshedAt,
     dictionary.common.notRefreshedYet
   )
+  const distributionConfirmationSummary = pendingDistributionConfirmation
+    ? createDistributionConfirmationSummary(
+        pendingDistributionConfirmation,
+        agentDetectionSnapshot,
+        preDistributionCheckSnapshot,
+        isPreDistributionCheckStale
+      )
+    : null
 
   return (
     <I18nProvider locale={selectedLocale} dictionary={dictionary}>
@@ -674,12 +876,14 @@ export function App() {
             isLoading={isLoading}
             lastRefreshedAt={formattedLastRefreshedAt}
             successfulDistributionCount={syncState.successfulDistributionCount}
+            installedAgentCount={agentDetectionSnapshot?.installedAgentIds.length ?? 0}
             pendingUpdates={syncState.pendingUpdates}
             preDistributionCheckSnapshot={preDistributionCheckSnapshot}
             isPreDistributionChecking={isPreDistributionChecking}
             isPreDistributionCheckStale={isPreDistributionCheckStale}
             busyUpdateId={busyUpdateId}
-            onDistribute={handleDistribute}
+            onDistribute={requestDistributionConfirmation}
+            onReconcileInstalled={handleReconcileInstalled}
             onOpenSettings={() => setSettingsOpen(true)}
             onRefresh={handleRefresh}
             onViewUpdates={() => setActiveView("updates")}
@@ -692,7 +896,8 @@ export function App() {
             pendingUpdates={syncState.pendingUpdates}
             preDistributionCheckSnapshot={preDistributionCheckSnapshot}
             busyUpdateId={busyUpdateId}
-            onDistribute={handleDistribute}
+            onDistribute={requestDistributionConfirmation}
+            onReconcileInstalled={handleReconcileInstalled}
             onRefreshPreDistributionCheck={handleRefreshPreDistributionCheck}
             onRefresh={handleRefresh}
           />
@@ -710,13 +915,67 @@ export function App() {
           isSavingConfiguration={isSavingConfiguration}
           isTestingConnection={isTestingConnection}
           lastRefreshedAt={formattedLastRefreshedAt}
+          agentDetectionSnapshot={agentDetectionSnapshot}
+          isAgentDetectionRefreshing={isAgentDetectionRefreshing}
           currentLocale={selectedLocale}
           onChangeLocale={handleChangeLocale}
           onClearConfiguration={handleClearConfiguration}
           onClose={() => setSettingsOpen(false)}
+          onRefreshAgentDetection={handleRefreshAgentDetection}
           onSaveConfiguration={handleSaveConfiguration}
           onTestConnection={handleTestConnection}
         />
+        {pendingDistributionConfirmation && distributionConfirmationSummary ? (
+          <Dialog
+            open
+            title={dictionary.distributionConfirmation.title}
+            description={dictionary.distributionConfirmation.description(
+              pendingDistributionConfirmation.name
+            )}
+            closeLabel={dictionary.common.close}
+            onClose={() => setPendingDistributionConfirmation(null)}
+          >
+            <div className="callout callout--warning">
+              <strong>{dictionary.preDistributionCheck.warningBeforeDistribute}</strong>
+              <span>{dictionary.distributionConfirmation.destructiveWarning}</span>
+            </div>
+            <div className="dialog-section">
+              <h3 className="dialog-section__title">
+                {dictionary.distributionConfirmation.writeTargetsTitle}
+              </h3>
+              {renderDialogList(
+                distributionConfirmationSummary.writeTargets,
+                dictionary.distributionConfirmation.noWriteTargets
+              )}
+            </div>
+            <div className="dialog-section">
+              <h3 className="dialog-section__title">
+                {dictionary.distributionConfirmation.skippedTargetsTitle}
+              </h3>
+              {renderDialogList(
+                distributionConfirmationSummary.skippedTargets,
+                dictionary.distributionConfirmation.noSkippedTargets
+              )}
+            </div>
+            <div className="dialog-section">
+              <h3 className="dialog-section__title">
+                {dictionary.distributionConfirmation.missingAgentsTitle}
+              </h3>
+              {renderDialogList(
+                distributionConfirmationSummary.missingAgents,
+                dictionary.distributionConfirmation.noMissingAgents
+              )}
+            </div>
+            <div className="dialog-actions">
+              <Button variant="outline" onClick={() => setPendingDistributionConfirmation(null)}>
+                {dictionary.distributionConfirmation.cancel}
+              </Button>
+              <Button variant="destructive" onClick={handleConfirmDistribution}>
+                {dictionary.distributionConfirmation.confirm}
+              </Button>
+            </div>
+          </Dialog>
+        ) : null}
       </AppShell>
     </I18nProvider>
   )

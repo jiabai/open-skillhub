@@ -29,12 +29,14 @@ and the full desktop runtime launch through `npm run start:electron`.
   - read-only target-directory metadata checks, strict version comparison, transient snapshots, and stale-check fingerprints
 - `src/core/distribution/`
   - package preparation, owned artifact cleanup, install orchestration, and distribution result reporting
+- `src/core/detection/`
+  - catalog-driven assistant detection, environment target overrides, OpenClaw priority target selection, and shared physical target dedupe
 - `src/core/storage/`
   - app paths, JSON config, secret storage, and SQLite-backed state
 - `src/core/runtime/`
-  - reloadable runtime configuration assembled from JSON config, secret store, environment bootstrap, cache, and agent paths
+  - reloadable runtime configuration assembled from JSON config, secret store, environment bootstrap, cache, and agent detection snapshots
 - `src/adapters/agents/`
-  - Codex, Claude Code, and Gemini CLI path detection, validation, install, and verification
+  - 20 catalog-backed filesystem adapters, per-agent package validation, install, metadata read, and verification
 - `src/lib/ipc-client.ts`
   - renderer wrapper around the preload-exposed bridge
 - `src/types/`
@@ -48,9 +50,11 @@ Renderer UI -> `src/lib/ipc-client.ts` -> `electron/preload.ts` -> `electron/ipc
 
 sync core -> backend client API + state store
 
-pre-distribution check core -> state store + configured agent adapters
+runtime config -> agent detection service -> agent catalog + filesystem install signals
 
-distribution core -> package service + agent adapters + state store
+pre-distribution check core -> state store + detection-derived agent targets + configured agent adapters
+
+distribution core -> package service + detection-derived agent targets + agent adapters + state store
 
 agent adapters -> local agent installations and skill directories
 
@@ -64,7 +68,9 @@ agent adapters -> local agent installations and skill directories
 - Sync code only compares remote and local state; it does not mutate agent skill directories.
 - Pre-distribution checks are read-only and transient; results are returned through IPC for review context and are not persisted.
 - Distribution only runs for explicitly approved pending updates.
-- Agent adapters own per-agent filesystem conventions and install verification.
+- Agent detection decides the effective installed/configured target set before pre-check, reconcile, and distribution actions.
+- Distribution writes each unique physical target at most once, marks shared-path coverage, and skips writing when every target is already same-version.
+- Agent adapters own per-agent filesystem conventions, package installation, metadata reads, and install verification.
 - Shared type contracts live in `src/types/` instead of being redefined across layers.
 
 ## Layer Boundaries
@@ -101,6 +107,9 @@ Dependencies should only point downward across those boundaries.
   Staging directories are temporary package artifacts and are removed through
   the package-service cleanup ownership contract after distribution succeeds or
   fails.
+- Agent detection snapshots are runtime state only. They are rebuilt on runtime
+  config reload, manual rediscovery, pre-distribution checks, reconcile, and
+  distribution, and are not persisted to SQLite or JSON config.
 
 ## Key Files
 
@@ -110,6 +119,7 @@ Dependencies should only point downward across those boundaries.
 - `src/app/App.tsx`
 - `src/styles.css`
 - `src/core/sync/sync-service.ts`
+- `src/core/detection/agent-detection-service.ts`
 - `src/core/distribution/distribution-service.ts`
 - `src/core/distribution/package-service.ts`
 - `src/core/storage/config-store.ts`

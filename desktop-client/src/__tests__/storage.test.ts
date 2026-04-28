@@ -254,7 +254,7 @@ describe("storage foundation", () => {
     expect(await store.getApiToken()).toBeNull()
   })
 
-  it("preserves per-agent skill path environment overrides in runtime config", async () => {
+  it("preserves per-agent skill path environment overrides in the detection snapshot", async () => {
     const rootDir = createTempRoot()
     const manager = createRuntimeConfigManager({
       appPathsOptions: { baseDir: rootDir },
@@ -266,6 +266,19 @@ describe("storage foundation", () => {
 
     const state = await manager.reload()
 
-    expect(state.config.agentSkillsPaths.codex).toBe("D:\\Codex\\skills")
+    expect(state.config.agentDetection.installedAgentIds).toContain("codex")
+    expect(state.config.agentDetection.agentStatuses.find((status) => status.agentId === "codex")).toMatchObject({
+      installed: true,
+      source: "environment",
+      targetPaths: ["D:\\Codex\\skills"]
+    })
+    expect(state.config.agentDetection.uniqueTargets).toContainEqual(
+      expect.objectContaining({
+        targetPath: "D:\\Codex\\skills",
+        primaryAgentId: "codex",
+        coveredAgentIds: ["codex"],
+        source: "environment"
+      })
+    )
   })
 })

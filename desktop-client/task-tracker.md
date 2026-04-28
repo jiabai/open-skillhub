@@ -2,7 +2,7 @@
 
 ## In Progress
 
-- No active items.
+- [ ] Prepare and review AI agent detection and targeted distribution docs ✅ active ExecPlan, task checklist, and `python scripts/validate_agents_docs.py --level ERROR`
 
 ## Todo
 

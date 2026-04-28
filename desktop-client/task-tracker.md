@@ -2,7 +2,7 @@
 
 ## In Progress
 
-- [ ] Prepare and review AI agent detection and targeted distribution docs ✅ active ExecPlan, task checklist, and `python scripts/validate_agents_docs.py --level ERROR`
+No active desktop-client tasks.
 
 ## Todo
 
@@ -11,6 +11,8 @@
 
 ## Done
 
+- [x] Implement AI agent detection and targeted distribution (2026-04-28) ✅ 20 catalog-backed agents, detection snapshots, shared-path dedupe, same-version reconcile, confirmation dialog, `npm test`, `npm run build`, and TypeScript checks pass
+- [x] Archive AI agent detection and targeted distribution ExecPlan after acceptance (2026-04-28) ✅ active index is empty, completed index references the plan and checklist, and `python scripts/validate_agents_docs.py --level ERROR` passes
 - [x] Implement explicit package artifact cleanup ownership (2026-04-27) ✅ `npm test`, `npm run build`, and `python scripts/validate_agents_docs.py --level ERROR` pass
 - [x] Implement pre-distribution skill checks for configured agent targets (2026-04-26) ✅ `npm test`, `npm run build`, and `python scripts/validate_agents_docs.py --level ERROR` pass
 - [x] Expand the desktop client to `1984x1168` and reflow the Home view for wide-screen use (2026-04-24) ✅ the Electron renderer targets a physical `1984x1168` content area after display-scale conversion, the shell container and drawer widen with it, Home splits the metrics and review queue into a two-column layout, and the shell stays visible in Windows Alt+Tab

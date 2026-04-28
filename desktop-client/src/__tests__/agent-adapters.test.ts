@@ -5,8 +5,10 @@ import { afterEach, describe, expect, it } from "vitest"
 import { createCodexAgentAdapter } from "@/adapters/agents/codex"
 import { createClaudeCodeAgentAdapter } from "@/adapters/agents/claude-code"
 import { createGeminiCliAgentAdapter } from "@/adapters/agents/gemini-cli"
+import { supportedAgentDefinitions } from "@/adapters/agents/definitions"
 import { getAgentAdapter, hasAgentAdapter, listAgentAdapters } from "@/adapters/agents/registry"
 import type { ExtractedSkillPayloadV1 } from "@/adapters/agents/base"
+import type { AgentId } from "@/types"
 
 describe("agent adapters", () => {
   const tempRoots: string[] = []
@@ -45,7 +47,7 @@ describe("agent adapters", () => {
     }
   }
 
-  async function assertAdapterInstall(adapterId: "codex" | "claude-code" | "gemini-cli") {
+  async function assertAdapterInstall(adapterId: AgentId) {
     const skillsPath = createTempRoot()
     const { extractedPath, expectedFiles } = createExtractedSkillDirectory()
     const payload: ExtractedSkillPayloadV1 = {
@@ -68,12 +70,35 @@ describe("agent adapters", () => {
   }
 
   it("registers all supported adapters", () => {
-    expect(listAgentAdapters().map((adapter) => adapter.id)).toEqual([
-      "codex",
+    const expectedAgentIds = [
       "claude-code",
-      "gemini-cli"
-    ])
+      "cursor",
+      "windsurf",
+      "copilot",
+      "roocode",
+      "cline",
+      "gemini-cli",
+      "codex",
+      "opencode",
+      "kilocode",
+      "amp",
+      "kiro",
+      "warp",
+      "trae",
+      "factory",
+      "kimi",
+      "mistral",
+      "pi",
+      "antigravity",
+      "openclaw"
+    ]
+
+    expect(supportedAgentDefinitions.map((definition) => definition.id)).toEqual(expectedAgentIds)
+    expect(listAgentAdapters().map((adapter) => adapter.id)).toEqual(expectedAgentIds)
     expect(hasAgentAdapter("codex")).toBe(true)
+    expect(hasAgentAdapter("zed")).toBe(false)
+    expect(hasAgentAdapter("augmentcode")).toBe(false)
+    expect(hasAgentAdapter("jetbrains-ai")).toBe(false)
     expect(hasAgentAdapter("unknown")).toBe(false)
   })
 

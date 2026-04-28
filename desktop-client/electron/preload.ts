@@ -12,8 +12,12 @@ const desktopClientBridge: DesktopClientBridge = {
   testConnection: (payload) =>
     ipcRenderer.invoke(desktopClientIpcChannels.testConnection, payload),
   refreshSync: () => ipcRenderer.invoke(desktopClientIpcChannels.refreshSync),
+  refreshAgentDetection: () =>
+    ipcRenderer.invoke(desktopClientIpcChannels.refreshAgentDetection),
   refreshPreDistributionCheck: () =>
     ipcRenderer.invoke(desktopClientIpcChannels.refreshPreDistributionCheck),
+  reconcileInstalledSkill: (pendingUpdateId: string) =>
+    ipcRenderer.invoke(desktopClientIpcChannels.reconcileInstalledSkill, pendingUpdateId),
   distributePendingUpdate: (pendingUpdateId: string) =>
     ipcRenderer.invoke(desktopClientIpcChannels.distributePendingUpdate, pendingUpdateId)
 }

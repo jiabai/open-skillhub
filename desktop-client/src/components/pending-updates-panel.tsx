@@ -2,7 +2,8 @@ import type { PendingSyncUpdate, PreDistributionCheckSnapshot } from "@/types"
 import { Badge, Button, Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui-primitives"
 import {
   PreDistributionActionWarning,
-  PreDistributionCheckSummary
+  PreDistributionCheckSummary,
+  areAllPreDistributionTargetsSame
 } from "@/components/pre-distribution-check-summary"
 import { useI18n } from "@/i18n/use-i18n"
 
@@ -14,6 +15,7 @@ type PendingUpdatesPanelProps = {
   isPreDistributionChecking: boolean
   isPreDistributionCheckStale: boolean
   onDistribute: (pendingUpdate: PendingSyncUpdate) => void
+  onReconcileInstalled: (pendingUpdate: PendingSyncUpdate) => void
   onRefreshPreDistributionCheck: () => void
 }
 
@@ -29,6 +31,7 @@ export function PendingUpdatesPanel({
   isPreDistributionChecking,
   isPreDistributionCheckStale,
   onDistribute,
+  onReconcileInstalled,
   onRefreshPreDistributionCheck
 }: PendingUpdatesPanelProps) {
   const { dictionary } = useI18n()
@@ -79,6 +82,11 @@ export function PendingUpdatesPanel({
           <div className="list-stack">
             {pendingUpdates.map((pendingUpdate) => {
               const isBusy = busyUpdateId === pendingUpdate.remoteSkillId
+              const canSyncLocalRecord = areAllPreDistributionTargetsSame(
+                pendingUpdate,
+                preDistributionCheckSnapshot,
+                isPreDistributionCheckStale
+              )
               const reasonLabel =
                 pendingUpdate.reason === "missing-local-record"
                   ? dictionary.pendingUpdatesPanel.reasonLabels.missingLocalRecord
@@ -98,14 +106,27 @@ export function PendingUpdatesPanel({
                         snapshot={preDistributionCheckSnapshot}
                         isStale={isPreDistributionCheckStale}
                       />
-                      <Button
-                        variant="primary"
-                        onClick={() => onDistribute(pendingUpdate)}
-                        disabled={isBusy}
-                        aria-label={`${dictionary.pendingUpdatesPanel.distribute} ${pendingUpdate.name}`}
-                      >
-                        {isBusy ? dictionary.pendingUpdatesPanel.distributing : dictionary.pendingUpdatesPanel.distribute}
-                      </Button>
+                      {canSyncLocalRecord ? (
+                        <Button
+                          variant="secondary"
+                          onClick={() => onReconcileInstalled(pendingUpdate)}
+                          disabled={isBusy}
+                          aria-label={`${dictionary.pendingUpdatesPanel.syncLocalRecord} ${pendingUpdate.name}`}
+                        >
+                          {isBusy
+                            ? dictionary.pendingUpdatesPanel.syncingRecord
+                            : dictionary.pendingUpdatesPanel.syncLocalRecord}
+                        </Button>
+                      ) : (
+                        <Button
+                          variant="primary"
+                          onClick={() => onDistribute(pendingUpdate)}
+                          disabled={isBusy}
+                          aria-label={`${dictionary.pendingUpdatesPanel.distribute} ${pendingUpdate.name}`}
+                        >
+                          {isBusy ? dictionary.pendingUpdatesPanel.distributing : dictionary.pendingUpdatesPanel.distribute}
+                        </Button>
+                      )}
                     </div>
                   </div>
 

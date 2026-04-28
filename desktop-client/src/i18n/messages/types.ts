@@ -16,6 +16,8 @@ export interface AppDictionary {
     testingConnection: string
     distribute: string
     distributing: string
+    syncRecord: string
+    syncingRecord: string
     pending: (count: number) => string
     local: (value: string) => string
     remote: (value: string) => string
@@ -62,6 +64,10 @@ export interface AppDictionary {
         label: string
         detail: string
       }
+      installedAgents: {
+        label: string
+        detail: string
+      }
       lastRefresh: {
         label: string
         detail: string
@@ -73,6 +79,7 @@ export interface AppDictionary {
     noPendingUpdates: string
     viewAllUpdates: string
     distribute: (name: string) => string
+    syncLocalRecord: (name: string) => string
     distributing: string
     badges: {
       local: (value: string) => string
@@ -159,6 +166,8 @@ export interface AppDictionary {
     refreshingCheck: string
     distribute: string
     distributing: string
+    syncLocalRecord: string
+    syncingRecord: string
     reviewReasonLabel: string
     reasonLabels: {
       missingLocalRecord: string
@@ -191,13 +200,35 @@ export interface AppDictionary {
       error: (message: string) => string
     }
   }
+  distributionConfirmation: {
+    title: string
+    description: (name: string) => string
+    destructiveWarning: string
+    writeTargetsTitle: string
+    skippedTargetsTitle: string
+    missingAgentsTitle: string
+    noWriteTargets: string
+    noSkippedTargets: string
+    noMissingAgents: string
+    confirm: string
+    cancel: string
+  }
   agentsPanel: {
     eyebrow: string
     title: string
     description: string
-    claudeCodeDetail: string
-    codexDetail: string
-    geminiCliDetail: string
+    rediscover: string
+    rediscovering: string
+    noSnapshot: string
+    summary: (installed: number, supported: number) => string
+    statusLabels: {
+      installed: string
+      missing: string
+      environment: string
+      autoDetected: string
+    }
+    targetPath: (value: string) => string
+    detectionDirs: (value: string) => string
   }
   activityPanel: {
     eyebrow: string
@@ -233,6 +264,10 @@ export interface AppDictionary {
     distributionCompletedWithRefreshWarningDetail: (detail: string, message: string) => string
     distributionFailedTitle: string
     distributionFailedDetail: (name: string, message: string) => string
+    localRecordSyncedTitle: string
+    localRecordSyncedDetail: (name: string) => string
+    localRecordSyncFailedTitle: string
+    localRecordSyncFailedDetail: (name: string, message: string) => string
   }
 }
 

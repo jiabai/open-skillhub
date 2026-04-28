@@ -84,16 +84,20 @@ Main process
 
 Pre-check 使用与分发相同的有效目标集合：
 
-1. 从 `listAgentAdapters()` 开始。
-2. 只保留 `getRuntimeConfig().agentSkillsPaths[agentId]` 有值的 agent ID。
-3. 为每个已配置的目标构建 `{ adapter, installContext: { skillsPath } }`。
+1. 刷新运行时 `agentDetection` 快照。
+2. 从 `agentDetection.uniqueTargets` 开始。
+3. 针对每个唯一物理 `targetPath` 构建一个检查任务，并用
+   `coveredAdapters` 表示该共享目标覆盖的所有助手。
+4. 使用 primary adapter 的 `{ adapter, installContext: { skillsPath: targetPath } }`，
+   再把一次 metadata 读取结果展开到所有 covered assistant。
 
 规则：
 
-- 未配置的受支持 agent 会被省略，不标记为错误。
-- 如果没有配置任何 agent 目标，返回空结果加上全局警告。分发已经用明确的错误处理这种情况。
-- 如果已配置的 `skillsPath` 不存在，将该 skill 视为 `not-installed`；分发可以稍后创建目录。
-- 如果 `skillsPath` 存在但无法读取，将该 agent 结果标记为 `error`。
+- 未检测到或未配置的受支持 agent 会被省略，不标记为错误。
+- 如果没有可用的检测/配置目标，返回空结果加上全局警告。分发已经用明确的错误处理这种情况。
+- 如果目标 `skillsPath` 中没有该 skill，将 covered assistant 视为 `not-installed`；分发可以稍后创建目录。
+- 如果目标 `skillsPath` 存在但无法读取，将所有 covered assistant 的结果标记为 `error`。
+- 共享路径按 `remoteSkillId + targetPath` 只读取一次。
 
 ## 7. Adapter 元数据合约
 

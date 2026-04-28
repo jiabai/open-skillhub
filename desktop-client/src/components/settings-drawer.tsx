@@ -4,7 +4,7 @@ import { ConfigPanel } from "@/components/config-panel"
 import { ConfigStatus } from "@/components/config-status"
 import { SettingsPanel } from "@/components/settings-panel"
 import { Badge, Card, CardContent, CardHeader, CardTitle, Drawer } from "@/components/ui-primitives"
-import type { ConfigurationPayload, ConfigurationState, ConnectionTestResult } from "@/types"
+import type { AgentDetectionSnapshot, ConfigurationPayload, ConfigurationState, ConnectionTestResult } from "@/types"
 import type { AppLocale } from "@/types"
 import { useI18n } from "@/i18n/use-i18n"
 
@@ -28,9 +28,12 @@ type SettingsDrawerProps = {
   isSavingConfiguration: boolean
   isTestingConnection: boolean
   lastRefreshedAt: string
+  agentDetectionSnapshot: AgentDetectionSnapshot | null
+  isAgentDetectionRefreshing: boolean
   currentLocale: AppLocale
   onClearConfiguration: () => void
   onClose: () => void
+  onRefreshAgentDetection: () => void
   onSaveConfiguration: (payload: ConfigurationPayload) => void
   onChangeLocale: (locale: AppLocale) => void
   onTestConnection: (payload: ConfigurationPayload) => void
@@ -48,9 +51,12 @@ export function SettingsDrawer({
   isSavingConfiguration,
   isTestingConnection,
   lastRefreshedAt,
+  agentDetectionSnapshot,
+  isAgentDetectionRefreshing,
   currentLocale,
   onClearConfiguration,
   onClose,
+  onRefreshAgentDetection,
   onSaveConfiguration,
   onChangeLocale,
   onTestConnection
@@ -107,7 +113,11 @@ export function SettingsDrawer({
         onTest={onTestConnection}
       />
 
-      <AgentsPanel />
+      <AgentsPanel
+        detectionSnapshot={agentDetectionSnapshot}
+        isRefreshing={isAgentDetectionRefreshing}
+        onRefresh={onRefreshAgentDetection}
+      />
       <ActivityPanel entries={activity} />
     </Drawer>
   )

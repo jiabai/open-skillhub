@@ -4,6 +4,7 @@ import type {
   PreparedSkillPackage,
   SkillDistributionRequest,
   SkillDistributionResult,
+  SkillDistributionTarget,
   SkillDistributionTargetResult,
   StateStore
 } from "@/types"
@@ -14,7 +15,6 @@ export interface DistributionServiceDependencies {
   packageService: PackageService
   stateStore: StateStore
   resolveAgentAdapter(agentId: string): AgentAdapterV1 | null | undefined
-  resolveInstallContext(agentId: string): AgentInstallContextV1 | null | undefined
   now?: () => string
 }
 
@@ -42,17 +42,39 @@ function normalizeField(value: string, fieldName: string): string {
   return normalized
 }
 
-function createTargetFailure(agentId: string, error: unknown): SkillDistributionTargetResult {
+function normalizeTargetPath(value: string): string {
+  const normalized = value.trim()
+
+  if (!normalized) {
+    throw new Error("Skill distribution targetPath cannot be empty")
+  }
+
+  return normalized
+}
+
+function createTargetFailure(
+  agentId: string,
+  targetPath: string,
+  error: unknown
+): SkillDistributionTargetResult {
   return {
     agentId,
+    targetPath,
+    status: "failed",
     success: false,
     errorMessage: error instanceof Error ? error.message : String(error)
   }
 }
 
-function createTargetSuccess(agentId: string): SkillDistributionTargetResult {
+function createTargetSuccess(
+  agentId: string,
+  targetPath: string,
+  status: SkillDistributionTargetResult["status"] = "success"
+): SkillDistributionTargetResult {
   return {
     agentId,
+    targetPath,
+    status,
     success: true,
     errorMessage: null
   }
@@ -91,6 +113,56 @@ function updateStateAfterSuccessfulDistribution(
   }
 }
 
+function normalizeDistributionTarget(target: SkillDistributionTarget): SkillDistributionTarget {
+  const primaryAgentId = normalizeField(
+    target.primaryAgentId,
+    "primaryAgentId"
+  ) as SkillDistributionTarget["primaryAgentId"]
+  const coveredAgentIds = target.coveredAgentIds.map((agentId) =>
+    normalizeField(agentId, "coveredAgentId")
+  ) as SkillDistributionTarget["coveredAgentIds"]
+  const targetPath = normalizeTargetPath(target.targetPath)
+
+  if (coveredAgentIds.length === 0) {
+    throw new Error("Skill distribution target must cover at least one agent")
+  }
+
+  return {
+    ...target,
+    adapterAgentId: target.adapterAgentId?.trim() || undefined,
+    primaryAgentId,
+    coveredAgentIds,
+    targetPath,
+    writeMode: target.writeMode ?? "write"
+  }
+}
+
+function createSkipResults(target: SkillDistributionTarget): SkillDistributionTargetResult[] {
+  return target.coveredAgentIds.map((agentId) =>
+    createTargetSuccess(agentId, target.targetPath, "skipped-same-version")
+  )
+}
+
+function createSuccessfulWriteResults(target: SkillDistributionTarget): SkillDistributionTargetResult[] {
+  return target.coveredAgentIds.map((agentId, index) =>
+    createTargetSuccess(
+      agentId,
+      target.targetPath,
+      index === 0 ? "success" : "covered-by-shared-path"
+    )
+  )
+}
+
+function createFailureResults(
+  target: SkillDistributionTarget,
+  error: unknown,
+  agentIdOverride?: string
+): SkillDistributionTargetResult[] {
+  const agentIds = agentIdOverride ? [agentIdOverride] : target.coveredAgentIds
+
+  return agentIds.map((agentId) => createTargetFailure(agentId, target.targetPath, error))
+}
+
 export function createDistributionService(
   dependencies: DistributionServiceDependencies
 ): DistributionService {
@@ -101,44 +173,47 @@ export function createDistributionService(
       const skillId = normalizeField(request.skillId, "skillId")
       const name = normalizeField(request.name, "name")
       const version = request.version?.trim() || null
-      const enabledAgentIds = request.enabledAgentIds.map((agentId) =>
-        normalizeField(agentId, "agentId")
-      )
+      const targets = request.targets.map(normalizeDistributionTarget)
 
-      if (enabledAgentIds.length === 0) {
+      if (targets.length === 0) {
         throw new Error("At least one enabled agent target is required for distribution")
       }
 
-      const preparedPackage: PreparedSkillPackage = await dependencies.packageService.validateAndExtract(
-        {
+      const targetResults: SkillDistributionTargetResult[] = []
+      const writeTargets = targets.filter((target) => target.writeMode !== "skip-same-version")
+      let preparedPackage: PreparedSkillPackage | null = null
+
+      for (const target of targets) {
+        if (target.writeMode === "skip-same-version") {
+          targetResults.push(...createSkipResults(target))
+        }
+      }
+
+      if (writeTargets.length > 0) {
+        preparedPackage = await dependencies.packageService.validateAndExtract({
           skillId,
           name,
           version,
           packageSource: request.packageSource
-        }
-      )
+        })
+      }
 
-      const targetResults: SkillDistributionTargetResult[] = []
       let allSucceeded = true
 
       try {
-        for (const agentId of enabledAgentIds) {
-          const adapter = dependencies.resolveAgentAdapter(agentId)
-          const installContext = dependencies.resolveInstallContext(agentId)
+        for (const target of writeTargets) {
+          const adapterAgentId = target.adapterAgentId ?? target.primaryAgentId
+          const adapter = dependencies.resolveAgentAdapter(adapterAgentId)
+          const installContext: AgentInstallContextV1 = {
+            skillsPath: target.targetPath
+          }
 
           if (!adapter) {
             targetResults.push(
-              createTargetFailure(agentId, new Error(`No adapter registered for agent: ${agentId}`))
-            )
-            allSucceeded = false
-            continue
-          }
-
-          if (!installContext) {
-            targetResults.push(
-              createTargetFailure(
-                agentId,
-                new Error(`No install context available for agent: ${agentId}`)
+              ...createFailureResults(
+                target,
+                new Error(`No adapter registered for agent: ${adapterAgentId}`),
+                target.adapterAgentId
               )
             )
             allSucceeded = false
@@ -146,16 +221,20 @@ export function createDistributionService(
           }
 
           try {
+            if (!preparedPackage) {
+              throw new Error("Prepared package unavailable for write target")
+            }
+
             const installedSkill = await adapter.installSkill(preparedPackage, installContext)
             const verified = await adapter.verifyInstalledSkill(preparedPackage, installedSkill)
 
             if (!verified) {
-              throw new Error(`Installed skill verification failed for agent: ${agentId}`)
+              throw new Error(`Installed skill verification failed for agent: ${adapterAgentId}`)
             }
 
-            targetResults.push(createTargetSuccess(agentId))
+            targetResults.push(...createSuccessfulWriteResults(target))
           } catch (error) {
-            targetResults.push(createTargetFailure(agentId, error))
+            targetResults.push(...createFailureResults(target, error))
             allSucceeded = false
           }
         }
@@ -182,14 +261,14 @@ export function createDistributionService(
           skillId,
           name,
           version,
-          extractedPath: preparedPackage.extractedPath,
+          extractedPath: preparedPackage?.extractedPath ?? null,
           targets: targetResults,
           succeededAgentIds,
           failedAgentIds,
           syncedToLocalState: allSucceeded
         }
       } finally {
-        await preparedPackage.cleanup()
+        await preparedPackage?.cleanup()
       }
     }
   }

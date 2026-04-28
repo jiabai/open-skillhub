@@ -20,7 +20,7 @@ import {
 } from "@/core/distribution/distribution-service"
 import { createPackageService } from "@/core/distribution/package-service"
 import { createSqliteStateStore } from "@/core/storage/state-db"
-import type { DownloadedSkillArtifact } from "@/types"
+import type { AgentId, DownloadedSkillArtifact, SkillDistributionTarget } from "@/types"
 
 describe("distribution pipeline", () => {
   const tempRoots: string[] = []
@@ -91,12 +91,24 @@ describe("distribution pipeline", () => {
     return {
       resolveAgentAdapter: (agentId: string) =>
         hasAgentAdapter(agentId) ? getAgentAdapter(agentId) : null,
-      resolveInstallContext: (agentId: string) => {
-        const skillsPath = skillsPathByAgent[agentId]
-
-        return skillsPath ? { skillsPath } : null
-      },
       skillsPathByAgent
+    }
+  }
+
+  function createTarget(
+    agentId: AgentId,
+    targetPath: string,
+    coveredAgentIds: AgentId[] = [agentId],
+    writeMode: SkillDistributionTarget["writeMode"] = "write"
+  ): SkillDistributionTarget {
+    return {
+      targetId: `target-${agentId}`,
+      targetPath,
+      primaryAgentId: agentId,
+      coveredAgentIds,
+      sharedPathKey: coveredAgentIds.length > 1 ? "shared-target" : null,
+      source: "auto-detected",
+      writeMode
     }
   }
 
@@ -109,13 +121,12 @@ describe("distribution pipeline", () => {
       artifactPath: packageSource,
       encrypted: false
     })
-    const { resolveAgentAdapter, resolveInstallContext, skillsPathByAgent } =
+    const { resolveAgentAdapter, skillsPathByAgent } =
       createDistributionDependencies(rootDir)
     const distributionService = createDistributionService({
       packageService,
       stateStore,
       resolveAgentAdapter,
-      resolveInstallContext,
       now: () => "2026-04-17T10:00:00.000Z"
     })
 
@@ -154,7 +165,10 @@ describe("distribution pipeline", () => {
       name: "Skill X",
       version: "1.0.0",
       packageSource: { source: packageSource },
-      enabledAgentIds: ["codex", "claude-code"]
+      targets: [
+        createTarget("codex", skillsPathByAgent.codex),
+        createTarget("claude-code", skillsPathByAgent["claude-code"])
+      ]
     })
 
     expect(downloadArtifact).toHaveBeenCalledWith({
@@ -167,8 +181,20 @@ describe("distribution pipeline", () => {
     expect(result.succeededAgentIds).toEqual(["codex", "claude-code"])
     expect(result.failedAgentIds).toEqual([])
     expect(result.targets).toEqual([
-      { agentId: "codex", success: true, errorMessage: null },
-      { agentId: "claude-code", success: true, errorMessage: null }
+      {
+        agentId: "codex",
+        targetPath: skillsPathByAgent.codex,
+        status: "success",
+        success: true,
+        errorMessage: null
+      },
+      {
+        agentId: "claude-code",
+        targetPath: skillsPathByAgent["claude-code"],
+        status: "success",
+        success: true,
+        errorMessage: null
+      }
     ])
     expect(existsSync(result.extractedPath ?? "")).toBe(false)
     expect(existsSync(packageSource)).toBe(true)
@@ -224,13 +250,12 @@ describe("distribution pipeline", () => {
       encrypted: false,
       cleanupPaths: [packageSource]
     })
-    const { resolveAgentAdapter, resolveInstallContext, skillsPathByAgent } =
+    const { resolveAgentAdapter, skillsPathByAgent } =
       createDistributionDependencies(rootDir)
     const distributionService = createDistributionService({
       packageService,
       stateStore,
-      resolveAgentAdapter,
-      resolveInstallContext
+      resolveAgentAdapter
     })
 
     await stateStore.writeState({
@@ -245,16 +270,36 @@ describe("distribution pipeline", () => {
       name: "Skill Y",
       version: "1.0.0",
       packageSource: { source: packageSource },
-      enabledAgentIds: ["codex", "missing-agent"]
+      targets: [
+        createTarget("codex", skillsPathByAgent.codex),
+        {
+          targetId: "target-missing",
+          targetPath: join(rootDir, "skills", "missing-agent"),
+          primaryAgentId: "codex",
+          coveredAgentIds: ["codex"],
+          sharedPathKey: null,
+          source: "auto-detected",
+          writeMode: "write",
+          adapterAgentId: "missing-agent"
+        }
+      ]
     })
 
     expect(result.syncedToLocalState).toBe(false)
     expect(result.succeededAgentIds).toEqual(["codex"])
     expect(result.failedAgentIds).toEqual(["missing-agent"])
     expect(result.targets).toEqual([
-      { agentId: "codex", success: true, errorMessage: null },
+      {
+        agentId: "codex",
+        targetPath: skillsPathByAgent.codex,
+        status: "success",
+        success: true,
+        errorMessage: null
+      },
       {
         agentId: "missing-agent",
+        targetPath: join(rootDir, "skills", "missing-agent"),
+        status: "failed",
         success: false,
         errorMessage: "No adapter registered for agent: missing-agent"
       }
@@ -288,9 +333,6 @@ describe("distribution pipeline", () => {
       stateStore,
       resolveAgentAdapter: () => {
         throw new Error("should not install encrypted packages without decryptor")
-      },
-      resolveInstallContext: () => {
-        throw new Error("should not resolve install context without decryptor")
       }
     })
 
@@ -300,11 +342,147 @@ describe("distribution pipeline", () => {
         name: "Skill Z",
         version: "1.0.0",
         packageSource: { source: packageSource },
-        enabledAgentIds: ["codex"]
+        targets: [createTarget("codex", join(rootDir, "skills", "codex"))]
       })
     ).rejects.toThrow(
       "Encrypted skill packages require a decryptArtifact dependency before distribution"
     )
+
+    await stateStore.close()
+  })
+
+  it("writes a shared physical target once and marks covered assistants", async () => {
+    const rootDir = createTempRoot()
+    const dbPath = join(rootDir, "state", "state.sqlite3")
+    const stateStore = await createSqliteStateStore(dbPath)
+    const packageSource = createPackageSource(rootDir)
+    const { service: packageService } = buildPackageService({
+      artifactPath: packageSource,
+      encrypted: false
+    })
+    const sharedSkillsPath = join(rootDir, "skills", "shared-agents")
+    const distributionService = createDistributionService({
+      packageService,
+      stateStore,
+      resolveAgentAdapter: (agentId: string) =>
+        hasAgentAdapter(agentId) ? getAgentAdapter(agentId) : null,
+      now: () => "2026-04-17T10:00:00.000Z"
+    })
+
+    await stateStore.writeState({
+      localRecords: [],
+      pendingUpdates: [
+        {
+          remoteSkillId: "skill-shared",
+          name: "Skill Shared",
+          localVersion: null,
+          remoteVersion: "1.0.0",
+          reason: "missing-local-record"
+        }
+      ],
+      successfulDistributionCount: 0,
+      lastRefreshedAt: "2026-04-16T10:00:00.000Z"
+    })
+
+    const result = await distributionService.distribute({
+      skillId: "skill-shared",
+      name: "Skill Shared",
+      version: "1.0.0",
+      packageSource: { source: packageSource },
+      targets: [createTarget("cline", sharedSkillsPath, ["cline", "warp"])]
+    })
+
+    expect(readFileSync(join(sharedSkillsPath, "skill-shared", "README.md"), "utf8")).toBe(
+      "# Distributed Skill"
+    )
+    expect(result.succeededAgentIds).toEqual(["cline", "warp"])
+    expect(result.targets).toEqual([
+      {
+        agentId: "cline",
+        targetPath: sharedSkillsPath,
+        status: "success",
+        success: true,
+        errorMessage: null
+      },
+      {
+        agentId: "warp",
+        targetPath: sharedSkillsPath,
+        status: "covered-by-shared-path",
+        success: true,
+        errorMessage: null
+      }
+    ])
+    expect((await stateStore.readState()).pendingUpdates).toEqual([])
+
+    await stateStore.close()
+  })
+
+  it("skips same-version targets without downloading a package and reconciles local state", async () => {
+    const rootDir = createTempRoot()
+    const dbPath = join(rootDir, "state", "state.sqlite3")
+    const stateStore = await createSqliteStateStore(dbPath)
+    const packageSource = createPackageSource(rootDir)
+    const { service: packageService, downloadArtifact } = buildPackageService({
+      artifactPath: packageSource,
+      encrypted: false
+    })
+    const skillsPath = join(rootDir, "skills", "codex")
+    const distributionService = createDistributionService({
+      packageService,
+      stateStore,
+      resolveAgentAdapter: (agentId: string) =>
+        hasAgentAdapter(agentId) ? getAgentAdapter(agentId) : null,
+      now: () => "2026-04-17T10:00:00.000Z"
+    })
+
+    await stateStore.writeState({
+      localRecords: [],
+      pendingUpdates: [
+        {
+          remoteSkillId: "skill-same",
+          name: "Skill Same",
+          localVersion: null,
+          remoteVersion: "1.0.0",
+          reason: "missing-local-record"
+        }
+      ],
+      successfulDistributionCount: 0,
+      lastRefreshedAt: "2026-04-16T10:00:00.000Z"
+    })
+
+    const result = await distributionService.distribute({
+      skillId: "skill-same",
+      name: "Skill Same",
+      version: "1.0.0",
+      packageSource: { source: packageSource },
+      targets: [createTarget("codex", skillsPath, ["codex"], "skip-same-version")]
+    })
+
+    expect(downloadArtifact).not.toHaveBeenCalled()
+    expect(existsSync(join(skillsPath, "skill-same"))).toBe(false)
+    expect(result.targets).toEqual([
+      {
+        agentId: "codex",
+        targetPath: skillsPath,
+        status: "skipped-same-version",
+        success: true,
+        errorMessage: null
+      }
+    ])
+    expect(result.syncedToLocalState).toBe(true)
+    expect(await stateStore.readState()).toMatchObject({
+      localRecords: [
+        {
+          remoteSkillId: "skill-same",
+          name: "Skill Same",
+          installedVersion: "1.0.0",
+          remoteVersion: "1.0.0",
+          lastComparedAt: "2026-04-17T10:00:00.000Z"
+        }
+      ],
+      pendingUpdates: [],
+      successfulDistributionCount: 1
+    })
 
     await stateStore.close()
   })
@@ -317,8 +495,20 @@ describe("distribution pipeline", () => {
         version: "1.0.0",
         extractedPath: null,
         targets: [
-          { agentId: "codex", success: true, errorMessage: null },
-          { agentId: "claude-code", success: true, errorMessage: null }
+          {
+            agentId: "codex",
+            targetPath: "C:\\skills\\codex",
+            status: "success",
+            success: true,
+            errorMessage: null
+          },
+          {
+            agentId: "claude-code",
+            targetPath: "C:\\skills\\claude",
+            status: "success",
+            success: true,
+            errorMessage: null
+          }
         ],
         succeededAgentIds: ["codex", "claude-code"],
         failedAgentIds: [],
@@ -337,8 +527,20 @@ describe("distribution pipeline", () => {
         version: "1.0.0",
         extractedPath: null,
         targets: [
-          { agentId: "codex", success: true, errorMessage: null },
-          { agentId: "missing-agent", success: false, errorMessage: "No adapter registered" }
+          {
+            agentId: "codex",
+            targetPath: "C:\\skills\\codex",
+            status: "success",
+            success: true,
+            errorMessage: null
+          },
+          {
+            agentId: "missing-agent",
+            targetPath: "C:\\skills\\missing-agent",
+            status: "failed",
+            success: false,
+            errorMessage: "No adapter registered"
+          }
         ],
         succeededAgentIds: ["codex"],
         failedAgentIds: ["missing-agent"],

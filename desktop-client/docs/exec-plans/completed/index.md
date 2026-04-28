@@ -4,6 +4,8 @@
 
 | File | Outcome |
 |------|---------|
+| `2026-04-27-agent-detection-and-distribution.md` | Desktop-client agent detection and targeted distribution were implemented for 20 SKILL-capable assistants, including shared target dedupe, same-version reconcile, IPC, renderer UI, tests, and docs |
+| `2026-04-27-agent-detection-and-distribution-tasks.md` | Completed task checklist for the agent detection and targeted distribution implementation |
 | `2026-04-27-package-artifact-cleanup.md` | Desktop-client package artifact cleanup ownership was implemented across package-service, runtime download staging, tests, and docs |
 | `2026-04-26-pre-distribution-skill-check.md` | Desktop-client read-only pre-distribution target checks were implemented across adapters, core service, IPC, renderer UI, tests, and docs |
 | `2026-04-24-desktop-client-i18n.md` | Desktop-client locale persistence, renderer translation, and locale-aware timestamps were implemented |

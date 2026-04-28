@@ -96,6 +96,68 @@ type DrawerProps = {
   children: ReactNode
 }
 
+type DialogProps = {
+  open: boolean
+  title: string
+  description: string
+  onClose: () => void
+  closeLabel?: string
+  children: ReactNode
+}
+
+export function Dialog({
+  open,
+  title,
+  description,
+  onClose,
+  closeLabel = "Close",
+  children
+}: DialogProps) {
+  useEffect(() => {
+    if (!open) {
+      return
+    }
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        onClose()
+      }
+    }
+
+    window.addEventListener("keydown", handleKeyDown)
+    return () => window.removeEventListener("keydown", handleKeyDown)
+  }, [onClose, open])
+
+  if (!open) {
+    return null
+  }
+
+  return (
+    <>
+      <div className="dialog-overlay" onClick={onClose} aria-hidden="true" />
+      <section
+        aria-modal="true"
+        aria-labelledby="app-dialog-title"
+        className="dialog-panel"
+        role="dialog"
+      >
+        <div className="dialog-panel__header">
+          <div className="section-heading">
+            <h2 id="app-dialog-title" className="section-heading__title">
+              {title}
+            </h2>
+            <p className="card__description">{description}</p>
+          </div>
+          <Button aria-label={closeLabel} variant="ghost" size="sm" onClick={onClose}>
+            {closeLabel}
+          </Button>
+        </div>
+        <div className="dialog-panel__body">{children}</div>
+      </section>
+    </>
+  )
+}
+
 export function Drawer({
   open,
   title,

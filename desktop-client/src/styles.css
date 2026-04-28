@@ -504,6 +504,72 @@ input:focus-visible {
   background: rgba(23, 32, 51, 0.36);
 }
 
+.dialog-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  background: rgba(23, 32, 51, 0.42);
+}
+
+.dialog-panel {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  z-index: 110;
+  display: grid;
+  width: min(40rem, calc(100vw - 2rem));
+  max-height: min(42rem, calc(100vh - 2rem));
+  transform: translate(-50%, -50%);
+  border: 1px solid var(--osh-border);
+  border-radius: var(--osh-radius);
+  background: var(--osh-background-soft);
+  box-shadow: var(--osh-shadow);
+  overflow: hidden;
+}
+
+.dialog-panel__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  border-bottom: 1px solid var(--osh-border);
+  padding: 1rem;
+}
+
+.dialog-panel__body {
+  display: grid;
+  gap: 1rem;
+  overflow: auto;
+  padding: 1rem;
+}
+
+.dialog-section {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.dialog-section__title {
+  margin: 0;
+  font-size: 0.92rem;
+}
+
+.dialog-list {
+  display: grid;
+  gap: 0.35rem;
+  margin: 0;
+  padding-left: 1.15rem;
+  color: var(--osh-muted);
+  font-size: 0.88rem;
+  line-height: 1.45;
+}
+
+.dialog-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
 .drawer-panel {
   position: fixed;
   top: 0;

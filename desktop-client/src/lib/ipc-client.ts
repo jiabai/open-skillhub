@@ -1,5 +1,6 @@
 import type {
   AppLocale,
+  AgentDetectionSnapshot,
   ConfigurationPayload,
   ConfigurationState,
   ConnectionTestResult,
@@ -15,7 +16,9 @@ export interface DesktopClientBridge {
   clearConfiguration(): Promise<ConfigurationState>
   testConnection(payload: ConfigurationPayload): Promise<ConnectionTestResult>
   refreshSync(): Promise<DesktopSyncState>
+  refreshAgentDetection(): Promise<AgentDetectionSnapshot>
   refreshPreDistributionCheck(): Promise<PreDistributionCheckSnapshot>
+  reconcileInstalledSkill(pendingUpdateId: string): Promise<DesktopSyncState>
   distributePendingUpdate(pendingUpdateId: string): Promise<SkillDistributionResult>
 }
 
@@ -97,6 +100,16 @@ function invokeRefreshSync(): Promise<DesktopSyncState> {
   return bridge.refreshSync()
 }
 
+function invokeRefreshAgentDetection(): Promise<AgentDetectionSnapshot> {
+  const bridge = getDesktopClientBridge()
+
+  if (!bridge) {
+    throw new Error("Desktop client bridge is unavailable")
+  }
+
+  return bridge.refreshAgentDetection()
+}
+
 function invokeRefreshPreDistributionCheck(): Promise<PreDistributionCheckSnapshot> {
   const bridge = getDesktopClientBridge()
 
@@ -105,6 +118,16 @@ function invokeRefreshPreDistributionCheck(): Promise<PreDistributionCheckSnapsh
   }
 
   return bridge.refreshPreDistributionCheck()
+}
+
+function invokeReconcileInstalledSkill(pendingUpdateId: string): Promise<DesktopSyncState> {
+  const bridge = getDesktopClientBridge()
+
+  if (!bridge) {
+    throw new Error("Desktop client bridge is unavailable")
+  }
+
+  return bridge.reconcileInstalledSkill(pendingUpdateId)
 }
 
 function invokeDistributePendingUpdate(
@@ -127,6 +150,8 @@ export const desktopClient = {
   clearConfiguration: invokeClearConfiguration,
   testConnection: invokeTestConnection,
   refreshSync: invokeRefreshSync,
+  refreshAgentDetection: invokeRefreshAgentDetection,
   refreshPreDistributionCheck: invokeRefreshPreDistributionCheck,
+  reconcileInstalledSkill: invokeReconcileInstalledSkill,
   distributePendingUpdate: invokeDistributePendingUpdate
 } as const

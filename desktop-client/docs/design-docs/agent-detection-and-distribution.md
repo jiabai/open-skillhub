@@ -1,10 +1,10 @@
 # Agent Detection And Targeted Distribution - Technical Design
 
-Status: design for implementation handoff
-Last updated: 2026-04-27
+Status: implemented, accepted, and archived
+Last updated: 2026-04-28
 Scope: `desktop-client/`
 
-> This document describes the target design for expanding the desktop client from 3 configured agent targets to 20 detected AI coding assistants. It is not implemented yet. The implementation must keep current renderer privilege boundaries and review-before-write behavior.
+> This document describes the implemented design for expanding the desktop client from 3 configured agent targets to 20 detected AI coding assistants. The implementation keeps current renderer privilege boundaries and review-before-write behavior.
 
 ## 1. Problem Statement
 
@@ -28,9 +28,9 @@ The new product spec requires the client to:
 - Do not integrate unsupported assistants: Zed, AugmentCode, JetBrains AI.
 - Do not change backend API contracts.
 
-## 3. Current Code Facts
+## 3. Pre-Implementation Code Facts
 
-These facts come from the current implementation and must stay true unless the active ExecPlan explicitly changes them:
+These facts were true before the 2026-04-28 implementation and explain the migration this design performed:
 
 - `AgentId` is currently `"codex" | "claude-code" | "gemini-cli"` in `../../src/types/index.ts`.
 - `../../src/adapters/agents/registry.ts` registers three filesystem adapters.
@@ -198,10 +198,11 @@ export interface DesktopRuntimeConfig {
 }
 ```
 
-Compatibility:
+Implemented result:
 
-- Remove `agentSkillsPaths` only when all call sites are migrated in the same task.
-- If a staged migration keeps `agentSkillsPaths` temporarily, it must be derived from `agentDetection.uniqueTargets` and marked as transitional in the active ExecPlan.
+- `agentSkillsPaths` was removed from `DesktopRuntimeConfig`.
+- Main-process pre-check, reconcile, and distribution helpers now derive targets from `agentDetection.uniqueTargets`.
+- No staged compatibility shim remains.
 
 Reload rules:
 
@@ -355,7 +356,7 @@ Docs after implementation:
 - `../SECURITY.md` if path validation or environment target semantics change
 - `../references/runtime-and-storage-surface.md`
 - `../QUALITY_SCORE.md` if scoring criteria change
-- `../exec-plans/active/2026-04-27-agent-detection-and-distribution.md`
+- `../exec-plans/completed/2026-04-27-agent-detection-and-distribution.md`
 
 ## 15. Test Strategy
 

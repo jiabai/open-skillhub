@@ -1,6 +1,7 @@
 import type { IpcMain } from "electron"
 import type {
   AppLocale,
+  AgentDetectionSnapshot,
   ConfigurationPayload,
   ConfigurationState,
   ConnectionTestResult,
@@ -16,7 +17,9 @@ export const desktopClientIpcChannels = {
   clearConfiguration: "configuration:clear",
   testConnection: "configuration:test-connection",
   refreshSync: "sync:refresh",
+  refreshAgentDetection: "agent-detection:refresh",
   refreshPreDistributionCheck: "pre-distribution-check:refresh",
+  reconcileInstalledSkill: "distribution:reconcile-installed",
   distributePendingUpdate: "distribution:run"
 } as const
 
@@ -27,7 +30,9 @@ export interface DesktopClientBridge {
   clearConfiguration(): Promise<ConfigurationState>
   testConnection(payload: ConfigurationPayload): Promise<ConnectionTestResult>
   refreshSync(): Promise<DesktopSyncState>
+  refreshAgentDetection(): Promise<AgentDetectionSnapshot>
   refreshPreDistributionCheck(): Promise<PreDistributionCheckSnapshot>
+  reconcileInstalledSkill(pendingUpdateId: string): Promise<DesktopSyncState>
   distributePendingUpdate(pendingUpdateId: string): Promise<SkillDistributionResult>
 }
 
@@ -38,7 +43,9 @@ export interface DesktopClientIpcHandlers {
   clearConfiguration(): Promise<ConfigurationState>
   testConnection(payload: ConfigurationPayload): Promise<ConnectionTestResult>
   refreshSync(): Promise<DesktopSyncState>
+  refreshAgentDetection(): Promise<AgentDetectionSnapshot>
   refreshPreDistributionCheck(): Promise<PreDistributionCheckSnapshot>
+  reconcileInstalledSkill(pendingUpdateId: string): Promise<DesktopSyncState>
   distributePendingUpdate(pendingUpdateId: string): Promise<SkillDistributionResult>
 }
 
@@ -52,7 +59,9 @@ export function registerDesktopClientIpc(
   ipcMain.removeHandler(desktopClientIpcChannels.clearConfiguration)
   ipcMain.removeHandler(desktopClientIpcChannels.testConnection)
   ipcMain.removeHandler(desktopClientIpcChannels.refreshSync)
+  ipcMain.removeHandler(desktopClientIpcChannels.refreshAgentDetection)
   ipcMain.removeHandler(desktopClientIpcChannels.refreshPreDistributionCheck)
+  ipcMain.removeHandler(desktopClientIpcChannels.reconcileInstalledSkill)
   ipcMain.removeHandler(desktopClientIpcChannels.distributePendingUpdate)
 
   ipcMain.handle(desktopClientIpcChannels.getConfiguration, async () => handlers.getConfiguration())
@@ -67,8 +76,15 @@ export function registerDesktopClientIpc(
     handlers.testConnection(payload)
   )
   ipcMain.handle(desktopClientIpcChannels.refreshSync, async () => handlers.refreshSync())
+  ipcMain.handle(desktopClientIpcChannels.refreshAgentDetection, async () =>
+    handlers.refreshAgentDetection()
+  )
   ipcMain.handle(desktopClientIpcChannels.refreshPreDistributionCheck, async () =>
     handlers.refreshPreDistributionCheck()
+  )
+  ipcMain.handle(
+    desktopClientIpcChannels.reconcileInstalledSkill,
+    async (_event, pendingUpdateId: string) => handlers.reconcileInstalledSkill(pendingUpdateId)
   )
   ipcMain.handle(
     desktopClientIpcChannels.distributePendingUpdate,

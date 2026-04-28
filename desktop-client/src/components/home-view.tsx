@@ -2,7 +2,8 @@ import type { PendingSyncUpdate, PreDistributionCheckSnapshot } from "@/types"
 import { Badge, Button, Card, CardContent, CardDescription, CardHeader, CardTitle, PageIntro } from "@/components/ui-primitives"
 import {
   PreDistributionActionWarning,
-  PreDistributionCheckSummary
+  PreDistributionCheckSummary,
+  areAllPreDistributionTargetsSame
 } from "@/components/pre-distribution-check-summary"
 import { useI18n } from "@/i18n/use-i18n"
 
@@ -13,12 +14,14 @@ type HomeViewProps = {
   isLoading: boolean
   lastRefreshedAt: string
   successfulDistributionCount: number
+  installedAgentCount: number
   pendingUpdates: PendingSyncUpdate[]
   preDistributionCheckSnapshot: PreDistributionCheckSnapshot | null
   isPreDistributionChecking: boolean
   isPreDistributionCheckStale: boolean
   busyUpdateId: string | null
   onDistribute: (pendingUpdate: PendingSyncUpdate) => void
+  onReconcileInstalled: (pendingUpdate: PendingSyncUpdate) => void
   onOpenSettings: () => void
   onRefresh: () => void
   onViewUpdates: () => void
@@ -35,12 +38,14 @@ export function HomeView({
   isLoading,
   lastRefreshedAt,
   successfulDistributionCount,
+  installedAgentCount,
   pendingUpdates,
   preDistributionCheckSnapshot,
   isPreDistributionChecking,
   isPreDistributionCheckStale,
   busyUpdateId,
   onDistribute,
+  onReconcileInstalled,
   onOpenSettings,
   onRefresh,
   onViewUpdates
@@ -117,6 +122,15 @@ export function HomeView({
             <Card>
               <CardContent>
                 <div className="metric">
+                  <span className="metric__label">{dictionary.homeView.metrics.installedAgents.label}</span>
+                  <strong className="metric__value">{installedAgentCount}</strong>
+                  <span className="muted">{dictionary.homeView.metrics.installedAgents.detail}</span>
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent>
+                <div className="metric">
                   <span className="metric__label">{dictionary.homeView.metrics.lastRefresh.label}</span>
                   <strong style={{ fontSize: "1.1rem", lineHeight: 1.25 }}>{lastRefreshedAt}</strong>
                   <span className="muted">{dictionary.homeView.metrics.lastRefresh.detail}</span>
@@ -143,6 +157,11 @@ export function HomeView({
                 <div className="list-stack">
                   {previewUpdates.map((pendingUpdate) => {
                     const isBusy = busyUpdateId === pendingUpdate.remoteSkillId
+                    const canSyncLocalRecord = areAllPreDistributionTargetsSame(
+                      pendingUpdate,
+                      preDistributionCheckSnapshot,
+                      isPreDistributionCheckStale
+                    )
                     const reasonLabel =
                       pendingUpdate.reason === "missing-local-record"
                         ? dictionary.homeView.reasonLabels.missingLocalRecord
@@ -161,14 +180,25 @@ export function HomeView({
                               snapshot={preDistributionCheckSnapshot}
                               isStale={isPreDistributionCheckStale}
                             />
-                            <Button
-                              variant="primary"
-                              disabled={isBusy}
-                              aria-label={dictionary.homeView.distribute(pendingUpdate.name)}
-                              onClick={() => onDistribute(pendingUpdate)}
-                            >
-                              {isBusy ? dictionary.homeView.distributing : dictionary.common.distribute}
-                            </Button>
+                            {canSyncLocalRecord ? (
+                              <Button
+                                variant="secondary"
+                                disabled={isBusy}
+                                aria-label={dictionary.homeView.syncLocalRecord(pendingUpdate.name)}
+                                onClick={() => onReconcileInstalled(pendingUpdate)}
+                              >
+                                {isBusy ? dictionary.common.syncingRecord : dictionary.common.syncRecord}
+                              </Button>
+                            ) : (
+                              <Button
+                                variant="primary"
+                                disabled={isBusy}
+                                aria-label={dictionary.homeView.distribute(pendingUpdate.name)}
+                                onClick={() => onDistribute(pendingUpdate)}
+                              >
+                                {isBusy ? dictionary.homeView.distributing : dictionary.common.distribute}
+                              </Button>
+                            )}
                           </div>
                         </div>
                         <div className="update-item__meta">

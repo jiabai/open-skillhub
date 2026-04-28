@@ -12,7 +12,7 @@
 
 ## Status
 
-`active`: documentation and planning are prepared; implementation has not started.
+`completed`: implementation accepted on 2026-04-28 and archived to `completed/`.
 
 ## Sources
 
@@ -27,7 +27,7 @@
 - Expand supported SKILL-capable assistant IDs from 3 to 20.
 - Add a data-driven agent catalog with detection directories, owned write targets, compatible read paths, env vars, priority path handling, and shared path keys.
 - Add a detection service that produces renderer-safe install snapshots and core-safe unique targets.
-- Replace `agentSkillsPaths` call sites with detection-derived effective targets, or keep a short transitional adapter only if all call sites cannot be removed in one task.
+- Replace `agentSkillsPaths` call sites with detection-derived effective targets; no transitional shim remains.
 - Extend pre-distribution checks to support shared physical targets and fan-out results to covered assistants.
 - Extend distribution to write each unique physical target once, skip same-version targets, and report shared-path coverage.
 - Add a no-write reconcile action for stale pending records when every effective target already has the remote version.
@@ -111,20 +111,23 @@ Modify:
 - [x] Corrected product spec logic issues.
 - [x] Added technical design for implementation handoff.
 - [x] Created active ExecPlan and sibling task checklist.
-- [ ] Human review of spec/design/plan before code.
-- [ ] Implementation not started.
+- [x] Human review accepted implementation kickoff on 2026-04-28.
+- [x] Expanded `AgentId`, added the 20-agent catalog, and registered catalog-backed filesystem adapters.
+- [x] Added agent detection snapshots with environment overrides, OpenClaw priority detection, and shared physical target dedupe.
+- [x] Replaced runtime hardcoded agent paths with `agentDetection`.
+- [x] Updated pre-distribution checks to consume detection-derived targets and fan out shared path metadata results.
+- [x] Updated distribution to use effective targets, write shared paths once, report target statuses, and support same-version skip.
+- [x] Added no-write local record reconcile through IPC/main/preload/ipc-client.
+- [x] Updated renderer Home, Updates, Agents, confirmation, reconcile, and i18n flows.
+- [x] Updated durable docs and tech-debt tracker after implementation.
+- [x] Human acceptance received on 2026-04-28.
+- [x] Moved this plan to `../completed/`.
 
 ## Validation Plan
 
-Documentation-only preparation:
-
 ```bash
-python scripts/validate_agents_docs.py --level ERROR
-```
-
-Implementation validation later:
-
-```bash
+cd desktop-client && npx tsc -p tsconfig.json --noEmit
+cd desktop-client && npm run typecheck:electron
 cd desktop-client && npm test
 cd desktop-client && npm run build
 python scripts/validate_agents_docs.py --level ERROR
@@ -132,9 +135,13 @@ python scripts/validate_agents_docs.py --level ERROR
 
 ## Validation Results
 
-- `python scripts/validate_agents_docs.py --level ERROR` passed with 0 errors and 0 warnings.
-- Not run: desktop tests/build because this task intentionally stops before code implementation.
+- 2026-04-27 documentation gate: `python scripts/validate_agents_docs.py --level ERROR` passed with 0 errors and 0 warnings.
+- 2026-04-28 implementation: `cd desktop-client && npx tsc -p tsconfig.json --noEmit` passed.
+- 2026-04-28 implementation: `cd desktop-client && npm run typecheck:electron` passed.
+- 2026-04-28 implementation: `cd desktop-client && npm test` passed with 14 files and 72 tests.
+- 2026-04-28 implementation: `cd desktop-client && npm run build` passed.
+- 2026-04-28 implementation: `python scripts/validate_agents_docs.py --level ERROR` passed with 0 errors and 0 warnings.
 
 ## Review Gate
 
-Pause here for human review. Code implementation should not begin until the product spec, technical design, active ExecPlan, and task checklist are accepted or revised.
+Archived after human acceptance. Future changes should use a new active ExecPlan.

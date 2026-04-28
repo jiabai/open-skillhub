@@ -16,6 +16,8 @@ export const enUSDictionary = {
     testingConnection: "Testing...",
     distribute: "Distribute",
     distributing: "Distributing",
+    syncRecord: "Sync record",
+    syncingRecord: "Syncing...",
     pending: (count: number) => `${count} pending update${count === 1 ? "" : "s"}`,
     local: (value: string) => `Local ${value}`,
     remote: (value: string) => `Remote ${value}`,
@@ -65,6 +67,10 @@ export const enUSDictionary = {
         label: "Successful distributions",
         detail: "Completed successful distribution operations."
       },
+      installedAgents: {
+        label: "Installed agents",
+        detail: "Detected local SKILL-capable assistants."
+      },
       lastRefresh: {
         label: "Last refresh",
         detail: "Latest bridge snapshot."
@@ -76,6 +82,7 @@ export const enUSDictionary = {
     noPendingUpdates: "No pending updates are waiting for review.",
     viewAllUpdates: "View all updates",
     distribute: (name: string) => `Distribute ${name}`,
+    syncLocalRecord: (name: string) => `Sync local record for ${name}`,
     distributing: "Distributing",
     badges: {
       local: (value: string) => `Local ${value}`,
@@ -162,6 +169,8 @@ export const enUSDictionary = {
     refreshingCheck: "Checking...",
     distribute: "Distribute",
     distributing: "Distributing",
+    syncLocalRecord: "Sync record",
+    syncingRecord: "Syncing...",
     reviewReasonLabel: "Review reason:",
     reasonLabels: {
       missingLocalRecord: "Missing local record",
@@ -197,13 +206,37 @@ export const enUSDictionary = {
       error: (message: string) => `Check failed: ${message}`
     }
   },
+  distributionConfirmation: {
+    title: "Confirm distribution",
+    description: (name: string) => `Review the detected targets before distributing ${name}.`,
+    destructiveWarning:
+      "Distribution can overwrite files in the target skill directory. Continue only after reviewing local changes.",
+    writeTargetsTitle: "Will write to",
+    skippedTargetsTitle: "Already up to date",
+    missingAgentsTitle: "Missing assistants skipped",
+    noWriteTargets: "No detected write targets.",
+    noSkippedTargets: "No same-version targets.",
+    noMissingAgents: "No missing supported assistants.",
+    confirm: "Confirm distribution",
+    cancel: "Cancel"
+  },
   agentsPanel: {
     eyebrow: "Agents",
     title: "Distribution targets",
-    description: "Approved local agent targets for reviewed updates.",
-    claudeCodeDetail: "Adapter layer ready for code-focused agents.",
-    codexDetail: "Distributed updates can target this workspace-aware agent.",
-    geminiCliDetail: "Kept visible as an approved distribution target."
+    description: "Local assistant detection decides which targets can receive approved updates.",
+    rediscover: "Rediscover",
+    rediscovering: "Detecting...",
+    noSnapshot: "Agent detection has not run yet.",
+    summary: (installed: number, supported: number) =>
+      `${installed} installed of ${supported} supported agents.`,
+    statusLabels: {
+      installed: "Installed",
+      missing: "Not installed",
+      environment: "Configured by environment",
+      autoDetected: "Auto-detected"
+    },
+    targetPath: (value: string) => `Target ${value}`,
+    detectionDirs: (value: string) => `Detection ${value}`
   },
   activityPanel: {
     eyebrow: "Activity",
@@ -242,6 +275,12 @@ export const enUSDictionary = {
       `${detail} Refreshing the review snapshot then failed: ${message}`,
     distributionFailedTitle: "Distribution failed",
     distributionFailedDetail: (name: string, message: string) =>
-      `${name} could not be distributed: ${message}`
+      `${name} could not be distributed: ${message}`,
+    localRecordSyncedTitle: "Local record synced",
+    localRecordSyncedDetail: (name: string) =>
+      `${name} is already installed on every detected target, so the local review record was updated.`,
+    localRecordSyncFailedTitle: "Local record sync failed",
+    localRecordSyncFailedDetail: (name: string, message: string) =>
+      `${name} could not be marked as synced: ${message}`
   }
 } satisfies AppDictionary

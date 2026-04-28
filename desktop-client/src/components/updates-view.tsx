@@ -11,6 +11,7 @@ type UpdatesViewProps = {
   pendingUpdates: PendingSyncUpdate[]
   preDistributionCheckSnapshot: PreDistributionCheckSnapshot | null
   onDistribute: (pendingUpdate: PendingSyncUpdate) => void
+  onReconcileInstalled: (pendingUpdate: PendingSyncUpdate) => void
   onRefreshPreDistributionCheck: () => void
   onRefresh: () => void
 }
@@ -23,6 +24,7 @@ export function UpdatesView({
   pendingUpdates,
   preDistributionCheckSnapshot,
   onDistribute,
+  onReconcileInstalled,
   onRefreshPreDistributionCheck,
   onRefresh
 }: UpdatesViewProps) {
@@ -48,6 +50,7 @@ export function UpdatesView({
         preDistributionCheckSnapshot={preDistributionCheckSnapshot}
         busyUpdateId={busyUpdateId}
         onDistribute={onDistribute}
+        onReconcileInstalled={onReconcileInstalled}
         onRefreshPreDistributionCheck={onRefreshPreDistributionCheck}
       />
     </section>

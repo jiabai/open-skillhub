@@ -11,6 +11,7 @@ import {
 } from "@/core/pre-distribution-check/version-compare"
 import type {
   AgentId,
+  AgentSkillTarget,
   AgentPreDistributionCheckResult,
   PendingSyncUpdate,
   PreDistributionCheckResults,
@@ -21,7 +22,9 @@ import type {
 
 export interface PreDistributionCheckTarget {
   adapter: Pick<AgentAdapterV1, "id" | "displayName" | "readInstalledSkillMetadata">
+  coveredAdapters?: Array<Pick<AgentAdapterV1, "id" | "displayName">>
   installContext: AgentInstallContextV1
+  target?: AgentSkillTarget
 }
 
 export interface PreDistributionCheckServiceOptions {
@@ -76,6 +79,30 @@ function createTimeoutError(message: string): TimeoutError {
   const error = new Error(message) as TimeoutError
   error.code = "TIMEOUT"
   return error
+}
+
+function uniqueAgentIds(agentIds: AgentId[]): AgentId[] {
+  const seen = new Set<AgentId>()
+  const unique: AgentId[] = []
+
+  for (const agentId of agentIds) {
+    if (seen.has(agentId)) {
+      continue
+    }
+
+    seen.add(agentId)
+    unique.push(agentId)
+  }
+
+  return unique
+}
+
+function getCoveredAdapters(
+  target: PreDistributionCheckTarget
+): Array<Pick<AgentAdapterV1, "id" | "displayName">> {
+  return target.coveredAdapters && target.coveredAdapters.length > 0
+    ? target.coveredAdapters
+    : [target.adapter]
 }
 
 function getErrorMessage(error: unknown): string {
@@ -183,11 +210,12 @@ export function createPreDistributionCheckService(
     job: CheckJob,
     error: unknown,
     startedAtMs: number,
+    adapter: Pick<AgentAdapterV1, "id" | "displayName"> = job.target.adapter,
     checkedAt = now()
   ): AgentPreDistributionCheckResult {
     return {
-      agentId: job.target.adapter.id,
-      displayName: job.target.adapter.displayName,
+      agentId: adapter.id,
+      displayName: adapter.displayName,
       skillDir: null,
       exists: false,
       installedVersion: null,
@@ -203,20 +231,56 @@ export function createPreDistributionCheckService(
     }
   }
 
-  function completeJob(
+  function createMetadataResult(args: {
+    job: CheckJob
+    metadata: Awaited<ReturnType<AgentAdapterV1["readInstalledSkillMetadata"]>>
+    adapter: Pick<AgentAdapterV1, "id" | "displayName">
+    startedAtMs: number
+    checkedAt: Date
+  }): AgentPreDistributionCheckResult {
+    return {
+      agentId: args.adapter.id,
+      displayName: args.adapter.displayName,
+      skillDir: args.metadata.skillDir,
+      exists: args.metadata.exists,
+      installedVersion: args.metadata.version,
+      installedVersionSource: args.metadata.versionSource,
+      remoteVersion: args.job.pendingUpdate.remoteVersion,
+      installedVersionFormat: getVersionFormat(args.metadata.version),
+      remoteVersionFormat: getVersionFormat(args.job.pendingUpdate.remoteVersion),
+      versionComparison: determineComparison(
+        args.metadata.exists,
+        args.metadata.version,
+        args.job.pendingUpdate.remoteVersion
+      ),
+      checkedAt: args.checkedAt.toISOString(),
+      durationMs: Math.max(0, clock() - args.startedAtMs),
+      errorCode: null,
+      errorMessage: null
+    }
+  }
+
+  function completeJobResults(
     job: CheckJob,
     results: PreDistributionCheckResults,
-    result: AgentPreDistributionCheckResult
+    createResult: (
+      adapter: Pick<AgentAdapterV1, "id" | "displayName">
+    ) => AgentPreDistributionCheckResult
   ): void {
     if (job.completed) {
       return
     }
 
     job.completed = true
-    results[job.pendingUpdate.remoteSkillId] = {
-      ...(results[job.pendingUpdate.remoteSkillId] ?? {}),
-      [job.target.adapter.id]: result
+
+    const currentResults = results[job.pendingUpdate.remoteSkillId] ?? {}
+    const nextResults = { ...currentResults }
+
+    for (const adapter of getCoveredAdapters(job.target)) {
+      nextResults[adapter.id] = createResult(adapter)
     }
+
+    results[job.pendingUpdate.remoteSkillId] = nextResults
   }
 
   async function runJob(job: CheckJob, results: PreDistributionCheckResults): Promise<void> {
@@ -233,30 +297,20 @@ export function createPreDistributionCheckService(
         clearTimeoutFn
       )
       const checkedAt = now()
-      const result: AgentPreDistributionCheckResult = {
-        agentId: job.target.adapter.id,
-        displayName: job.target.adapter.displayName,
-        skillDir: metadata.skillDir,
-        exists: metadata.exists,
-        installedVersion: metadata.version,
-        installedVersionSource: metadata.versionSource,
-        remoteVersion: job.pendingUpdate.remoteVersion,
-        installedVersionFormat: getVersionFormat(metadata.version),
-        remoteVersionFormat: getVersionFormat(job.pendingUpdate.remoteVersion),
-        versionComparison: determineComparison(
-          metadata.exists,
-          metadata.version,
-          job.pendingUpdate.remoteVersion
-        ),
-        checkedAt: checkedAt.toISOString(),
-        durationMs: Math.max(0, clock() - startedAtMs),
-        errorCode: null,
-        errorMessage: null
-      }
 
-      completeJob(job, results, result)
+      completeJobResults(job, results, (adapter) =>
+        createMetadataResult({
+          job,
+          metadata,
+          adapter,
+          startedAtMs,
+          checkedAt
+        })
+      )
     } catch (error) {
-      completeJob(job, results, createErrorResult(job, error, startedAtMs))
+      completeJobResults(job, results, (adapter) =>
+        createErrorResult(job, error, startedAtMs, adapter)
+      )
     }
   }
 
@@ -289,7 +343,11 @@ export function createPreDistributionCheckService(
       const totalStartedAtMs = clock()
       const currentState = await dependencies.stateStore.readState()
       const pendingUpdates = currentState.pendingUpdates
-      const targetAgentIds = dependencies.targets.map((target) => target.adapter.id)
+      const targetAgentIds = uniqueAgentIds(
+        dependencies.targets.flatMap((target) =>
+          getCoveredAdapters(target).map((adapter) => adapter.id)
+        )
+      )
 
       if (pendingUpdates.length === 0) {
         return createEmptySnapshot({
@@ -348,13 +406,12 @@ export function createPreDistributionCheckService(
         for (const job of jobs) {
           if (!job.completed) {
             const timedOutAtMs = totalStartedAtMs
-            completeJob(
-              job,
-              results,
+            completeJobResults(job, results, (adapter) =>
               createErrorResult(
                 job,
                 createTimeoutError("Pre-distribution check timed out."),
-                timedOutAtMs
+                timedOutAtMs,
+                adapter
               )
             )
           }

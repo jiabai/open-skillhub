@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest"
 
 import { createPreDistributionCheckService } from "@/core/pre-distribution-check/pre-distribution-check-service"
+import type { AgentAdapterV1 } from "@/adapters/agents/base"
 import type {
   AgentId,
   DesktopSyncState,
@@ -37,7 +38,7 @@ function createPendingUpdate(version = "1.0.0"): PendingSyncUpdate {
 function createTarget(
   id: AgentId,
   displayName: string,
-  readInstalledSkillMetadata: () => Promise<InstalledSkillMetadataV1>,
+  readInstalledSkillMetadata: AgentAdapterV1["readInstalledSkillMetadata"],
   coveredAgentIds: AgentId[] = [id]
 ) {
   return {
@@ -134,6 +135,43 @@ describe("pre-distribution check service", () => {
       exists: false,
       installedVersion: null,
       versionComparison: "not-installed"
+    })
+  })
+
+  it("checks installed metadata by skill name instead of remote skill id", async () => {
+    const readInstalledSkillMetadata = vi.fn(
+      async (skillName: string): Promise<InstalledSkillMetadataV1> => ({
+        exists: skillName === "Skill A",
+        skillDir: `C:\\skills\\codex\\${skillName}`,
+        version: skillName === "Skill A" ? "2.0.0" : null,
+        versionSource: skillName === "Skill A" ? "skill-frontmatter" : null
+      })
+    )
+    const service = createPreDistributionCheckService({
+      stateStore: createStateStore([
+        {
+          remoteSkillId: "f4919f10-e7fc-40df-ae6f-fe7bfe050ac5",
+          name: "Skill A",
+          localVersion: null,
+          remoteVersion: "1.0.0",
+          reason: "missing-local-record"
+        }
+      ]),
+      targets: [
+        createTarget("codex", "Codex", readInstalledSkillMetadata)
+      ],
+      now: () => new Date("2026-04-17T00:00:00.000Z")
+    })
+
+    const snapshot = await service.refresh()
+
+    expect(readInstalledSkillMetadata).toHaveBeenCalledWith("Skill A", {
+      skillsPath: "C:\\skills\\codex"
+    })
+    expect(snapshot.results["f4919f10-e7fc-40df-ae6f-fe7bfe050ac5"]?.codex).toMatchObject({
+      exists: true,
+      installedVersion: "2.0.0",
+      versionComparison: "installed-newer"
     })
   })
 

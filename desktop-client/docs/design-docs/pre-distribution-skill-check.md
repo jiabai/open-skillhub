@@ -97,7 +97,7 @@ Rules:
 - If no detected/configured target is available, return an empty result plus a global warning. Distribution already fails this case with a clear error.
 - If a target `skillsPath` does not contain the skill, treat the covered assistants as `not-installed`; distribution can create the directory later.
 - If a target `skillsPath` exists but cannot be read, mark every covered assistant result as `error`.
-- Shared paths are read once per `remoteSkillId + targetPath`.
+- Shared paths are read once per pending update and `targetPath`; adapter metadata lookup uses the SKILL `name`, not `remoteSkillId`.
 
 ## 7. Adapter Metadata Contract
 
@@ -125,19 +125,26 @@ export interface InstalledSkillMetadataV1 {
   versionSource: InstalledSkillVersionSource
 }
 
+export interface ExtractedSkillPayloadV1 {
+  skillId: string
+  name: string
+  version?: string | null
+  extractedPath: string
+}
+
 export interface AgentAdapterV1 {
   id: AgentId
   displayName: string
   installSkill(payload: ExtractedSkillPayloadV1, context: AgentInstallContextV1): Promise<InstalledSkillV1>
   verifyInstalledSkill(payload: ExtractedSkillPayloadV1, installed: InstalledSkillV1): Promise<boolean>
-  readInstalledSkillMetadata(skillId: string, context: AgentInstallContextV1): Promise<InstalledSkillMetadataV1>
+  readInstalledSkillMetadata(skillName: string, context: AgentInstallContextV1): Promise<InstalledSkillMetadataV1>
 }
 ```
 
 Default filesystem adapter behavior:
 
-1. Normalize and validate `skillId` with the same path-safety rules used by install.
-2. Resolve `skillDir = join(context.skillsPath, safeSkillId)`.
+1. Normalize and validate `skillName` with the same path-safety rules used by install.
+2. Resolve `skillDir = join(context.skillsPath, safeSkillName)`.
 3. If `skillDir` does not exist, return `exists: false`, `version: null`.
 4. If `skillDir` is not a directory, throw an error.
 5. Read version metadata in this priority order:
@@ -147,6 +154,8 @@ Default filesystem adapter behavior:
 6. Trim empty strings to `null`.
 
 Malformed metadata files do not fail the check by themselves. The reader should continue to the next source when possible; if no supported source yields a non-empty version, return `version: null`.
+
+The default install path uses `payload.name` as the skill directory key. `payload.skillId` remains the remote/API identity for sync state, package download, and stale-snapshot fingerprints; it must not be used as the local install directory name.
 
 The adapter owns this metadata read because future agent integrations may not use the default filesystem layout.
 
@@ -347,7 +356,7 @@ Modify:
 | --- | --- |
 | `src/types/index.ts` | Move/add `AgentId`, add installed metadata types, and add transient pre-check IPC/renderer types. |
 | `src/adapters/agents/base.ts` | Import shared agent types, add `readInstalledSkillMetadata()`, and reuse/export safe skill directory name validation. |
-| `src/__tests__/agent-adapters.test.ts` | Cover SKILL.md, root manifest, nested manifest, missing directory, invalid skill ID. |
+| `src/__tests__/agent-adapters.test.ts` | Cover name-based installation, SKILL.md, root manifest, nested manifest, missing directory, invalid skill directory names. |
 | `electron/ipc.ts` | Add `pre-distribution-check:refresh` channel, bridge contract, handler registration. |
 | `electron/preload.ts` | Expose `refreshPreDistributionCheck()`. |
 | `src/lib/ipc-client.ts` | Add wrapper method and bridge type. |

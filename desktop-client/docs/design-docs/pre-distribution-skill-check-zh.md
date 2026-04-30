@@ -97,7 +97,7 @@ Pre-check 使用与分发相同的有效目标集合：
 - 如果没有可用的检测/配置目标，返回空结果加上全局警告。分发已经用明确的错误处理这种情况。
 - 如果目标 `skillsPath` 中没有该 skill，将 covered assistant 视为 `not-installed`；分发可以稍后创建目录。
 - 如果目标 `skillsPath` 存在但无法读取，将所有 covered assistant 的结果标记为 `error`。
-- 共享路径按 `remoteSkillId + targetPath` 只读取一次。
+- 共享路径按 pending update 和 `targetPath` 只读取一次；adapter 元数据查找使用 SKILL `name`，不是 `remoteSkillId`。
 
 ## 7. Adapter 元数据合约
 
@@ -125,19 +125,26 @@ export interface InstalledSkillMetadataV1 {
   versionSource: InstalledSkillVersionSource
 }
 
+export interface ExtractedSkillPayloadV1 {
+  skillId: string
+  name: string
+  version?: string | null
+  extractedPath: string
+}
+
 export interface AgentAdapterV1 {
   id: AgentId
   displayName: string
   installSkill(payload: ExtractedSkillPayloadV1, context: AgentInstallContextV1): Promise<InstalledSkillV1>
   verifyInstalledSkill(payload: ExtractedSkillPayloadV1, installed: InstalledSkillV1): Promise<boolean>
-  readInstalledSkillMetadata(skillId: string, context: AgentInstallContextV1): Promise<InstalledSkillMetadataV1>
+  readInstalledSkillMetadata(skillName: string, context: AgentInstallContextV1): Promise<InstalledSkillMetadataV1>
 }
 ```
 
 默认文件系统 adapter 行为：
 
-1. 使用与安装相同的路径安全规则对 `skillId` 进行归一化和验证。
-2. 解析 `skillDir = join(context.skillsPath, safeSkillId)`。
+1. 使用与安装相同的路径安全规则对 `skillName` 进行归一化和验证。
+2. 解析 `skillDir = join(context.skillsPath, safeSkillName)`。
 3. 如果 `skillDir` 不存在，返回 `exists: false`，`version: null`。
 4. 如果 `skillDir` 不是目录，抛出错误。
 5. 按以下优先级顺序读取版本元数据：
@@ -147,6 +154,8 @@ export interface AgentAdapterV1 {
 6. 将空字符串修剪为 `null`。
 
 格式错误的元数据文件本身不会导致检查失败。读取器应在可能时继续尝试下一个来源；如果没有支持的来源能产生非空版本，返回 `version: null`。
+
+默认安装路径使用 `payload.name` 作为 skill 目录键。`payload.skillId` 仍然是 sync state、package download 和 stale snapshot fingerprint 使用的远端/API 身份；它不能作为本地安装目录名。
 
 Adapter 拥有这个元数据读取，因为未来的 agent 集成可能不使用默认的文件系统布局。
 
@@ -347,7 +356,7 @@ Pre-check 是信息性的，但它不能削弱现有的 fail-closed 分发规则
 | --- | --- |
 | `src/types/index.ts` | 移动/添加 `AgentId`，添加已安装元数据类型，添加临时 pre-check IPC/renderer 类型。 |
 | `src/adapters/agents/base.ts` | 导入共享 agent 类型，添加 `readInstalledSkillMetadata()`，复用/导出安全 skill 目录名验证。 |
-| `src/__tests__/agent-adapters.test.ts` | 覆盖 SKILL.md、根 manifest、嵌套 manifest、缺失目录、无效 skill ID。 |
+| `src/__tests__/agent-adapters.test.ts` | 覆盖基于 name 的安装、SKILL.md、根 manifest、嵌套 manifest、缺失目录、无效 skill 目录名。 |
 | `electron/ipc.ts` | 添加 `pre-distribution-check:refresh` 通道、bridge 合约、handler 注册。 |
 | `electron/preload.ts` | 暴露 `refreshPreDistributionCheck()`。 |
 | `src/lib/ipc-client.ts` | 添加包装器方法和 bridge 类型。 |

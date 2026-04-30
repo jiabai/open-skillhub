@@ -28,7 +28,7 @@
 
 ## Path Safety
 
-- Skill identifiers used in filesystem paths must reject empty values, path separators, `.` and `..`.
+- Skill directory names used in filesystem paths, including SKILL names, must reject empty values, path separators, `.` and `..`.
 - Agent skills directories must be explicit, validated, and writable before distribution begins.
 - Adapter-specific path assumptions belong in agent adapters, not shared core services.
 - Agent detection may use environment variables as explicit user-configured targets, but those paths are still normalized and validated by the adapter/distribution path before writes.

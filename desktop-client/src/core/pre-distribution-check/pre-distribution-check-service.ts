@@ -289,7 +289,7 @@ export function createPreDistributionCheckService(
     try {
       const metadata = await withTimeout(
         job.target.adapter.readInstalledSkillMetadata(
-          job.pendingUpdate.remoteSkillId,
+          job.pendingUpdate.name,
           job.target.installContext
         ),
         targetTimeoutMs,

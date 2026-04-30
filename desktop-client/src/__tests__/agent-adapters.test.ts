@@ -7,7 +7,6 @@ import { createClaudeCodeAgentAdapter } from "@/adapters/agents/claude-code"
 import { createGeminiCliAgentAdapter } from "@/adapters/agents/gemini-cli"
 import { supportedAgentDefinitions } from "@/adapters/agents/definitions"
 import { getAgentAdapter, hasAgentAdapter, listAgentAdapters } from "@/adapters/agents/registry"
-import type { ExtractedSkillPayloadV1 } from "@/adapters/agents/base"
 import type { AgentId } from "@/types"
 
 describe("agent adapters", () => {
@@ -50,15 +49,16 @@ describe("agent adapters", () => {
   async function assertAdapterInstall(adapterId: AgentId) {
     const skillsPath = createTempRoot()
     const { extractedPath, expectedFiles } = createExtractedSkillDirectory()
-    const payload: ExtractedSkillPayloadV1 = {
-      skillId: "sample-skill",
+    const payload = {
+      skillId: "f4919f10-e7fc-40df-ae6f-fe7bfe050ac5",
+      name: "Sample Skill",
       version: "1.0.0",
       extractedPath
     }
     const adapter = getAgentAdapter(adapterId)
     const installed = await adapter.installSkill(payload, { skillsPath })
 
-    expect(installed.skillDir).toBe(join(skillsPath, payload.skillId))
+    expect(installed.skillDir).toBe(join(skillsPath, payload.name))
     expect(statSync(installed.skillDir).isDirectory()).toBe(true)
     expect(installed.filePaths.sort()).toEqual(expectedFiles.sort())
     expect(readFileSync(join(installed.skillDir, "README.md"), "utf8")).toBe("# Sample Skill")
@@ -120,15 +120,15 @@ describe("agent adapters", () => {
     expect(createGeminiCliAgentAdapter().id).toBe("gemini-cli")
   })
 
-  it("reads installed metadata from SKILL.md frontmatter first", async () => {
+  it("reads installed metadata by skill name from SKILL.md frontmatter first", async () => {
     const skillsPath = createTempRoot()
-    const skillDir = join(skillsPath, "sample-skill")
+    const skillDir = join(skillsPath, "Sample Skill")
     mkdirSync(skillDir, { recursive: true })
     writeFileSync(join(skillDir, "SKILL.md"), "---\nversion: 2.0.0\n---\n# Sample")
     writeFileSync(join(skillDir, "manifest.json"), JSON.stringify({ version: "1.0.0" }))
 
     await expect(
-      getAgentAdapter("codex").readInstalledSkillMetadata("sample-skill", { skillsPath })
+      getAgentAdapter("codex").readInstalledSkillMetadata("Sample Skill", { skillsPath })
     ).resolves.toEqual({
       exists: true,
       skillDir,
@@ -181,9 +181,9 @@ describe("agent adapters", () => {
     expect(() => statSync(skillDir)).toThrow()
   })
 
-  it("rejects unsafe skill identifiers for metadata reads", async () => {
+  it("rejects unsafe skill directory names for metadata reads", async () => {
     await expect(
       getAgentAdapter("codex").readInstalledSkillMetadata("../unsafe", { skillsPath: createTempRoot() })
-    ).rejects.toThrow("Invalid skill identifier")
+    ).rejects.toThrow("Invalid skill directory name")
   })
 })

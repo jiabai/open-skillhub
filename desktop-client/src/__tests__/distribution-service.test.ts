@@ -200,7 +200,7 @@ describe("distribution pipeline", () => {
     expect(existsSync(packageSource)).toBe(true)
 
     for (const agentId of ["codex", "claude-code"]) {
-      const skillDir = join(skillsPathByAgent[agentId], "skill-x")
+      const skillDir = join(skillsPathByAgent[agentId], "Skill X")
       expect(readFileSync(join(skillDir, "README.md"), "utf8")).toBe("# Distributed Skill")
       expect(readFileSync(join(skillDir, "manifest.json"), "utf8")).toBe(
         JSON.stringify({ name: "skill-x" })
@@ -305,7 +305,7 @@ describe("distribution pipeline", () => {
       }
     ])
 
-    expect(readFileSync(join(skillsPathByAgent.codex, "skill-y", "README.md"), "utf8")).toBe(
+    expect(readFileSync(join(skillsPathByAgent.codex, "Skill Y", "README.md"), "utf8")).toBe(
       "# Partial Install"
     )
     expect(existsSync(packageSource)).toBe(false)
@@ -392,7 +392,7 @@ describe("distribution pipeline", () => {
       targets: [createTarget("cline", sharedSkillsPath, ["cline", "warp"])]
     })
 
-    expect(readFileSync(join(sharedSkillsPath, "skill-shared", "README.md"), "utf8")).toBe(
+    expect(readFileSync(join(sharedSkillsPath, "Skill Shared", "README.md"), "utf8")).toBe(
       "# Distributed Skill"
     )
     expect(result.succeededAgentIds).toEqual(["cline", "warp"])
@@ -459,7 +459,7 @@ describe("distribution pipeline", () => {
     })
 
     expect(downloadArtifact).not.toHaveBeenCalled()
-    expect(existsSync(join(skillsPath, "skill-same"))).toBe(false)
+    expect(existsSync(join(skillsPath, "Skill Same"))).toBe(false)
     expect(result.targets).toEqual([
       {
         agentId: "codex",

@@ -71,6 +71,7 @@ agent adapters -> local agent installations and skill directories
 - Agent detection decides the effective installed/configured target set before pre-check, reconcile, and distribution actions.
 - Distribution writes each unique physical target at most once, marks shared-path coverage, and skips writing when every target is already same-version.
 - Agent adapters own per-agent filesystem conventions, package installation, metadata reads, and install verification.
+- Agent adapter install and metadata-read directory keys are SKILL names; `remoteSkillId` remains the API/state identity and does not determine the local install directory.
 - Shared type contracts live in `src/types/` instead of being redefined across layers.
 
 ## Layer Boundaries

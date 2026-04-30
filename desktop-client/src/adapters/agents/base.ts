@@ -9,6 +9,7 @@ import type {
 
 export interface ExtractedSkillPayloadV1 {
   skillId: string
+  name: string
   version?: string | null
   extractedPath: string
 }
@@ -27,7 +28,7 @@ export interface AgentAdapterV1 {
   displayName: string
   installSkill(payload: ExtractedSkillPayloadV1, context: AgentInstallContextV1): Promise<InstalledSkillV1>
   verifyInstalledSkill(payload: ExtractedSkillPayloadV1, installed: InstalledSkillV1): Promise<boolean>
-  readInstalledSkillMetadata(skillId: string, context: AgentInstallContextV1): Promise<InstalledSkillMetadataV1>
+  readInstalledSkillMetadata(skillName: string, context: AgentInstallContextV1): Promise<InstalledSkillMetadataV1>
 }
 
 export interface AgentAdapterDefinition {
@@ -35,18 +36,24 @@ export interface AgentAdapterDefinition {
   displayName: string
 }
 
-export function createSafeSkillDirectoryName(skillIdValue: string): string {
-  const skillId = skillIdValue.trim()
+export function createSafeSkillDirectoryName(skillDirectoryNameValue: string): string {
+  const skillDirectoryName = skillDirectoryNameValue.trim()
 
-  if (!skillId || skillId === "." || skillId === ".." || skillId.includes("/") || skillId.includes("\\")) {
-    throw new Error(`Invalid skill identifier: ${skillIdValue}`)
+  if (
+    !skillDirectoryName ||
+    skillDirectoryName === "." ||
+    skillDirectoryName === ".." ||
+    skillDirectoryName.includes("/") ||
+    skillDirectoryName.includes("\\")
+  ) {
+    throw new Error(`Invalid skill directory name: ${skillDirectoryNameValue}`)
   }
 
-  return skillId
+  return skillDirectoryName
 }
 
 function createSkillDirectoryName(payload: ExtractedSkillPayloadV1): string {
-  return createSafeSkillDirectoryName(payload.skillId)
+  return createSafeSkillDirectoryName(payload.name)
 }
 
 function isMissingFileError(error: unknown): boolean {
@@ -281,11 +288,11 @@ export function createFilesystemAgentAdapter(definition: AgentAdapterDefinition)
       }
     },
     async readInstalledSkillMetadata(
-      skillId: string,
+      skillName: string,
       context: AgentInstallContextV1
     ): Promise<InstalledSkillMetadataV1> {
-      const safeSkillId = createSafeSkillDirectoryName(skillId)
-      const skillDir = join(context.skillsPath, safeSkillId)
+      const safeSkillName = createSafeSkillDirectoryName(skillName)
+      const skillDir = join(context.skillsPath, safeSkillName)
 
       try {
         const skillDirStat = await stat(skillDir)

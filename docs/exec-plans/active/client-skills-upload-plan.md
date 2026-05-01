@@ -22,7 +22,15 @@ reviewed.
 - [x] (2026-05-01) Added this active ExecPlan and sibling task checklist for implementation after review.
 - [x] (2026-05-01) Updated `ARCHITECTURE.md` and `docs/SECURITY.md` so API Token client scope includes upload as well as metadata/download.
 - [x] (2026-05-01) Ran documentation validation: `python scripts/validate_agents_docs.py --level ERROR` passed with 0 errors and 0 warnings.
-- [ ] (pending review) Implement the backend endpoint and tests after the documentation gate is accepted.
+- [x] (2026-05-02) Added Client API upload tests covering create, append-version, auth boundaries, invalid archives, create-mode metadata rejection, duplicate create, reference read-only, and audit events.
+- [x] (2026-05-02) Implemented `POST /api/v1/client/skills/upload` in `backend/api/v1/client_skills.py`.
+- [x] (2026-05-02) Ran `uv run pytest tests/test_client_skills_api.py -v`; all 10 tests passed.
+- [x] (2026-05-02) Ran `uv run pytest tests/test_api_skills.py tests/test_client_skills_api.py -v`; all 49 tests passed.
+- [x] (2026-05-02) Updated stale mock targets in `tests/test_skill_upload_branches.py` from `backend.services.skill.*` to the actual `skill_upload` and `skill_lifecycle` import sites so the full pytest suite can exercise current code structure.
+- [x] (2026-05-02) Ran `uv run pytest`; all 633 tests passed.
+- [x] (2026-05-02) Ran `uv run ruff check .`; passed.
+- [x] (2026-05-02) Ran `python scripts/validate_agents_docs.py --level ERROR`; passed with 0 errors and 0 warnings.
+- [ ] (blocked by existing baseline) `uv run mypy backend` still fails with 142 existing type errors outside the new endpoint.
 
 ## Surprises & Discoveries
 
@@ -37,6 +45,12 @@ reviewed.
 
 - Observation: existing Client API routes already reject JWT access tokens by using API-token dependencies.
   Evidence: `tests/test_client_skills_api.py` checks JWT auth against `GET /api/v1/client/skills` and expects `401`.
+
+- Observation: the full pytest suite had stale mock targets in `tests/test_skill_upload_branches.py` that still patched `backend.services.skill.*` even though upload and lifecycle helpers now live in `backend.services.skill_upload` and `backend.services.skill_lifecycle`.
+  Evidence: the first full `uv run pytest` failed 5 tests with `AttributeError` for missing `save_archive`, `delete_skill_dir`, and `list_archive_versions` attributes on `backend.services.skill`.
+
+- Observation: the backend mypy baseline does not currently pass independently of this feature.
+  Evidence: `uv run mypy backend` reports 142 errors, starting with `enum.StrEnum` under `python_version = "3.10"` and cascading through `SkillErrorCode` typing in existing service modules.
 
 ## Decision Log
 
@@ -58,9 +72,10 @@ reviewed.
 
 ## Outcomes & Retrospective
 
-Implementation is intentionally pending review of the spec, design note, ExecPlan,
-and task checklist. Documentation validation passed on 2026-05-01; no code has
-been changed.
+Implementation is functionally complete and covered by focused and full pytest
+validation. The plan remains active because the repository's `mypy backend` hard
+gate has an existing failing baseline that needs a separate type-cleanup effort or
+owner acceptance of residual risk.
 
 ## Context and Orientation
 

@@ -32,6 +32,9 @@
 - Validate package checksum and expiration before extracting or installing.
 - Reject unsafe package layouts, including missing `SKILL.md`, unsafe file names, or unexpected path traversal.
 - Back up an existing installed skill before promoting a new version into the live target directory.
+- Local skill upload packaging must revalidate the selected package root in the
+  main process, require a root `SKILL.md`, reject path traversal and symlink
+  escape, and clean temporary ZIP artifacts after success or failure.
 
 ## Path Safety
 
@@ -47,6 +50,9 @@
 - The desktop client should call the client-oriented API surface only.
 - Do not reuse browser-session JWT routes for the desktop runtime.
 - API configuration connection tests must use an authenticated client route, currently `GET /api/v1/client/skills?limit=1`, rather than unauthenticated health checks.
+- Local skill uploads must use `POST /api/v1/client/skills/upload` with API
+  Token bearer authentication; the renderer must not receive the token, package
+  bytes, or temporary upload paths.
 - Treat auth, network, path, package, and verification failures as separate error classes so operators can act on them.
 
 ## Logging

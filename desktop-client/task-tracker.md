@@ -2,7 +2,7 @@
 
 ## In Progress
 
-No active desktop-client tasks.
+- [ ] Local Skills Management implementation planning (2026-05-02) - docs/spec/design/ExecPlan prepared; code not started by request. ✅ Validate with `python scripts/validate_agents_docs.py --level ERROR` and `git diff --check`. See `docs/exec-plans/active/2026-05-02-local-skills-management.md`
 
 ## Todo
 

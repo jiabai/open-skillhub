@@ -2,7 +2,8 @@
 
 ## Current Plans
 
-No active ExecPlans.
+- `2026-05-02-local-skills-management.md` - Local Skills inventory and explicit upload implementation plan
+- `2026-05-02-local-skills-management-tasks.md` - implementation checklist for the Local Skills plan
 
 ## Working Agreement
 

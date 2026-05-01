@@ -153,14 +153,14 @@ class TestSkillServiceUploadZipMetadata:
         })
 
         with patch.object(settings, 'SKILL_STORAGE_PATH', '/tmp'):
-            with patch('backend.services.skill.save_archive', new_callable=AsyncMock):
-                with patch('backend.services.skill.get_skill_versions_dir') as mock_dir:
+            with patch('backend.services.skill_upload.save_archive', new_callable=AsyncMock):
+                with patch('backend.services.skill_upload.get_skill_versions_dir') as mock_dir:
                     mock_dir.return_value = Path('/tmp/v')
 
                     with patch.object(Path, 'mkdir'):
                         with patch.object(Path, 'write_bytes'):
-                            with patch('backend.services.skill.clear_skill_current_dir'):
-                                with patch('backend.services.skill.get_user_skill_dir'):
+                            with patch('backend.services.skill_upload.clear_skill_current_dir'):
+                                with patch('backend.services.skill_upload.get_user_skill_dir'):
                                     with patch.object(Path, 'exists', return_value=False):
                                         await service.upload_zip(
                                             test_user, "skill-123", "test.zip", zip_content
@@ -194,14 +194,14 @@ class TestSkillServiceUploadZipVersionHandling:
         zip_content = create_zip_with_files({})
 
         with patch.object(settings, 'SKILL_STORAGE_PATH', '/tmp'):
-            with patch('backend.services.skill.save_archive', new_callable=AsyncMock):
-                with patch('backend.services.skill.get_skill_versions_dir') as mock_dir:
+            with patch('backend.services.skill_upload.save_archive', new_callable=AsyncMock):
+                with patch('backend.services.skill_upload.get_skill_versions_dir') as mock_dir:
                     mock_dir.return_value = Path('/tmp/v')
 
                     with patch.object(Path, 'mkdir'):
                         with patch.object(Path, 'write_bytes'):
-                            with patch('backend.services.skill.clear_skill_current_dir'):
-                                with patch('backend.services.skill.get_user_skill_dir'):
+                            with patch('backend.services.skill_upload.clear_skill_current_dir'):
+                                with patch('backend.services.skill_upload.get_user_skill_dir'):
                                     with patch.object(Path, 'exists', return_value=False):
                                         await service.upload_zip(
                                             test_user, "skill-123", "test.zip", zip_content
@@ -223,8 +223,8 @@ class TestSkillServiceDeleteWithArchives:
         mock_skill_repo.delete = AsyncMock(return_value=True)
         service = SkillService(mock_skill_repo, mock_version_repo)
 
-        with patch('backend.services.skill.delete_skill_dir') as mock_delete_dir:
-            with patch('backend.services.skill.delete_archives_for_skill') as mock_delete_archives:
+        with patch('backend.services.skill_lifecycle.delete_skill_dir') as mock_delete_dir:
+            with patch('backend.services.skill_lifecycle.delete_archives_for_skill') as mock_delete_archives:
                 result = await service.delete_skill(test_user, "skill-123", delete_archives=False)
 
         assert result is True
@@ -240,8 +240,8 @@ class TestSkillServiceDeleteWithArchives:
         mock_skill_repo.delete = AsyncMock(return_value=True)
         service = SkillService(mock_skill_repo, mock_version_repo)
 
-        with patch('backend.services.skill.delete_skill_dir') as mock_delete_dir:
-            with patch('backend.services.skill.delete_archives_for_skill') as mock_delete_archives:
+        with patch('backend.services.skill_lifecycle.delete_skill_dir') as mock_delete_dir:
+            with patch('backend.services.skill_lifecycle.delete_archives_for_skill') as mock_delete_archives:
                 result = await service.delete_skill(test_user, "skill-123", delete_archives=True)
 
         assert result is True
@@ -329,15 +329,15 @@ class TestUploadWithOrphanArchives:
 
         zip_content = create_zip_with_files({})
 
-        with patch('backend.services.skill.list_archive_versions') as mock_list_versions:
+        with patch('backend.services.skill_upload.list_archive_versions') as mock_list_versions:
             mock_list_versions.return_value = ["1.0.0", "1.0.1"]
-            with patch('backend.services.skill.save_archive', new_callable=AsyncMock):
-                with patch('backend.services.skill.get_skill_versions_dir') as mock_dir:
+            with patch('backend.services.skill_upload.save_archive', new_callable=AsyncMock):
+                with patch('backend.services.skill_upload.get_skill_versions_dir') as mock_dir:
                     mock_dir.return_value = Path('/tmp/v')
                     with patch.object(Path, 'mkdir'):
                         with patch.object(Path, 'write_bytes'):
-                            with patch('backend.services.skill.clear_skill_current_dir'):
-                                with patch('backend.services.skill.get_user_skill_dir'):
+                            with patch('backend.services.skill_upload.clear_skill_current_dir'):
+                                with patch('backend.services.skill_upload.get_user_skill_dir'):
                                     with patch.object(Path, 'exists', return_value=False):
                                         await service.upload_zip_create_skill(
                                             test_user, "test.zip", zip_content, "private"

@@ -1,6 +1,6 @@
 # Tech Debt Tracker
 
-Last updated: 2026-04-20
+Last updated: 2026-05-02
 
 ## High Priority
 
@@ -9,6 +9,7 @@ Last updated: 2026-04-20
 | Refresh token hardening | Current rotation behavior is weaker than strict single-use invalidation and reuse detection | `docs/design-docs/2026-04-12-code-review-findings.md` |
 | Large backend workflow files | Oversized modules increase coordination cost and make boundary drift more likely | `docs/exec-plans/active/2026-04-10-backend-consolidation-refactor-plan.md`, `docs/exec-plans/active/error-architecture-refactor-plan.md` |
 | Skills API boundary clarity | Mixed JWT and API-token semantics raise maintenance and client-integration risk | `docs/exec-plans/active/skills-api-boundary.md` |
+| Backend mypy baseline failure | `uv run mypy backend` currently fails with existing type errors, led by `enum.StrEnum` under the configured Python 3.10 target and `SkillErrorCode` cascades, so the backend type gate cannot be used as a reliable completion signal yet | `docs/exec-plans/active/client-skills-upload-plan.md` |
 
 ## Medium Priority
 

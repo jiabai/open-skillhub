@@ -1,6 +1,6 @@
 # Client API Contract
 
-> **Last Updated**: 2026-04-23
+> **Last Updated**: 2026-05-02
 > **Version**: v1
 > **Owner**: Desktop Client Team
 
@@ -14,6 +14,7 @@ This document defines the backend API routes, request/response shapes, and norma
 |--------|-------|---------|
 | `GET` | `/api/v1/client/skills` | List available skills with version metadata |
 | `POST` | `/api/v1/client/skills/download` | Download a specific skill version |
+| `POST` | `/api/v1/client/skills/upload` | Upload a ZIP-packaged skill through API-token auth |
 
 ## Auth Model
 
@@ -126,6 +127,66 @@ The desktop client must enforce the following validation sequence before extract
    Missing or invalid decryption material fails closed before extraction or
    agent-directory writes.
 
+## `POST /api/v1/client/skills/upload`
+
+### Purpose
+
+Uploads a ZIP-packaged skill through the Client API. The desktop Local Skills
+Management v1 uses this route only to create server-missing skills from valid
+local package roots.
+
+### Request Model
+
+Source: `backend/api/v1/client_skills.py`
+
+Content type: `multipart/form-data`
+
+| Field | Type | Required | Desktop V1 Usage |
+|-------|------|----------|------------------|
+| `file` | `UploadFile` | Yes | ZIP package created by the Electron main process |
+| `skill_uuid` | `str` | No | Not sent by Local Skills Management v1 |
+| `visibility` | `str` | No | Sent as `private` for Local Skills Management v1 |
+| `metadata` | `str` | No | Not sent in create mode |
+
+### Response Models
+
+Create new skill:
+
+```json
+{
+  "id": "uuid",
+  "name": "my-skill",
+  "description": "A useful skill",
+  "version": "1.0.0",
+  "current_version": "1.0.0",
+  "dependencies": []
+}
+```
+
+Append existing skill version:
+
+```json
+{
+  "version": "1.2.0",
+  "current_version": "1.2.0",
+  "dependencies": []
+}
+```
+
+### Desktop Handling Rules
+
+- Use API Token bearer auth with `skill.upload` permission.
+- Do not call the browser-session `POST /api/v1/skills/upload` route from the
+  desktop runtime.
+- Local Skills Management v1 creates missing server skills only, so it sends no
+  `skill_uuid` and no `metadata`.
+- Main process must create the ZIP, call the route, and clean temporary upload
+  artifacts after success or failure.
+- Renderer must receive only redacted upload results and refreshed inventory
+  state.
+- Keep backend error `code` values when present so operator-facing messages can
+  distinguish auth, duplicate-name, invalid ZIP, and validation failures.
+
 ## Related Documentation
 
 - **Security Rules**: `docs/SECURITY.md` - Secret handling, privilege boundaries, package validation
@@ -142,5 +203,6 @@ uv run pytest tests/test_client_skills_api.py -q
 
 | Date | Version | Change | Author |
 |------|---------|--------|--------|
+| 2026-05-02 | v1 | Documented Client API ZIP upload route for desktop Local Skills planning | Codex |
 | 2026-04-23 | v1 | Documented secret-store bootstrap and authenticated configuration probe | Codex |
 | 2026-04-23 | v1 | Initial contract documentation with normalization rules and handling rules | Desktop Client Team |

@@ -12,6 +12,14 @@ export function AgentsPanel({ detectionSnapshot, isRefreshing, onRefresh }: Agen
   const { dictionary } = useI18n()
   const copy = dictionary.agentsPanel
 
+  // Sort agents: installed first, then missing
+  const sortedAgentStatuses = detectionSnapshot
+    ? [...detectionSnapshot.agentStatuses].sort((a, b) => {
+        if (a.installed === b.installed) return 0
+        return a.installed ? -1 : 1
+      })
+    : []
+
   return (
     <Card aria-labelledby="agents-heading" flat>
       <CardHeader>
@@ -38,7 +46,7 @@ export function AgentsPanel({ detectionSnapshot, isRefreshing, onRefresh }: Agen
                 detectionSnapshot.supportedAgentCount
               )}
             </p>
-            {detectionSnapshot.agentStatuses.map((agent) => {
+            {sortedAgentStatuses.map((agent) => {
               const statusLabel = agent.installed
                 ? agent.source === "environment"
                   ? copy.statusLabels.environment

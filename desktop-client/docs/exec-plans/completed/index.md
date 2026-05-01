@@ -4,6 +4,7 @@
 
 | File | Outcome |
 |------|---------|
+| `2026-05-01-encrypted-package-decryptor.md` | Desktop-client encrypted skill package downloads now decrypt in the Electron main process when operators provide the backend download decryption secret through `OPEN_SKILLHUB_DOWNLOAD_DECRYPTION_SECRET`, with fail-closed behavior and regression coverage |
 | `2026-05-01-fix-dialog-actions-footer.md` | Desktop-client distribution confirmation dialog actions now render in a fixed footer outside the scrollable dialog body, with regression coverage for footer placement |
 | `2026-04-30-skill-name-directory-consistency.md` | Desktop-client skill install directories and pre-distribution metadata checks now use SKILL names as the local directory key while keeping `remoteSkillId` as the API/state identity |
 | `2026-04-27-agent-detection-and-distribution.md` | Desktop-client agent detection and targeted distribution were implemented for 20 SKILL-capable assistants, including shared target dedupe, same-version reconcile, IPC, renderer UI, tests, and docs |

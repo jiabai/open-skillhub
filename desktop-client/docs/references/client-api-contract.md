@@ -120,7 +120,11 @@ The desktop client must enforce the following validation sequence before extract
 1. **Base64 Decode**: `encrypted_code` is base64-decoded into the downloaded artifact
 2. **Checksum Verification**: `checksum` is verified against the decoded payload before extraction
 3. **Expiration Enforcement**: `expires_at` is enforced before extraction; expired packages are rejected
-4. **Encryption Fail-Closed**: If `encryption_enabled` is `true` and no decryptor dependency exists, package preparation fails with a clear error (see `docs/SECURITY.md` - Current V1 Contract Gap)
+4. **Encryption Handling**: If `encryption_enabled` is `true`, the Electron main
+   process decrypts the payload with `OPEN_SKILLHUB_DOWNLOAD_DECRYPTION_SECRET`,
+   which must match the backend `SECRET_KEY` used for download encryption.
+   Missing or invalid decryption material fails closed before extraction or
+   agent-directory writes.
 
 ## Related Documentation
 

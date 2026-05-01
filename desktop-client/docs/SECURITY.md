@@ -9,7 +9,14 @@
   and uses it for the current session.
 - If secret storage is unavailable, `OPEN_SKILLHUB_API_TOKEN` may be used for the
   current session only; it is not persisted in that fallback path.
+- `OPEN_SKILLHUB_DOWNLOAD_DECRYPTION_SECRET` is an optional current-session
+  secret used only by the Electron main process to decrypt backend-encrypted
+  skill downloads. It must match the backend `SECRET_KEY` when
+  `ENABLE_SKILL_DOWNLOAD_ENCRYPTION=true`, and it is never persisted by the
+  desktop client.
 - The token must never be written to plaintext JSON config, renderer state snapshots, or logs.
+- The download decryption secret must never be written to plaintext JSON config,
+  renderer state snapshots, IPC responses, or logs.
 - `getConfiguration` IPC returns only desensitized token state: presence, source, persistence status, secret-store availability, and warning.
 - Saving or testing configuration may send the user-entered token from renderer to main, but the main process must not return the raw token.
 - API Base URL is non-secret and may be stored in `config/config.json`; Token remains in `keytar` only.
@@ -49,8 +56,11 @@
 
 ## Current V1 Contract Gap
 
-- The current implementation expects client downloads to be distributable as plain ZIP content after the server response is normalized.
-- If encrypted downloads remain enabled at the backend boundary, the desktop client must fail closed with a clear error until a supported decryptor boundary exists.
+- The current implementation supports backend-encrypted downloads only when the
+  Electron main process receives `OPEN_SKILLHUB_DOWNLOAD_DECRYPTION_SECRET`.
+- If encrypted downloads remain enabled but the secret is missing or does not
+  match the backend `SECRET_KEY`, distribution fails closed before extraction or
+  agent-directory writes.
 - README, product specs, references, and future backend contract changes must keep this rule consistent.
 
 ## Current Persistence Gap

@@ -16,6 +16,9 @@ entry.
 - `OPEN_SKILLHUB_API_BASE_URL`
 - `OPEN_SKILLHUB_API_TOKEN` (optional first-run secret-store bootstrap and
   current-session fallback if secret storage is unavailable)
+- `OPEN_SKILLHUB_DOWNLOAD_DECRYPTION_SECRET` (optional current-session
+  backend download decryption secret; required only when encrypted downloads are
+  enabled server-side)
 - `OPEN_SKILLHUB_POLL_INTERVAL_MS`
 - `OPEN_SKILLHUB_CLAUDE_CODE_SKILLS_PATH`
 - `OPEN_SKILLHUB_CURSOR_SKILLS_PATH`
@@ -106,10 +109,10 @@ Platform base directory rules:
 - `config.json` path exists in the app-path model, but config persistence is not yet the primary auth bootstrap path
 - API token persistence uses the `keytar` secret store through `src/core/storage/secret-store.ts`
 - `state.sqlite3` stores sync snapshot tables only
-- package downloads are written to unique staging directories below `cache/`;
-  those directories are declared as cleanup-owned artifacts and removed after
-  package extraction, installation success, installation failure, or package
-  validation failure
+- package downloads and decrypted plaintext artifacts are written to unique
+  staging directories below `cache/`; those directories are declared as
+  cleanup-owned artifacts and removed after package extraction, installation
+  success, installation failure, or package validation failure
 - `logs/` and `backups/` are not yet created by the current implementation
 
 ## Agent Runtime Surface

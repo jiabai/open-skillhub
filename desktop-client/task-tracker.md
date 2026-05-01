@@ -10,7 +10,7 @@ No active desktop-client tasks.
 - [x] Retire or explicitly archive the root `docs/superpowers/desktop-client*` drafts after the local canonical docs fully supersede them (2026-04-17) ✅ root drafts deleted, local docs updated to remove cross-references
 
 ## Done
-
+- [x] Analyze and resolve encrypted skill package decryptor missing issue (2026-05-01) ✅ Electron main-process decryption now supports backend-encrypted packages via `OPEN_SKILLHUB_DOWNLOAD_DECRYPTION_SECRET`; `npm test`, `npm run build`, `python scripts\validate_agents_docs.py --level ERROR`, and `git diff --check` pass. See `docs/exec-plans/completed/2026-05-01-encrypted-package-decryptor.md`
 - [x] Fix dialog actions footer visibility (2026-05-01) ✅ confirmation dialog actions now render in a fixed footer outside the scrollable body; `npm test`, `npm run build`, and docs validation pass
 - [x] Fix skill name directory consistency for distribution and pre-checks (2026-04-30) ✅ adapter installs and pre-check metadata reads now use SKILL names as directory keys; `npm test`, `npm run build`, `python scripts/validate_agents_docs.py --level ERROR`, and `git diff --check` pass
 - [x] Implement AI agent detection and targeted distribution (2026-04-28) ✅ 20 catalog-backed agents, detection snapshots, shared-path dedupe, same-version reconcile, confirmation dialog, `npm test`, `npm run build`, and TypeScript checks pass

@@ -50,6 +50,7 @@ import type {
   SkillPackageRequest
 } from "@/types"
 import { registerDesktopClientIpc } from "./ipc"
+import { createDecryptArtifactFromEnv } from "./encryption"
 
 const preloadPath = fileURLToPath(new URL("./preload.js", import.meta.url))
 const windowsIconPath = fileURLToPath(new URL("../resources/icons/icon.ico", import.meta.url))
@@ -541,6 +542,7 @@ async function createApplicationServices(): Promise<void> {
   })
   const packageService = createPackageService({
     downloadArtifact: (request) => downloadSkillArtifact(getRuntimeConfig(), request),
+    decryptArtifact: createDecryptArtifactFromEnv(process.env),
     extractArtifact: (artifact, extractedPath) => extractArchive(artifact.artifactPath, extractedPath),
     createTempDirectory: async () => mkdtemp(join(tmpdir(), "open-skillhub-package-"))
   })

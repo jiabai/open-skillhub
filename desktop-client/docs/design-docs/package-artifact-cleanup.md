@@ -48,10 +48,10 @@ These facts come from the current implementation and must be kept consistent dur
 
 - `distribution-service.distribute()` already calls `preparedPackage.cleanup()` in a `finally` block.
 - `PreparedSkillPackage` exposes a public type containing `cleanup(): Promise<void>`; callers do not need to know internal artifact paths.
-- `DownloadedSkillArtifact` currently only has `artifactPath` and `encrypted`.
+- `DownloadedSkillArtifact` has `artifactPath`, `encrypted`, and optional `cleanupPaths`.
 - `downloadSkillArtifact()` is located in `electron/main.ts` and currently writes downloaded content to files under `config.cacheDirectory`.
 - `PackageServiceDependencies` already has a `removePath?` injection point; tests can substitute deletion behavior.
-- There is currently no `decryptArtifact` implementation; encrypted packages fail closed when no decryptor exists.
+- `decryptArtifact` is implemented in `electron/encryption.ts`; encrypted packages still fail closed when `OPEN_SKILLHUB_DOWNLOAD_DECRYPTION_SECRET` is missing or invalid.
 
 ## 5. Final Architecture Decision
 
@@ -134,12 +134,12 @@ If `writeFile()` fails after creating `artifactRoot`, `downloadSkillArtifact()` 
 
 ## 8. Decryption Contract
 
-When a future `decryptArtifact()` implementation exists:
+The current `decryptArtifact()` implementation follows this contract:
 
 - It must return `encrypted: false` after successful decryption.
-- If it writes a new artifact outside already registered cleanup roots, it must include that path or parent directory in `cleanupPaths`.
+- If a future implementation writes a new artifact outside already registered cleanup roots, it must include that path or parent directory in `cleanupPaths`.
 - If it decrypts in place, it can return the same `artifactPath`; existing cleanup roots still apply.
-- If it writes the decrypted file into the download staging directory returned by `downloadArtifact()`, no extra cleanup path is required because the staging directory is already tracked.
+- The current implementation writes the decrypted file into the download staging directory returned by `downloadArtifact()`, so no extra cleanup path is required because the staging directory is already tracked.
 
 Fail closed rule:
 
@@ -290,7 +290,7 @@ Package-service unit tests:
 
 - unencrypted artifact with `cleanupPaths` cleans artifact staging dir and extraction temp root
 - unencrypted artifact without `cleanupPaths` does not delete external `artifactPath`
-- encrypted artifact with no decryptor cleans declared download staging dir
+- encrypted artifact with no usable decryptor or missing decryption secret cleans declared download staging dir
 - decryptor that returns `encrypted: true` fails closed and cleans registered paths
 - decryptor that writes inside an already registered staging dir is accepted
 - decryptor that writes outside cleanup roots without declaring ownership fails closed
@@ -336,7 +336,7 @@ cd desktop-client && npm run build
 - Required `cleanup()` to be best-effort and non-throwing so cleanup failures do not mask distribution results.
 - Added handling for errors before extraction, including missing decryptor and invalid artifact paths.
 - Added path safety rules for cleanup targets.
-- Resolved the earlier unknowns by verifying current download behavior in `electron/main.ts` and confirming that no decryptor exists today.
+- Resolved the earlier unknowns by verifying current download behavior in `electron/main.ts`; a main-process decryptor now exists and remains fail-closed without a valid runtime decryption secret.
 
 ## 17. References
 

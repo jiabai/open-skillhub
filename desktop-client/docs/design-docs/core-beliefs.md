@@ -17,7 +17,7 @@ Per-agent install structure, validation, and verification stay in adapter module
 
 ## 4. Fail Closed On Contract Gaps
 
-If a package is encrypted and no supported decryptor boundary exists, distribution stops.
+If a package is encrypted and the Electron main process does not have valid decryption material, distribution stops.
 If a path is ambiguous or an identifier is unsafe, installation stops.
 If docs and implementation disagree, update the docs or the code before claiming the workflow works.
 

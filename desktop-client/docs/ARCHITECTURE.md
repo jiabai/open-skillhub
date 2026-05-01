@@ -101,6 +101,10 @@ Dependencies should only point downward across those boundaries.
 - Runtime API token bootstrap is coordinated by `src/core/runtime/runtime-config-manager.ts`; it reads from the `keytar` secret store, with
   `OPEN_SKILLHUB_API_TOKEN` as an explicit first-run seed and current-session
   fallback when secret storage is unavailable
+- Encrypted skill package download support lives in the Electron main process.
+  `OPEN_SKILLHUB_DOWNLOAD_DECRYPTION_SECRET` must be provided for the current
+  Electron session when backend download encryption is enabled; it is not
+  persisted to config or exposed to the renderer.
 - Saving or clearing API configuration reloads the in-memory runtime config so sync, package download, and distribution paths use the latest URL and token without an app restart
 - `logs/` and `backups/` belong to the target design language but are not yet created by the current implementation
 - State persistence currently stores sync snapshot data, not full per-run distribution history

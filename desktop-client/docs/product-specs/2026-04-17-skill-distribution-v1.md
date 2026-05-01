@@ -33,7 +33,9 @@ Build a Windows desktop client that detects new or updated skills from Open Skil
 - The desktop client is the local sync and distribution runtime.
 - No package is written to any agent directory before explicit operator approval.
 - Distribution is global for enabled agents; per-agent routing is deferred.
-- Unsupported encrypted downloads fail closed.
+- Encrypted downloads require an operator-provided
+  `OPEN_SKILLHUB_DOWNLOAD_DECRYPTION_SECRET` in the Electron main process; if the
+  secret is missing or invalid, distribution fails closed.
 
 ## Skill Review Mechanism
 
@@ -197,7 +199,10 @@ The desktop client provides five core UI panels for operator interaction:
 - Secrets never go into plaintext config or renderer state.
 - Package validation happens before agent-directory writes.
 - Path validation rejects unsafe or ambiguous skill identifiers and destinations.
-- Unsupported encrypted packages fail closed until a decryptor boundary exists.
+- Encrypted packages are decrypted only in the Electron main process, using
+  `OPEN_SKILLHUB_DOWNLOAD_DECRYPTION_SECRET` when it matches the backend
+  `SECRET_KEY`; missing or invalid decryption material fails closed before
+  extraction or agent-directory writes.
 
 ## Persistence Requirements
 

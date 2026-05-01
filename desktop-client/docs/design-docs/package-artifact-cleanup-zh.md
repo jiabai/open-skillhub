@@ -48,10 +48,10 @@ preparedPackage.cleanup() -> 仅移除 tempRoot
 
 - `distribution-service.distribute()` 已经在 `finally` 中调用 `preparedPackage.cleanup()`。
 - `PreparedSkillPackage` 公开类型包含 `cleanup(): Promise<void>`，调用方不需要知道内部产物路径。
-- `DownloadedSkillArtifact` 当前只有 `artifactPath` 和 `encrypted`。
+- `DownloadedSkillArtifact` 包含 `artifactPath`、`encrypted` 和可选的 `cleanupPaths`。
 - `downloadSkillArtifact()` 位于 `electron/main.ts`，当前把下载内容写到 `config.cacheDirectory` 下的文件。
 - `PackageServiceDependencies` 已有 `removePath?` 注入点，测试可以替换删除行为。
-- 当前没有 `decryptArtifact` 实现；加密包在没有 decryptor 时 fail closed。
+- `decryptArtifact` 已在 `electron/encryption.ts` 中实现；当 `OPEN_SKILLHUB_DOWNLOAD_DECRYPTION_SECRET` 缺失或无效时，加密包仍然 fail closed。
 
 ## 5. 最终架构决策
 
@@ -134,12 +134,12 @@ return {
 
 ## 8. 解密合约
 
-当未来存在 `decryptArtifact()` 实现时：
+当前 `decryptArtifact()` 实现遵循以下合约：
 
 - 成功解密后必须返回 `encrypted: false`。
-- 如果它在已注册的清理根目录之外写入新产物，必须将该路径或父目录包含在 `cleanupPaths` 中。
+- 如果未来实现需要在已注册的清理根目录之外写入新产物，必须将该路径或父目录包含在 `cleanupPaths` 中。
 - 如果它原地解密，可以返回相同的 `artifactPath`；已有的清理根目录仍然适用。
-- 如果它将解密后的文件写入 `downloadArtifact()` 返回的暂存目录，则不需要额外的清理路径，因为暂存目录已经被跟踪。
+- 当前实现会将解密后的文件写入 `downloadArtifact()` 返回的暂存目录，因此不需要额外的清理路径，因为暂存目录已经被跟踪。
 
 Fail closed 规则：
 
@@ -290,7 +290,7 @@ Package-service 单元测试：
 
 - 带有 `cleanupPaths` 的未加密产物会清理产物暂存目录和提取 temp root
 - 没有 `cleanupPaths` 的未加密产物不会删除外部 `artifactPath`
-- 没有 decryptor 的加密产物会清理已声明的下载暂存目录
+- 没有可用 decryptor 或缺少解密密钥的加密产物会清理已声明的下载暂存目录
 - 返回 `encrypted: true` 的 decryptor 会 fail closed 并清理已注册的路径
 - 在已注册暂存目录内写入的 decryptor 会被接受
 - 在清理根目录外写入且不声明所有权的 decryptor 会 fail closed
@@ -336,7 +336,7 @@ cd desktop-client && npm run build
 - 要求 `cleanup()` 尽力而为且不抛出异常，这样清理失败不会掩盖分发结果。
 - 添加了提取前错误的处理，包括缺少 decryptor 和无效产物路径。
 - 添加了清理目标的路径安全规则。
-- 通过验证 `electron/main.ts` 中的当前下载行为并确认今天不存在 decryptor，解决了早期的未知问题。
+- 通过验证 `electron/main.ts` 中的当前下载行为解决了早期未知问题；现在已有主进程 decryptor，但缺少有效运行时解密密钥时仍然 fail closed。
 
 ## 17. 参考资料
 

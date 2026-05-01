@@ -6,5 +6,7 @@
 - `2026-04-23-desktop-client-ui-redesign.md` - Desktop Client UI 重设计产品规格
 - `2026-04-24-desktop-client-i18n.md` - Desktop Client i18n 产品规格
 - `2026-04-27-agent-detection-and-distribution.md` - AI 编程助手感知与定向分发产品规格
+- `2026-05-01-local-skills-management.md` - Local Skills Management product spec (English)
+- `2026-05-01-local-skills-management-zh.md` - 本地 SKILL 管理产品规格（中文版）
 
 Canonical rule: work from the local product spec first.

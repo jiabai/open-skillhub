@@ -6,6 +6,8 @@ import type {
   ConfigurationState,
   ConnectionTestResult,
   DesktopSyncState,
+  LocalSkillUploadResult,
+  LocalSkillsInventorySnapshot,
   PreDistributionCheckSnapshot,
   SkillDistributionResult
 } from "@/types"
@@ -19,6 +21,8 @@ export const desktopClientIpcChannels = {
   refreshSync: "sync:refresh",
   refreshAgentDetection: "agent-detection:refresh",
   refreshPreDistributionCheck: "pre-distribution-check:refresh",
+  refreshLocalSkills: "local-skills:refresh",
+  uploadLocalSkill: "local-skills:upload",
   reconcileInstalledSkill: "distribution:reconcile-installed",
   distributePendingUpdate: "distribution:run"
 } as const
@@ -32,6 +36,8 @@ export interface DesktopClientBridge {
   refreshSync(): Promise<DesktopSyncState>
   refreshAgentDetection(): Promise<AgentDetectionSnapshot>
   refreshPreDistributionCheck(): Promise<PreDistributionCheckSnapshot>
+  refreshLocalSkills(): Promise<LocalSkillsInventorySnapshot>
+  uploadLocalSkill(rowKey: string): Promise<LocalSkillUploadResult>
   reconcileInstalledSkill(pendingUpdateId: string): Promise<DesktopSyncState>
   distributePendingUpdate(pendingUpdateId: string): Promise<SkillDistributionResult>
 }
@@ -45,6 +51,8 @@ export interface DesktopClientIpcHandlers {
   refreshSync(): Promise<DesktopSyncState>
   refreshAgentDetection(): Promise<AgentDetectionSnapshot>
   refreshPreDistributionCheck(): Promise<PreDistributionCheckSnapshot>
+  refreshLocalSkills(): Promise<LocalSkillsInventorySnapshot>
+  uploadLocalSkill(rowKey: string): Promise<LocalSkillUploadResult>
   reconcileInstalledSkill(pendingUpdateId: string): Promise<DesktopSyncState>
   distributePendingUpdate(pendingUpdateId: string): Promise<SkillDistributionResult>
 }
@@ -61,6 +69,8 @@ export function registerDesktopClientIpc(
   ipcMain.removeHandler(desktopClientIpcChannels.refreshSync)
   ipcMain.removeHandler(desktopClientIpcChannels.refreshAgentDetection)
   ipcMain.removeHandler(desktopClientIpcChannels.refreshPreDistributionCheck)
+  ipcMain.removeHandler(desktopClientIpcChannels.refreshLocalSkills)
+  ipcMain.removeHandler(desktopClientIpcChannels.uploadLocalSkill)
   ipcMain.removeHandler(desktopClientIpcChannels.reconcileInstalledSkill)
   ipcMain.removeHandler(desktopClientIpcChannels.distributePendingUpdate)
 
@@ -81,6 +91,12 @@ export function registerDesktopClientIpc(
   )
   ipcMain.handle(desktopClientIpcChannels.refreshPreDistributionCheck, async () =>
     handlers.refreshPreDistributionCheck()
+  )
+  ipcMain.handle(desktopClientIpcChannels.refreshLocalSkills, async () =>
+    handlers.refreshLocalSkills()
+  )
+  ipcMain.handle(desktopClientIpcChannels.uploadLocalSkill, async (_event, rowKey: string) =>
+    handlers.uploadLocalSkill(rowKey)
   )
   ipcMain.handle(
     desktopClientIpcChannels.reconcileInstalledSkill,

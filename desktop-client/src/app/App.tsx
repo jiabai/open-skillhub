@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react"
 
 import { AppShell, type AppView } from "@/components/app-shell"
 import { HomeView } from "@/components/home-view"
+import { LocalSkillsView } from "@/components/local-skills-view"
 import { SettingsDrawer } from "@/components/settings-drawer"
 import { UpdatesView } from "@/components/updates-view"
 import { Button, Dialog } from "@/components/ui-primitives"
@@ -18,6 +19,8 @@ import type {
   ConfigurationState,
   ConnectionTestResult,
   DesktopSyncState,
+  LocalSkillInventoryRow,
+  LocalSkillsInventorySnapshot,
   PendingSyncUpdate,
   PreDistributionCheckSnapshot,
   SkillDistributionResult
@@ -189,10 +192,13 @@ export function App() {
   const [syncState, setSyncState] = useState<DesktopSyncState>(initialState)
   const [preDistributionCheckSnapshot, setPreDistributionCheckSnapshot] =
     useState<PreDistributionCheckSnapshot | null>(null)
+  const [localSkillsSnapshot, setLocalSkillsSnapshot] =
+    useState<LocalSkillsInventorySnapshot | null>(null)
   const [agentDetectionSnapshot, setAgentDetectionSnapshot] =
     useState<AgentDetectionSnapshot | null>(null)
   const [isPreDistributionChecking, setIsPreDistributionChecking] = useState(false)
   const [isAgentDetectionRefreshing, setIsAgentDetectionRefreshing] = useState(false)
+  const [isLocalSkillsRefreshing, setIsLocalSkillsRefreshing] = useState(false)
   const [preDistributionCheckClock, setPreDistributionCheckClock] = useState(() => Date.now())
   const [activity, setActivity] = useState<ActivityEntry[]>([
     createActivityEntry(
@@ -203,6 +209,7 @@ export function App() {
   ])
   const [isLoading, setIsLoading] = useState(true)
   const [busyUpdateId, setBusyUpdateId] = useState<string | null>(null)
+  const [busyLocalSkillRowKey, setBusyLocalSkillRowKey] = useState<string | null>(null)
   const [pendingDistributionConfirmation, setPendingDistributionConfirmation] =
     useState<PendingSyncUpdate | null>(null)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
@@ -325,6 +332,37 @@ export function App() {
       return null
     } finally {
       setIsAgentDetectionRefreshing(false)
+    }
+  }
+
+  const refreshLocalSkillsState = async (localizedDictionary = dictionary) => {
+    if (!bridgeAvailable || !configurationReady) {
+      setLocalSkillsSnapshot(null)
+      setIsLocalSkillsRefreshing(false)
+      return null
+    }
+
+    setIsLocalSkillsRefreshing(true)
+
+    try {
+      const snapshot = await desktopClient.refreshLocalSkills()
+      setLocalSkillsSnapshot(snapshot)
+      return snapshot
+    } catch (error: unknown) {
+      const message = getErrorMessage(error)
+      setActivity((current) =>
+        [
+          createActivityEntry(
+            localizedDictionary.activity.refreshFailedTitle,
+            localizedDictionary.activity.refreshFailedDetail(`Local skills: ${message}`),
+            "warning"
+          ),
+          ...current
+        ].slice(0, 5)
+      )
+      return null
+    } finally {
+      setIsLocalSkillsRefreshing(false)
     }
   }
 
@@ -481,6 +519,9 @@ export function App() {
       setSyncState(state)
       setErrorMessage(null)
       await refreshPreDistributionCheckForState(state)
+      if (activeView === "local-skills") {
+        await refreshLocalSkillsState()
+      }
       setActivity((current) =>
         [
           createActivityEntry(
@@ -679,6 +720,7 @@ export function App() {
       setSelectedLocale(nextConfiguration.locale)
       setSyncState(initialState)
       setAgentDetectionSnapshot(null)
+      setLocalSkillsSnapshot(null)
       setPreDistributionCheckSnapshot(null)
       setConnectionTestResult(null)
       setErrorMessage(null)
@@ -842,6 +884,62 @@ export function App() {
     await refreshAgentDetectionState()
   }
 
+  const handleNavigate = (view: AppView) => {
+    setActiveView(view)
+
+    if (view === "local-skills" && configurationReady && localSkillsSnapshot === null) {
+      void refreshLocalSkillsState()
+    }
+  }
+
+  const handleRefreshLocalSkills = async () => {
+    if (!configurationReady) {
+      setIsConfiguring(true)
+      setSettingsOpen(true)
+      return
+    }
+
+    await refreshLocalSkillsState()
+  }
+
+  const handleUploadLocalSkill = async (row: LocalSkillInventoryRow) => {
+    if (!bridgeAvailable || !row.uploadable || !row.name) {
+      return
+    }
+
+    setBusyLocalSkillRowKey(row.rowKey)
+
+    try {
+      const result = await desktopClient.uploadLocalSkill(row.rowKey)
+      setLocalSkillsSnapshot(result.refreshedSnapshot)
+      setActivity((current) =>
+        [
+          createActivityEntry(
+            dictionary.activity.localSkillUploadedTitle,
+            dictionary.activity.localSkillUploadedDetail(result.name),
+            "success"
+          ),
+          ...current
+        ].slice(0, 5)
+      )
+    } catch (error: unknown) {
+      const message = getErrorMessage(error)
+      setActivity((current) =>
+        [
+          createActivityEntry(
+            dictionary.activity.localSkillUploadFailedTitle,
+            dictionary.activity.localSkillUploadFailedDetail(row.name ?? row.packageRootPath, message),
+            "warning"
+          ),
+          ...current
+        ].slice(0, 5)
+      )
+      await refreshLocalSkillsState()
+    } finally {
+      setBusyLocalSkillRowKey(null)
+    }
+  }
+
   const formattedLastRefreshedAt = formatLongTimestamp(
     selectedLocale,
     syncState.lastRefreshedAt,
@@ -864,7 +962,7 @@ export function App() {
         pendingUpdateCount={syncState.pendingUpdates.length}
         isRefreshing={isLoading}
         canRefresh={configurationReady}
-        onNavigate={setActiveView}
+        onNavigate={handleNavigate}
         onOpenSettings={() => setSettingsOpen(true)}
         onRefresh={handleRefresh}
       >
@@ -887,6 +985,16 @@ export function App() {
             onOpenSettings={() => setSettingsOpen(true)}
             onRefresh={handleRefresh}
             onViewUpdates={() => setActiveView("updates")}
+          />
+        ) : activeView === "local-skills" ? (
+          <LocalSkillsView
+            snapshot={localSkillsSnapshot}
+            bridgeAvailable={bridgeAvailable}
+            configurationReady={configurationReady}
+            isRefreshing={isLocalSkillsRefreshing}
+            uploadingRowKey={busyLocalSkillRowKey}
+            onRefresh={handleRefreshLocalSkills}
+            onUpload={handleUploadLocalSkill}
           />
         ) : (
           <UpdatesView

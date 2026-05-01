@@ -4,6 +4,8 @@
 
 | File | Outcome |
 |------|---------|
+| [2026-05-02-local-skills-management.md](2026-05-02-local-skills-management.md) | Desktop-client Local Skills inventory and explicit upload were implemented with row-key IPC, safe ZIP staging, Client API upload, refreshed inventory state, tests, and docs |
+| [2026-05-02-local-skills-management-tasks.md](2026-05-02-local-skills-management-tasks.md) | Completed task checklist for the Local Skills Management implementation |
 | [2026-05-01-sort-agents-by-install-status.md](2026-05-01-sort-agents-by-install-status.md) | Agent list in Settings drawer now shows installed agents first, then missing agents, for better user experience |
 | [2026-05-01-encrypted-package-decryptor.md](2026-05-01-encrypted-package-decryptor.md) | Desktop-client encrypted skill package downloads now decrypt in the Electron main process when operators provide the backend download decryption secret through `OPEN_SKILLHUB_DOWNLOAD_DECRYPTION_SECRET`, with fail-closed behavior and regression coverage |
 | [2026-05-01-fix-dialog-actions-footer.md](2026-05-01-fix-dialog-actions-footer.md) | Desktop-client distribution confirmation dialog actions now render in a fixed footer outside the scrollable dialog body, with regression coverage for footer placement |

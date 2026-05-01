@@ -58,6 +58,8 @@ Defined in `electron/ipc.ts`:
 - `configuration:test-connection`
 - `sync:refresh`
 - `agent-detection:refresh`
+- `local-skills:refresh`
+- `local-skills:upload`
 - `pre-distribution-check:refresh`
 - `distribution:reconcile-installed`
 - `distribution:run`
@@ -71,6 +73,8 @@ Renderer bridge methods:
 - `testConnection(payload)`
 - `refreshSync()`
 - `refreshAgentDetection()`
+- `refreshLocalSkills()`
+- `uploadLocalSkill(rowKey)`
 - `refreshPreDistributionCheck()`
 - `reconcileInstalledSkill(pendingUpdateId)`
 - `distributePendingUpdate(pendingUpdateId)`
@@ -81,6 +85,13 @@ targets. The pre-distribution check channel reads the current pending updates
 from the main-process StateStore and inspects detection-derived agent skill
 directories through agent adapters. These snapshots are transient renderer state
 only; they are not written to SQLite, JSON config, or agent directories.
+
+The local skills channels return a transient inventory snapshot and upload a
+server-missing local skill by row key. The renderer never sends arbitrary
+filesystem paths for upload. The Electron main process recomputes the local
+inventory, validates the row, creates the ZIP, calls the Client API upload
+route, cleans temporary artifacts, and returns only the refreshed inventory plus
+redacted upload result metadata.
 
 ## App Paths
 
@@ -95,6 +106,7 @@ Computed in `src/core/storage/app-paths.ts`:
     state.sqlite3
   cache/
     package-*/    # per-download package staging, removed after distribution cleanup
+    local-upload-*/ # per-upload ZIP staging, removed after upload success or failure
 ```
 
 Platform base directory rules:
@@ -113,6 +125,9 @@ Platform base directory rules:
   staging directories below `cache/`; those directories are declared as
   cleanup-owned artifacts and removed after package extraction, installation
   success, installation failure, or package validation failure
+- local skill upload ZIPs are written to unique `cache/local-upload-*`
+  directories by the Electron main process and removed after the upload attempt
+  succeeds or fails
 - `logs/` and `backups/` are not yet created by the current implementation
 
 ## Agent Runtime Surface

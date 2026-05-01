@@ -26,6 +26,9 @@
 - The renderer remains unprivileged and only uses the preload bridge.
 - Node integration, direct filesystem access, and raw secret access stay in the Electron main process.
 - IPC handlers must validate inputs before they touch package or filesystem operations.
+- Local skill upload IPC accepts only a row key. The main process must resolve
+  that row from a fresh local inventory snapshot instead of trusting a renderer
+  path.
 
 ## Package Validation
 

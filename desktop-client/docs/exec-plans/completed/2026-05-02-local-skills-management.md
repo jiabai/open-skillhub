@@ -42,8 +42,13 @@ the Client API without exposing filesystem or token privileges to the renderer.
 - [x] 2026-05-02: Updated desktop indexes, task tracker, security rules, and
   Client API contract for the planned Local Skills upload surface.
 - [x] 2026-05-02: Ran documentation validation for the doc-only planning pass.
-- [ ] Implementation not started by request; code begins only after spec/plan
-  review.
+- [x] 2026-05-02: Implemented local inventory scanning, exact-name server
+  matching, safe ZIP upload packaging, Client API upload helper, typed IPC,
+  preload bridge methods, renderer Local Skills view, English/Chinese copy, and
+  focused regression tests.
+- [x] 2026-05-02: Wired Electron main-process upload by row key with fresh
+  inventory revalidation, cache-owned `local-upload-*` staging, cleanup after
+  success or failure, and refreshed inventory return state.
 
 ## Decisions
 
@@ -78,7 +83,7 @@ Modify:
 | `electron/main.ts` | Wire service creation, API list/upload, row-key resolution, and cleanup |
 | `src/lib/ipc-client.ts` | Add typed bridge wrappers |
 | `src/app/App.tsx` | Add Local Skills view state, refresh, upload, and activity feedback |
-| `src/components/nav-shell.tsx` | Add Local Skills nav entry between Home and Updates |
+| `src/components/app-shell.tsx` | Add Local Skills nav entry between Home and Updates |
 | `src/i18n/messages/en-US.ts` | Add English UI copy |
 | `src/i18n/messages/zh-CN.ts` | Add Chinese UI copy |
 | `docs/references/runtime-and-storage-surface.md` | Record implemented IPC channels and temp artifact ownership |
@@ -96,10 +101,10 @@ Modify:
 4. Add packaging tests for root `SKILL.md`, archive layout, unsafe paths,
    symlink escape, size/count limits, and cleanup.
 5. Implement temporary ZIP packaging and cleanup ownership.
-6. Add IPC and preload tests or source-level coverage for refresh/upload
+6. Add Client API upload helper using API token auth and multipart form data.
+7. Add IPC and preload tests or source-level coverage for refresh/upload
    handler registration.
-7. Wire Electron main-process refresh and upload handlers.
-8. Add Client API upload helper using API token auth and multipart form data.
+8. Wire Electron main-process refresh and upload handlers.
 9. Add renderer tests for navigation, row actions, busy states, and error
    feedback.
 10. Implement the Local Skills view and navigation entry.
@@ -131,6 +136,11 @@ uv run pytest tests/test_client_skills_api.py -q
   and 0 warnings on 2026-05-02.
 - `git diff --check` exited 0 on 2026-05-02; PowerShell reported CRLF
   normalization warnings only.
+- `cd desktop-client && npm test` passed on 2026-05-02 with 18 test files and
+  89 tests.
+- `cd desktop-client && npm run build` passed on 2026-05-02, including
+  `npm run typecheck:electron`, renderer build, main bundle, and preload
+  bundle.
 
 ## Documentation Results
 
@@ -141,4 +151,8 @@ uv run pytest tests/test_client_skills_api.py -q
 
 ## Outcome
 
-Pending implementation.
+Implemented. Local Skills now lists detected/configured local SKILL package
+roots, compares valid rows to the Client API by exact SKILL name, exposes upload
+only for server-missing valid rows, uploads by row key through the Electron main
+process, cleans temporary ZIP artifacts, and refreshes the inventory after
+successful upload.

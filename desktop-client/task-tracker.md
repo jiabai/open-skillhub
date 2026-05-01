@@ -2,7 +2,7 @@
 
 ## In Progress
 
-- [ ] Local Skills Management implementation planning (2026-05-02) - docs/spec/design/ExecPlan prepared; code not started by request. ✅ Validate with `python scripts/validate_agents_docs.py --level ERROR` and `git diff --check`. See `docs/exec-plans/active/2026-05-02-local-skills-management.md`
+No active tasks.
 
 ## Todo
 
@@ -10,6 +10,7 @@
 - [x] Retire or explicitly archive the root `docs/superpowers/desktop-client*` drafts after the local canonical docs fully supersede them (2026-04-17) ✅ root drafts deleted, local docs updated to remove cross-references
 
 ## Done
+- [x] Implement Local Skills Management inventory and explicit upload (2026-05-02) ✅ Local Skills view scans detected/configured skill roots, compares by exact SKILL name, uploads server-missing valid rows through row-key IPC and Client API upload, cleans temp ZIP staging, refreshes inventory, and `npm test`, `npm run build`, `python scripts/validate_agents_docs.py --level ERROR`, `git diff --check` pass. See `docs/exec-plans/completed/2026-05-02-local-skills-management.md`
 - [x] Sort agents by install status in Settings drawer (2026-05-01) ✅ Agent list now shows installed agents first, then missing agents; `npm test`, `npm run build` pass. See `docs/exec-plans/completed/2026-05-01-sort-agents-by-install-status.md`
 - [x] Analyze and resolve encrypted skill package decryptor missing issue (2026-05-01) ✅ Electron main-process decryption now supports backend-encrypted packages through `OPEN_SKILLHUB_DOWNLOAD_DECRYPTION_SECRET`; `npm test`, `npm run build`, `python scripts\validate_agents_docs.py --level ERROR`, and `git diff --check` pass. See `docs/exec-plans/completed/2026-05-01-encrypted-package-decryptor.md`
 - [x] Fix dialog actions footer visibility (2026-05-01) ✅ confirmation dialog actions now render in a fixed footer outside the scrollable body; `npm test`, `npm run build`, and docs validation pass

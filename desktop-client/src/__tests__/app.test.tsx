@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react"
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 import { App } from "@/app/App"
@@ -13,6 +13,8 @@ type MockDesktopClientBridge = {
   refreshSync: ReturnType<typeof vi.fn>
   refreshAgentDetection: ReturnType<typeof vi.fn>
   refreshPreDistributionCheck: ReturnType<typeof vi.fn>
+  refreshLocalSkills: ReturnType<typeof vi.fn>
+  uploadLocalSkill: ReturnType<typeof vi.fn>
   reconcileInstalledSkill: ReturnType<typeof vi.fn>
   distributePendingUpdate: ReturnType<typeof vi.fn>
 }
@@ -26,6 +28,8 @@ const mockDesktopClient = {
   refreshSync: vi.fn(),
   refreshAgentDetection: vi.fn(),
   refreshPreDistributionCheck: vi.fn(),
+  refreshLocalSkills: vi.fn(),
+  uploadLocalSkill: vi.fn(),
   reconcileInstalledSkill: vi.fn(),
   distributePendingUpdate: vi.fn()
 } satisfies MockDesktopClientBridge
@@ -95,6 +99,28 @@ const defaultAgentDetection = {
   ]
 }
 
+const defaultLocalSkillsSnapshot = {
+  checkedAt: "2026-05-02T00:00:00.000Z",
+  rows: [
+    {
+      rowKey: "row-local-only",
+      name: "local-only",
+      localVersion: "0.1.0",
+      packageRootPath: "C:\\Users\\test\\.agents\\skills\\local-only",
+      sourceAgents: ["codex" as const],
+      sourceDisplayNames: ["Codex"],
+      validationState: "valid" as const,
+      validationMessage: null,
+      serverState: "missing" as const,
+      remoteSkillId: null,
+      remoteVersion: null,
+      uploadable: true
+    }
+  ],
+  serverLookupStatus: "ok" as const,
+  serverLookupMessage: null
+}
+
 beforeEach(() => {
   Object.defineProperty(window.navigator, "language", {
     configurable: true,
@@ -121,6 +147,14 @@ beforeEach(() => {
     targetAgentIds: [],
     totalDurationMs: 0,
     globalErrors: []
+  })
+  mockDesktopClient.refreshLocalSkills.mockResolvedValue(defaultLocalSkillsSnapshot)
+  mockDesktopClient.uploadLocalSkill.mockResolvedValue({
+    rowKey: "row-local-only",
+    uploadedSkillId: "uploaded-skill",
+    name: "local-only",
+    version: "0.1.0",
+    refreshedSnapshot: defaultLocalSkillsSnapshot
   })
   mockDesktopClient.refreshAgentDetection.mockResolvedValue(defaultAgentDetection)
   mockDesktopClient.reconcileInstalledSkill.mockResolvedValue({
@@ -152,6 +186,8 @@ describe("App", () => {
     expect(window.desktopClient?.refreshSync).toBeTypeOf("function")
     expect(window.desktopClient?.refreshAgentDetection).toBeTypeOf("function")
     expect(window.desktopClient?.refreshPreDistributionCheck).toBeTypeOf("function")
+    expect(window.desktopClient?.refreshLocalSkills).toBeTypeOf("function")
+    expect(window.desktopClient?.uploadLocalSkill).toBeTypeOf("function")
     expect(window.desktopClient?.reconcileInstalledSkill).toBeTypeOf("function")
     expect(window.desktopClient?.distributePendingUpdate).toBeTypeOf("function")
   })
@@ -228,6 +264,14 @@ describe("App", () => {
       globalErrors: []
     })
     mockDesktopClient.refreshAgentDetection.mockResolvedValue(defaultAgentDetection)
+    mockDesktopClient.refreshLocalSkills.mockResolvedValue(defaultLocalSkillsSnapshot)
+    mockDesktopClient.uploadLocalSkill.mockResolvedValue({
+      rowKey: "row-local-only",
+      uploadedSkillId: "uploaded-skill",
+      name: "local-only",
+      version: "0.1.0",
+      refreshedSnapshot: defaultLocalSkillsSnapshot
+    })
     mockDesktopClient.reconcileInstalledSkill.mockResolvedValue({
       localRecords: [],
       pendingUpdates: [],
@@ -288,6 +332,14 @@ describe("App", () => {
       totalDurationMs: 0,
       globalErrors: []
     })
+    await expect(desktopClient.refreshLocalSkills()).resolves.toEqual(defaultLocalSkillsSnapshot)
+    await expect(desktopClient.uploadLocalSkill("row-local-only")).resolves.toEqual({
+      rowKey: "row-local-only",
+      uploadedSkillId: "uploaded-skill",
+      name: "local-only",
+      version: "0.1.0",
+      refreshedSnapshot: defaultLocalSkillsSnapshot
+    })
     await expect(desktopClient.reconcileInstalledSkill("skill-a")).resolves.toEqual({
       localRecords: [],
       pendingUpdates: [],
@@ -319,6 +371,8 @@ describe("App", () => {
     expect(mockDesktopClient.refreshSync).toHaveBeenCalledTimes(1)
     expect(mockDesktopClient.refreshAgentDetection).toHaveBeenCalledTimes(1)
     expect(mockDesktopClient.refreshPreDistributionCheck).toHaveBeenCalledTimes(1)
+    expect(mockDesktopClient.refreshLocalSkills).toHaveBeenCalledTimes(1)
+    expect(mockDesktopClient.uploadLocalSkill).toHaveBeenCalledWith("row-local-only")
     expect(mockDesktopClient.reconcileInstalledSkill).toHaveBeenCalledWith("skill-a")
     expect(mockDesktopClient.distributePendingUpdate).toHaveBeenCalledWith("skill-a")
   })
@@ -452,6 +506,112 @@ describe("App", () => {
     await waitFor(() => {
       expect(screen.getByRole("heading", { name: "All pending updates" })).toBeInTheDocument()
       expect(screen.getByText("Skill D")).toBeInTheDocument()
+    })
+  })
+
+  it("shows Local Skills between Home and Updates and uploads a missing local skill", async () => {
+    mockDesktopClient.refreshSync.mockResolvedValueOnce({
+      localRecords: [],
+      pendingUpdates: [],
+      successfulDistributionCount: 0,
+      lastRefreshedAt: "2026-05-02T00:00:00.000Z"
+    })
+    mockDesktopClient.uploadLocalSkill.mockResolvedValueOnce({
+      rowKey: "row-local-only",
+      uploadedSkillId: "uploaded-skill",
+      name: "local-only",
+      version: "0.1.0",
+      refreshedSnapshot: {
+        ...defaultLocalSkillsSnapshot,
+        rows: [
+          {
+            ...defaultLocalSkillsSnapshot.rows[0],
+            serverState: "existing",
+            remoteSkillId: "uploaded-skill",
+            remoteVersion: "0.1.0",
+            uploadable: false
+          }
+        ]
+      }
+    })
+
+    render(<App />)
+
+    const navigation = screen.getByRole("navigation", { name: "Open SkillHub Desktop" })
+
+    await waitFor(() => {
+      expect(within(navigation).getByRole("button", { name: "Local Skills" })).toBeInTheDocument()
+    })
+
+    expect(within(navigation).getAllByRole("button").map((button) => button.textContent)).toEqual([
+      "Home",
+      "Local Skills",
+      "Updates"
+    ])
+
+    fireEvent.click(within(navigation).getByRole("button", { name: "Local Skills" }))
+
+    await waitFor(() => {
+      expect(mockDesktopClient.refreshLocalSkills).toHaveBeenCalledTimes(1)
+      expect(screen.getByRole("heading", { name: "Local Skills" })).toBeInTheDocument()
+      expect(screen.getByText("local-only")).toBeInTheDocument()
+      expect(screen.getByText(/Codex/)).toBeInTheDocument()
+    })
+
+    fireEvent.click(screen.getByRole("button", { name: "Upload local-only" }))
+
+    await waitFor(() => {
+      expect(mockDesktopClient.uploadLocalSkill).toHaveBeenCalledWith("row-local-only")
+      expect(screen.getByText(/uploaded-skill/)).toBeInTheDocument()
+      expect(screen.queryByRole("button", { name: "Upload local-only" })).not.toBeInTheDocument()
+    })
+  })
+
+  it("refreshes Local Skills after an upload conflict", async () => {
+    mockDesktopClient.refreshSync.mockResolvedValueOnce({
+      localRecords: [],
+      pendingUpdates: [],
+      successfulDistributionCount: 0,
+      lastRefreshedAt: "2026-05-02T00:00:00.000Z"
+    })
+    mockDesktopClient.refreshLocalSkills
+      .mockResolvedValueOnce(defaultLocalSkillsSnapshot)
+      .mockResolvedValueOnce({
+        ...defaultLocalSkillsSnapshot,
+        rows: [
+          {
+            ...defaultLocalSkillsSnapshot.rows[0],
+            serverState: "existing",
+            remoteSkillId: "uploaded-skill",
+            remoteVersion: "0.1.0",
+            uploadable: false
+          }
+        ]
+      })
+    mockDesktopClient.uploadLocalSkill.mockRejectedValueOnce(
+      new Error("DUPLICATE_SKILL_NAME: A server skill with this name already exists")
+    )
+
+    render(<App />)
+
+    const navigation = screen.getByRole("navigation", { name: "Open SkillHub Desktop" })
+
+    await waitFor(() => {
+      expect(within(navigation).getByRole("button", { name: "Local Skills" })).toBeInTheDocument()
+    })
+
+    fireEvent.click(within(navigation).getByRole("button", { name: "Local Skills" }))
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Upload local-only" })).toBeInTheDocument()
+    })
+
+    fireEvent.click(screen.getByRole("button", { name: "Upload local-only" }))
+
+    await waitFor(() => {
+      expect(mockDesktopClient.uploadLocalSkill).toHaveBeenCalledWith("row-local-only")
+      expect(mockDesktopClient.refreshLocalSkills).toHaveBeenCalledTimes(2)
+      expect(screen.getByText(/uploaded-skill/)).toBeInTheDocument()
     })
   })
 

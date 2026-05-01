@@ -5,6 +5,8 @@ import type {
   ConfigurationState,
   ConnectionTestResult,
   DesktopSyncState,
+  LocalSkillUploadResult,
+  LocalSkillsInventorySnapshot,
   PreDistributionCheckSnapshot,
   SkillDistributionResult
 } from "@/types"
@@ -18,6 +20,8 @@ export interface DesktopClientBridge {
   refreshSync(): Promise<DesktopSyncState>
   refreshAgentDetection(): Promise<AgentDetectionSnapshot>
   refreshPreDistributionCheck(): Promise<PreDistributionCheckSnapshot>
+  refreshLocalSkills(): Promise<LocalSkillsInventorySnapshot>
+  uploadLocalSkill(rowKey: string): Promise<LocalSkillUploadResult>
   reconcileInstalledSkill(pendingUpdateId: string): Promise<DesktopSyncState>
   distributePendingUpdate(pendingUpdateId: string): Promise<SkillDistributionResult>
 }
@@ -120,6 +124,26 @@ function invokeRefreshPreDistributionCheck(): Promise<PreDistributionCheckSnapsh
   return bridge.refreshPreDistributionCheck()
 }
 
+function invokeRefreshLocalSkills(): Promise<LocalSkillsInventorySnapshot> {
+  const bridge = getDesktopClientBridge()
+
+  if (!bridge) {
+    throw new Error("Desktop client bridge is unavailable")
+  }
+
+  return bridge.refreshLocalSkills()
+}
+
+function invokeUploadLocalSkill(rowKey: string): Promise<LocalSkillUploadResult> {
+  const bridge = getDesktopClientBridge()
+
+  if (!bridge) {
+    throw new Error("Desktop client bridge is unavailable")
+  }
+
+  return bridge.uploadLocalSkill(rowKey)
+}
+
 function invokeReconcileInstalledSkill(pendingUpdateId: string): Promise<DesktopSyncState> {
   const bridge = getDesktopClientBridge()
 
@@ -152,6 +176,8 @@ export const desktopClient = {
   refreshSync: invokeRefreshSync,
   refreshAgentDetection: invokeRefreshAgentDetection,
   refreshPreDistributionCheck: invokeRefreshPreDistributionCheck,
+  refreshLocalSkills: invokeRefreshLocalSkills,
+  uploadLocalSkill: invokeUploadLocalSkill,
   reconcileInstalledSkill: invokeReconcileInstalledSkill,
   distributePendingUpdate: invokeDistributePendingUpdate
 } as const

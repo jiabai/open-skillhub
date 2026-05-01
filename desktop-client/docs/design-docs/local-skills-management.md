@@ -209,7 +209,7 @@ failure behavior as existing Client API list/download calls.
 Add two IPC channels:
 
 ```typescript
-localSkillsRefresh: "local-skills:refresh"
+refreshLocalSkills: "local-skills:refresh"
 uploadLocalSkill: "local-skills:upload"
 ```
 
@@ -237,7 +237,7 @@ Expected files:
 
 - `../../src/components/local-skills-view.tsx`
 - `../../src/app/App.tsx`
-- `../../src/components/nav-shell.tsx`
+- `../../src/components/app-shell.tsx`
 - `../../src/i18n/messages/en-US.ts`
 - `../../src/i18n/messages/zh-CN.ts`
 
@@ -308,7 +308,7 @@ Modify:
 | `electron/main.ts` | Wire inventory refresh, upload packaging, Client API upload, cleanup |
 | `src/lib/ipc-client.ts` | Add typed renderer bridge wrappers |
 | `src/app/App.tsx` | Add Local Skills view state and actions |
-| `src/components/nav-shell.tsx` | Add Local Skills navigation item |
+| `src/components/app-shell.tsx` | Add Local Skills navigation item |
 | `src/i18n/messages/en-US.ts` | English copy for view, states, actions |
 | `src/i18n/messages/zh-CN.ts` | Chinese copy for view, states, actions |
 | `docs/references/runtime-and-storage-surface.md` | After implementation, record new IPC channels and any new temp paths |

@@ -3,7 +3,7 @@ import type { ReactNode } from "react"
 import { Badge, Button } from "@/components/ui-primitives"
 import { useI18n } from "@/i18n/use-i18n"
 
-export type AppView = "home" | "updates"
+export type AppView = "home" | "local-skills" | "updates"
 
 type AppShellProps = {
   activeView: AppView
@@ -71,6 +71,13 @@ export function AppShell({
                 onClick={() => onNavigate("home")}
               >
                 {dictionary.appShell.navigation.home}
+              </Button>
+              <Button
+                variant={activeView === "local-skills" ? "nav-active" : "ghost"}
+                size="sm"
+                onClick={() => onNavigate("local-skills")}
+              >
+                {dictionary.appShell.navigation.localSkills}
               </Button>
               <Button
                 variant={activeView === "updates" ? "nav-active" : "ghost"}

@@ -32,6 +32,7 @@ export const zhCNDictionary = {
     desktopClientLabel: "Open SkillHub 桌面端",
     navigation: {
       home: "首页",
+      localSkills: "本地 SKILL",
       updates: "更新"
     },
     bridgeStatus: {
@@ -96,6 +97,32 @@ export const zhCNDictionary = {
     title: "全部待审核更新",
     summary: "在把技能分发到已配置的本地代理目标之前，先检查每个待审核更新。",
     refreshQueue: "刷新队列"
+  },
+  localSkillsView: {
+    eyebrow: "本地库存",
+    title: "本地 SKILL",
+    inventoryTitle: "库存",
+    summary: "查看本地 SKILL 包根目录，并且只在确认后上传服务端缺失的 SKILL。",
+    refresh: "刷新本地 SKILL",
+    refreshing: "刷新中...",
+    loading: "正在加载本地 SKILL...",
+    noSnapshot: "尚未刷新本地 SKILL 库存。",
+    empty: "没有发现本地 SKILL 包根目录。",
+    upload: (name: string) => `上传 ${name}`,
+    uploading: "上传中...",
+    sourceAgents: (value: string) => `来源 ${value}`,
+    localVersion: (value: string) => `本地 ${value}`,
+    localPath: (value: string) => `路径 ${value}`,
+    remoteVersion: (value: string) => `远程 ${value}`,
+    remoteId: (value: string) => `远程 ID ${value}`,
+    validationReason: (value: string) => `校验 ${value}`,
+    serverLookupWarning: (value: string) => `服务端查询不可用：${value}`,
+    serverStateLabels: {
+      existing: "服务端已存在",
+      missing: "服务端缺失",
+      unknown: "服务端未知",
+      invalidLocal: "本地 SKILL 无效"
+    }
   },
   settingsPanel: {
     title: "设置",
@@ -276,6 +303,11 @@ export const zhCNDictionary = {
       `${name} 已安装在所有检测到的目标上，因此已更新本地审核记录。`,
     localRecordSyncFailedTitle: "本地记录同步失败",
     localRecordSyncFailedDetail: (name: string, message: string) =>
-      `${name} 无法标记为已同步：${message}`
+      `${name} 无法标记为已同步：${message}`,
+    localSkillUploadedTitle: "本地 SKILL 已上传",
+    localSkillUploadedDetail: (name: string) => `${name} 已上传到服务端。`,
+    localSkillUploadFailedTitle: "本地 SKILL 上传失败",
+    localSkillUploadFailedDetail: (name: string, message: string) =>
+      `${name} 无法上传：${message}`
   }
 } satisfies AppDictionary

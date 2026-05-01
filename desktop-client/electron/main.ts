@@ -24,6 +24,9 @@ import {
   createDistributionService
 } from "@/core/distribution/distribution-service"
 import { createPackageService } from "@/core/distribution/package-service"
+import { uploadLocalSkillPackage } from "@/core/local-skills/local-skill-client-api"
+import { createLocalSkillInventoryService } from "@/core/local-skills/local-skill-inventory-service"
+import { prepareLocalSkillUploadPackage } from "@/core/local-skills/local-skill-upload-package"
 import { createPreDistributionCheckService } from "@/core/pre-distribution-check/pre-distribution-check-service"
 import {
   createRuntimeConfigManager,
@@ -42,6 +45,9 @@ import type {
   ConfigurationState,
   DesktopSyncState,
   DownloadedSkillArtifact,
+  LocalSkillServerLookupStatus,
+  LocalSkillsInventorySnapshot,
+  LocalSkillUploadResult,
   PendingSyncUpdate,
   PreDistributionCheckSnapshot,
   RemoteSkillSummary,
@@ -139,6 +145,30 @@ function assertNotExpired(expiresAt: string): void {
 
 function getErrorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error)
+}
+
+function classifyLocalSkillServerLookupError(error: unknown): LocalSkillServerLookupStatus {
+  const message = getErrorMessage(error).toLowerCase()
+
+  if (message.includes("api token")) {
+    return "configuration-missing"
+  }
+
+  if (message.includes("401") || message.includes("403")) {
+    return "auth-failed"
+  }
+
+  if (
+    error instanceof TypeError ||
+    message.includes("fetch failed") ||
+    message.includes("network") ||
+    message.includes("econnrefused") ||
+    message.includes("enotfound")
+  ) {
+    return "network-error"
+  }
+
+  return "error"
 }
 
 function toConfigurationState(state: RuntimeConfigurationState): ConfigurationState {
@@ -546,6 +576,7 @@ async function createApplicationServices(): Promise<void> {
     extractArtifact: (artifact, extractedPath) => extractArchive(artifact.artifactPath, extractedPath),
     createTempDirectory: async () => mkdtemp(join(tmpdir(), "open-skillhub-package-"))
   })
+  const localSkillInventoryService = createLocalSkillInventoryService()
   const distributionService = createDistributionService({
     packageService,
     stateStore,
@@ -598,6 +629,94 @@ async function createApplicationServices(): Promise<void> {
     await pollingController.start()
   }
 
+  const refreshLocalSkillsSnapshot = async (): Promise<LocalSkillsInventorySnapshot> => {
+    const runtimeState = await runtimeConfigManager.reload()
+    const runtimeConfig = runtimeState.config
+    let remoteSkills: RemoteSkillSummary[] = []
+    let serverLookupStatus: LocalSkillServerLookupStatus = "ok"
+    let serverLookupMessage: string | null = null
+
+    if (!runtimeConfig.apiToken) {
+      serverLookupStatus = "configuration-missing"
+      serverLookupMessage = "API token is required to compare local skills with the server."
+    } else {
+      try {
+        remoteSkills = await listRemoteSkills(runtimeConfig)
+      } catch (error) {
+        serverLookupStatus = classifyLocalSkillServerLookupError(error)
+        serverLookupMessage = getErrorMessage(error)
+      }
+    }
+
+    return localSkillInventoryService.refresh({
+      detectionSnapshot: runtimeConfig.agentDetection,
+      remoteSkills,
+      serverLookupStatus,
+      serverLookupMessage
+    })
+  }
+
+  const uploadLocalSkillByRowKey = async (rowKey: string): Promise<LocalSkillUploadResult> => {
+    const normalizedRowKey = String(rowKey ?? "").trim()
+
+    if (!normalizedRowKey) {
+      throw new Error("rowKey cannot be empty")
+    }
+
+    if (normalizedRowKey.length > 128) {
+      throw new Error("rowKey is too long")
+    }
+
+    const snapshot = await refreshLocalSkillsSnapshot()
+
+    if (snapshot.serverLookupStatus !== "ok") {
+      throw new Error(
+        `Cannot upload local skill while server lookup is unavailable: ${
+          snapshot.serverLookupMessage ?? snapshot.serverLookupStatus
+        }`
+      )
+    }
+
+    const row = snapshot.rows.find((item) => item.rowKey === normalizedRowKey)
+
+    if (!row) {
+      throw new Error(`Unknown local skill row: ${normalizedRowKey}`)
+    }
+
+    if (!row.name || !row.uploadable) {
+      throw new Error("Local skill is not eligible for upload")
+    }
+
+    const runtimeConfig = runtimeConfigManager.getState().config
+    const preparedPackage = await prepareLocalSkillUploadPackage({
+      packageRootPath: row.packageRootPath,
+      skillName: row.name,
+      cacheDirectory: runtimeConfig.cacheDirectory
+    })
+
+    try {
+      const uploadedSkill = await uploadLocalSkillPackage({
+        apiBaseUrl: runtimeConfig.apiBaseUrl,
+        apiToken: runtimeConfig.apiToken,
+        artifactPath: preparedPackage.artifactPath,
+        fileName: preparedPackage.fileName
+      })
+      const refreshedSnapshot = await refreshLocalSkillsSnapshot()
+
+      return {
+        rowKey: row.rowKey,
+        uploadedSkillId: uploadedSkill.id,
+        name: uploadedSkill.name,
+        version: uploadedSkill.version,
+        refreshedSnapshot
+      }
+    } finally {
+      await preparedPackage.cleanup().catch((error: unknown) => {
+        console.warn("Failed to clean up local skill upload package", error)
+      })
+    }
+  }
+
   registerDesktopClientIpc(ipcMain, {
     getConfiguration: () => toConfigurationState(runtimeConfigManager.getState()),
     saveConfiguration: async (payload: ConfigurationPayload): Promise<ConfigurationState> => {
@@ -646,6 +765,8 @@ async function createApplicationServices(): Promise<void> {
 
       return nextRuntimeState.config.agentDetection
     },
+    refreshLocalSkills: () => refreshLocalSkillsSnapshot(),
+    uploadLocalSkill: (rowKey: string) => uploadLocalSkillByRowKey(rowKey),
     refreshPreDistributionCheck: async (): Promise<PreDistributionCheckSnapshot> => {
       const currentStateStore = stateStore
 

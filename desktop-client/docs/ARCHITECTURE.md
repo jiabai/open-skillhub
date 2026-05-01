@@ -29,6 +29,8 @@ and the full desktop runtime launch through `npm run start:electron`.
   - read-only target-directory metadata checks, strict version comparison, transient snapshots, and stale-check fingerprints
 - `src/core/distribution/`
   - package preparation, owned artifact cleanup, install orchestration, and distribution result reporting
+- `src/core/local-skills/`
+  - read-only local skill inventory, server presence comparison, safe upload ZIP packaging, and Client API upload helper
 - `src/core/detection/`
   - catalog-driven assistant detection, environment target overrides, OpenClaw priority target selection, and shared physical target dedupe
 - `src/core/storage/`
@@ -56,6 +58,8 @@ pre-distribution check core -> state store + detection-derived agent targets + c
 
 distribution core -> package service + detection-derived agent targets + agent adapters + state store
 
+local skills core -> detection-derived unique targets + backend Client API + cache-owned temporary ZIP staging
+
 agent adapters -> local agent installations and skill directories
 
 ## Architecture Invariants
@@ -70,6 +74,9 @@ agent adapters -> local agent installations and skill directories
 - Distribution only runs for explicitly approved pending updates.
 - Agent detection decides the effective installed/configured target set before pre-check, reconcile, and distribution actions.
 - Distribution writes each unique physical target at most once, marks shared-path coverage, and skips writing when every target is already same-version.
+- Local Skills inventory is read-only. Uploads require an explicit row action,
+  revalidate the selected row in the main process, and only create server-missing
+  skills through the Client API.
 - Agent adapters own per-agent filesystem conventions, package installation, metadata reads, and install verification.
 - Agent adapter install and metadata-read directory keys are SKILL names; `remoteSkillId` remains the API/state identity and does not determine the local install directory.
 - Shared type contracts live in `src/types/` instead of being redefined across layers.
@@ -112,6 +119,9 @@ Dependencies should only point downward across those boundaries.
   Staging directories are temporary package artifacts and are removed through
   the package-service cleanup ownership contract after distribution succeeds or
   fails.
+- Local Skills upload ZIPs are staged in unique `cache/local-upload-*`
+  directories and removed by the main process after the upload attempt succeeds
+  or fails.
 - Agent detection snapshots are runtime state only. They are rebuilt on runtime
   config reload, manual rediscovery, pre-distribution checks, reconcile, and
   distribution, and are not persisted to SQLite or JSON config.
@@ -127,6 +137,9 @@ Dependencies should only point downward across those boundaries.
 - `src/core/detection/agent-detection-service.ts`
 - `src/core/distribution/distribution-service.ts`
 - `src/core/distribution/package-service.ts`
+- `src/core/local-skills/local-skill-inventory-service.ts`
+- `src/core/local-skills/local-skill-upload-package.ts`
+- `src/core/local-skills/local-skill-client-api.ts`
 - `src/core/storage/config-store.ts`
 - `src/core/runtime/runtime-config-manager.ts`
 - `src/core/storage/state-db.ts`

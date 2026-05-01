@@ -96,6 +96,52 @@ export interface RemoteSkillSummary {
   updatedAt: string
 }
 
+export type LocalSkillValidationState =
+  | "valid"
+  | "missing-skill-md"
+  | "invalid-skill-name"
+  | "unreadable"
+  | "not-directory"
+
+export type LocalSkillServerLookupStatus =
+  | "ok"
+  | "configuration-missing"
+  | "auth-failed"
+  | "network-error"
+  | "error"
+
+export type LocalSkillServerState = "existing" | "missing" | "unknown" | "invalid-local"
+
+export interface LocalSkillInventoryRow {
+  rowKey: string
+  name: string | null
+  localVersion: string | null
+  packageRootPath: string
+  sourceAgents: AgentId[]
+  sourceDisplayNames: string[]
+  validationState: LocalSkillValidationState
+  validationMessage: string | null
+  serverState: LocalSkillServerState
+  remoteSkillId: string | null
+  remoteVersion: string | null
+  uploadable: boolean
+}
+
+export interface LocalSkillsInventorySnapshot {
+  checkedAt: string
+  rows: LocalSkillInventoryRow[]
+  serverLookupStatus: LocalSkillServerLookupStatus
+  serverLookupMessage: string | null
+}
+
+export interface LocalSkillUploadResult {
+  rowKey: string
+  uploadedSkillId: string | null
+  name: string
+  version: string | null
+  refreshedSnapshot: LocalSkillsInventorySnapshot
+}
+
 export interface LocalDistributedSkillRecord {
   remoteSkillId: string
   name: string

@@ -32,6 +32,7 @@ export const enUSDictionary = {
     desktopClientLabel: "Open SkillHub Desktop",
     navigation: {
       home: "Home",
+      localSkills: "Local Skills",
       updates: "Updates"
     },
     bridgeStatus: {
@@ -98,6 +99,32 @@ export const enUSDictionary = {
     title: "All pending updates",
     summary: "Inspect every pending skill update before distributing it to configured local agent targets.",
     refreshQueue: "Refresh queue"
+  },
+  localSkillsView: {
+    eyebrow: "Local inventory",
+    title: "Local Skills",
+    inventoryTitle: "Inventory",
+    summary: "Review local skill package roots and upload server-missing skills only after approval.",
+    refresh: "Refresh local skills",
+    refreshing: "Refreshing...",
+    loading: "Loading local skills...",
+    noSnapshot: "Local skill inventory has not been refreshed yet.",
+    empty: "No local skill package roots were found.",
+    upload: (name: string) => `Upload ${name}`,
+    uploading: "Uploading...",
+    sourceAgents: (value: string) => `Sources ${value}`,
+    localVersion: (value: string) => `Local ${value}`,
+    localPath: (value: string) => `Path ${value}`,
+    remoteVersion: (value: string) => `Remote ${value}`,
+    remoteId: (value: string) => `Remote ID ${value}`,
+    validationReason: (value: string) => `Validation ${value}`,
+    serverLookupWarning: (value: string) => `Server lookup unavailable: ${value}`,
+    serverStateLabels: {
+      existing: "On server",
+      missing: "Missing on server",
+      unknown: "Server unknown",
+      invalidLocal: "Invalid local skill"
+    }
   },
   settingsPanel: {
     title: "Settings",
@@ -281,6 +308,11 @@ export const enUSDictionary = {
       `${name} is already installed on every detected target, so the local review record was updated.`,
     localRecordSyncFailedTitle: "Local record sync failed",
     localRecordSyncFailedDetail: (name: string, message: string) =>
-      `${name} could not be marked as synced: ${message}`
+      `${name} could not be marked as synced: ${message}`,
+    localSkillUploadedTitle: "Local skill uploaded",
+    localSkillUploadedDetail: (name: string) => `${name} was uploaded to the server.`,
+    localSkillUploadFailedTitle: "Local skill upload failed",
+    localSkillUploadFailedDetail: (name: string, message: string) =>
+      `${name} could not be uploaded: ${message}`
   }
 } satisfies AppDictionary

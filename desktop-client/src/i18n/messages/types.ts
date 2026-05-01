@@ -31,6 +31,7 @@ export interface AppDictionary {
     desktopClientLabel: string
     navigation: {
       home: string
+      localSkills: string
       updates: string
     }
     bridgeStatus: {
@@ -93,8 +94,34 @@ export interface AppDictionary {
   updatesView: {
     eyebrow: string
     title: string
+    inventoryTitle: string
     summary: string
     refreshQueue: string
+  }
+  localSkillsView: {
+    eyebrow: string
+    title: string
+    summary: string
+    refresh: string
+    refreshing: string
+    loading: string
+    noSnapshot: string
+    empty: string
+    upload: (name: string) => string
+    uploading: string
+    sourceAgents: (value: string) => string
+    localVersion: (value: string) => string
+    localPath: (value: string) => string
+    remoteVersion: (value: string) => string
+    remoteId: (value: string) => string
+    validationReason: (value: string) => string
+    serverLookupWarning: (value: string) => string
+    serverStateLabels: {
+      existing: string
+      missing: string
+      unknown: string
+      invalidLocal: string
+    }
   }
   settingsPanel: {
     title: string
@@ -268,6 +295,10 @@ export interface AppDictionary {
     localRecordSyncedDetail: (name: string) => string
     localRecordSyncFailedTitle: string
     localRecordSyncFailedDetail: (name: string, message: string) => string
+    localSkillUploadedTitle: string
+    localSkillUploadedDetail: (name: string) => string
+    localSkillUploadFailedTitle: string
+    localSkillUploadFailedDetail: (name: string, message: string) => string
   }
 }
 

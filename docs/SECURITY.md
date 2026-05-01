@@ -8,7 +8,7 @@ This document captures the stable security model for the backend and web console
 
 - Web users authenticate through email OTP, SSO, or LDAP.
 - Web sessions use JWT access and refresh tokens.
-- Programmatic clients use API tokens for skill metadata and download endpoints.
+- Programmatic clients use API tokens for client-scoped skill metadata, upload, and download endpoints.
 - Per-user skill isolation is enforced through auth context plus filesystem or database ownership checks.
 
 ## Secrets and Configuration

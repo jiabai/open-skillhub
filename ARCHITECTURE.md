@@ -32,7 +32,7 @@ The main product path is:
 
 `Browser or API client -> frontend or backend route -> service -> repository -> database or filesystem`
 
-For the web console, the frontend talks to backend HTTP endpoints and adapts its UI from the backend runtime capability contract. For machine clients, API tokens authorize direct backend calls for metadata and skill download.
+For the web console, the frontend talks to backend HTTP endpoints and adapts its UI from the backend runtime capability contract. For machine clients, API tokens authorize direct backend calls for client-scoped skill metadata, upload, and download workflows.
 
 ## Architectural Invariants
 

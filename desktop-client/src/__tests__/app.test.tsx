@@ -795,6 +795,43 @@ describe("App", () => {
     })
   })
 
+  it("renders distribution confirmation actions in the dialog footer", async () => {
+    mockDesktopClient.refreshSync.mockResolvedValueOnce({
+      localRecords: [],
+      pendingUpdates: [
+        {
+          remoteSkillId: "skill-a",
+          name: "Skill A",
+          localVersion: null,
+          remoteVersion: "1.0.0",
+          reason: "missing-local-record"
+        }
+      ],
+      successfulDistributionCount: 0,
+      lastRefreshedAt: "2026-04-17T00:00:00.000Z"
+    })
+
+    render(<App />)
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Distribute Skill A" })).toBeInTheDocument()
+    })
+
+    fireEvent.click(screen.getByRole("button", { name: "Distribute Skill A" }))
+
+    const dialog = await screen.findByRole("dialog", { name: "Confirm distribution" })
+    const body = dialog.querySelector(".dialog-panel__body")
+    const footer = dialog.querySelector(".dialog-panel__footer")
+    const cancelButton = screen.getByRole("button", { name: "Cancel" })
+    const confirmButton = screen.getByRole("button", { name: "Confirm distribution" })
+
+    expect(body).not.toContainElement(cancelButton)
+    expect(body).not.toContainElement(confirmButton)
+    expect(footer).toContainElement(cancelButton)
+    expect(footer).toContainElement(confirmButton)
+    expect(mockDesktopClient.distributePendingUpdate).not.toHaveBeenCalled()
+  })
+
   it("keeps a successful distribution distinct from a refresh failure", async () => {
     mockDesktopClient.refreshSync
       .mockResolvedValueOnce({

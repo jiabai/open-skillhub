@@ -102,6 +102,7 @@ type DialogProps = {
   description: string
   onClose: () => void
   closeLabel?: string
+  footer?: ReactNode
   children: ReactNode
 }
 
@@ -111,6 +112,7 @@ export function Dialog({
   description,
   onClose,
   closeLabel = "Close",
+  footer,
   children
 }: DialogProps) {
   useEffect(() => {
@@ -153,6 +155,7 @@ export function Dialog({
           </Button>
         </div>
         <div className="dialog-panel__body">{children}</div>
+        {footer ? <div className="dialog-panel__footer">{footer}</div> : null}
       </section>
     </>
   )

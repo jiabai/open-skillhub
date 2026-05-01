@@ -11,6 +11,7 @@ No active desktop-client tasks.
 
 ## Done
 
+- [x] Fix dialog actions footer visibility (2026-05-01) ✅ confirmation dialog actions now render in a fixed footer outside the scrollable body; `npm test`, `npm run build`, and docs validation pass
 - [x] Fix skill name directory consistency for distribution and pre-checks (2026-04-30) ✅ adapter installs and pre-check metadata reads now use SKILL names as directory keys; `npm test`, `npm run build`, `python scripts/validate_agents_docs.py --level ERROR`, and `git diff --check` pass
 - [x] Implement AI agent detection and targeted distribution (2026-04-28) ✅ 20 catalog-backed agents, detection snapshots, shared-path dedupe, same-version reconcile, confirmation dialog, `npm test`, `npm run build`, and TypeScript checks pass
 - [x] Archive AI agent detection and targeted distribution ExecPlan after acceptance (2026-04-28) ✅ active index is empty, completed index references the plan and checklist, and `python scripts/validate_agents_docs.py --level ERROR` passes

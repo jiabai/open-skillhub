@@ -934,6 +934,16 @@ export function App() {
             )}
             closeLabel={dictionary.common.close}
             onClose={() => setPendingDistributionConfirmation(null)}
+            footer={
+              <div className="dialog-actions">
+                <Button variant="outline" onClick={() => setPendingDistributionConfirmation(null)}>
+                  {dictionary.distributionConfirmation.cancel}
+                </Button>
+                <Button variant="destructive" onClick={handleConfirmDistribution}>
+                  {dictionary.distributionConfirmation.confirm}
+                </Button>
+              </div>
+            }
           >
             <div className="callout callout--warning">
               <strong>{dictionary.preDistributionCheck.warningBeforeDistribute}</strong>
@@ -965,14 +975,6 @@ export function App() {
                 distributionConfirmationSummary.missingAgents,
                 dictionary.distributionConfirmation.noMissingAgents
               )}
-            </div>
-            <div className="dialog-actions">
-              <Button variant="outline" onClick={() => setPendingDistributionConfirmation(null)}>
-                {dictionary.distributionConfirmation.cancel}
-              </Button>
-              <Button variant="destructive" onClick={handleConfirmDistribution}>
-                {dictionary.distributionConfirmation.confirm}
-              </Button>
             </div>
           </Dialog>
         ) : null}

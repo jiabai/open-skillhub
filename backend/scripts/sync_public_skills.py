@@ -12,6 +12,9 @@
 """
 import argparse
 import asyncio
+import hashlib
+import logging
+import shutil
 import sys
 from dataclasses import dataclass
 from pathlib import Path
@@ -27,7 +30,9 @@ from backend.db.session import async_session_maker
 from backend.repositories.skill import SkillRepository
 from backend.repositories.skill_version import SkillVersionRepository
 from backend.repositories.user import UserRepository
-from backend.services.skill_support import parse_frontmatter, parse_semver
+from backend.services.skill_support import next_version, parse_frontmatter, parse_semver
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -83,6 +88,96 @@ def _resolve_target_skill_dir(system_dir: Path, skill_name: str) -> Path:
     return target_dir
 
 
+def _version_sort_key(version: str) -> tuple[int, int, int, int]:
+    parsed = parse_semver(version)
+    if parsed is None:
+        return (0, 0, 0, 0)
+    _, major, minor, patch = parsed
+    return (1, major, minor, patch)
+
+
+def _collect_file_hashes(base_dir: Path, *, exclude_dirs: set[str] | None = None) -> tuple[dict[str, str], bool]:
+    excluded = exclude_dirs or set()
+    hashes: dict[str, str] = {}
+    had_error = False
+    for item in sorted(base_dir.rglob("*")):
+        if not item.is_file():
+            continue
+        relative_path = item.relative_to(base_dir)
+        if any(part in excluded for part in relative_path.parts):
+            continue
+        normalized_path = relative_path.as_posix()
+        try:
+            hashes[normalized_path] = hashlib.sha256(item.read_bytes()).hexdigest()
+        except OSError as exc:
+            logger.warning("Unable to hash %s: %s", item, exc)
+            had_error = True
+    return hashes, had_error
+
+
+def _has_snapshot_changes(skill_dir: Path, version_dir: Path | None) -> bool:
+    if version_dir is None or not version_dir.exists():
+        return True
+
+    root_files, root_error = _collect_file_hashes(skill_dir, exclude_dirs={"_versions"})
+    version_files, version_error = _collect_file_hashes(version_dir)
+    if root_error or version_error:
+        return True
+    return root_files != version_files
+
+
+def _copy_skill_snapshot(skill_dir: Path, version_dir: Path) -> None:
+    version_dir.mkdir(parents=True, exist_ok=True)
+    for item in skill_dir.iterdir():
+        if item.name == "_versions":
+            continue
+        target = version_dir / item.name
+        if item.is_dir():
+            shutil.copytree(item, target, dirs_exist_ok=True)
+        else:
+            shutil.copy2(item, target)
+
+
+async def _ensure_version_record(
+    version_repo: SkillVersionRepository,
+    *,
+    skill_id: str,
+    skill_name: str,
+    version: str,
+    description: str,
+) -> None:
+    if await version_repo.get_by_version(skill_id, version):
+        return
+    await version_repo.create_version(
+        skill_id=skill_id,
+        version=version,
+        description=description,
+        dependencies=[],
+        dependency_spec={},
+        dependency_spec_version=None,
+        metadata={"name": skill_name, "description": description, "version": version},
+    )
+
+
+async def _create_snapshot_version(
+    version_repo: SkillVersionRepository,
+    *,
+    skill_dir: Path,
+    skill_id: str,
+    skill_name: str,
+    version: str,
+    description: str,
+) -> None:
+    _copy_skill_snapshot(skill_dir, skill_dir / "_versions" / version)
+    await _ensure_version_record(
+        version_repo,
+        skill_id=skill_id,
+        skill_name=skill_name,
+        version=version,
+        description=description,
+    )
+
+
 async def _sync_skill_dir(
     skill_repo: SkillRepository,
     version_repo: SkillVersionRepository,
@@ -121,29 +216,52 @@ async def _sync_skill_dir(
             if not version_dir.is_dir():
                 continue
             available_versions.append(version_dir.name)
-            if not await version_repo.get_by_version(existing.id, version_dir.name):
-                await version_repo.create_version(
-                    skill_id=existing.id,
-                    version=version_dir.name,
-                    description=description,
-                    dependencies=[],
-                    dependency_spec={},
-                    dependency_spec_version=None,
-                    metadata={"name": existing.name, "description": description, "version": version_dir.name},
-                )
-    else:
-        available_versions.append("1.0.0")
-        if not await version_repo.get_by_version(existing.id, "1.0.0"):
-            await version_repo.create_version(
+            await _ensure_version_record(
+                version_repo,
                 skill_id=existing.id,
-                version="1.0.0",
+                skill_name=existing.name,
+                version=version_dir.name,
                 description=description,
-                dependencies=[],
-                dependency_spec={},
-                dependency_spec_version=None,
-                metadata={"name": existing.name, "description": description, "version": "1.0.0"},
             )
-    current_version = max(available_versions, key=lambda item: parse_semver(item) or ("", 0, 0, 0))
+        if available_versions:
+            latest_version = max(available_versions, key=_version_sort_key)
+            latest_version_dir = versions_dir / latest_version
+            if _has_snapshot_changes(skill_dir, latest_version_dir):
+                new_version = await next_version(existing, version_repo, strategy="patch")
+                await _create_snapshot_version(
+                    version_repo,
+                    skill_dir=skill_dir,
+                    skill_id=existing.id,
+                    skill_name=existing.name,
+                    version=new_version,
+                    description=description,
+                )
+                available_versions.append(new_version)
+        else:
+            db_versions = await version_repo.list_by_skill(existing.id)
+            new_version = await next_version(existing, version_repo, strategy="patch") if db_versions else "1.0.0"
+            await _create_snapshot_version(
+                version_repo,
+                skill_dir=skill_dir,
+                skill_id=existing.id,
+                skill_name=existing.name,
+                version=new_version,
+                description=description,
+            )
+            available_versions.append(new_version)
+    else:
+        db_versions = await version_repo.list_by_skill(existing.id)
+        new_version = await next_version(existing, version_repo, strategy="patch") if db_versions else "1.0.0"
+        await _create_snapshot_version(
+            version_repo,
+            skill_dir=skill_dir,
+            skill_id=existing.id,
+            skill_name=existing.name,
+            version=new_version,
+            description=description,
+        )
+        available_versions.append(new_version)
+    current_version = max(available_versions, key=_version_sort_key)
     await skill_repo.update(existing, current_version=current_version, is_active=True, skill_dir=stored_skill_dir)
     return skill_dir.name
 

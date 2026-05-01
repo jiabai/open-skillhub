@@ -11,6 +11,7 @@ This directory stores durable design decisions, architecture notes, and review f
 | `core-beliefs.md` | Stable engineering principles for the repository |
 | `2026-04-12-code-review-findings.md` | Consolidated list of still-valid code review issues |
 | `execution-gates-adoption.md` | Rationale and rollout notes for the repository execution gates |
+| `public-skill-auto-version-upgrade.md` | Public skill root snapshot change detection and automatic patch version creation |
 | `public-skill-sync-cli.md` | Stable contract for the host-side public skill sync command |
 
 ## How To Use This Directory

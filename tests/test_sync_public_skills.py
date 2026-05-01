@@ -1,3 +1,4 @@
+import shutil
 from pathlib import Path
 
 import pytest
@@ -27,18 +28,48 @@ def _add_system_user(async_session) -> User:
     return system_user
 
 
-def _write_skill(skill_root: Path, name: str, description: str, versions: list[str] | None = None) -> Path:
+def _write_skill(
+    skill_root: Path,
+    name: str,
+    description: str,
+    versions: list[str] | None = None,
+    *,
+    body: str = "body",
+    extra_files: dict[str, str] | None = None,
+    snapshot_versions: bool = True,
+) -> Path:
     skill_dir = skill_root / SYSTEM_STORAGE_OWNER / name
-    if versions:
-        for version in versions:
-            (skill_dir / "_versions" / version).mkdir(parents=True, exist_ok=True)
-    else:
-        skill_dir.mkdir(parents=True, exist_ok=True)
+    skill_dir.mkdir(parents=True, exist_ok=True)
     (skill_dir / "SKILL.md").write_text(
-        f"---\nname: {name}\ndescription: {description}\n---\nbody",
+        f"---\nname: {name}\ndescription: {description}\n---\n{body}",
         encoding="utf-8",
     )
+    for relative_path, file_content in (extra_files or {}).items():
+        target_file = skill_dir / relative_path
+        target_file.parent.mkdir(parents=True, exist_ok=True)
+        target_file.write_text(file_content, encoding="utf-8")
+    if versions:
+        for version in versions:
+            version_dir = skill_dir / "_versions" / version
+            version_dir.mkdir(parents=True, exist_ok=True)
+            if snapshot_versions:
+                shutil.copy2(skill_dir / "SKILL.md", version_dir / "SKILL.md")
+                for relative_path in extra_files or {}:
+                    source_file = skill_dir / relative_path
+                    target_file = version_dir / relative_path
+                    target_file.parent.mkdir(parents=True, exist_ok=True)
+                    shutil.copy2(source_file, target_file)
     return skill_dir
+
+
+def _write_version_snapshot(skill_dir: Path, version: str, description: str, *, body: str = "body") -> Path:
+    version_dir = skill_dir / "_versions" / version
+    version_dir.mkdir(parents=True, exist_ok=True)
+    (version_dir / "SKILL.md").write_text(
+        f"---\nname: {skill_dir.name}\ndescription: {description}\n---\n{body}",
+        encoding="utf-8",
+    )
+    return version_dir
 
 
 @pytest.mark.asyncio
@@ -71,6 +102,109 @@ async def test_sync_public_skills_creates_public_skill_and_versions(async_sessio
     )
     version_items = versions.scalars().all()
     assert [item.version for item in version_items] == ["1.0.0", "1.2.0"]
+
+
+@pytest.mark.asyncio
+async def test_sync_public_skills_creates_new_version_when_root_snapshot_changes(
+    async_session,
+    tmp_path,
+    monkeypatch,
+):
+    monkeypatch.setattr(settings, "SKILL_STORAGE_PATH", str(tmp_path))
+
+    _add_system_user(async_session)
+    await async_session.commit()
+
+    skill_dir = _write_skill(
+        tmp_path,
+        "starter-skill",
+        "Updated public skill",
+        versions=["1.0.0"],
+        body="new body",
+        extra_files={"references/guide.md": "new guide"},
+        snapshot_versions=False,
+    )
+    _write_version_snapshot(skill_dir, "1.0.0", "Starter public skill", body="old body")
+
+    import backend.scripts.sync_public_skills as sync_module
+
+    monkeypatch.setattr(sync_module, "async_session_maker", async_sessionmaker(async_session.bind, expire_on_commit=False))
+    await sync_module.sync_public_skills("starter-skill")
+
+    result = await async_session.execute(select(Skill).where(Skill.user_id == SYSTEM_USER_ID, Skill.name == "starter-skill"))
+    skill = result.scalar_one()
+    assert skill.current_version == "1.0.1"
+
+    versions = await async_session.execute(
+        select(SkillVersion).where(SkillVersion.skill_id == skill.id).order_by(SkillVersion.version.asc())
+    )
+    assert [item.version for item in versions.scalars().all()] == ["1.0.0", "1.0.1"]
+
+    new_version_dir = skill_dir / "_versions" / "1.0.1"
+    assert (new_version_dir / "SKILL.md").read_text(encoding="utf-8").endswith("new body")
+    assert (new_version_dir / "references" / "guide.md").read_text(encoding="utf-8") == "new guide"
+    assert not (new_version_dir / "_versions").exists()
+
+
+@pytest.mark.asyncio
+async def test_sync_public_skills_does_not_create_new_version_when_root_matches_latest(
+    async_session,
+    tmp_path,
+    monkeypatch,
+):
+    monkeypatch.setattr(settings, "SKILL_STORAGE_PATH", str(tmp_path))
+
+    _add_system_user(async_session)
+    await async_session.commit()
+
+    _write_skill(tmp_path, "starter-skill", "Starter public skill", versions=["1.0.0"])
+
+    import backend.scripts.sync_public_skills as sync_module
+
+    monkeypatch.setattr(sync_module, "async_session_maker", async_sessionmaker(async_session.bind, expire_on_commit=False))
+    await sync_module.sync_public_skills("starter-skill")
+    await sync_module.sync_public_skills("starter-skill")
+
+    result = await async_session.execute(select(Skill).where(Skill.user_id == SYSTEM_USER_ID, Skill.name == "starter-skill"))
+    skill = result.scalar_one()
+    assert skill.current_version == "1.0.0"
+
+    versions = await async_session.execute(
+        select(SkillVersion).where(SkillVersion.skill_id == skill.id).order_by(SkillVersion.version.asc())
+    )
+    assert [item.version for item in versions.scalars().all()] == ["1.0.0"]
+
+
+@pytest.mark.asyncio
+async def test_sync_public_skills_creates_initial_version_snapshot_when_versions_dir_missing(
+    async_session,
+    tmp_path,
+    monkeypatch,
+):
+    monkeypatch.setattr(settings, "SKILL_STORAGE_PATH", str(tmp_path))
+
+    _add_system_user(async_session)
+    await async_session.commit()
+
+    skill_dir = _write_skill(
+        tmp_path,
+        "starter-skill",
+        "Starter public skill",
+        extra_files={"references/guide.md": "guide"},
+    )
+
+    import backend.scripts.sync_public_skills as sync_module
+
+    monkeypatch.setattr(sync_module, "async_session_maker", async_sessionmaker(async_session.bind, expire_on_commit=False))
+    await sync_module.sync_public_skills("starter-skill")
+
+    result = await async_session.execute(select(Skill).where(Skill.user_id == SYSTEM_USER_ID, Skill.name == "starter-skill"))
+    skill = result.scalar_one()
+    assert skill.current_version == "1.0.0"
+
+    version_dir = skill_dir / "_versions" / "1.0.0"
+    assert (version_dir / "SKILL.md").exists()
+    assert (version_dir / "references" / "guide.md").read_text(encoding="utf-8") == "guide"
 
 
 @pytest.mark.asyncio

@@ -1,5 +1,6 @@
 # 分发前 Skill 检查 - 最终技术设计
 
+<!-- [STATUS] 已实现 (Implemented) -->
 状态：最终设计，可供实现交付
 最后更新：2026-04-26
 范围：`desktop-client/`

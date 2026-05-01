@@ -1,5 +1,6 @@
 # Pre-Distribution Skill Check - Final Technical Design
 
+<!-- [STATUS] 已实现 (Implemented) -->
 Status: final design for implementation handoff
 Last updated: 2026-04-26
 Scope: `desktop-client/`

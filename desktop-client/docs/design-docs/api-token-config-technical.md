@@ -1,5 +1,6 @@
 # API Token Configuration - Technical Design
 
+<!-- [STATUS] 已实现 (Implemented) -->
 范围：`desktop-client/`
 
 ## IPC 扩展

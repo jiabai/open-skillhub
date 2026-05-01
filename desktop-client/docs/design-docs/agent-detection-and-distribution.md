@@ -1,5 +1,6 @@
 # Agent Detection And Targeted Distribution - Technical Design
 
+<!-- [STATUS] 已实现 (Implemented) -->
 Status: implemented, accepted, and archived
 Last updated: 2026-04-28
 Scope: `desktop-client/`

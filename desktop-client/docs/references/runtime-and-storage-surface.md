@@ -148,7 +148,7 @@ The standard targets are:
 - RooCode: `~/.roo/skills`
 - Cline: `~/.agents/skills`
 - Gemini CLI: `~/.gemini/skills`
-- Codex: `~/.codex/skills`
+- Codex: `~/.agents/skills`
 - OpenCode: `~/.config/opencode/skills`
 - KiloCode: `~/.kilocode/skills`
 - Amp: `~/.config/agents/skills`
@@ -163,6 +163,6 @@ The standard targets are:
 - OpenClaw: first existing target from `~/.openclaw/skills`,
   `~/.clawdbot/skills`, `~/.moltbot/skills`
 
-Cline/Warp and Amp/Kimi shared physical targets are deduped before pre-check
-and distribution. Distribution writes a shared path once and reports every
-covered assistant in the result.
+Cline/Warp/Codex and Amp/Kimi shared physical targets are deduped before
+pre-check and distribution. Distribution writes a shared path once and reports
+every covered assistant in the result.

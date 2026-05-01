@@ -83,8 +83,10 @@ export const supportedAgentDefinitions: AgentPathDefinition[] = [
     id: "codex",
     displayName: "Codex",
     detectionDirs: ["~/.codex"],
-    defaultTargets: [{ path: "~/.codex/skills", role: "primary" }],
-    compatibleReadPaths: ["~/.agents/skills", "/etc/codex/skills"],
+    defaultTargets: [
+      { path: "~/.agents/skills", role: "primary", sharedPathKey: "agents-universal" }
+    ],
+    compatibleReadPaths: ["~/.codex/skills", "/etc/codex/skills"],
     pathResolution: "all-owned",
     envVar: "OPEN_SKILLHUB_CODEX_SKILLS_PATH"
   },

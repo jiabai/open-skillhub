@@ -126,20 +126,21 @@ describe("agent detection service", () => {
       definitions: [
         definition("cline"),
         definition("warp"),
+        definition("codex"),
         definition("amp"),
         definition("kimi")
       ],
-      existingPaths: [resolveHomePath("~/.agents"), resolveHomePath("~/.config/agents")]
+      existingPaths: [resolveHomePath("~/.agents"), resolveHomePath("~/.codex"), resolveHomePath("~/.config/agents")]
     })
 
     const snapshot = await service.refresh()
 
-    expect(snapshot.installedAgentIds).toEqual(["cline", "warp", "amp", "kimi"])
+    expect(snapshot.installedAgentIds).toEqual(["cline", "warp", "codex", "amp", "kimi"])
     expect(snapshot.uniqueTargets).toMatchObject([
       {
         targetPath: resolveHomePath("~/.agents/skills"),
         primaryAgentId: "cline",
-        coveredAgentIds: ["cline", "warp"],
+        coveredAgentIds: ["cline", "warp", "codex"],
         sharedPathKey: "agents-universal"
       },
       {

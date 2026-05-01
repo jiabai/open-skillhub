@@ -48,7 +48,7 @@
 | 5 | RooCode | RooCode | `~/.roo/skills` | `~/.roo` | 单路径 |
 | 6 | Cline | Cline | `~/.agents/skills` | `~/.agents` | 共享路径 |
 | 7 | Gemini | Gemini CLI | `~/.gemini/skills` | `~/.gemini` | 单路径 |
-| 8 | Codex | OpenAI Codex | `~/.codex/skills` | `~/.codex` | 单路径（主路径） |
+| 8 | Codex | OpenAI Codex | `~/.agents/skills` | `~/.codex` | 共享路径（与 Cline/Warp 共享） |
 | 9 | OpenCode | OpenCode | `~/.config/opencode/skills` | `~/.config/opencode` | 单路径（主路径） |
 | 10 | KiloCode | KiloCode | `~/.kilocode/skills` | `~/.kilocode` | 单路径 |
 | 11 | Amp | Amp | `~/.config/agents/skills` | `~/.config/agents` | 共享路径 |
@@ -125,10 +125,10 @@
 兼容路径：~/.agents/skills         ← 不重复分发（由 Cline/Warp 适配器负责）
 ```
 
-**Codex** — 分发到主路径
+**Codex** — 分发到共享主路径
 ```
-主路径：~/.codex/skills       ← 分发目标
-兼容路径：~/.agents/skills    ← 不重复分发（由 Cline/Warp 适配器负责）
+主路径：~/.agents/skills      ← 分发目标（与 Cline/Warp 共享写入）
+兼容路径：~/.codex/skills     ← 不重复分发（Codex 兼容读取路径）
 系统路径：/etc/codex/skills   ← Windows 不存在，跳过
 ```
 
@@ -155,7 +155,7 @@
 
 **Amp 和 Kimi** 共享 `~/.config/agents/skills` 路径。两个助手检测到同一目录时，只需写入一次，并在结果里标记两个助手均由该共享路径覆盖。
 
-**Cline 和 Warp** 共享 `~/.agents/skills` 路径。同理只需写入一次。
+**Cline、Warp 和 Codex** 共享 `~/.agents/skills` 路径。同理只需写入一次。
 
 共享路径去重不能依赖异步扫描完成顺序，必须基于规范化后的目标路径或稳定的 `sharedPathKey`。UI 可以展示多个助手，但 core distribution 只能收到去重后的物理写入目标。
 
@@ -245,7 +245,7 @@
 
 | 共享目录 | 负责写入的助手 | 其他共享助手 |
 |---------|-------------|------------|
-| `~/.agents/skills` | 规范化路径对应的单个物理写入目标 | Cline / Warp 标记为「已由共享路径覆盖」或「同一目标已处理」 |
+| `~/.agents/skills` | 规范化路径对应的单个物理写入目标 | Cline / Warp / Codex 标记为「已由共享路径覆盖」或「同一目标已处理」 |
 | `~/.config/agents/skills` | 规范化路径对应的单个物理写入目标 | Amp / Kimi 标记为「已由共享路径覆盖」或「同一目标已处理」 |
 
 ## 用户界面

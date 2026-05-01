@@ -13,7 +13,7 @@
 | 5 | RooCode | RooCode | `~/.roo/skills` | ✓ |
 | 6 | Cline | Cline | `~/.agents/skills` | ✓ |
 | 7 | Gemini | Gemini CLI | `~/.gemini/skills` | ✓ |
-| 8 | Codex | OpenAI Codex | 1. `~/.codex/skills`<br>2. `~/.agents/skills`<br>3. `/etc/codex/skills` (仅非Windows) | ✓ |
+| 8 | Codex | OpenAI Codex | 1. `~/.agents/skills`<br>2. `~/.codex/skills`<br>3. `/etc/codex/skills` (仅非Windows) | ✓ |
 | 9 | OpenCode | OpenCode | 1. `~/.config/opencode/skills`<br>2. `~/.claude/skills`<br>3. `~/.agents/skills` | ✓ |
 | 10 | KiloCode | KiloCode | `~/.kilocode/skills` | ✓ |
 | 11 | Amp | Amp | `~/.config/agents/skills` | ✓ (universal) |
@@ -56,8 +56,8 @@
 
 ### Codex
 ```
-~/.codex/skills      # 主路径
-~/.agents/skills     # Universal 路径
+~/.agents/skills     # 主路径（与 Cline/Warp 共享写入）
+~/.codex/skills      # 兼容路径（只读）
 /etc/codex/skills    # 系统路径 (仅 Linux/macOS，Windows 无此路径)
 ```
 

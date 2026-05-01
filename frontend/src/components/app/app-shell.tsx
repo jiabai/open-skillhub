@@ -137,7 +137,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 <Wrench className="h-5 w-5" aria-hidden="true" />
               </div>
               <div>
-                <p className="font-display text-lg">{appShell.brandLabel}</p>
+                <p className="font-body font-medium text-lg">{appShell.brandLabel}</p>
                 <p className="text-xs text-muted-foreground">
                   {rbacEnabled ? appShell.governedConsole : appShell.personalWorkspace}
                 </p>

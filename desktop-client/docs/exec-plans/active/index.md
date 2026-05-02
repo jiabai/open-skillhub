@@ -2,7 +2,8 @@
 
 ## Current Plans
 
-No active plans.
+- `2026-05-02-desktop-dark-mode.md` - Desktop dark mode implementation plan
+- `2026-05-02-desktop-dark-mode-tasks.md` - implementation checklist for the desktop dark mode plan
 
 ## Working Agreement
 

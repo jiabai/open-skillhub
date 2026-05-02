@@ -2,7 +2,7 @@
 
 ## In Progress
 
-No active tasks.
+- [ ] Desktop dark mode planning (2026-05-02) - specs, technical design, active ExecPlan, and checklist prepared; implementation waits for workflow review gate. ✅ Validate docs with `python scripts/validate_agents_docs.py --level ERROR` and `git diff --check`. See `docs/exec-plans/active/2026-05-02-desktop-dark-mode.md`
 
 ## Todo
 

@@ -30,6 +30,69 @@ export type AppDictionary = {
     openOverview: string
     goToLogin: string
   }
+  landing: {
+    navFeatures: string
+    navPublicSkills: string
+    navSignIn: string
+    navCreateAccount: string
+    badge: string
+    title: string
+    subtitle: string
+    primaryCta: string
+    secondaryCta: string
+    featureVersioned: string
+    featurePrivate: string
+    featureClientReady: string
+    controlRoomTitle: string
+    controlRoomKicker: string
+    privateRegistry: string
+    skillsTracked: string
+    apiTokenScoped: string
+    registryTitle: string
+    railTitle: string
+    distributionTitle: string
+    syncTicker: string
+    skills: {
+      reviewChecklist: {
+        name: string
+        visibility: string
+        version: string
+        status: string
+      }
+      releaseNotes: {
+        name: string
+        visibility: string
+        version: string
+        status: string
+      }
+      securityAudit: {
+        name: string
+        visibility: string
+        version: string
+        status: string
+      }
+    }
+    versions: {
+      created: string
+      reviewed: string
+      active: string
+    }
+    distribution: {
+      apiToken: string
+      desktopSync: string
+      publicCatalog: string
+    }
+    proof: {
+      versionedTitle: string
+      versionedText: string
+      privateTitle: string
+      privateText: string
+      publicTitle: string
+      publicText: string
+      clientTitle: string
+      clientText: string
+    }
+  }
   navigation: {
     workspace: string
     overview: string

@@ -4,6 +4,7 @@ import { afterEach, beforeEach, vi } from "vitest"
 import { RuntimeConfigContext } from "@/components/app/runtime-config-provider"
 import { I18nProvider } from "@/i18n/i18n-provider"
 import { getDictionary } from "@/i18n/get-dictionary"
+import HomePage from "@/app/page"
 import DashboardPage from "@/app/dashboard/page"
 import LoginPage from "@/app/login/page"
 import ProfilePage from "@/app/profile/page"
@@ -107,6 +108,18 @@ describe("console pages", () => {
     expect(screen.getByText("8xf SkillDrive")).toBeInTheDocument()
     expect(screen.getAllByRole("textbox").length).toBeGreaterThanOrEqual(2)
     expect(screen.getAllByRole("button").length).toBeGreaterThanOrEqual(1)
+  })
+
+  it("renders the public landing page control room", () => {
+    renderWithRuntimeConfig(<HomePage />)
+
+    expect(screen.getByRole("heading", { name: "Open SkillHub" })).toBeInTheDocument()
+    expect(screen.getByText("Agent Skill Control Room")).toBeInTheDocument()
+    expect(screen.getByText("review-checklist")).toBeInTheDocument()
+    expect(screen.getByText("v1.2.0 active")).toBeInTheDocument()
+    expect(screen.getByText("API Token")).toBeInTheDocument()
+    expect(screen.getByRole("link", { name: "创建账户" })).toHaveAttribute("href", "/register")
+    expect(screen.getByRole("link", { name: "公共 Skills" })).toHaveAttribute("href", "/public-skills")
   })
 
   it("shows auth-only helper when email otp is the only login method", () => {

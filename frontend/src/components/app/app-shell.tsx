@@ -38,15 +38,23 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const router = useRouter()
   const isAuthRoute = pathname === "/login" || pathname === "/register"
+  const isPublicRoute = pathname === "/"
   const { config } = useRuntimeConfig()
   const { dictionary } = useI18n()
   const { appShell, navigation } = dictionary
-  const [isChecking, setIsChecking] = useState(!isAuthRoute)
+  const [isChecking, setIsChecking] = useState(!isAuthRoute && !isPublicRoute)
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
   const [currentUser, setCurrentUser] = useState<User | null>(null)
 
   useEffect(() => {
     let cancelled = false
+
+    if (isPublicRoute) {
+      setIsChecking(false)
+      return () => {
+        cancelled = true
+      }
+    }
 
     if (isAuthRoute) {
       const tokens = getStoredTokens()
@@ -90,7 +98,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     return () => {
       cancelled = true
     }
-  }, [isAuthRoute, router])
+  }, [isAuthRoute, isPublicRoute, router])
 
   const rbacEnabled = config.capabilities.rbac
   const canManageUsers = currentUser?.is_superuser || currentUser?.role === "admin"
@@ -112,7 +120,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     }
   }
 
-  if (isAuthRoute) {
+  if (isAuthRoute || isPublicRoute) {
     return <main className="min-h-screen">{children}</main>
   }
 

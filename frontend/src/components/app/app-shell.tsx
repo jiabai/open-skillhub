@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react"
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
-import { BarChart3, LogOut, Menu, User2, Wrench } from "lucide-react"
+import { BarChart3, LogOut, Menu, User2, Boxes } from "lucide-react"
 
 import { api, clearTokens, getStoredTokens } from "@/lib/api"
 import { useRuntimeConfig } from "@/hooks/use-runtime-config"
@@ -142,7 +142,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <div className="flex items-center justify-between">
             <Link href="/dashboard" className="flex items-center gap-3" aria-label={appShell.homeAriaLabel}>
               <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-                <Wrench className="h-5 w-5" aria-hidden="true" />
+                <Boxes className="h-5 w-5" aria-hidden="true" />
               </div>
               <div>
                 <p className="font-body font-medium text-lg">{appShell.brandLabel}</p>

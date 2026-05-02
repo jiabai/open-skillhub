@@ -10,5 +10,7 @@
 - `2026-05-01-local-skills-management-zh.md` - 本地 SKILL 库存与显式上传产品规格（中文版）
 - `2026-05-02-desktop-dark-mode.md` - Desktop dark mode product spec aligned with the frontend console (English)
 - `2026-05-02-desktop-dark-mode-zh.md` - 桌面端暗黑模式产品规格（中文版）
+- `2026-05-02-desktop-packaging.md` - Desktop client packaging into Windows .exe installers (English)
+- `2026-05-02-desktop-packaging-zh.md` - 桌面客户端打包为 Windows .exe 安装包（中文版）
 
 Canonical rule: work from the local product spec first.

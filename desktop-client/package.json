@@ -1,5 +1,6 @@
 {
   "name": "skilldrive-desktop",
+  "version": "0.1.0",
   "private": true,
   "type": "module",
   "main": "dist-electron/main.js",
@@ -11,7 +12,56 @@
     "start:electron": "npm run build && electron .",
     "test": "vitest run",
     "test:watch": "vitest",
-    "typecheck:electron": "tsc -p tsconfig.node.json --noEmit"
+    "typecheck:electron": "tsc -p tsconfig.node.json --noEmit",
+    "pack": "electron-builder --dir",
+    "dist": "electron-builder",
+    "dist:win": "electron-builder --win",
+    "dist:mac": "electron-builder --mac"
+  },
+  "build": {
+    "appId": "com.openskillhub.skilldrive-desktop",
+    "productName": "SkillDrive Desktop",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "dist/**/*",
+      "dist-electron/**/*",
+      "package.json"
+    ],
+    "win": {
+      "target": [
+        "nsis",
+        "portable"
+      ],
+      "icon": "resources/icons/icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    },
+    "mac": {
+      "target": [
+        "dmg",
+        "zip"
+      ],
+      "icon": "resources/icons/icon.icns",
+      "category": "public.app-category.productivity"
+    },
+    "dmg": {
+      "contents": [
+        {
+          "x": 130,
+          "y": 220
+        },
+        {
+          "x": 410,
+          "y": 220,
+          "type": "link",
+          "path": "/Applications"
+        }
+      ]
+    }
   },
   "dependencies": {
     "keytar": "^7.9.0",
@@ -29,7 +79,10 @@
     "@types/sql.js": "^1.4.9",
     "@vitejs/plugin-react": "^4.3.2",
     "electron": "^33.2.1",
+    "electron-builder": "^26.8.1",
     "jsdom": "^25.0.1",
+    "png2icons": "^2.0.1",
+    "sharp": "^0.34.5",
     "typescript": "^5.6.3",
     "vite": "^5.4.10",
     "vitest": "^2.1.3"

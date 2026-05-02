@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { Mail, Wrench, Fingerprint, Building2 } from "lucide-react"
+import { Mail, Boxes, Fingerprint, Building2 } from "lucide-react"
 
 import { api, apiBaseUrl, storeTokens, getErrorMessage } from "@/lib/api"
 import { useField, createEmailRules, createVerificationCodeRules } from "@/hooks/use-form-validation"
@@ -111,7 +111,7 @@ export default function LoginPage() {
             className="flex items-center gap-3 transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
           >
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary text-primary-foreground sm:h-12 sm:w-12 3xl:h-14 3xl:w-14">
-              <Wrench className="h-5 w-5 sm:h-6 sm:w-6 3xl:h-7 3xl:w-7" aria-hidden="true" />
+              <Boxes className="h-5 w-5 sm:h-6 sm:w-6 3xl:h-7 3xl:w-7" aria-hidden="true" />
             </div>
             <div>
               <p className="font-display text-xl sm:text-2xl 3xl:text-3xl">{appShell.brandLabel}</p>

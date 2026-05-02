@@ -1,5 +1,5 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react"
-import { describe, expect, it, vi } from "vitest"
+import { beforeEach, describe, expect, it, vi } from "vitest"
 import type { ReactNode } from "react"
 
 import { RuntimeConfigContext } from "@/components/app/runtime-config-provider"
@@ -16,9 +16,10 @@ const routerMock = {
   replace: replaceMock,
   refresh: refreshMock,
 }
+let pathnameMock = "/profile"
 
 vi.mock("next/navigation", () => ({
-  usePathname: () => "/profile",
+  usePathname: () => pathnameMock,
   useRouter: () => routerMock,
 }))
 
@@ -61,6 +62,22 @@ function renderWithRuntimeConfig(node: ReactNode) {
 }
 
 describe("AppShell auth guard", () => {
+  beforeEach(() => {
+    pathnameMock = "/profile"
+  })
+
+  it("renders the public landing route without requiring stored tokens", async () => {
+    pathnameMock = "/"
+    replaceMock.mockClear()
+    refreshMock.mockClear()
+    window.localStorage.removeItem("skillhub.tokens")
+
+    renderWithRuntimeConfig(<AppShell>public landing</AppShell>)
+
+    expect(await screen.findByText("public landing")).toBeInTheDocument()
+    expect(replaceMock).not.toHaveBeenCalled()
+  })
+
   it("redirects to login when not authenticated", async () => {
     replaceMock.mockClear()
     refreshMock.mockClear()

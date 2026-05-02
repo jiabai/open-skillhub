@@ -14,6 +14,7 @@ This directory stores durable design decisions, architecture notes, and review f
 | `client-skills-upload-api.md` | Stable Client API upload boundary for ZIP skill creation and version append via API Token |
 | `public-skill-auto-version-upgrade.md` | Public skill root snapshot change detection and automatic patch version creation |
 | `public-skill-sync-cli.md` | Stable contract for the host-side public skill sync command |
+| `landing-page-light-mode.md` | Light-mode landing page visual design decisions and color mapping |
 
 ## How To Use This Directory
 

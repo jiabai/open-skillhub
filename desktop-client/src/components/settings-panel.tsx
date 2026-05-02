@@ -8,26 +8,6 @@ type SettingsPanelProps = {
   onChangeLocale: (locale: AppLocale) => void
 }
 
-const settingsSummaryStyle = {
-  display: "grid",
-  gap: "1rem",
-  padding: "1.15rem",
-  borderRadius: "1rem",
-  border: "1px solid rgba(222, 214, 200, 0.95)",
-  background: "rgba(255, 253, 248, 0.92)",
-  boxShadow: "0 16px 40px rgba(23, 32, 51, 0.06)"
-} as const
-
-const settingsSummaryTileStyle = {
-  display: "grid",
-  gap: "0.25rem",
-  padding: "0.85rem",
-  borderRadius: "0.85rem",
-  background: "rgba(255, 255, 255, 0.82)",
-  border: "1px solid rgba(222, 214, 200, 0.92)",
-  boxShadow: "inset 0 1px 0 rgba(255, 255, 255, 0.55)"
-} as const
-
 export function SettingsPanel({
   currentLocale,
   isSavingLocale,
@@ -38,77 +18,43 @@ export function SettingsPanel({
     currentLocale === "zh-CN" ? dictionary.language.zhCNLabel : dictionary.language.enUSLabel
 
   return (
-    <section
-      aria-labelledby="settings-summary-heading"
-      style={{
-        ...settingsSummaryStyle
-      }}
-    >
+    <section aria-labelledby="settings-summary-heading" className="settings-summary">
       <div>
-        <span
-          style={{
-            fontSize: "0.72rem",
-            letterSpacing: "0.2em",
-            textTransform: "uppercase",
-            color: "var(--osh-muted)",
-            fontFamily: '"SFMono-Regular", Consolas, "Liberation Mono", monospace'
-          }}
-        >
+        <span className="settings-summary__eyebrow">
           {dictionary.settingsPanel.title}
         </span>
-        <h2 id="settings-summary-heading" style={{ margin: "0.3rem 0 0", fontSize: "1.35rem" }}>
+        <h2 id="settings-summary-heading" className="settings-summary__heading">
           {dictionary.settingsPanel.heading}
         </h2>
       </div>
 
       <dl style={{ display: "grid", gap: "0.75rem", margin: 0 }}>
-        <div
-          style={{
-            ...settingsSummaryTileStyle
-          }}
-        >
+        <div className="settings-summary__tile">
           <dt style={{ fontWeight: 700 }}>{dictionary.settingsPanel.reviewPolicyLabel}</dt>
-          <dd style={{ margin: 0, color: "var(--osh-muted)", lineHeight: 1.5 }}>
+          <dd className="card__description">
             {dictionary.settingsPanel.reviewPolicyValue}
           </dd>
         </div>
-        <div
-          style={{
-            ...settingsSummaryTileStyle
-          }}
-        >
+        <div className="settings-summary__tile">
           <dt style={{ fontWeight: 700 }}>{dictionary.settingsPanel.bridgeAccessLabel}</dt>
-          <dd style={{ margin: 0, color: "var(--osh-muted)", lineHeight: 1.5 }}>
+          <dd className="card__description">
             {dictionary.settingsPanel.bridgeAccessValue}
           </dd>
         </div>
-        <div
-          style={{
-            ...settingsSummaryTileStyle
-          }}
-        >
+        <div className="settings-summary__tile">
           <dt style={{ fontWeight: 700 }}>{dictionary.settingsPanel.storageSnapshotLabel}</dt>
-          <dd style={{ margin: 0, color: "var(--osh-muted)", lineHeight: 1.5 }}>
+          <dd className="card__description">
             {dictionary.settingsPanel.storageSnapshotValue}
           </dd>
         </div>
       </dl>
 
-      <div
-        style={{
-          display: "grid",
-          gap: "0.75rem",
-          padding: "0.85rem",
-          borderRadius: "0.85rem",
-          background: "rgba(96, 165, 250, 0.08)",
-          border: "1px solid rgba(96, 165, 250, 0.16)"
-        }}
-      >
+      <div className="settings-summary__info">
         <strong>{dictionary.language.title}</strong>
-        <p style={{ margin: 0, color: "var(--osh-muted)", lineHeight: 1.5 }}>
+        <p className="card__description">
           {dictionary.language.description}
         </p>
-        <p style={{ margin: 0, color: "var(--osh-muted)", lineHeight: 1.5 }}>
+        <p className="card__description">
           {dictionary.language.currentPrefix} {currentLanguageLabel}
         </p>
         <div className="page-intro__actions" style={{ justifyContent: "flex-start" }}>

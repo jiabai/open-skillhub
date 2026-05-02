@@ -47,7 +47,7 @@ export function AppShell({
           <div className="app-header__top">
             <div className="brand" aria-label={dictionary.appShell.desktopClientLabel}>
               <div className="brand__mark" aria-hidden="true">
-                OS
+                SD
               </div>
               <div>
                 <p className="brand__title">{dictionary.appShell.brandTitle}</p>

@@ -8,6 +8,7 @@ type MockDesktopClientBridge = {
   getConfiguration: ReturnType<typeof vi.fn>
   saveConfiguration: ReturnType<typeof vi.fn>
   saveLocale: ReturnType<typeof vi.fn>
+  saveTheme: ReturnType<typeof vi.fn>
   clearConfiguration: ReturnType<typeof vi.fn>
   testConnection: ReturnType<typeof vi.fn>
   refreshSync: ReturnType<typeof vi.fn>
@@ -23,6 +24,7 @@ const mockDesktopClient = {
   getConfiguration: vi.fn(),
   saveConfiguration: vi.fn(),
   saveLocale: vi.fn(),
+  saveTheme: vi.fn(),
   clearConfiguration: vi.fn(),
   testConnection: vi.fn(),
   refreshSync: vi.fn(),
@@ -37,10 +39,18 @@ const mockDesktopClient = {
 const configuredState = {
   apiBaseUrl: "http://localhost:8001",
   locale: "en-US" as const,
+  theme: "dark" as const,
   hasToken: true,
   tokenSource: "secret-store" as const,
   persistedEnvironmentToken: false,
   secretStoreAvailable: true
+}
+
+const emptySyncState = {
+  localRecords: [],
+  pendingUpdates: [],
+  successfulDistributionCount: 0,
+  lastRefreshedAt: null
 }
 
 const defaultAgentDetection = {
@@ -129,6 +139,7 @@ beforeEach(() => {
   mockDesktopClient.getConfiguration.mockResolvedValue(configuredState)
   mockDesktopClient.saveConfiguration.mockResolvedValue(configuredState)
   mockDesktopClient.saveLocale.mockResolvedValue(configuredState)
+  mockDesktopClient.saveTheme.mockResolvedValue(configuredState)
   mockDesktopClient.clearConfiguration.mockResolvedValue({
     ...configuredState,
     hasToken: false,
@@ -139,6 +150,7 @@ beforeEach(() => {
     status: 200,
     message: "Connection succeeded."
   })
+  mockDesktopClient.refreshSync.mockResolvedValue(emptySyncState)
   mockDesktopClient.refreshPreDistributionCheck.mockResolvedValue({
     results: {},
     checkedAt: "2026-04-17T00:00:00.000Z",
@@ -172,6 +184,8 @@ beforeEach(() => {
 
 afterEach(() => {
   delete window.desktopClient
+  document.documentElement.classList.remove("dark")
+  document.documentElement.style.colorScheme = ""
   vi.clearAllMocks()
 })
 
@@ -181,6 +195,7 @@ describe("App", () => {
     expect(window.desktopClient?.getConfiguration).toBeTypeOf("function")
     expect(window.desktopClient?.saveConfiguration).toBeTypeOf("function")
     expect(window.desktopClient?.saveLocale).toBeTypeOf("function")
+    expect(window.desktopClient?.saveTheme).toBeTypeOf("function")
     expect(window.desktopClient?.clearConfiguration).toBeTypeOf("function")
     expect(window.desktopClient?.testConnection).toBeTypeOf("function")
     expect(window.desktopClient?.refreshSync).toBeTypeOf("function")
@@ -237,6 +252,10 @@ describe("App", () => {
     mockDesktopClient.saveLocale.mockResolvedValue({
       ...configuredState,
       locale: "zh-CN"
+    })
+    mockDesktopClient.saveTheme.mockResolvedValue({
+      ...configuredState,
+      theme: "light"
     })
     mockDesktopClient.clearConfiguration.mockResolvedValue({
       ...configuredState,
@@ -299,6 +318,10 @@ describe("App", () => {
     await expect(desktopClient.saveLocale("zh-CN")).resolves.toEqual({
       ...configuredState,
       locale: "zh-CN"
+    })
+    await expect(desktopClient.saveTheme("light")).resolves.toEqual({
+      ...configuredState,
+      theme: "light"
     })
     await expect(desktopClient.clearConfiguration()).resolves.toEqual({
       ...configuredState,
@@ -363,6 +386,7 @@ describe("App", () => {
       apiToken: "ask_live"
     })
     expect(mockDesktopClient.saveLocale).toHaveBeenCalledWith("zh-CN")
+    expect(mockDesktopClient.saveTheme).toHaveBeenCalledWith("light")
     expect(mockDesktopClient.clearConfiguration).toHaveBeenCalledTimes(1)
     expect(mockDesktopClient.testConnection).toHaveBeenCalledWith({
       apiBaseUrl: "http://localhost:8001",
@@ -449,6 +473,58 @@ describe("App", () => {
       expect(mockDesktopClient.saveLocale).toHaveBeenCalledWith("zh-CN")
       expect(screen.getByRole("heading", { name: "审核更新" })).toBeInTheDocument()
       expect(screen.getByRole("button", { name: "切换到中文" })).toBeInTheDocument()
+    })
+  })
+
+  it("applies the configured dark theme to the document root", async () => {
+    mockDesktopClient.getConfiguration.mockResolvedValueOnce(configuredState)
+
+    render(<App />)
+
+    await waitFor(() => {
+      expect(document.documentElement).toHaveClass("dark")
+      expect(document.documentElement).toHaveStyle({ colorScheme: "dark" })
+    })
+  })
+
+  it("persists a one-click theme switch and applies light mode", async () => {
+    mockDesktopClient.getConfiguration.mockResolvedValueOnce(configuredState)
+    mockDesktopClient.saveTheme.mockResolvedValueOnce({
+      ...configuredState,
+      theme: "light"
+    })
+
+    render(<App />)
+
+    await waitFor(() => {
+      expect(document.documentElement).toHaveClass("dark")
+    })
+
+    fireEvent.click(screen.getByRole("button", { name: "Toggle theme" }))
+
+    await waitFor(() => {
+      expect(mockDesktopClient.saveTheme).toHaveBeenCalledWith("light")
+      expect(document.documentElement).not.toHaveClass("dark")
+      expect(document.documentElement).toHaveStyle({ colorScheme: "light" })
+    })
+  })
+
+  it("rolls back the theme when persistence fails", async () => {
+    mockDesktopClient.getConfiguration.mockResolvedValueOnce(configuredState)
+    mockDesktopClient.saveTheme.mockRejectedValueOnce(new Error("theme store unavailable"))
+
+    render(<App />)
+
+    await waitFor(() => {
+      expect(document.documentElement).toHaveClass("dark")
+    })
+
+    fireEvent.click(screen.getByRole("button", { name: "Toggle theme" }))
+
+    await waitFor(() => {
+      expect(mockDesktopClient.saveTheme).toHaveBeenCalledWith("light")
+      expect(document.documentElement).toHaveClass("dark")
+      expect(screen.getByText("Desktop bridge error: theme store unavailable")).toBeInTheDocument()
     })
   })
 

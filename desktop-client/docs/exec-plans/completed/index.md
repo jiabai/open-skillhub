@@ -4,6 +4,8 @@
 
 | File | Outcome |
 |------|---------|
+| [2026-05-02-desktop-dark-mode.md](2026-05-02-desktop-dark-mode.md) | Desktop-client dark mode now defaults to dark, persists explicit light/dark theme config, exposes `saveTheme` through IPC, renders a one-click icon toggle, and uses frontend-aligned dark CSS tokens |
+| [2026-05-02-desktop-dark-mode-tasks.md](2026-05-02-desktop-dark-mode-tasks.md) | Completed task checklist for the Desktop Dark Mode implementation |
 | [2026-05-02-local-skills-management.md](2026-05-02-local-skills-management.md) | Desktop-client Local Skills inventory and explicit upload were implemented with row-key IPC, safe ZIP staging, Client API upload, refreshed inventory state, tests, and docs |
 | [2026-05-02-local-skills-management-tasks.md](2026-05-02-local-skills-management-tasks.md) | Completed task checklist for the Local Skills Management implementation |
 | [2026-05-01-sort-agents-by-install-status.md](2026-05-01-sort-agents-by-install-status.md) | Agent list in Settings drawer now shows installed agents first, then missing agents, for better user experience |

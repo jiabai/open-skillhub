@@ -1,7 +1,9 @@
 import type { ReactNode } from "react"
 
+import { ThemeToggle } from "@/components/theme-toggle"
 import { Badge, Button } from "@/components/ui-primitives"
 import { useI18n } from "@/i18n/use-i18n"
+import type { AppTheme } from "@/types"
 
 export type AppView = "home" | "local-skills" | "updates"
 
@@ -9,11 +11,15 @@ type AppShellProps = {
   activeView: AppView
   bridgeStatus: string
   canRefresh: boolean
+  canToggleTheme: boolean
   isRefreshing: boolean
+  isSavingTheme: boolean
   pendingUpdateCount: number
+  theme: AppTheme
   onNavigate: (view: AppView) => void
   onOpenSettings: () => void
   onRefresh: () => void
+  onToggleTheme: () => void
   children: ReactNode
 }
 
@@ -21,11 +27,15 @@ export function AppShell({
   activeView,
   bridgeStatus,
   canRefresh,
+  canToggleTheme,
   isRefreshing,
+  isSavingTheme,
   pendingUpdateCount,
+  theme,
   onNavigate,
   onOpenSettings,
   onRefresh,
+  onToggleTheme,
   children
 }: AppShellProps) {
   const { dictionary } = useI18n()
@@ -57,6 +67,11 @@ export function AppShell({
               >
                 {isRefreshing ? dictionary.common.refreshing : dictionary.common.refresh}
               </Button>
+              <ThemeToggle
+                disabled={!canToggleTheme || isSavingTheme}
+                theme={theme}
+                onToggleTheme={onToggleTheme}
+              />
               <Button variant="outline" size="sm" onClick={onOpenSettings}>
                 {dictionary.common.settings}
               </Button>

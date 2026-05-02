@@ -8,13 +8,15 @@ import { APP_NAME, ensureAppDirectories, type AppPathsOptions } from "@/core/sto
 import { resolveApiTokenBootstrap, type ApiTokenBootstrapResult } from "@/core/storage/auth-bootstrap";
 import { createJsonConfigStore, type ConfigStore, type JsonRecord } from "@/core/storage/config-store";
 import { createKeytarSecretStore, type SecretStore } from "@/core/storage/secret-store";
-import type { AgentDetectionSnapshot, AppLocale, ConfigurationPayload } from "@/types";
+import type { AgentDetectionSnapshot, AppLocale, AppTheme, ConfigurationPayload } from "@/types";
 
 export const DEFAULT_API_BASE_URL = "http://127.0.0.1:8001";
+export const DEFAULT_APP_THEME: AppTheme = "dark";
 
 export interface DesktopRuntimeConfig {
   apiBaseUrl: string;
   locale: AppLocale;
+  theme: AppTheme;
   apiToken: string | null;
   pollIntervalMs: number;
   cacheDirectory: string;
@@ -24,6 +26,7 @@ export interface DesktopRuntimeConfig {
 export type DesktopLocalConfig = JsonRecord & {
   apiBaseUrl: string;
   locale: AppLocale;
+  theme: AppTheme;
 };
 
 export interface RuntimeConfigurationState {
@@ -36,6 +39,7 @@ export interface RuntimeConfigManager {
   getState(): RuntimeConfigurationState;
   saveConfiguration(payload: ConfigurationPayload): Promise<RuntimeConfigurationState>;
   saveLocale(locale: AppLocale): Promise<RuntimeConfigurationState>;
+  saveTheme(theme: AppTheme): Promise<RuntimeConfigurationState>;
   clearConfiguration(): Promise<RuntimeConfigurationState>;
 }
 
@@ -78,6 +82,10 @@ export function normalizePollInterval(value: string | undefined): number {
   return parsed;
 }
 
+export function resolveTheme(value: unknown): AppTheme {
+  return value === "light" || value === "dark" ? value : DEFAULT_APP_THEME;
+}
+
 export function createRuntimeConfigManager(options: RuntimeConfigManagerOptions = {}): RuntimeConfigManager {
   const env = options.env ?? process.env;
   const paths = ensureAppDirectories(options.appPathsOptions);
@@ -87,6 +95,7 @@ export function createRuntimeConfigManager(options: RuntimeConfigManagerOptions 
     createJsonConfigStore<DesktopLocalConfig>(paths.configFilePath, {
       apiBaseUrl: normalizeBaseUrl(env.SKILLDRIVE_API_BASE_URL),
       locale: resolveInitialLocale(env),
+      theme: DEFAULT_APP_THEME,
     });
 
   let currentState: RuntimeConfigurationState | null = null;
@@ -96,6 +105,7 @@ export function createRuntimeConfigManager(options: RuntimeConfigManagerOptions 
     const localConfig = await configStore.read();
     const apiBaseUrl = validateApiBaseUrl(localConfig.apiBaseUrl ?? env.SKILLDRIVE_API_BASE_URL);
     const locale = resolveLocale(localConfig.locale);
+    const theme = resolveTheme(localConfig.theme);
     const bootstrap = await resolveApiTokenBootstrap({
       envToken: environmentBootstrapEnabled ? env.SKILLDRIVE_API_TOKEN : undefined,
       secretStore,
@@ -113,6 +123,7 @@ export function createRuntimeConfigManager(options: RuntimeConfigManagerOptions 
         agentDetection,
         apiBaseUrl,
         locale,
+        theme,
         apiToken: bootstrap.apiToken,
         cacheDirectory,
         pollIntervalMs: normalizePollInterval(env.SKILLDRIVE_POLL_INTERVAL_MS),
@@ -147,6 +158,7 @@ export function createRuntimeConfigManager(options: RuntimeConfigManagerOptions 
       await configStore.write({
         apiBaseUrl,
         locale: resolveLocale(currentLocalConfig.locale),
+        theme: resolveTheme(currentLocalConfig.theme),
       });
 
       return this.reload();
@@ -156,6 +168,17 @@ export function createRuntimeConfigManager(options: RuntimeConfigManagerOptions 
       await configStore.write({
         apiBaseUrl: currentLocalConfig.apiBaseUrl ?? normalizeBaseUrl(env.SKILLDRIVE_API_BASE_URL),
         locale: resolveLocale(locale),
+        theme: resolveTheme(currentLocalConfig.theme),
+      });
+
+      return this.reload();
+    },
+    async saveTheme(theme: AppTheme) {
+      const currentLocalConfig = await configStore.read();
+      await configStore.write({
+        apiBaseUrl: currentLocalConfig.apiBaseUrl ?? normalizeBaseUrl(env.SKILLDRIVE_API_BASE_URL),
+        locale: resolveLocale(currentLocalConfig.locale),
+        theme: resolveTheme(theme),
       });
 
       return this.reload();
@@ -167,6 +190,7 @@ export function createRuntimeConfigManager(options: RuntimeConfigManagerOptions 
       await configStore.write({
         apiBaseUrl: normalizeBaseUrl(env.SKILLDRIVE_API_BASE_URL),
         locale: resolveLocale(currentLocalConfig.locale),
+        theme: resolveTheme(currentLocalConfig.theme),
       });
 
       return this.reload();

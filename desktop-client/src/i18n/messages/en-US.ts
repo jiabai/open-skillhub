@@ -47,6 +47,10 @@ export const enUSDictionary = {
       error: (message: string) => `Desktop bridge error: ${message}`
     }
   },
+  themeToggle: {
+    switchTheme: "Toggle theme",
+    saveAction: "toggle theme"
+  },
   homeView: {
     eyebrow: "Desktop client",
     title: "Review updates",
@@ -313,6 +317,8 @@ export const enUSDictionary = {
     localSkillUploadedDetail: (name: string) => `${name} was uploaded to the server.`,
     localSkillUploadFailedTitle: "Local skill upload failed",
     localSkillUploadFailedDetail: (name: string, message: string) =>
-      `${name} could not be uploaded: ${message}`
+      `${name} could not be uploaded: ${message}`,
+    themeUpdateFailedTitle: "Theme update failed",
+    themeUpdateFailedDetail: (message: string) => message
   }
 } satisfies AppDictionary

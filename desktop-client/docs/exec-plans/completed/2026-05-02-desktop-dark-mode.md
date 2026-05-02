@@ -41,7 +41,9 @@ tokens, Vitest, Vite.
   renderer shell, and frontend theme implementation.
 - [x] 2026-05-02: Added English and Chinese product specs.
 - [x] 2026-05-02: Added technical design.
-- [ ] Implementation not started; waiting for review gate approval.
+- [x] 2026-05-02: Implemented runtime theme persistence, IPC bridge,
+  renderer toggle, dark CSS tokens, and focused regression tests.
+- [x] 2026-05-02: Final workflow validation passed and archive pending.
 
 ## Decisions
 
@@ -98,12 +100,12 @@ Modify:
 - Modify: `src/core/runtime/runtime-config-manager.ts`
 - Test: `src/__tests__/storage.test.ts`
 
-- [ ] Write failing tests for default dark theme, `saveTheme("light")`, invalid
+- [x] Write failing tests for default dark theme, `saveTheme("light")`, invalid
   stored value fallback, and theme preservation across configuration save,
   locale save, and clear.
-- [ ] Run focused storage tests and confirm they fail.
-- [ ] Add `AppTheme`, config state fields, `resolveTheme`, and `saveTheme`.
-- [ ] Run focused storage tests and confirm they pass.
+- [x] Run focused storage tests and confirm they fail.
+- [x] Add `AppTheme`, config state fields, `resolveTheme`, and `saveTheme`.
+- [x] Run focused storage tests and confirm they pass.
 
 ### Task 2: IPC And Bridge
 
@@ -114,12 +116,12 @@ Modify:
 - Modify: `src/lib/ipc-client.ts`
 - Test: `src/__tests__/app.test.tsx`
 
-- [ ] Write failing tests that the desktop bridge exposes and proxies
+- [x] Write failing tests that the desktop bridge exposes and proxies
   `saveTheme`.
-- [ ] Run focused app bridge tests and confirm they fail.
-- [ ] Add IPC channel, interfaces, preload method, main handler, and renderer
+- [x] Run focused app bridge tests and confirm they fail.
+- [x] Add IPC channel, interfaces, preload method, main handler, and renderer
   wrapper.
-- [ ] Run focused app bridge tests and confirm they pass.
+- [x] Run focused app bridge tests and confirm they pass.
 
 ### Task 3: Renderer Theme State And Toggle
 
@@ -132,11 +134,11 @@ Modify:
 - Modify: `src/i18n/messages/zh-CN.ts`
 - Test: `src/__tests__/app.test.tsx`
 
-- [ ] Write failing tests for initial `.dark` class, toggle from dark to light,
+- [x] Write failing tests for initial `.dark` class, toggle from dark to light,
   returned state reconciliation, and failed save restoration.
-- [ ] Run focused app tests and confirm they fail.
-- [ ] Implement theme state, document class effect, i18n copy, and header toggle.
-- [ ] Run focused app tests and confirm they pass.
+- [x] Run focused app tests and confirm they fail.
+- [x] Implement theme state, document class effect, i18n copy, and header toggle.
+- [x] Run focused app tests and confirm they pass.
 
 ### Task 4: Dark CSS Token Coverage
 
@@ -144,10 +146,10 @@ Modify:
 - Modify: `src/styles.css`
 - Test: `src/__tests__/app.test.tsx` when assertions are useful
 
-- [ ] Add `:root.dark` token block using frontend-aligned semantic values.
-- [ ] Replace or override hardcoded light surfaces with tokens.
-- [ ] Inspect CSS for remaining light-only colors that affect visible surfaces.
-- [ ] Run focused app tests.
+- [x] Add `:root.dark` token block using frontend-aligned semantic values.
+- [x] Replace or override hardcoded light surfaces with tokens.
+- [x] Inspect CSS for remaining light-only colors that affect visible surfaces.
+- [x] Run focused app tests.
 
 ### Task 5: Documentation And Validation
 
@@ -158,13 +160,13 @@ Modify:
 - Modify: `task-tracker.md`
 - Move after completion: active plan and checklist to `docs/exec-plans/completed/`
 
-- [ ] Update durable docs with implemented theme persistence, IPC, and CSS
+- [x] Update durable docs with implemented theme persistence, IPC, and CSS
   behavior.
-- [ ] Run `cd desktop-client && npm test`.
-- [ ] Run `cd desktop-client && npm run build`.
-- [ ] Run `python scripts/validate_agents_docs.py --level ERROR`.
-- [ ] Run `git diff --check`.
-- [ ] Archive the active ExecPlan and task checklist after implementation
+- [x] Run `cd desktop-client && npm test`.
+- [x] Run `cd desktop-client && npm run build`.
+- [x] Run `python scripts/validate_agents_docs.py --level ERROR`.
+- [x] Run `git diff --check`.
+- [x] Archive the active ExecPlan and task checklist after implementation
   validation.
 
 ## Validation Plan
@@ -188,8 +190,18 @@ Manual visual QA after implementation:
 
 ## Validation Results
 
-Pending implementation.
+- `cd desktop-client && npm test` - passed, 18 files and 96 tests.
+- `cd desktop-client && npm run build` - passed, including Electron
+  typecheck, renderer build, main build, and preload build.
+- `python scripts/validate_agents_docs.py --level ERROR` - passed, 0 errors
+  and 0 warnings after adding the required task-tracker validation marker.
+- `git diff --check` - passed with exit code 0; Git reported expected Windows
+  LF-to-CRLF working-copy warnings only.
 
 ## Outcome
 
-Pending implementation.
+Desktop now persists an explicit light/dark theme, defaults missing or invalid
+theme config to dark, exposes `saveTheme` through typed IPC, applies the current
+theme with `.dark` on the document root, and renders a one-click icon toggle in
+the shell action row. Dark mode uses frontend-aligned local CSS tokens without
+importing Tailwind, shadcn, or `next-themes`.

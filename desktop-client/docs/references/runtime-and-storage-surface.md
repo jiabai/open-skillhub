@@ -54,6 +54,7 @@ Defined in `electron/ipc.ts`:
 - `configuration:get`
 - `configuration:save`
 - `configuration:save-locale`
+- `configuration:save-theme`
 - `configuration:clear`
 - `configuration:test-connection`
 - `sync:refresh`
@@ -69,6 +70,7 @@ Renderer bridge methods:
 - `getConfiguration()`
 - `saveConfiguration(payload)`
 - `saveLocale(locale)`
+- `saveTheme(theme)`
 - `clearConfiguration()`
 - `testConnection(payload)`
 - `refreshSync()`
@@ -92,6 +94,11 @@ filesystem paths for upload. The Electron main process recomputes the local
 inventory, validates the row, creates the ZIP, calls the Client API upload
 route, cleans temporary artifacts, and returns only the refreshed inventory plus
 redacted upload result metadata.
+
+The theme channel persists an explicit `light` or `dark` value in
+`config/config.json`. Missing or invalid stored values resolve to `dark`. The
+renderer uses the returned `ConfigurationState.theme` to toggle `.dark` on the
+document root; theme changes do not touch secrets or sync state.
 
 ## App Paths
 
@@ -118,7 +125,8 @@ Platform base directory rules:
 
 ## Current Storage Reality
 
-- `config.json` path exists in the app-path model, but config persistence is not yet the primary auth bootstrap path
+- `config.json` stores non-secret runtime preferences such as API Base URL,
+  locale, and theme; API token persistence remains separate from this file
 - API token persistence uses the `keytar` secret store through `src/core/storage/secret-store.ts`
 - `state.sqlite3` stores sync snapshot tables only
 - package downloads and decrypted plaintext artifacts are written to unique

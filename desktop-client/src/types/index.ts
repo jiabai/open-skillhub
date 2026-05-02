@@ -2,6 +2,8 @@ export type ApiTokenSource = "secret-store" | "environment" | "missing"
 
 export type AppLocale = "en-US" | "zh-CN"
 
+export type AppTheme = "light" | "dark"
+
 export type AgentId =
   | "claude-code"
   | "cursor"
@@ -71,6 +73,7 @@ export interface SkillDistributionTarget extends AgentSkillTarget {
 export interface ConfigurationState {
   apiBaseUrl: string
   locale: AppLocale
+  theme: AppTheme
   hasToken: boolean
   tokenSource: ApiTokenSource
   persistedEnvironmentToken: boolean

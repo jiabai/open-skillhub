@@ -13,6 +13,7 @@ import { resolveLocale } from "@/i18n/config"
 import { desktopClient } from "@/lib/ipc-client"
 import type {
   AppLocale,
+  AppTheme,
   AgentDetectionSnapshot,
   AgentId,
   ConfigurationPayload,
@@ -219,12 +220,14 @@ export function App() {
   const [isSavingLocale, setIsSavingLocale] = useState(false)
   const [isTestingConnection, setIsTestingConnection] = useState(false)
   const [isClearingConfiguration, setIsClearingConfiguration] = useState(false)
+  const [isSavingTheme, setIsSavingTheme] = useState(false)
   const [connectionTestResult, setConnectionTestResult] = useState<ConnectionTestResult | null>(
     null
   )
   const [activeView, setActiveView] = useState<AppView>("home")
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [selectedLocale, setSelectedLocale] = useState<AppLocale>(initialLocale)
+  const [selectedTheme, setSelectedTheme] = useState<AppTheme>("dark")
   const hasLocaleOverride = useRef(false)
 
   const dictionary = useMemo(() => getDictionary(selectedLocale), [selectedLocale])
@@ -245,6 +248,11 @@ export function App() {
   useEffect(() => {
     document.documentElement.lang = selectedLocale
   }, [selectedLocale])
+
+  useEffect(() => {
+    document.documentElement.classList.toggle("dark", selectedTheme === "dark")
+    document.documentElement.style.colorScheme = selectedTheme
+  }, [selectedTheme])
 
   useEffect(() => {
     if (!preDistributionCheckSnapshot) {
@@ -420,6 +428,7 @@ export function App() {
         }
 
         setConfigState(configuration)
+        setSelectedTheme(configuration.theme)
         setSelectedLocale((currentLocale) =>
           hasLocaleOverride.current ? currentLocale : configuration.locale
         )
@@ -565,6 +574,7 @@ export function App() {
     try {
       const nextConfiguration = await desktopClient.saveConfiguration(payload)
       setConfigState(nextConfiguration)
+      setSelectedTheme(nextConfiguration.theme)
       hasLocaleOverride.current = true
       setSelectedLocale(nextConfiguration.locale)
       setConnectionTestResult(null)
@@ -650,6 +660,7 @@ export function App() {
     try {
       const nextConfiguration = await desktopClient.saveLocale(locale)
       setConfigState(nextConfiguration)
+      setSelectedTheme(nextConfiguration.theme)
       hasLocaleOverride.current = true
       setSelectedLocale(nextConfiguration.locale)
     } catch (error: unknown) {
@@ -716,6 +727,7 @@ export function App() {
     try {
       const nextConfiguration = await desktopClient.clearConfiguration()
       setConfigState(nextConfiguration)
+      setSelectedTheme(nextConfiguration.theme)
       hasLocaleOverride.current = true
       setSelectedLocale(nextConfiguration.locale)
       setSyncState(initialState)
@@ -884,6 +896,45 @@ export function App() {
     await refreshAgentDetectionState()
   }
 
+  const handleToggleTheme = async () => {
+    if (!bridgeAvailable) {
+      setErrorMessage(
+        createBridgeUnavailableMessage(selectedLocale, dictionary.themeToggle.saveAction)
+      )
+      return
+    }
+
+    const previousTheme = selectedTheme
+    const nextTheme = previousTheme === "dark" ? "light" : "dark"
+
+    setSelectedTheme(nextTheme)
+    setIsSavingTheme(true)
+    setErrorMessage(null)
+
+    try {
+      const nextConfiguration = await desktopClient.saveTheme(nextTheme)
+
+      setConfigState(nextConfiguration)
+      setSelectedTheme(nextConfiguration.theme)
+    } catch (error: unknown) {
+      const message = getErrorMessage(error)
+      setSelectedTheme(previousTheme)
+      setErrorMessage(message)
+      setActivity((current) =>
+        [
+          createActivityEntry(
+            dictionary.activity.themeUpdateFailedTitle,
+            dictionary.activity.themeUpdateFailedDetail(message),
+            "warning"
+          ),
+          ...current
+        ].slice(0, 5)
+      )
+    } finally {
+      setIsSavingTheme(false)
+    }
+  }
+
   const handleNavigate = (view: AppView) => {
     setActiveView(view)
 
@@ -960,11 +1011,15 @@ export function App() {
         activeView={activeView}
         bridgeStatus={bridgeStatus}
         pendingUpdateCount={syncState.pendingUpdates.length}
+        theme={selectedTheme}
         isRefreshing={isLoading}
+        isSavingTheme={isSavingTheme}
         canRefresh={configurationReady}
+        canToggleTheme
         onNavigate={handleNavigate}
         onOpenSettings={() => setSettingsOpen(true)}
         onRefresh={handleRefresh}
+        onToggleTheme={handleToggleTheme}
       >
         {activeView === "home" ? (
           <HomeView

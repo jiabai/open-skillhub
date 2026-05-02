@@ -18,12 +18,74 @@
   --osh-success-soft: #dff4e9;
   --osh-warning: #9a5b00;
   --osh-warning-soft: #fff1cf;
+  --osh-background-end: #fdfbf6;
+  --osh-background-glow: rgba(236, 231, 221, 0.95);
+  --osh-focus-ring: rgba(29, 138, 150, 0.45);
+  --osh-header-border: rgba(222, 214, 200, 0.86);
+  --osh-header-background: rgba(251, 250, 247, 0.88);
+  --osh-control-surface: rgba(255, 253, 248, 0.72);
+  --osh-card-surface: rgba(255, 253, 248, 0.88);
+  --osh-input-background: #ffffff;
+  --osh-overlay: rgba(23, 32, 51, 0.36);
+  --osh-dialog-overlay: rgba(23, 32, 51, 0.42);
+  --osh-drawer-shadow: -18px 0 50px rgba(23, 32, 51, 0.14);
+  --osh-primary-soft: rgba(25, 63, 115, 0.1);
+  --osh-primary-border: rgba(25, 63, 115, 0.28);
+  --osh-accent-foreground: #12646d;
+  --osh-accent-border: rgba(29, 138, 150, 0.24);
+  --osh-success-border: rgba(19, 121, 91, 0.24);
+  --osh-warning-border: rgba(154, 91, 0, 0.24);
+  --osh-warning-border-strong: rgba(154, 91, 0, 0.26);
+  --osh-destructive-border: rgba(180, 35, 24, 0.24);
   --osh-radius: 0.75rem;
   --osh-radius-sm: 0.5rem;
   --osh-shadow: 0 18px 50px rgba(23, 32, 51, 0.09);
   --osh-font-body: "IBM Plex Sans", "Segoe UI", sans-serif;
   --osh-font-display: "Fraunces", Georgia, serif;
   --osh-font-mono: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+}
+
+:root.dark {
+  color-scheme: dark;
+  --osh-background: #15191f;
+  --osh-background-soft: #1e242c;
+  --osh-foreground: #f1eee8;
+  --osh-muted: #b9b2a7;
+  --osh-muted-soft: #2a313b;
+  --osh-card: #1c222b;
+  --osh-card-strong: #232b36;
+  --osh-primary: #f0bd62;
+  --osh-primary-foreground: #15191f;
+  --osh-accent: #38c4d1;
+  --osh-accent-soft: #14383f;
+  --osh-border: #343d49;
+  --osh-border-strong: #4a5462;
+  --osh-destructive: #ff8b82;
+  --osh-destructive-soft: #432225;
+  --osh-success: #6ed9b0;
+  --osh-success-soft: #183a31;
+  --osh-warning: #f5c168;
+  --osh-warning-soft: #46331d;
+  --osh-background-end: #101318;
+  --osh-background-glow: rgba(42, 49, 59, 0.8);
+  --osh-focus-ring: rgba(240, 189, 98, 0.48);
+  --osh-header-border: rgba(52, 61, 73, 0.92);
+  --osh-header-background: rgba(21, 25, 31, 0.9);
+  --osh-control-surface: rgba(35, 43, 54, 0.78);
+  --osh-card-surface: rgba(28, 34, 43, 0.92);
+  --osh-input-background: #15191f;
+  --osh-overlay: rgba(4, 6, 10, 0.58);
+  --osh-dialog-overlay: rgba(4, 6, 10, 0.68);
+  --osh-drawer-shadow: -18px 0 50px rgba(0, 0, 0, 0.34);
+  --osh-primary-soft: rgba(240, 189, 98, 0.14);
+  --osh-primary-border: rgba(240, 189, 98, 0.34);
+  --osh-accent-foreground: #8eeef6;
+  --osh-accent-border: rgba(56, 196, 209, 0.34);
+  --osh-success-border: rgba(110, 217, 176, 0.34);
+  --osh-warning-border: rgba(245, 193, 104, 0.34);
+  --osh-warning-border-strong: rgba(245, 193, 104, 0.42);
+  --osh-destructive-border: rgba(255, 139, 130, 0.34);
+  --osh-shadow: 0 18px 50px rgba(0, 0, 0, 0.26);
 }
 
 * {
@@ -39,8 +101,8 @@ body,
 body {
   margin: 0;
   background:
-    radial-gradient(circle at top, rgba(236, 231, 221, 0.95), transparent 46rem),
-    linear-gradient(180deg, var(--osh-background) 0%, #fdfbf6 100%);
+    radial-gradient(circle at top, var(--osh-background-glow), transparent 46rem),
+    linear-gradient(180deg, var(--osh-background) 0%, var(--osh-background-end) 100%);
   color: var(--osh-foreground);
   font-family: var(--osh-font-body);
   letter-spacing: 0;
@@ -53,7 +115,7 @@ input {
 
 button:focus-visible,
 input:focus-visible {
-  outline: 2px solid rgba(29, 138, 150, 0.45);
+  outline: 2px solid var(--osh-focus-ring);
   outline-offset: 2px;
 }
 
@@ -65,8 +127,8 @@ input:focus-visible {
   position: sticky;
   top: 0;
   z-index: 20;
-  border-bottom: 1px solid rgba(222, 214, 200, 0.86);
-  background: rgba(251, 250, 247, 0.88);
+  border-bottom: 1px solid var(--osh-header-border);
+  background: var(--osh-header-background);
   backdrop-filter: blur(18px);
 }
 
@@ -228,7 +290,7 @@ input:focus-visible {
 .btn--outline,
 .btn--ghost {
   border-color: var(--osh-border);
-  background: rgba(255, 253, 248, 0.72);
+  background: var(--osh-control-surface);
   color: var(--osh-foreground);
 }
 
@@ -238,7 +300,7 @@ input:focus-visible {
 
 .btn--destructive {
   background: var(--osh-destructive);
-  color: #ffffff;
+  color: var(--osh-primary-foreground);
 }
 
 .btn--nav-active {
@@ -252,10 +314,22 @@ input:focus-visible {
   font-size: 0.86rem;
 }
 
+.btn--icon {
+  width: 2.35rem;
+  min-width: 2.35rem;
+  min-height: 2.35rem;
+  padding: 0;
+}
+
+.theme-toggle__icon {
+  width: 1rem;
+  height: 1rem;
+}
+
 .card {
   border: 1px solid var(--osh-border);
   border-radius: var(--osh-radius);
-  background: rgba(255, 253, 248, 0.88);
+  background: var(--osh-card-surface);
   box-shadow: var(--osh-shadow);
 }
 
@@ -302,31 +376,31 @@ input:focus-visible {
 }
 
 .badge--primary {
-  border-color: rgba(25, 63, 115, 0.28);
-  background: rgba(25, 63, 115, 0.1);
+  border-color: var(--osh-primary-border);
+  background: var(--osh-primary-soft);
   color: var(--osh-primary);
 }
 
 .badge--accent {
-  border-color: rgba(29, 138, 150, 0.24);
+  border-color: var(--osh-accent-border);
   background: var(--osh-accent-soft);
-  color: #12646d;
+  color: var(--osh-accent-foreground);
 }
 
 .badge--success {
-  border-color: rgba(19, 121, 91, 0.24);
+  border-color: var(--osh-success-border);
   background: var(--osh-success-soft);
   color: var(--osh-success);
 }
 
 .badge--warning {
-  border-color: rgba(154, 91, 0, 0.24);
+  border-color: var(--osh-warning-border);
   background: var(--osh-warning-soft);
   color: var(--osh-warning);
 }
 
 .badge--destructive {
-  border-color: rgba(180, 35, 24, 0.24);
+  border-color: var(--osh-destructive-border);
   background: var(--osh-destructive-soft);
   color: var(--osh-destructive);
 }
@@ -368,18 +442,18 @@ input:focus-visible {
 }
 
 .callout--warning {
-  border-color: rgba(154, 91, 0, 0.26);
+  border-color: var(--osh-warning-border-strong);
   background: var(--osh-warning-soft);
 }
 
 .callout--error {
-  border-color: rgba(180, 35, 24, 0.24);
+  border-color: var(--osh-destructive-border);
   background: var(--osh-destructive-soft);
   color: var(--osh-destructive);
 }
 
 .callout--success {
-  border-color: rgba(19, 121, 91, 0.24);
+  border-color: var(--osh-success-border);
   background: var(--osh-success-soft);
   color: var(--osh-success);
 }
@@ -501,14 +575,14 @@ input:focus-visible {
   position: fixed;
   inset: 0;
   z-index: 80;
-  background: rgba(23, 32, 51, 0.36);
+  background: var(--osh-overlay);
 }
 
 .dialog-overlay {
   position: fixed;
   inset: 0;
   z-index: 100;
-  background: rgba(23, 32, 51, 0.42);
+  background: var(--osh-dialog-overlay);
 }
 
 .dialog-panel {
@@ -589,7 +663,7 @@ input:focus-visible {
   flex-direction: column;
   border-left: 1px solid var(--osh-border);
   background: var(--osh-background-soft);
-  box-shadow: -18px 0 50px rgba(23, 32, 51, 0.14);
+  box-shadow: var(--osh-drawer-shadow);
 }
 
 .drawer-panel__header {
@@ -626,7 +700,7 @@ input:focus-visible {
   width: 100%;
   border: 1px solid var(--osh-border-strong);
   border-radius: var(--osh-radius-sm);
-  background: #ffffff;
+  background: var(--osh-input-background);
   color: var(--osh-foreground);
   padding: 0.72rem 0.8rem;
 }

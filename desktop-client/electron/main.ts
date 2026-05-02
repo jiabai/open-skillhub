@@ -40,6 +40,7 @@ import { createSyncPollingController, createSyncService } from "@/core/sync/sync
 import type {
   AgentDetectionSnapshot,
   AppLocale,
+  AppTheme,
   AgentId,
   ConfigurationPayload,
   ConfigurationState,
@@ -175,6 +176,7 @@ function toConfigurationState(state: RuntimeConfigurationState): ConfigurationSt
   return {
     apiBaseUrl: state.config.apiBaseUrl,
     locale: state.config.locale,
+    theme: state.config.theme,
     hasToken: Boolean(state.config.apiToken),
     tokenSource: state.bootstrap.source,
     persistedEnvironmentToken: state.bootstrap.persistedEnvironmentToken,
@@ -737,6 +739,11 @@ async function createApplicationServices(): Promise<void> {
     },
     saveLocale: async (locale: AppLocale): Promise<ConfigurationState> => {
       const nextState = await runtimeConfigManager.saveLocale(locale)
+
+      return toConfigurationState(nextState)
+    },
+    saveTheme: async (theme: AppTheme): Promise<ConfigurationState> => {
+      const nextState = await runtimeConfigManager.saveTheme(theme)
 
       return toConfigurationState(nextState)
     },

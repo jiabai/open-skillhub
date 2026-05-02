@@ -46,6 +46,10 @@ export const zhCNDictionary = {
       error: (message: string) => `桌面桥接错误：${message}`
     }
   },
+  themeToggle: {
+    switchTheme: "切换主题",
+    saveAction: "切换主题"
+  },
   homeView: {
     eyebrow: "桌面客户端",
     title: "审核更新",
@@ -308,6 +312,8 @@ export const zhCNDictionary = {
     localSkillUploadedDetail: (name: string) => `${name} 已上传到服务端。`,
     localSkillUploadFailedTitle: "本地 SKILL 上传失败",
     localSkillUploadFailedDetail: (name: string, message: string) =>
-      `${name} 无法上传：${message}`
+      `${name} 无法上传：${message}`,
+    themeUpdateFailedTitle: "主题更新失败",
+    themeUpdateFailedDetail: (message: string) => message
   }
 } satisfies AppDictionary

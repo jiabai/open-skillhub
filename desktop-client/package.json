@@ -15,6 +15,7 @@
   },
   "dependencies": {
     "keytar": "^7.9.0",
+    "lucide-react": "^0.452.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "sql.js": "^1.14.1"
@@ -23,9 +24,9 @@
     "@testing-library/jest-dom": "^6.5.0",
     "@testing-library/react": "^16.0.1",
     "@types/node": "^20.17.2",
-    "@types/sql.js": "^1.4.9",
     "@types/react": "^18.3.12",
     "@types/react-dom": "^18.3.1",
+    "@types/sql.js": "^1.4.9",
     "@vitejs/plugin-react": "^4.3.2",
     "electron": "^33.2.1",
     "jsdom": "^25.0.1",

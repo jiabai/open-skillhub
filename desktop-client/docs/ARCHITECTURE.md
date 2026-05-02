@@ -18,11 +18,11 @@ and the full desktop runtime launch through `npm run start:electron`.
 - `src/app/`
   - `App.tsx`: root renderer composition and review-first state handling
 - `src/components/`
-  - desktop shell, Home and Updates views, Settings drawer, local UI primitives, and supporting review panels
+  - desktop shell, Home and Updates views, Settings drawer, theme toggle, local UI primitives, and supporting review panels
 - `src/i18n/`
   - local locale dictionaries, provider, hook, formatting helpers, and language codes used by the renderer
 - `src/styles.css`
-  - desktop renderer design tokens and shared component classes
+  - desktop renderer light/dark design tokens and shared component classes
 - `src/core/sync/`
   - remote skill comparison, state refresh, and polling control
 - `src/core/pre-distribution-check/`
@@ -77,6 +77,9 @@ agent adapters -> local agent installations and skill directories
 - Local Skills inventory is read-only. Uploads require an explicit row action,
   revalidate the selected row in the main process, and only create server-missing
   skills through the Client API.
+- Theme preference is explicit runtime configuration. Missing or invalid theme
+  values resolve to dark, and the renderer applies the current theme by toggling
+  `.dark` on `document.documentElement`.
 - Agent adapters own per-agent filesystem conventions, package installation, metadata reads, and install verification.
 - Agent adapter install and metadata-read directory keys are SKILL names; `remoteSkillId` remains the API/state identity and does not determine the local install directory.
 - Shared type contracts live in `src/types/` instead of being redefined across layers.
@@ -103,7 +106,7 @@ Dependencies should only point downward across those boundaries.
 - App root path is computed by `src/core/storage/app-paths.ts`
 - Current persisted directories are `config/` and `state/`
 - API Base URL is persisted in `config/config.json` through `src/core/storage/config-store.ts`
-- Locale is persisted in `config/config.json` through `src/core/runtime/runtime-config-manager.ts` alongside the API Base URL
+- Locale and theme are persisted in `config/config.json` through `src/core/runtime/runtime-config-manager.ts` alongside the API Base URL
 - `electron/main.ts` also creates a runtime `cache/` directory below the app root
 - Runtime API token bootstrap is coordinated by `src/core/runtime/runtime-config-manager.ts`; it reads from the `keytar` secret store, with
   `SKILLDRIVE_API_TOKEN` as an explicit first-run seed and current-session
@@ -132,6 +135,7 @@ Dependencies should only point downward across those boundaries.
 - `electron/preload.ts`
 - `electron/ipc.ts`
 - `src/app/App.tsx`
+- `src/components/theme-toggle.tsx`
 - `src/styles.css`
 - `src/core/sync/sync-service.ts`
 - `src/core/detection/agent-detection-service.ts`

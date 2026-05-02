@@ -1,6 +1,7 @@
 import type { IpcMain } from "electron"
 import type {
   AppLocale,
+  AppTheme,
   AgentDetectionSnapshot,
   ConfigurationPayload,
   ConfigurationState,
@@ -16,6 +17,7 @@ export const desktopClientIpcChannels = {
   getConfiguration: "configuration:get",
   saveConfiguration: "configuration:save",
   saveLocale: "configuration:save-locale",
+  saveTheme: "configuration:save-theme",
   clearConfiguration: "configuration:clear",
   testConnection: "configuration:test-connection",
   refreshSync: "sync:refresh",
@@ -31,6 +33,7 @@ export interface DesktopClientBridge {
   getConfiguration(): Promise<ConfigurationState>
   saveConfiguration(payload: ConfigurationPayload): Promise<ConfigurationState>
   saveLocale(locale: AppLocale): Promise<ConfigurationState>
+  saveTheme(theme: AppTheme): Promise<ConfigurationState>
   clearConfiguration(): Promise<ConfigurationState>
   testConnection(payload: ConfigurationPayload): Promise<ConnectionTestResult>
   refreshSync(): Promise<DesktopSyncState>
@@ -46,6 +49,7 @@ export interface DesktopClientIpcHandlers {
   getConfiguration(): Promise<ConfigurationState> | ConfigurationState
   saveConfiguration(payload: ConfigurationPayload): Promise<ConfigurationState>
   saveLocale(locale: AppLocale): Promise<ConfigurationState>
+  saveTheme(theme: AppTheme): Promise<ConfigurationState>
   clearConfiguration(): Promise<ConfigurationState>
   testConnection(payload: ConfigurationPayload): Promise<ConnectionTestResult>
   refreshSync(): Promise<DesktopSyncState>
@@ -64,6 +68,7 @@ export function registerDesktopClientIpc(
   ipcMain.removeHandler(desktopClientIpcChannels.getConfiguration)
   ipcMain.removeHandler(desktopClientIpcChannels.saveConfiguration)
   ipcMain.removeHandler(desktopClientIpcChannels.saveLocale)
+  ipcMain.removeHandler(desktopClientIpcChannels.saveTheme)
   ipcMain.removeHandler(desktopClientIpcChannels.clearConfiguration)
   ipcMain.removeHandler(desktopClientIpcChannels.testConnection)
   ipcMain.removeHandler(desktopClientIpcChannels.refreshSync)
@@ -80,6 +85,9 @@ export function registerDesktopClientIpc(
   )
   ipcMain.handle(desktopClientIpcChannels.saveLocale, async (_event, locale: AppLocale) =>
     handlers.saveLocale(locale)
+  )
+  ipcMain.handle(desktopClientIpcChannels.saveTheme, async (_event, theme: AppTheme) =>
+    handlers.saveTheme(theme)
   )
   ipcMain.handle(desktopClientIpcChannels.clearConfiguration, async () => handlers.clearConfiguration())
   ipcMain.handle(desktopClientIpcChannels.testConnection, async (_event, payload: ConfigurationPayload) =>

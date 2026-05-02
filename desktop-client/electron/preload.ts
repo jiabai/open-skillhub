@@ -8,6 +8,7 @@ const desktopClientBridge: DesktopClientBridge = {
   saveConfiguration: (payload) =>
     ipcRenderer.invoke(desktopClientIpcChannels.saveConfiguration, payload),
   saveLocale: (locale) => ipcRenderer.invoke(desktopClientIpcChannels.saveLocale, locale),
+  saveTheme: (theme) => ipcRenderer.invoke(desktopClientIpcChannels.saveTheme, theme),
   clearConfiguration: () => ipcRenderer.invoke(desktopClientIpcChannels.clearConfiguration),
   testConnection: (payload) =>
     ipcRenderer.invoke(desktopClientIpcChannels.testConnection, payload),

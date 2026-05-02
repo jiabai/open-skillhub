@@ -45,6 +45,10 @@ export interface AppDictionary {
       error: (message: string) => string
     }
   }
+  themeToggle: {
+    switchTheme: string
+    saveAction: string
+  }
   homeView: {
     eyebrow: string
     title: string
@@ -299,6 +303,8 @@ export interface AppDictionary {
     localSkillUploadedDetail: (name: string) => string
     localSkillUploadFailedTitle: string
     localSkillUploadFailedDetail: (name: string, message: string) => string
+    themeUpdateFailedTitle: string
+    themeUpdateFailedDetail: (message: string) => string
   }
 }
 

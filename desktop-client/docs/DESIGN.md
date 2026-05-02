@@ -17,9 +17,12 @@ On Windows, it should behave like a notification-area utility: a tray-opened win
 
 ## Visual Language
 
-- Align desktop-client with the Web console: light background, restrained cards, clear top navigation, muted supporting text, and compact action buttons.
+- Align desktop-client with the Web console: persisted light/dark mode, restrained cards, clear top navigation, muted supporting text, and compact action buttons.
+- Default new desktop sessions to dark mode so the first-run appearance matches the Web console default.
+- Provide a one-click theme toggle in the shell action row. The toggle should stay compact and use the same `Sun`/`MoonStar` icon pattern as the Web console.
+- Dark mode must use semantic local tokens under `.dark`; avoid bright cream panels, inputs, overlays, or badges on dark surfaces.
 - Prefer local design tokens and reusable renderer primitives over spreading inline styles.
-- Do not introduce Tailwind, shadcn, or service-side frontend dependencies into the desktop client unless a future spec explicitly approves it.
+- Do not introduce Tailwind, shadcn, `next-themes`, or service-side frontend dependencies into the desktop client unless a future spec explicitly approves it. A small icon dependency may be used when a spec requires visual parity with the Web console.
 
 ## Interaction Rules
 

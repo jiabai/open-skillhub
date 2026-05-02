@@ -1,4 +1,4 @@
-import { mkdtempSync, readFileSync, rmSync, statSync } from "node:fs"
+import { mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { afterEach, describe, expect, it, vi } from "vitest"
@@ -191,7 +191,8 @@ describe("storage foundation", () => {
     expect(await store.getApiToken()).toBe("ask_live_saved")
     expect(JSON.parse(readFileSync(join(rootDir, "config", "config.json"), "utf8"))).toEqual({
       apiBaseUrl: "http://127.0.0.1:9000",
-      locale: "zh-CN"
+      locale: "zh-CN",
+      theme: "dark"
     })
 
     const reloadedState = await manager.reload()
@@ -220,12 +221,105 @@ describe("storage foundation", () => {
     expect(updatedState.config.locale).toBe("en-US")
     expect(JSON.parse(readFileSync(join(rootDir, "config", "config.json"), "utf8"))).toEqual({
       apiBaseUrl: "http://localhost:8001",
-      locale: "en-US"
+      locale: "en-US",
+      theme: "dark"
     })
 
     const reloadedState = await manager.reload()
 
     expect(reloadedState.config.locale).toBe("en-US")
+  })
+
+  it("defaults the desktop theme to dark", async () => {
+    const rootDir = createTempRoot()
+    const manager = createRuntimeConfigManager({
+      appPathsOptions: { baseDir: rootDir },
+      env: {} as NodeJS.ProcessEnv,
+      secretStore: createInMemorySecretStore()
+    })
+
+    const state = await manager.reload()
+
+    expect(state.config.theme).toBe("dark")
+  })
+
+  it("persists theme changes through the runtime config manager", async () => {
+    const rootDir = createTempRoot()
+    const manager = createRuntimeConfigManager({
+      appPathsOptions: { baseDir: rootDir },
+      env: {
+        SKILLDRIVE_API_BASE_URL: "http://localhost:8001"
+      } as NodeJS.ProcessEnv,
+      secretStore: createInMemorySecretStore()
+    })
+
+    await manager.reload()
+    const updatedState = await manager.saveTheme("light")
+
+    expect(updatedState.config.theme).toBe("light")
+    expect(JSON.parse(readFileSync(join(rootDir, "config", "config.json"), "utf8"))).toEqual({
+      apiBaseUrl: "http://localhost:8001",
+      locale: "zh-CN",
+      theme: "light"
+    })
+
+    const reloadedState = await manager.reload()
+
+    expect(reloadedState.config.theme).toBe("light")
+  })
+
+  it("falls back to dark when the stored theme is invalid", async () => {
+    const rootDir = createTempRoot()
+    const manager = createRuntimeConfigManager({
+      appPathsOptions: { baseDir: rootDir },
+      env: {
+        SKILLDRIVE_API_BASE_URL: "http://localhost:8001"
+      } as NodeJS.ProcessEnv,
+      secretStore: createInMemorySecretStore()
+    })
+    await manager.reload()
+    writeFileSync(
+      join(rootDir, "config", "config.json"),
+      `${JSON.stringify({
+        apiBaseUrl: "http://localhost:8001",
+        locale: "en-US",
+        theme: "system"
+      })}\n`,
+      "utf8"
+    )
+
+    const state = await manager.reload()
+
+    expect(state.config.locale).toBe("en-US")
+    expect(state.config.theme).toBe("dark")
+  })
+
+  it("preserves the selected theme while saving and clearing configuration", async () => {
+    const rootDir = createTempRoot()
+    const store = createInMemorySecretStore()
+    const manager = createRuntimeConfigManager({
+      appPathsOptions: { baseDir: rootDir },
+      env: {
+        SKILLDRIVE_API_BASE_URL: "http://localhost:8001"
+      } as NodeJS.ProcessEnv,
+      secretStore: store
+    })
+
+    await manager.reload()
+    await manager.saveTheme("light")
+    await manager.saveConfiguration({
+      apiBaseUrl: "http://127.0.0.1:9000",
+      apiToken: "ask_live_saved"
+    })
+    await manager.saveLocale("en-US")
+    const clearedState = await manager.clearConfiguration()
+
+    expect(clearedState.config.theme).toBe("light")
+    expect(JSON.parse(readFileSync(join(rootDir, "config", "config.json"), "utf8"))).toEqual({
+      apiBaseUrl: "http://localhost:8001",
+      locale: "en-US",
+      theme: "light"
+    })
   })
 
   it("does not re-import an environment token after the user clears configuration", async () => {

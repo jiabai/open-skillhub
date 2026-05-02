@@ -1,7 +1,7 @@
 import { useEffect, type ButtonHTMLAttributes, type HTMLAttributes, type ReactNode } from "react"
 
 type ButtonVariant = "primary" | "secondary" | "outline" | "ghost" | "destructive" | "nav-active"
-type ButtonSize = "default" | "sm"
+type ButtonSize = "default" | "sm" | "icon"
 
 type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
   variant?: ButtonVariant
@@ -22,7 +22,13 @@ export function Button({
   return (
     <button
       type={type}
-      className={joinClassNames("btn", `btn--${variant}`, size === "sm" && "btn--sm", className)}
+      className={joinClassNames(
+        "btn",
+        `btn--${variant}`,
+        size === "sm" && "btn--sm",
+        size === "icon" && "btn--icon",
+        className
+      )}
       {...props}
     />
   )

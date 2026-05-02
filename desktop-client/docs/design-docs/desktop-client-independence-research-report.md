@@ -13,7 +13,7 @@ desktop-client 具备较高的独立性条件：零代码级依赖、独立的�
 desktop-client 对主仓库没有任何 import 或文件级依赖。搜索确认：
 
 - 无 `import from "../"` 或 `import from "../../"` 等跨目录引用
-- 无 `@skillhub` 或 `open-skillhub` 包引用
+- 无 `@skilldrive` 或 `skilldrive` 包引用
 - 不使用 `shared/` 目录
 - `package.json` 的依赖全部来自 npm 公共包（React、Electron、Vite、sql.js、keytar 等）
 - TypeScript 路径别名 `@/` 映射到 `desktop-client/src/`，完全自包含
@@ -62,14 +62,14 @@ desktop-client 拥有完整的自包含文档：
 
 ### 1.5 运行时环境变量
 
-desktop-client 通过环境变量配置，所有变量都以 `OPEN_SKILLHUB_` 为前缀：
+desktop-client 通过环境变量配置，所有变量都以 `SKILLDRIVE_` 为前缀：
 
-- `OPEN_SKILLHUB_API_BASE_URL`
-- `OPEN_SKILLHUB_API_TOKEN`
-- `OPEN_SKILLHUB_POLL_INTERVAL_MS`
-- `OPEN_SKILLHUB_CODEX_SKILLS_PATH`
-- `OPEN_SKILLHUB_CLAUDE_CODE_SKILLS_PATH`
-- `OPEN_SKILLHUB_GEMINI_CLI_SKILLS_PATH`
+- `SKILLDRIVE_API_BASE_URL`
+- `SKILLDRIVE_API_TOKEN`
+- `SKILLDRIVE_POLL_INTERVAL_MS`
+- `SKILLDRIVE_CODEX_SKILLS_PATH`
+- `SKILLDRIVE_CLAUDE_CODE_SKILLS_PATH`
+- `SKILLDRIVE_GEMINI_CLI_SKILLS_PATH`
 
 这些变量名暗示了品牌绑定，但技术上只是字符串常量，拆分时改名成本极低。
 
@@ -89,7 +89,7 @@ desktop-client 通过环境变量配置，所有变量都以 `OPEN_SKILLHUB_` �
 
 **项目成熟度不足**。`task-tracker.md` 和 active ExecPlan 显示核心功能仍有缺口：Electron 启动命令尚未规范化、secret-store 未接通、分发历史未持久化。在 v1 功能不稳定时拆分会增加协调成本。
 
-**品牌和身份绑定**。项目名 "Open SkillHub Desktop"、环境变量前缀 `OPEN_SKILLHUB_`、后端 API 路径 `/api/v1/client/skills` 都暗示这是同一个产品族的组成部分。独立后需要重新思考命名和身份。
+**品牌和身份绑定**。项目名 "SkillDrive Desktop"、环境变量前缀 `SKILLDRIVE_`、后端 API 路径 `/api/v1/client/skills` 都暗示这是同一个产品族的组成部分。独立后需要重新思考命名和身份。
 
 **API 合约同步成本**。虽然当前是松耦合，但后端的 `client_skills` 端点是专门为桌面客户端设计的。独立后，API 变更的协调需要跨仓库进行，可能出现一方修改了合约但另一方未及时适配的情况。
 
@@ -113,7 +113,7 @@ desktop-client 通过环境变量配置，所有变量都以 `OPEN_SKILLHUB_` �
 理由：v1 稳定后，API 合约冻结，发布节奏解耦的收益最大化，贡献者体验改善显著。
 
 拆分步骤：
-1. 创建独立仓库（如 `open-skillhub-desktop`）
+1. 创建独立仓库（如 `skilldrive-desktop`）
 2. 将 `desktop-client/` 的全部内容迁移，保留 git 历史
 3. 更新主仓库 README 移除桌面客户端段落，改为链接
 4. 在独立仓库中添加 CI/CD（GitHub Actions：构建 + 测试 + Electron 打包）

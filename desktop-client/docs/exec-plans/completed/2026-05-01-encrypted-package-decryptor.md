@@ -26,7 +26,7 @@ Encrypted skill packages require a decryptArtifact dependency before distributio
 This is a **fail-closed security design**, not a bug:
 - System does not silently proceed without proper decryption
 - Missing decryptor throws clear error instead of attempting unsafe operations
-- Missing decryption secret must also fail closed; the desktop client may only decrypt when the operator provides `OPEN_SKILLHUB_DOWNLOAD_DECRYPTION_SECRET` in the Electron runtime environment
+- Missing decryption secret must also fail closed; the desktop client may only decrypt when the operator provides `SKILLDRIVE_DOWNLOAD_DECRYPTION_SECRET` in the Electron runtime environment
 
 ## Progress
 
@@ -48,7 +48,7 @@ From `backend/services/skill.py`:
 1. **Key Derivation**: Use HKDF + SHA256 to derive 32-byte AES-256 key
    - Secret: `settings.SECRET_KEY`
    - Purpose: `"skill-download-encryption"`
-   - Salt: Fixed salt `b"open-skillhub:key-derivation:v1"`
+   - Salt: Fixed salt `b"skilldrive:key-derivation:v1"`
 
 2. **Encryption**: Use AES-GCM
    - Nonce: 12 random bytes
@@ -61,7 +61,7 @@ From `backend/services/skill.py`:
 ### Client Decryption Requirements
 Implement identical logic in Node.js:
 
-1. Read `OPEN_SKILLHUB_DOWNLOAD_DECRYPTION_SECRET` from the Electron main process environment; it must match the backend `SECRET_KEY` used for download encryption
+1. Read `SKILLDRIVE_DOWNLOAD_DECRYPTION_SECRET` from the Electron main process environment; it must match the backend `SECRET_KEY` used for download encryption
 2. Derive key using same HKDF/SHA256 parameters
 3. Decode base64 encrypted payload
 4. Extract nonce (first 12 bytes) and ciphertext+tag
@@ -76,7 +76,7 @@ Implement identical logic in Node.js:
 - New file: `desktop-client/electron/encryption.ts`
   - Implements `deriveAes256Key()` - HKDF key derivation
   - Implements `decryptPayload()` - AES-GCM decryption
-  - Implements `createDecryptArtifactFromEnv()` - package-service decryptor factory using `OPEN_SKILLHUB_DOWNLOAD_DECRYPTION_SECRET`
+  - Implements `createDecryptArtifactFromEnv()` - package-service decryptor factory using `SKILLDRIVE_DOWNLOAD_DECRYPTION_SECRET`
 
 ### Update Package Service Integration
 - Keep the existing `package-service.ts` decryptor dependency contract unchanged
@@ -101,7 +101,7 @@ Implement identical logic in Node.js:
 - Keep decryption logic in Electron main process (not renderer) for security
 - Use Node.js built-in `crypto` module instead of external libraries
 - Follow same error patterns as existing package service code
-- Use `OPEN_SKILLHUB_DOWNLOAD_DECRYPTION_SECRET` for the current Electron process only; operators can set it to the backend `SECRET_KEY` in deployments that keep encrypted downloads enabled
+- Use `SKILLDRIVE_DOWNLOAD_DECRYPTION_SECRET` for the current Electron process only; operators can set it to the backend `SECRET_KEY` in deployments that keep encrypted downloads enabled
 - If the env var is missing or decryption authentication fails, stop before extraction and rely on existing cleanup ownership paths
 
 ## Validation Plan
@@ -124,13 +124,13 @@ If you don't need encryption yet, you can temporarily disable it in backend conf
 If encrypted downloads stay enabled, launch the desktop runtime with:
 
 ```bash
-OPEN_SKILLHUB_DOWNLOAD_DECRYPTION_SECRET=<backend SECRET_KEY> npm run start:electron
+SKILLDRIVE_DOWNLOAD_DECRYPTION_SECRET=<backend SECRET_KEY> npm run start:electron
 ```
 
 On Windows PowerShell:
 
 ```powershell
-$env:OPEN_SKILLHUB_DOWNLOAD_DECRYPTION_SECRET="<backend SECRET_KEY>"
+$env:SKILLDRIVE_DOWNLOAD_DECRYPTION_SECRET="<backend SECRET_KEY>"
 npm run start:electron
 ```
 

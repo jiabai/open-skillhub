@@ -27,9 +27,9 @@ export const enUSDictionary = {
       `Desktop bridge unavailable. Launch the Electron runtime with \`npm run start:electron\` to ${action}.`
   },
   appShell: {
-    brandTitle: "Open SkillHub",
+    brandTitle: "SkillDrive",
     brandSubtitle: "Desktop review client",
-    desktopClientLabel: "Open SkillHub Desktop",
+    desktopClientLabel: "SkillDrive Desktop",
     navigation: {
       home: "Home",
       localSkills: "Local Skills",

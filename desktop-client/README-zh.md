@@ -1,6 +1,6 @@
 # 桌面客户端
 
-Open SkillHub 的 Electron + Vite 桌面端应用。
+SkillDrive 的 Electron + Vite 桌面端应用。
 
 ## 快速链接
 
@@ -30,17 +30,17 @@ npm run start:electron
 
 Electron 主进程在本地开发时读取以下环境变量：
 
-- `OPEN_SKILLHUB_API_BASE_URL` - 后端基础 URL，例如 `http://127.0.0.1:8001`
-- `OPEN_SKILLHUB_API_TOKEN` - 可选的首次运行 API Token 引导；当密钥存储为空时，运行时会通过 `keytar` 存储此值，然后从密钥存储中读取 Token
-- `OPEN_SKILLHUB_POLL_INTERVAL_MS` - 可选的轮询间隔（毫秒），默认为 `30000`
-- `OPEN_SKILLHUB_DOWNLOAD_DECRYPTION_SECRET` - 可选的当前会话下载解密密钥；仅当后端 `ENABLE_SKILL_DOWNLOAD_ENCRYPTION=true` 时，将它设置为后端 `SECRET_KEY`
-- `OPEN_SKILLHUB_CODEX_SKILLS_PATH` - 可选的 Codex 技能目录覆盖
-- `OPEN_SKILLHUB_CLAUDE_CODE_SKILLS_PATH` - 可选的 Claude Code 技能目录覆盖
-- `OPEN_SKILLHUB_GEMINI_CLI_SKILLS_PATH` - 可选的 Gemini CLI 技能目录覆盖
+- `SKILLDRIVE_API_BASE_URL` - 后端基础 URL，例如 `http://127.0.0.1:8001`
+- `SKILLDRIVE_API_TOKEN` - 可选的首次运行 API Token 引导；当密钥存储为空时，运行时会通过 `keytar` 存储此值，然后从密钥存储中读取 Token
+- `SKILLDRIVE_POLL_INTERVAL_MS` - 可选的轮询间隔（毫秒），默认为 `30000`
+- `SKILLDRIVE_DOWNLOAD_DECRYPTION_SECRET` - 可选的当前会话下载解密密钥；仅当后端 `ENABLE_SKILL_DOWNLOAD_ENCRYPTION=true` 时，将它设置为后端 `SECRET_KEY`
+- `SKILLDRIVE_CODEX_SKILLS_PATH` - 可选的 Codex 技能目录覆盖
+- `SKILLDRIVE_CLAUDE_CODE_SKILLS_PATH` - 可选的 Claude Code 技能目录覆盖
+- `SKILLDRIVE_GEMINI_CLI_SKILLS_PATH` - 可选的 Gemini CLI 技能目录覆盖
 
-**关于技能下载的加密说明**：当 `OPEN_SKILLHUB_DOWNLOAD_DECRYPTION_SECRET` 存在于 Electron 主进程环境变量中，并且与后端用于下载加密的 `SECRET_KEY` 一致时，桌面运行时可以分发加密下载包。该密钥不会写入 JSON 配置、渲染器状态或日志。如果后端开启了加密下载，但该密钥缺失或不匹配，分发会在解压或写入 Agent 目录前安全失败。
+**关于技能下载的加密说明**：当 `SKILLDRIVE_DOWNLOAD_DECRYPTION_SECRET` 存在于 Electron 主进程环境变量中，并且与后端用于下载加密的 `SECRET_KEY` 一致时，桌面运行时可以分发加密下载包。该密钥不会写入 JSON 配置、渲染器状态或日志。如果后端开启了加密下载，但该密钥缺失或不匹配，分发会在解压或写入 Agent 目录前安全失败。
 
-如果 `keytar` 不可用，`OPEN_SKILLHUB_API_TOKEN` 仍可用于当前会话，但不会持久化。API Token 不得存储在明文配置、渲染器状态或日志中。
+如果 `keytar` 不可用，`SKILLDRIVE_API_TOKEN` 仍可用于当前会话，但不会持久化。API Token 不得存储在明文配置、渲染器状态或日志中。
 
 窗口关闭后，系统托盘保持驻留，以便后台刷新继续进行。
 
@@ -65,7 +65,7 @@ Electron 主进程在本地开发时读取以下环境变量：
 
 ### 前置条件
 
-1. **后端运行中**：Open SkillHub 后端必须可访问。启动方式：
+1. **后端运行中**：SkillDrive 后端必须可访问。启动方式：
    ```bash
    uv run uvicorn backend.api_app:app --host 0.0.0.0 --port 8001
    ```
@@ -212,9 +212,9 @@ Electron 窗口将打开。首次启动时你会看到：
 使用环境变量进行自动化的首次运行设置：
 
 ```powershell
-$env:OPEN_SKILLHUB_API_BASE_URL = "http://127.0.0.1:8001"
-$env:OPEN_SKILLHUB_API_TOKEN = "your-token-here"
-$env:OPEN_SKILLHUB_POLL_INTERVAL_MS = "15000"
+$env:SKILLDRIVE_API_BASE_URL = "http://127.0.0.1:8001"
+$env:SKILLDRIVE_API_TOKEN = "your-token-here"
+$env:SKILLDRIVE_POLL_INTERVAL_MS = "15000"
 npm run start:electron
 ```
 
@@ -239,7 +239,7 @@ npm run dev
 | 保存配置后仍显示 "API token needed" | 后端不可达或 Token 无效 | 点击 "Test connection" 诊断 |
 | "Refresh failed" 错误 | 后端未运行或网络问题 | 验证后端在配置的 URL 上运行 |
 | 所有 Agent 分发失败 | 未检测到 Agent 技能目录 | 检查本地是否安装了 Codex/Claude Code/Gemini CLI |
-| 加密包解密失败 | `OPEN_SKILLHUB_DOWNLOAD_DECRYPTION_SECRET` 缺失，或与后端 `SECRET_KEY` 不一致 | 为当前 Electron 会话设置该环境变量，或在本地开发时关闭后端下载加密 |
+| 加密包解密失败 | `SKILLDRIVE_DOWNLOAD_DECRYPTION_SECRET` 缺失，或与后端 `SECRET_KEY` 不一致 | 为当前 Electron 会话设置该环境变量，或在本地开发时关闭后端下载加密 |
 | 托盘图标缺失 | Electron 启动失败 | 检查终端输出中的错误信息 |
 | `keytar` 在 Windows 上构建错误 | 缺少原生模块的构建工具 | 安装 Visual Studio Build Tools 并包含 C++ 工作负载 |
 

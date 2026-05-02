@@ -52,7 +52,7 @@ These facts come from the current implementation and must be kept consistent dur
 - `DownloadedSkillArtifact` has `artifactPath`, `encrypted`, and optional `cleanupPaths`.
 - `downloadSkillArtifact()` is located in `electron/main.ts` and currently writes downloaded content to files under `config.cacheDirectory`.
 - `PackageServiceDependencies` already has a `removePath?` injection point; tests can substitute deletion behavior.
-- `decryptArtifact` is implemented in `electron/encryption.ts`; encrypted packages still fail closed when `OPEN_SKILLHUB_DOWNLOAD_DECRYPTION_SECRET` is missing or invalid.
+- `decryptArtifact` is implemented in `electron/encryption.ts`; encrypted packages still fail closed when `SKILLDRIVE_DOWNLOAD_DECRYPTION_SECRET` is missing or invalid.
 
 ## 5. Final Architecture Decision
 

@@ -52,7 +52,7 @@ preparedPackage.cleanup() -> 仅移除 tempRoot
 - `DownloadedSkillArtifact` 包含 `artifactPath`、`encrypted` 和可选的 `cleanupPaths`。
 - `downloadSkillArtifact()` 位于 `electron/main.ts`，当前把下载内容写到 `config.cacheDirectory` 下的文件。
 - `PackageServiceDependencies` 已有 `removePath?` 注入点，测试可以替换删除行为。
-- `decryptArtifact` 已在 `electron/encryption.ts` 中实现；当 `OPEN_SKILLHUB_DOWNLOAD_DECRYPTION_SECRET` 缺失或无效时，加密包仍然 fail closed。
+- `decryptArtifact` 已在 `electron/encryption.ts` 中实现；当 `SKILLDRIVE_DOWNLOAD_DECRYPTION_SECRET` 缺失或无效时，加密包仍然 fail closed。
 
 ## 5. 最终架构决策
 

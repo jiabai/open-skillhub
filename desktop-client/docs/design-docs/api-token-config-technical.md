@@ -86,7 +86,7 @@ async function handleSaveConfiguration(payload: ConfigurationPayload): Promise<v
 async function handleClearConfiguration(): Promise<void> {
   await runtimeConfigManager.clearConfiguration()
   stopPolling?.()
-  tray?.setToolTip("SkillHub Desktop - configure API token")
+  tray?.setToolTip("SkillDrive Desktop - configure API token")
 }
 
 async function handleTestConnection(config: ConfigurationPayload): Promise<ConnectionTestResult> {

@@ -4,7 +4,7 @@ Status: canonical local product spec
 
 ## Purpose
 
-Build a Windows desktop client that detects new or updated skills from Open SkillHub, holds them for operator review, and distributes approved versions to supported local agent installations.
+Build a Windows desktop client that detects new or updated skills from SkillDrive, holds them for operator review, and distributes approved versions to supported local agent installations.
 
 ## Goals
 
@@ -34,14 +34,14 @@ Build a Windows desktop client that detects new or updated skills from Open Skil
 - No package is written to any agent directory before explicit operator approval.
 - Distribution is global for enabled agents; per-agent routing is deferred.
 - Encrypted downloads require an operator-provided
-  `OPEN_SKILLHUB_DOWNLOAD_DECRYPTION_SECRET` in the Electron main process; if the
+  `SKILLDRIVE_DOWNLOAD_DECRYPTION_SECRET` in the Electron main process; if the
   secret is missing or invalid, distribution fails closed.
 
 ## Skill Review Mechanism
 
 ### Definition
 
-Skill review refers to **human inspection and approval** of skill updates detected from the Open SkillHub server before they can be distributed to local agent (Codex, Claude Code, Gemini CLI) installation directories.
+Skill review refers to **human inspection and approval** of skill updates detected from the SkillDrive server before they can be distributed to local agent (Codex, Claude Code, Gemini CLI) installation directories.
 
 ### Rationale
 
@@ -73,7 +73,7 @@ This is a **human approval gate** mechanism, ensuring users have complete contro
 
 ### Detection Method
 
-The client uses a **background polling** mechanism to automatically detect skill updates on the Open SkillHub server.
+The client uses a **background polling** mechanism to automatically detect skill updates on the SkillDrive server.
 
 ### How It Works
 
@@ -142,7 +142,7 @@ When the user clicks the "Distribute" button to approve skill sync, an explicit 
 - Electron main process for tray behavior, polling orchestration, notifications, and distribution
 - Canonical full runtime launch through `npm run start:electron`
 - Runtime API token bootstrap through the `keytar` secret store, with
-  `OPEN_SKILLHUB_API_TOKEN` as an explicit first-run seed and current-session
+  `SKILLDRIVE_API_TOKEN` as an explicit first-run seed and current-session
   fallback when secret storage is unavailable
 - Client API usage through `GET /api/v1/client/skills` and `POST /api/v1/client/skills/download`
 - Local SQLite-backed sync snapshot with pending updates and distributed-skill records
@@ -200,7 +200,7 @@ The desktop client provides five core UI panels for operator interaction:
 - Package validation happens before agent-directory writes.
 - Path validation rejects unsafe or ambiguous skill identifiers and destinations.
 - Encrypted packages are decrypted only in the Electron main process, using
-  `OPEN_SKILLHUB_DOWNLOAD_DECRYPTION_SECRET` when it matches the backend
+  `SKILLDRIVE_DOWNLOAD_DECRYPTION_SECRET` when it matches the backend
   `SECRET_KEY`; missing or invalid decryption material fails closed before
   extraction or agent-directory writes.
 

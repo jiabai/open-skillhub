@@ -3,13 +3,13 @@
 ## Current Secret Handling
 
 - The runtime API token bootstrap reads from `src/core/storage/secret-store.ts`, backed by `keytar`.
-- The `keytar` service is `OpenSkillHub` and the account is `api-token`.
-- `OPEN_SKILLHUB_API_TOKEN` is a supported first-run bootstrap path: when the
+- The `keytar` service is `SkillDrive` and the account is `api-token`.
+- `SKILLDRIVE_API_TOKEN` is a supported first-run bootstrap path: when the
   secret store is empty, the runtime stores the trimmed token through `keytar`
   and uses it for the current session.
-- If secret storage is unavailable, `OPEN_SKILLHUB_API_TOKEN` may be used for the
+- If secret storage is unavailable, `SKILLDRIVE_API_TOKEN` may be used for the
   current session only; it is not persisted in that fallback path.
-- `OPEN_SKILLHUB_DOWNLOAD_DECRYPTION_SECRET` is an optional current-session
+- `SKILLDRIVE_DOWNLOAD_DECRYPTION_SECRET` is an optional current-session
   secret used only by the Electron main process to decrypt backend-encrypted
   skill downloads. It must match the backend `SECRET_KEY` when
   `ENABLE_SKILL_DOWNLOAD_ENCRYPTION=true`, and it is never persisted by the
@@ -66,7 +66,7 @@
 ## Current V1 Contract Gap
 
 - The current implementation supports backend-encrypted downloads only when the
-  Electron main process receives `OPEN_SKILLHUB_DOWNLOAD_DECRYPTION_SECRET`.
+  Electron main process receives `SKILLDRIVE_DOWNLOAD_DECRYPTION_SECRET`.
 - If encrypted downloads remain enabled but the secret is missing or does not
   match the backend `SECRET_KEY`, distribution fails closed before extraction or
   agent-directory writes.

@@ -4,7 +4,7 @@
 
 ## 目标
 
-构建一个 Windows 桌面客户端，检测来自 Open SkillHub 的新技能或更新技能，暂存待审核，并将批准版本分发到支持的本地代理安装目录。
+构建一个 Windows 桌面客户端，检测来自 SkillDrive 的新技能或更新技能，暂存待审核，并将批准版本分发到支持的本地代理安装目录。
 
 ## 目标
 
@@ -39,7 +39,7 @@
 
 ### 审核定义
 
-技能审核是指**人工审查和批准**从 Open SkillHub 服务器检测到的技能更新，然后才能将其分发到本地代理（Codex、Claude Code、Gemini CLI）的安装目录。
+技能审核是指**人工审查和批准**从 SkillDrive 服务器检测到的技能更新，然后才能将其分发到本地代理（Codex、Claude Code、Gemini CLI）的安装目录。
 
 ### 审核原因
 
@@ -71,7 +71,7 @@
 
 ### 检测方式
 
-客户端采用**后台轮询（Polling）**机制自动检测 Open SkillHub 服务器上的技能更新。
+客户端采用**后台轮询（Polling）**机制自动检测 SkillDrive 服务器上的技能更新。
 
 ### 工作原理
 
@@ -103,7 +103,7 @@
 - 轮询间隔可在设置面板中配置
 - 默认轮询间隔为 30 秒（30000 毫秒）
 - 用户可根据需要调整检测频率
-- 可通过环境变量 `OPEN_SKILLHUB_POLL_INTERVAL_MS` 配置
+- 可通过环境变量 `SKILLDRIVE_POLL_INTERVAL_MS` 配置
 
 **状态持久化**
 - 待审核更新在应用重启后保留
@@ -179,7 +179,7 @@
 ## 当前实现差距
 
 - 尚无规范的包脚本用于在开发中启动完整 Electron 运行时。
-- `src/core/storage/secret-store.ts` 已存在，但运行时启动仍从环境读取 `OPEN_SKILLHUB_API_TOKEN`。
+- `src/core/storage/secret-store.ts` 已存在，但运行时启动仍从环境读取 `SKILLDRIVE_API_TOKEN`。
 - SQLite 状态存储尚未持久化完整的分发历史或备份元数据。
 - 更广泛的头脑风暴设计假设比当前实现提供更丰富的可恢复性。
 

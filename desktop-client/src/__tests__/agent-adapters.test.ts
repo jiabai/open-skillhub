@@ -23,7 +23,7 @@ describe("agent adapters", () => {
   })
 
   function createTempRoot(): string {
-    const root = mkdtempSync(join(tmpdir(), "open-skillhub-agent-"))
+    const root = mkdtempSync(join(tmpdir(), "skilldrive-agent-"))
     tempRoots.push(root)
     return root
   }

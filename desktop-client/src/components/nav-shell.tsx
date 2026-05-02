@@ -70,7 +70,7 @@ export function NavShell({
                   fontFamily: '"SFMono-Regular", Consolas, "Liberation Mono", monospace'
                 }}
               >
-                Open SkillHub
+                SkillDrive
               </span>
               <h1
                 style={{

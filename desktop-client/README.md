@@ -1,6 +1,6 @@
 # Desktop Client
 
-Electron + Vite desktop shell for Open SkillHub.
+Electron + Vite desktop shell for SkillDrive.
 
 ## Quick Links
 
@@ -34,17 +34,17 @@ the renderer, Electron TypeScript code, and Electron runtime bundle.
 
 The Electron main process reads these environment variables during local development:
 
-- `OPEN_SKILLHUB_API_BASE_URL` - backend base URL, for example `http://127.0.0.1:8001`
-- `OPEN_SKILLHUB_API_TOKEN` - optional first-run API token bootstrap; when the secret store is empty, the runtime stores this value through `keytar` and then reads the token from the secret store
-- `OPEN_SKILLHUB_POLL_INTERVAL_MS` - optional polling interval in milliseconds, defaults to `30000`
-- `OPEN_SKILLHUB_DOWNLOAD_DECRYPTION_SECRET` - optional current-session secret for encrypted skill downloads; set it to the backend `SECRET_KEY` only when `ENABLE_SKILL_DOWNLOAD_ENCRYPTION=true`
-- `OPEN_SKILLHUB_CODEX_SKILLS_PATH` - optional override for the Codex skills directory
-- `OPEN_SKILLHUB_CLAUDE_CODE_SKILLS_PATH` - optional override for the Claude Code skills directory
-- `OPEN_SKILLHUB_GEMINI_CLI_SKILLS_PATH` - optional override for the Gemini CLI skills directory
+- `SKILLDRIVE_API_BASE_URL` - backend base URL, for example `http://127.0.0.1:8001`
+- `SKILLDRIVE_API_TOKEN` - optional first-run API token bootstrap; when the secret store is empty, the runtime stores this value through `keytar` and then reads the token from the secret store
+- `SKILLDRIVE_POLL_INTERVAL_MS` - optional polling interval in milliseconds, defaults to `30000`
+- `SKILLDRIVE_DOWNLOAD_DECRYPTION_SECRET` - optional current-session secret for encrypted skill downloads; set it to the backend `SECRET_KEY` only when `ENABLE_SKILL_DOWNLOAD_ENCRYPTION=true`
+- `SKILLDRIVE_CODEX_SKILLS_PATH` - optional override for the Codex skills directory
+- `SKILLDRIVE_CLAUDE_CODE_SKILLS_PATH` - optional override for the Claude Code skills directory
+- `SKILLDRIVE_GEMINI_CLI_SKILLS_PATH` - optional override for the Gemini CLI skills directory
 
-The desktop runtime can distribute encrypted downloads when `OPEN_SKILLHUB_DOWNLOAD_DECRYPTION_SECRET` is present in the Electron main-process environment and matches the backend `SECRET_KEY` used for download encryption. The secret is not stored in JSON config, renderer state, or logs. If encrypted downloads are enabled but this secret is missing or wrong, distribution fails closed before extraction or agent-directory writes.
+The desktop runtime can distribute encrypted downloads when `SKILLDRIVE_DOWNLOAD_DECRYPTION_SECRET` is present in the Electron main-process environment and matches the backend `SECRET_KEY` used for download encryption. The secret is not stored in JSON config, renderer state, or logs. If encrypted downloads are enabled but this secret is missing or wrong, distribution fails closed before extraction or agent-directory writes.
 
-If `keytar` is unavailable, `OPEN_SKILLHUB_API_TOKEN` can still be used for the
+If `keytar` is unavailable, `SKILLDRIVE_API_TOKEN` can still be used for the
 current session, but it is not persisted. API tokens must not be stored in
 plaintext config, renderer state, or logs.
 
@@ -72,7 +72,7 @@ testing the desktop client locally, from first launch to skill distribution.
 
 ### Prerequisites
 
-1. **Backend running**: The Open SkillHub backend must be accessible. Start it with:
+1. **Backend running**: The SkillDrive backend must be accessible. Start it with:
    ```bash
    uv run uvicorn backend.api_app:app --host 0.0.0.0 --port 8001
    ```
@@ -220,9 +220,9 @@ To reset the client to its pre-configured state:
 For automated first-run setup, launch with environment variables:
 
 ```powershell
-$env:OPEN_SKILLHUB_API_BASE_URL = "http://127.0.0.1:8001"
-$env:OPEN_SKILLHUB_API_TOKEN = "your-token-here"
-$env:OPEN_SKILLHUB_POLL_INTERVAL_MS = "15000"
+$env:SKILLDRIVE_API_BASE_URL = "http://127.0.0.1:8001"
+$env:SKILLDRIVE_API_TOKEN = "your-token-here"
+$env:SKILLDRIVE_POLL_INTERVAL_MS = "15000"
 npm run start:electron
 ```
 
@@ -250,7 +250,7 @@ This is expected — use `npm run start:electron` for full integration testing.
 | "API token needed" persists after saving | Backend unreachable or token invalid | Click "Test connection" to diagnose |
 | "Refresh failed" errors | Backend not running or network issue | Verify backend is up at the configured URL |
 | Distribution fails on all agents | No agent skill directories detected | Check that Codex/Claude Code/Gemini CLI are installed locally |
-| Encrypted package decryption fails | `OPEN_SKILLHUB_DOWNLOAD_DECRYPTION_SECRET` is missing or does not match the backend `SECRET_KEY` | Set the env var for the current Electron session, or disable backend download encryption for local development |
+| Encrypted package decryption fails | `SKILLDRIVE_DOWNLOAD_DECRYPTION_SECRET` is missing or does not match the backend `SECRET_KEY` | Set the env var for the current Electron session, or disable backend download encryption for local development |
 | Tray icon missing | Electron failed to start | Check terminal output for errors |
 | `keytar` build errors on Windows | Missing build tools for native module | Install Visual Studio Build Tools with C++ workload |
 

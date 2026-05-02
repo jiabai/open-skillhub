@@ -6,7 +6,7 @@
 
 ## Overview
 
-This document defines the backend API routes, request/response shapes, and normalization rules used by the Open SkillHub desktop client. These are client-oriented endpoints that use bearer token authentication, separate from the browser-session JWT console routes.
+This document defines the backend API routes, request/response shapes, and normalization rules used by the SkillDrive desktop client. These are client-oriented endpoints that use bearer token authentication, separate from the browser-session JWT console routes.
 
 ## Routes Used By The Desktop Client
 
@@ -20,7 +20,7 @@ This document defines the backend API routes, request/response shapes, and norma
 
 - **Type**: Bearer token authentication
 - **Bootstrap Path**: Desktop runtime prefers the keytar-backed secret store.
-  `OPEN_SKILLHUB_API_TOKEN` remains a first-run seed and current-session
+  `SKILLDRIVE_API_TOKEN` remains a first-run seed and current-session
   fallback when secret storage is unavailable.
 - **Security Rule**: The token must never be written to plaintext config, renderer state, or logs (see `docs/SECURITY.md`)
 
@@ -122,7 +122,7 @@ The desktop client must enforce the following validation sequence before extract
 2. **Checksum Verification**: `checksum` is verified against the decoded payload before extraction
 3. **Expiration Enforcement**: `expires_at` is enforced before extraction; expired packages are rejected
 4. **Encryption Handling**: If `encryption_enabled` is `true`, the Electron main
-   process decrypts the payload with `OPEN_SKILLHUB_DOWNLOAD_DECRYPTION_SECRET`,
+   process decrypts the payload with `SKILLDRIVE_DOWNLOAD_DECRYPTION_SECRET`,
    which must match the backend `SECRET_KEY` used for download encryption.
    Missing or invalid decryption material fails closed before extraction or
    agent-directory writes.

@@ -20,7 +20,7 @@ The desktop client codebase implements the core product spec with high fidelity 
 - Background polling via `setInterval` in `createSyncPollingController`
 - Pull architecture: client queries `GET /api/v1/client/skills`
 - Polling only refreshes review state; never auto-distributes
-- Configurable interval via `OPEN_SKILLHUB_POLL_INTERVAL_MS` (default: 30000ms)
+- Configurable interval via `SKILLDRIVE_POLL_INTERVAL_MS` (default: 30000ms)
 - Tray tooltip updates with pending count; notification on new updates
 
 ### Sync Core
@@ -83,7 +83,7 @@ The desktop client codebase implements the core product spec with high fidelity 
 
 **Spec requirement:** "Secrets never go into plaintext config or renderer state"
 
-**Current implementation:** `secret-store.ts` exists with keytar and in-memory implementations, but `main.ts:L139` still reads `OPEN_SKILLHUB_API_TOKEN` from environment variable directly.
+**Current implementation:** `secret-store.ts` exists with keytar and in-memory implementations, but `main.ts:L139` still reads `SKILLDRIVE_API_TOKEN` from environment variable directly.
 
 **Impact:** Security posture depends on env-only token startup; no OS-level credential management.
 

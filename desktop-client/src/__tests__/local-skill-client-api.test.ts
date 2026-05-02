@@ -9,7 +9,7 @@ import { uploadLocalSkillPackage } from "@/core/local-skills/local-skill-client-
 const tempRoots: string[] = []
 
 function createTempRoot(): string {
-  const root = mkdtempSync(join(tmpdir(), "open-skillhub-local-api-test-"))
+  const root = mkdtempSync(join(tmpdir(), "skilldrive-local-api-test-"))
   tempRoots.push(root)
   return root
 }

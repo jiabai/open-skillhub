@@ -70,7 +70,7 @@
 
 ### 环境变量来源是否显示？
 
-如果 Token 来自 `OPEN_SKILLHUB_API_TOKEN`，是否在 UI 显示来源？
+如果 Token 来自 `SKILLDRIVE_API_TOKEN`，是否在 UI 显示来源？
 
 **决策**：Yes，显示"Token from environment"或"Token imported from
 environment"指示器。该状态来自 `resolveApiTokenBootstrap()` 的脱敏结果。

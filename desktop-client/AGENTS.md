@@ -49,10 +49,10 @@ Guidance for AI coding agents working in `desktop-client/`.
 
 - The current verified commands are renderer dev (`npm run dev`), full desktop
   runtime launch (`npm run start:electron`), tests, and build.
-- `OPEN_SKILLHUB_API_BASE_URL` configures the backend base URL. `OPEN_SKILLHUB_API_TOKEN`
+- `SKILLDRIVE_API_BASE_URL` configures the backend base URL. `SKILLDRIVE_API_TOKEN`
   is an optional first-run bootstrap that seeds the `keytar` secret store when
   no stored token exists, and a current-session fallback if the secret store is
   unavailable.
-- Use `OPEN_SKILLHUB_CODEX_SKILLS_PATH`, `OPEN_SKILLHUB_CLAUDE_CODE_SKILLS_PATH`, and `OPEN_SKILLHUB_GEMINI_CLI_SKILLS_PATH` when auto-detected agent paths are not suitable.
+- Use `SKILLDRIVE_CODEX_SKILLS_PATH`, `SKILLDRIVE_CLAUDE_CODE_SKILLS_PATH`, and `SKILLDRIVE_GEMINI_CLI_SKILLS_PATH` when auto-detected agent paths are not suitable.
 - Polling should only refresh review state and surface pending updates; it must not auto-distribute skills.
 - When the window closes, the tray should keep the app resident so review state stays current.

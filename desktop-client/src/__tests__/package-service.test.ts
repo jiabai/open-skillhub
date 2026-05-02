@@ -36,7 +36,7 @@ describe("package service artifact cleanup", () => {
   })
 
   function createTempRoot(): string {
-    const root = mkdtempSync(join(tmpdir(), "open-skillhub-package-service-"))
+    const root = mkdtempSync(join(tmpdir(), "skilldrive-package-service-"))
     tempRoots.push(root)
     return root
   }

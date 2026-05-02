@@ -48,10 +48,10 @@ export interface SyncPollingController {
 
 function buildTrayTooltip(pendingCount: number): string {
   if (pendingCount > 0) {
-    return `SkillHub Desktop - ${pendingCount} pending review update${pendingCount === 1 ? "" : "s"}`
+    return `SkillDrive Desktop - ${pendingCount} pending review update${pendingCount === 1 ? "" : "s"}`
   }
 
-  return "SkillHub Desktop - no pending review updates"
+  return "SkillDrive Desktop - no pending review updates"
 }
 
 function buildReviewNotification(pendingCount: number): { title: string; body: string } {

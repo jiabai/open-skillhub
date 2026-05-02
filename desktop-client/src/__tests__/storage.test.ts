@@ -25,7 +25,7 @@ describe("storage foundation", () => {
   })
 
   function createTempRoot(): string {
-    const root = mkdtempSync(join(tmpdir(), "open-skillhub-desktop-"))
+    const root = mkdtempSync(join(tmpdir(), "skilldrive-desktop-"))
     tempRoots.push(root)
     return root
   }
@@ -206,7 +206,7 @@ describe("storage foundation", () => {
     const manager = createRuntimeConfigManager({
       appPathsOptions: { baseDir: rootDir },
       env: {
-        OPEN_SKILLHUB_API_BASE_URL: "http://localhost:8001"
+        SKILLDRIVE_API_BASE_URL: "http://localhost:8001"
       } as NodeJS.ProcessEnv,
       secretStore: createInMemorySecretStore()
     })
@@ -234,8 +234,8 @@ describe("storage foundation", () => {
     const manager = createRuntimeConfigManager({
       appPathsOptions: { baseDir: rootDir },
       env: {
-        OPEN_SKILLHUB_API_BASE_URL: "http://localhost:8001",
-        OPEN_SKILLHUB_API_TOKEN: "ask_live_env"
+        SKILLDRIVE_API_BASE_URL: "http://localhost:8001",
+        SKILLDRIVE_API_TOKEN: "ask_live_env"
       } as NodeJS.ProcessEnv,
       secretStore: store
     })
@@ -259,7 +259,7 @@ describe("storage foundation", () => {
     const manager = createRuntimeConfigManager({
       appPathsOptions: { baseDir: rootDir },
       env: {
-        OPEN_SKILLHUB_CODEX_SKILLS_PATH: "D:\\Codex\\skills"
+        SKILLDRIVE_CODEX_SKILLS_PATH: "D:\\Codex\\skills"
       } as NodeJS.ProcessEnv,
       secretStore: createInMemorySecretStore()
     })

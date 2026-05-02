@@ -25,7 +25,7 @@ describe("createSyncService", () => {
   })
 
   function createTempRoot(): string {
-    const root = mkdtempSync(join(tmpdir(), "open-skillhub-desktop-"))
+    const root = mkdtempSync(join(tmpdir(), "skilldrive-desktop-"))
     tempRoots.push(root)
     return root
   }
@@ -192,7 +192,7 @@ describe("createSyncService", () => {
 
       expect(refresh).toHaveBeenCalledTimes(1)
       expect(tray.setToolTip).toHaveBeenCalledWith(
-        "SkillHub Desktop - 1 pending review update"
+        "SkillDrive Desktop - 1 pending review update"
       )
       expect(createNotification).toHaveBeenCalledTimes(1)
       expect(notification.show).toHaveBeenCalledTimes(1)
@@ -203,7 +203,7 @@ describe("createSyncService", () => {
       expect(createNotification).toHaveBeenCalledTimes(1)
       expect(notification.show).toHaveBeenCalledTimes(1)
       expect(tray.setToolTip).toHaveBeenLastCalledWith(
-        "SkillHub Desktop - 1 pending review update"
+        "SkillDrive Desktop - 1 pending review update"
       )
     } finally {
       controller.stop()

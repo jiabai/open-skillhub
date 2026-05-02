@@ -61,7 +61,7 @@ import { createDecryptArtifactFromEnv } from "./encryption"
 const preloadPath = fileURLToPath(new URL("./preload.js", import.meta.url))
 const windowsIconPath = fileURLToPath(new URL("../resources/icons/icon.ico", import.meta.url))
 const execFileAsync = promisify(execFile)
-const APP_USER_MODEL_ID = "com.open-skillhub.desktop-client"
+const APP_USER_MODEL_ID = "com.skilldrive.desktop-client"
 const TARGET_RENDERER_PHYSICAL_SIZE = {
   width: 1984,
   height: 1168
@@ -242,7 +242,7 @@ function createWindow(): BrowserWindow {
     resizable: false,
     skipTaskbar: false,
     show: true,
-    title: "Open SkillHub",
+    title: "SkillDrive",
     webPreferences: {
       contextIsolation: true,
       nodeIntegration: false,
@@ -290,7 +290,7 @@ function normalizeSkillSummary(item: unknown): RemoteSkillSummary | null {
 
 function createAuthHeaders(config: DesktopRuntimeConfig): Record<string, string> {
   if (!config.apiToken) {
-    throw new Error("An Open SkillHub API token is required to connect the desktop client")
+    throw new Error("An SkillDrive API token is required to connect the desktop client")
   }
 
   return {
@@ -552,7 +552,7 @@ async function createApplicationServices(): Promise<void> {
   stateStore = await createSqliteStateStore(appPaths.stateDbPath)
 
   tray = new Tray(createTrayImage())
-  tray.setToolTip("SkillHub Desktop - starting up")
+  tray.setToolTip("SkillDrive Desktop - starting up")
 
   const syncService = createSyncService({
     apiClient: {
@@ -567,14 +567,14 @@ async function createApplicationServices(): Promise<void> {
     pollIntervalMs: getRuntimeConfig().pollIntervalMs,
     onError: (error: unknown) => {
       console.error("Background sync failed", error)
-      tray?.setToolTip("SkillHub Desktop - sync unavailable")
+      tray?.setToolTip("SkillDrive Desktop - sync unavailable")
     }
   })
   const packageService = createPackageService({
     downloadArtifact: (request) => downloadSkillArtifact(getRuntimeConfig(), request),
     decryptArtifact: createDecryptArtifactFromEnv(process.env),
     extractArtifact: (artifact, extractedPath) => extractArchive(artifact.artifactPath, extractedPath),
-    createTempDirectory: async () => mkdtemp(join(tmpdir(), "open-skillhub-package-"))
+    createTempDirectory: async () => mkdtemp(join(tmpdir(), "skilldrive-package-"))
   })
   const localSkillInventoryService = createLocalSkillInventoryService()
   const distributionService = createDistributionService({
@@ -590,7 +590,7 @@ async function createApplicationServices(): Promise<void> {
   tray.setContextMenu(
     Menu.buildFromTemplate([
       {
-        label: "Open Open SkillHub",
+        label: "Open SkillDrive",
         click: () => showMainWindow()
       },
       {
@@ -598,7 +598,7 @@ async function createApplicationServices(): Promise<void> {
         click: () => {
           void pollingController.refreshNow().catch((error: unknown) => {
             console.error("Manual sync failed", error)
-            tray?.setToolTip("SkillHub Desktop - sync unavailable")
+            tray?.setToolTip("SkillDrive Desktop - sync unavailable")
           })
         }
       },
@@ -622,7 +622,7 @@ async function createApplicationServices(): Promise<void> {
   const startPollingIfConfigured = async () => {
     if (!getRuntimeConfig().apiToken) {
       pollingController.stop()
-      tray?.setToolTip("SkillHub Desktop - configure API token")
+      tray?.setToolTip("SkillDrive Desktop - configure API token")
       return
     }
 
@@ -730,7 +730,7 @@ async function createApplicationServices(): Promise<void> {
         await startPollingIfConfigured()
       } catch (error) {
         console.error("Failed to restart background sync after saving configuration", error)
-        tray?.setToolTip("SkillHub Desktop - sync unavailable")
+        tray?.setToolTip("SkillDrive Desktop - sync unavailable")
       }
 
       return toConfigurationState(nextState)
@@ -743,7 +743,7 @@ async function createApplicationServices(): Promise<void> {
     clearConfiguration: async (): Promise<ConfigurationState> => {
       const nextState = await runtimeConfigManager.clearConfiguration()
       pollingController.stop()
-      tray?.setToolTip("SkillHub Desktop - configure API token")
+      tray?.setToolTip("SkillDrive Desktop - configure API token")
 
       return toConfigurationState(nextState)
     },
@@ -866,7 +866,7 @@ async function createApplicationServices(): Promise<void> {
 
       if (distributionTargets.length === 0) {
         throw new Error(
-          "No supported agent skills directories were detected. Configure OPEN_SKILLHUB_*_SKILLS_PATH to continue."
+          "No supported agent skills directories were detected. Configure SKILLDRIVE_*_SKILLS_PATH to continue."
         )
       }
 
@@ -892,7 +892,7 @@ async function createApplicationServices(): Promise<void> {
     await startPollingIfConfigured()
   } catch (error) {
     console.error("Failed to perform the initial background refresh", error)
-    tray.setToolTip("SkillHub Desktop - sync unavailable")
+    tray.setToolTip("SkillDrive Desktop - sync unavailable")
   }
 }
 

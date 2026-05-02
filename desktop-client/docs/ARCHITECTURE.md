@@ -2,7 +2,7 @@
 
 ## Overview
 
-`desktop-client/` is the local Windows sync and distribution runtime for Open SkillHub.
+`desktop-client/` is the local Windows sync and distribution runtime for SkillDrive.
 It polls the client API, compares remote skills against locally recorded state, surfaces pending updates for review, and distributes approved packages to supported agent skill directories.
 The desktop shell is a tray-first window: it hides the native app menu,
 shows in the Windows taskbar and Alt+Tab switcher, closes back to the notification area, and uses the tray icon to show or hide the window.
@@ -106,10 +106,10 @@ Dependencies should only point downward across those boundaries.
 - Locale is persisted in `config/config.json` through `src/core/runtime/runtime-config-manager.ts` alongside the API Base URL
 - `electron/main.ts` also creates a runtime `cache/` directory below the app root
 - Runtime API token bootstrap is coordinated by `src/core/runtime/runtime-config-manager.ts`; it reads from the `keytar` secret store, with
-  `OPEN_SKILLHUB_API_TOKEN` as an explicit first-run seed and current-session
+  `SKILLDRIVE_API_TOKEN` as an explicit first-run seed and current-session
   fallback when secret storage is unavailable
 - Encrypted skill package download support lives in the Electron main process.
-  `OPEN_SKILLHUB_DOWNLOAD_DECRYPTION_SECRET` must be provided for the current
+  `SKILLDRIVE_DOWNLOAD_DECRYPTION_SECRET` must be provided for the current
   Electron session when backend download encryption is enabled; it is not
   persisted to config or exposed to the renderer.
 - Saving or clearing API configuration reloads the in-memory runtime config so sync, package download, and distribution paths use the latest URL and token without an app restart

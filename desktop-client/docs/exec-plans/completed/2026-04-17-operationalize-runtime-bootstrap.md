@@ -48,7 +48,7 @@ and the product spec.
 - Observation: the local README and security doc already describe env-only token
   bootstrap as current behavior and call secret-store wiring out as open work.
   Evidence: `desktop-client/README.md` and `desktop-client/docs/SECURITY.md`
-  both say the bootstrap path still reads `OPEN_SKILLHUB_API_TOKEN` from the
+  both say the bootstrap path still reads `SKILLDRIVE_API_TOKEN` from the
   environment.
 
 - Observation: the Electron runtime needs an explicit Node/SSR Vite build target.
@@ -75,7 +75,7 @@ and the product spec.
   entry without adding a process runner dependency.
   Date/Author: 2026-04-23 / Codex
 
-- Decision: Keep `OPEN_SKILLHUB_API_TOKEN` as an explicit first-run seed and
+- Decision: Keep `SKILLDRIVE_API_TOKEN` as an explicit first-run seed and
   current-session fallback, while making the `keytar` secret store the preferred
   token source.
   Rationale: local development still needs a simple bootstrap path, but persistent
@@ -86,7 +86,7 @@ and the product spec.
 
 Implemented. `desktop-client/package.json` now exposes `npm run start:electron`
 and builds Electron main/preload into `dist-electron/`. Runtime API token
-bootstrap now prefers the `keytar` secret store and uses `OPEN_SKILLHUB_API_TOKEN`
+bootstrap now prefers the `keytar` secret store and uses `SKILLDRIVE_API_TOKEN`
 as a documented first-run seed or current-session fallback when secret storage is
 unavailable. README, security, architecture, runtime reference, product spec,
 task tracker, and tech debt tracker now describe that same contract.
@@ -100,7 +100,7 @@ Validated on 2026-04-23 16:35 with `npm run typecheck:electron`, `npm test`,
 
 ## Context and Orientation
 
-`desktop-client/` is the Electron + Vite desktop shell for Open SkillHub. The
+`desktop-client/` is the Electron + Vite desktop shell for SkillDrive. The
 renderer stays in `src/`, while the privileged runtime stays in `electron/`.
 
 Key files for this work:
@@ -135,7 +135,7 @@ Current state to keep in mind:
 - `npm run dev` starts the Vite renderer only
 - `npm run build` is already the supported validation path for the renderer and
   Electron TypeScript code
-- The runtime still reads `OPEN_SKILLHUB_API_TOKEN` from the environment when
+- The runtime still reads `SKILLDRIVE_API_TOKEN` from the environment when
   launched manually
 - The docs already tell readers that persistent token storage is planned, not
   fully wired yet

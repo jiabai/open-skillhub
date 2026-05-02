@@ -2,7 +2,7 @@ import { mkdirSync } from "node:fs"
 import { homedir } from "node:os"
 import { join } from "node:path"
 
-export const APP_NAME = "OpenSkillHub"
+export const APP_NAME = "SkillDrive"
 
 export interface AppPaths {
   rootDir: string
@@ -18,8 +18,8 @@ export interface AppPathsOptions {
 }
 
 function getPlatformBaseDir(): string {
-  if (process.env.OPEN_SKILLHUB_DESKTOP_DATA_DIR) {
-    return process.env.OPEN_SKILLHUB_DESKTOP_DATA_DIR
+  if (process.env.SKILLDRIVE_DESKTOP_DATA_DIR) {
+    return process.env.SKILLDRIVE_DESKTOP_DATA_DIR
   }
 
   if (process.platform === "win32") {

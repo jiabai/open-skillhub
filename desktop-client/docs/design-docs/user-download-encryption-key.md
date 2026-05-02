@@ -7,7 +7,7 @@
 ## 问题
 
 当前下载加密使用全局 `SECRET_KEY` 作为密钥源，所有用户共享同一个加密密钥。
-桌面客户端需要通过环境变量 `OPEN_SKILLHUB_DOWNLOAD_DECRYPTION_SECRET` 传入该密钥，
+桌面客户端需要通过环境变量 `SKILLDRIVE_DOWNLOAD_DECRYPTION_SECRET` 传入该密钥，
 且客户端不持久化存储，每次启动都需要重新配置。
 
 这对个人用户场景不友好：
@@ -31,7 +31,7 @@
 ```
 settings.SECRET_KEY
     → build_encryption_key(secret, "skill-download-encryption")
-        → derive_aes256_key(secret, purpose)  # HKDF-SHA256, salt="open-skillhub:key-derivation:v1"
+        → derive_aes256_key(secret, purpose)  # HKDF-SHA256, salt="skilldrive:key-derivation:v1"
             → AES-256-GCM 加密
 ```
 
@@ -46,7 +46,7 @@ settings.SECRET_KEY
 ### 客户端解密链路
 
 ```
-process.env.OPEN_SKILLHUB_DOWNLOAD_DECRYPTION_SECRET
+process.env.SKILLDRIVE_DOWNLOAD_DECRYPTION_SECRET
     → createDecryptArtifactFromEnv(process.env)
         → getDownloadDecryptionSecret(env)
             → deriveAes256Key(secret)  # 同样的 HKDF-SHA256
@@ -72,7 +72,7 @@ interface SecretStore {
 }
 ```
 
-keytar 服务名为 `OpenSkillHub`，当前仅存储 `api-token` 账户。
+keytar 服务名为 `SkillDrive`，当前仅存储 `api-token` 账户。
 可以扩展为存储 `download-decryption-secret` 账户。
 
 ## 方案调整
@@ -109,7 +109,7 @@ encryption_enabled = settings.ENABLE_SKILL_DOWNLOAD_ENCRYPTION AND user.download
 1. 后端 API 在用户生成/更新密钥时，一次性返回密钥明文
 2. 客户端通过 IPC 将密钥存入 keytar（与 API Token 同等安全级别）
 3. 后续下载时，客户端从 keytar 读取密钥进行解密
-4. 环境变量 `OPEN_SKILLHUB_DOWNLOAD_DECRYPTION_SECRET` 保留为向后兼容的 fallback
+4. 环境变量 `SKILLDRIVE_DOWNLOAD_DECRYPTION_SECRET` 保留为向后兼容的 fallback
 
 ### 调整 4：下载 API 需要告知客户端加密状态
 
@@ -375,7 +375,7 @@ export interface SecretStore {
 }
 ```
 
-keytar 账户名：`download-decryption-secret`，服务名仍为 `OpenSkillHub`。
+keytar 账户名：`download-decryption-secret`，服务名仍为 `SkillDrive`。
 
 #### 2. IPC 扩展
 
@@ -407,7 +407,7 @@ export interface ConfigurationState {
 
 ```
 1. keytar 安全存储（用户通过 UI 配置的）  ← 最高优先级
-2. 环境变量 OPEN_SKILLHUB_DOWNLOAD_DECRYPTION_SECRET  ← 向后兼容 fallback
+2. 环境变量 SKILLDRIVE_DOWNLOAD_DECRYPTION_SECRET  ← 向后兼容 fallback
 3. 未配置  ← 加密下载将 fail-closed
 ```
 
@@ -432,7 +432,7 @@ export function createDecryptArtifactFromSecrets(
 ```
 
 优先从 `secretStore.getDownloadDecryptionSecret()` 读取，
-回退到 `env.OPEN_SKILLHUB_DOWNLOAD_DECRYPTION_SECRET`。
+回退到 `env.SKILLDRIVE_DOWNLOAD_DECRYPTION_SECRET`。
 
 #### 6. UI 变更
 

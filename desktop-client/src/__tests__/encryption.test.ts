@@ -13,9 +13,9 @@ import {
 describe("encrypted package decryptor", () => {
   const tempRoots: string[] = []
   const secret = "test-download-secret"
-  const plaintext = Buffer.from("hello open skillhub zip bytes", "utf8")
+  const plaintext = Buffer.from("hello skilldrive zip bytes", "utf8")
   const encryptedFixture = Buffer.from(
-    "AAECAwQFBgcICQoLYOhC3QxmrPcms6dQ96z7c19K6+boVHdQKQZ6KuNm51T4LCQr6dKAUnCk/OH5",
+    "AAECAwQFBgcICQoLP8sYeO4B66L2IJ3mG0FFEqzFSI/eCw33GZJ1MSTUvALxE3M3m+qA1Dso",
     "base64"
   )
 
@@ -30,14 +30,14 @@ describe("encrypted package decryptor", () => {
   })
 
   function createTempRoot(): string {
-    const root = mkdtempSync(join(tmpdir(), "open-skillhub-encryption-"))
+    const root = mkdtempSync(join(tmpdir(), "skilldrive-encryption-"))
     tempRoots.push(root)
     return root
   }
 
   it("derives the same AES-256 key as the backend HKDF contract", () => {
     expect(deriveAes256Key(secret).toString("hex")).toBe(
-      "0cbe4baa904430d3f6e5df37aeb20d173c39d2b60ca9fc266775eeae7bbc5841"
+      "b7bd82d7fe03ec22dabe7bb768cbd57a961086afe4c307e6f41f5b8d60ab56d8"
     )
   })
 
@@ -51,7 +51,7 @@ describe("encrypted package decryptor", () => {
     writeFileSync(encryptedPath, encryptedFixture)
 
     const decryptArtifact = createDecryptArtifactFromEnv({
-      OPEN_SKILLHUB_DOWNLOAD_DECRYPTION_SECRET: secret
+      SKILLDRIVE_DOWNLOAD_DECRYPTION_SECRET: secret
     })
     const result = await decryptArtifact(
       {
@@ -94,7 +94,7 @@ describe("encrypted package decryptor", () => {
           packageSource: { source: "test" }
         }
       )
-    ).rejects.toThrow("OPEN_SKILLHUB_DOWNLOAD_DECRYPTION_SECRET is required")
+    ).rejects.toThrow("SKILLDRIVE_DOWNLOAD_DECRYPTION_SECRET is required")
     expect(existsSync(encryptedPath)).toBe(true)
   })
 

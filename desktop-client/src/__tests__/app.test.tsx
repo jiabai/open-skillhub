@@ -537,7 +537,7 @@ describe("App", () => {
 
     render(<App />)
 
-    const navigation = screen.getByRole("navigation", { name: "Open SkillHub Desktop" })
+    const navigation = screen.getByRole("navigation", { name: "SkillDrive Desktop" })
 
     await waitFor(() => {
       expect(within(navigation).getByRole("button", { name: "Local Skills" })).toBeInTheDocument()
@@ -594,7 +594,7 @@ describe("App", () => {
 
     render(<App />)
 
-    const navigation = screen.getByRole("navigation", { name: "Open SkillHub Desktop" })
+    const navigation = screen.getByRole("navigation", { name: "SkillDrive Desktop" })
 
     await waitFor(() => {
       expect(within(navigation).getByRole("button", { name: "Local Skills" })).toBeInTheDocument()

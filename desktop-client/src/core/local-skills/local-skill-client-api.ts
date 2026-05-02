@@ -41,7 +41,7 @@ export async function uploadLocalSkillPackage(
   const apiToken = request.apiToken?.trim()
 
   if (!apiToken) {
-    throw new Error("An Open SkillHub API token is required to upload local skills")
+    throw new Error("An SkillDrive API token is required to upload local skills")
   }
 
   const fileBytes = await readFile(request.artifactPath)

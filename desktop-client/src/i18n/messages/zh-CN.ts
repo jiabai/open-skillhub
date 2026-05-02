@@ -27,9 +27,9 @@ export const zhCNDictionary = {
       `桌面桥接不可用。请启动 Electron 运行时（\`npm run start:electron\`）以便${action}。`
   },
   appShell: {
-    brandTitle: "Open SkillHub",
+    brandTitle: "SkillDrive",
     brandSubtitle: "桌面审核客户端",
-    desktopClientLabel: "Open SkillHub 桌面端",
+    desktopClientLabel: "SkillDrive 桌面端",
     navigation: {
       home: "首页",
       localSkills: "本地 SKILL",

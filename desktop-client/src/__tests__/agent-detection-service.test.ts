@@ -86,7 +86,7 @@ describe("agent detection service", () => {
     const service = createService({
       definitions: [definition("cursor")],
       env: {
-        OPEN_SKILLHUB_CURSOR_SKILLS_PATH: normalize("D:/Agents/Cursor/skills")
+        SKILLDRIVE_CURSOR_SKILLS_PATH: normalize("D:/Agents/Cursor/skills")
       }
     })
 

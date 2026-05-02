@@ -4,9 +4,9 @@ import { dirname, join } from "node:path"
 
 import type { DownloadedSkillArtifact, SkillPackageRequest } from "@/types"
 
-const HKDF_SALT = Buffer.from("open-skillhub:key-derivation:v1", "utf8")
+const HKDF_SALT = Buffer.from("skilldrive:key-derivation:v1", "utf8")
 const DOWNLOAD_ENCRYPTION_PURPOSE = "skill-download-encryption"
-const DOWNLOAD_DECRYPTION_SECRET_ENV = "OPEN_SKILLHUB_DOWNLOAD_DECRYPTION_SECRET"
+const DOWNLOAD_DECRYPTION_SECRET_ENV = "SKILLDRIVE_DOWNLOAD_DECRYPTION_SECRET"
 const AES_GCM_NONCE_LENGTH_BYTES = 12
 const AES_GCM_TAG_LENGTH_BYTES = 16
 

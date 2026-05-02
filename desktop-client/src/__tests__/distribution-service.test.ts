@@ -36,7 +36,7 @@ describe("distribution pipeline", () => {
   })
 
   function createTempRoot(): string {
-    const root = mkdtempSync(join(tmpdir(), "open-skillhub-distribution-"))
+    const root = mkdtempSync(join(tmpdir(), "skilldrive-distribution-"))
     tempRoots.push(root)
     return root
   }

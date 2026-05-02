@@ -43,7 +43,7 @@ function normalizeField(value: string, fieldName: string): string {
 }
 
 async function defaultCreateTempDirectory(): Promise<string> {
-  return mkdtemp(join(tmpdir(), "open-skillhub-package-"))
+  return mkdtemp(join(tmpdir(), "skilldrive-package-"))
 }
 
 async function defaultRemovePath(path: string): Promise<void> {

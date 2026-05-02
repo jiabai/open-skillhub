@@ -10,7 +10,7 @@ import type { AgentDetectionSnapshot, RemoteSkillSummary } from "@/types"
 const tempRoots: string[] = []
 
 function createTempRoot(): string {
-  const root = mkdtempSync(join(tmpdir(), "open-skillhub-local-skills-test-"))
+  const root = mkdtempSync(join(tmpdir(), "skilldrive-local-skills-test-"))
   tempRoots.push(root)
   return root
 }

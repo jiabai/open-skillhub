@@ -85,7 +85,7 @@ export function createRuntimeConfigManager(options: RuntimeConfigManagerOptions 
   const configStore =
     options.configStore ??
     createJsonConfigStore<DesktopLocalConfig>(paths.configFilePath, {
-      apiBaseUrl: normalizeBaseUrl(env.OPEN_SKILLHUB_API_BASE_URL),
+      apiBaseUrl: normalizeBaseUrl(env.SKILLDRIVE_API_BASE_URL),
       locale: resolveInitialLocale(env),
     });
 
@@ -94,13 +94,13 @@ export function createRuntimeConfigManager(options: RuntimeConfigManagerOptions 
 
   const buildRuntimeConfig = async (): Promise<RuntimeConfigurationState> => {
     const localConfig = await configStore.read();
-    const apiBaseUrl = validateApiBaseUrl(localConfig.apiBaseUrl ?? env.OPEN_SKILLHUB_API_BASE_URL);
+    const apiBaseUrl = validateApiBaseUrl(localConfig.apiBaseUrl ?? env.SKILLDRIVE_API_BASE_URL);
     const locale = resolveLocale(localConfig.locale);
     const bootstrap = await resolveApiTokenBootstrap({
-      envToken: environmentBootstrapEnabled ? env.OPEN_SKILLHUB_API_TOKEN : undefined,
+      envToken: environmentBootstrapEnabled ? env.SKILLDRIVE_API_TOKEN : undefined,
       secretStore,
     });
-    const cacheDirectory = env.OPEN_SKILLHUB_CACHE_DIR ?? join(paths.rootDir, "cache");
+    const cacheDirectory = env.SKILLDRIVE_CACHE_DIR ?? join(paths.rootDir, "cache");
     mkdirSync(cacheDirectory, { recursive: true });
     const agentDetection = await createAgentDetectionService({
       env,
@@ -115,7 +115,7 @@ export function createRuntimeConfigManager(options: RuntimeConfigManagerOptions 
         locale,
         apiToken: bootstrap.apiToken,
         cacheDirectory,
-        pollIntervalMs: normalizePollInterval(env.OPEN_SKILLHUB_POLL_INTERVAL_MS),
+        pollIntervalMs: normalizePollInterval(env.SKILLDRIVE_POLL_INTERVAL_MS),
       },
     };
   };
@@ -154,7 +154,7 @@ export function createRuntimeConfigManager(options: RuntimeConfigManagerOptions 
     async saveLocale(locale: AppLocale) {
       const currentLocalConfig = await configStore.read();
       await configStore.write({
-        apiBaseUrl: currentLocalConfig.apiBaseUrl ?? normalizeBaseUrl(env.OPEN_SKILLHUB_API_BASE_URL),
+        apiBaseUrl: currentLocalConfig.apiBaseUrl ?? normalizeBaseUrl(env.SKILLDRIVE_API_BASE_URL),
         locale: resolveLocale(locale),
       });
 
@@ -165,7 +165,7 @@ export function createRuntimeConfigManager(options: RuntimeConfigManagerOptions 
       await secretStore.clearApiToken();
       const currentLocalConfig = await configStore.read();
       await configStore.write({
-        apiBaseUrl: normalizeBaseUrl(env.OPEN_SKILLHUB_API_BASE_URL),
+        apiBaseUrl: normalizeBaseUrl(env.SKILLDRIVE_API_BASE_URL),
         locale: resolveLocale(currentLocalConfig.locale),
       });
 
@@ -176,6 +176,6 @@ export function createRuntimeConfigManager(options: RuntimeConfigManagerOptions 
 
 function resolveInitialLocale(env: NodeJS.ProcessEnv): AppLocale {
   return resolveLocale(
-    env.OPEN_SKILLHUB_LOCALE ?? env.LANG ?? env.LC_ALL ?? env.LC_MESSAGES ?? env.LANGUAGE
+    env.SKILLDRIVE_LOCALE ?? env.LANG ?? env.LC_ALL ?? env.LC_MESSAGES ?? env.LANGUAGE
   );
 }

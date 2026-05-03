@@ -126,6 +126,38 @@ uv run python backend/scripts/sync_public_skills.py --storage-root ./data/skills
 3. `GET /api/v1/skills/public` 可以查到该 skill
 4. `GET /api/v1/runtime-config` 返回 `public_skills=true`，并且前端公共 Skills 页面能看到同一个 skill
 
+### 5.2 生产 Docker 部署下的公共 Skill 导入
+
+生产环境使用默认 `docker-compose.yml` 时，数据存储在 Docker named volume 中，宿主机无法直接访问技能文件目录。此时有两种方式导入公共 Skill：
+
+**方式一：使用 `--docker` 标志（推荐）**
+
+脚本支持 `--docker` 标志，会自动通过 `docker compose exec` 在 API 容器内执行同步：
+
+```bash
+uv run python backend/scripts/sync_public_skills.py --docker demo-skill
+uv run python backend/scripts/sync_public_skills.py --docker
+```
+
+如果 API 服务名不是默认的 `api`，可以通过 `--docker-service` 指定：
+
+```bash
+uv run python backend/scripts/sync_public_skills.py --docker --docker-service open-skillhub-api demo-skill
+```
+
+**方式二：手动进入容器执行**
+
+```bash
+docker compose exec api python backend/scripts/sync_public_skills.py demo-skill
+docker compose exec api python backend/scripts/sync_public_skills.py
+```
+
+无论哪种方式，都需要先将技能文件放入容器的 `/app/data/skills/__system__/` 目录下。可以通过 `docker compose cp` 命令将宿主机上的技能目录复制到容器中：
+
+```bash
+docker compose cp ./local-skill/. api:/app/data/skills/__system__/demo-skill/
+```
+
 ### 6. 前端业务能力以服务端运行时配置为准
 
 前端不再单独维护一套业务开关。

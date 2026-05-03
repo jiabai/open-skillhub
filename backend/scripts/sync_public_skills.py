@@ -9,12 +9,14 @@
   python backend/scripts/sync_public_skills.py              # 同步所有公开技能
   python backend/scripts/sync_public_skills.py skill_name   # 同步指定技能
   python backend/scripts/sync_public_skills.py --storage-root /path/to/root  # 指定存储根目录
+  python backend/scripts/sync_public_skills.py --docker skill_name  # 通过 Docker 容器执行
 """
 import argparse
 import asyncio
 import hashlib
 import logging
 import shutil
+import subprocess
 import sys
 from dataclasses import dataclass
 from pathlib import Path
@@ -311,6 +313,32 @@ async def sync_public_skills(
             deactivated_skill_names=tuple(deactivated_names),
         )
 
+def _is_inside_docker() -> bool:
+    return Path("/.dockerenv").exists()
+
+
+def _exec_via_docker(
+    skill_name: str | None,
+    *,
+    docker_service: str,
+    storage_root: str | None,
+) -> int:
+    cmd = [
+        "docker", "compose", "exec", docker_service,
+        "python", "backend/scripts/sync_public_skills.py",
+    ]
+    if skill_name is not None:
+        cmd.append(skill_name)
+    if storage_root is not None:
+        cmd.extend(["--storage-root", storage_root])
+    try:
+        result = subprocess.run(cmd, check=False)
+        return result.returncode
+    except FileNotFoundError:
+        print("Error: 'docker' command not found. Is Docker installed and in PATH?", file=sys.stderr)
+        return 1
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         description="Sync public skills from the system storage directory.",
@@ -324,7 +352,25 @@ def main(argv: Sequence[str] | None = None) -> int:
         "--storage-root",
         help="Override the skill storage root directory. The command will still read from the __system__ subdirectory.",
     )
+    parser.add_argument(
+        "--docker",
+        action="store_true",
+        help="Execute inside the Docker container via 'docker compose exec'. "
+        "Useful when the backend runs in Docker with named volumes inaccessible from the host.",
+    )
+    parser.add_argument(
+        "--docker-service",
+        default="api",
+        help="Docker Compose service name to exec into (default: api).",
+    )
     args = parser.parse_args(argv)
+
+    if args.docker and not _is_inside_docker():
+        return _exec_via_docker(
+            args.skill_name,
+            docker_service=args.docker_service,
+            storage_root=args.storage_root,
+        )
 
     try:
         result = asyncio.run(

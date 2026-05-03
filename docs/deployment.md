@@ -126,6 +126,38 @@ Recommended success checks after a targeted import:
 3. `GET /api/v1/skills/public` returns the imported skill.
 4. `GET /api/v1/runtime-config` reports `public_skills=true`, and the public Skills page shows the same skill.
 
+### 5.2 Public skill import for production Docker deployments
+
+When using the default `docker-compose.yml` in production, data lives in a Docker named volume that is not directly accessible from the host. There are two ways to import public skills:
+
+**Option 1: Use the `--docker` flag (recommended)**
+
+The script supports a `--docker` flag that automatically executes the sync inside the API container via `docker compose exec`:
+
+```bash
+uv run python backend/scripts/sync_public_skills.py --docker demo-skill
+uv run python backend/scripts/sync_public_skills.py --docker
+```
+
+If the API service name is not the default `api`, specify it with `--docker-service`:
+
+```bash
+uv run python backend/scripts/sync_public_skills.py --docker --docker-service open-skillhub-api demo-skill
+```
+
+**Option 2: Manually exec into the container**
+
+```bash
+docker compose exec api python backend/scripts/sync_public_skills.py demo-skill
+docker compose exec api python backend/scripts/sync_public_skills.py
+```
+
+Regardless of which option you choose, you must first place the skill files inside the container at `/app/data/skills/__system__/`. You can copy a local skill directory into the container with `docker compose cp`:
+
+```bash
+docker compose cp ./local-skill/. api:/app/data/skills/__system__/demo-skill/
+```
+
 ### 6. Backend runtime capabilities are served by the backend
 
 Frontend business capability UI no longer comes from frontend env flags.

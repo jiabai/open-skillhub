@@ -1,6 +1,6 @@
 # Desktop Packaging Technical Design
 
-Status: active design; documentation/planning phase complete, installer validation pending
+Status: active design; packaging implementation in progress, installer validation pending
 
 ## Goal
 
@@ -19,26 +19,29 @@ generated artifact churn in source control.
   already exists.
 - `electron/main.ts` prefers `resources/icons/icon.ico` on Windows and uses the
   embedded SVG fallback on other platforms.
-- `electron/main.ts` currently extracts downloaded skill packages through
-  Windows PowerShell `Expand-Archive`; non-Windows distribution fails closed.
+- Downloaded skill package extraction uses
+  `src/core/distribution/archive-extraction.ts`, which avoids shelling out to
+  Windows PowerShell.
 - Runtime data paths are owned by `src/core/storage/app-paths.ts`, not by the
   installer configuration.
-- The builder `appId` is `com.openskillhub.skilldrive-desktop`; the runtime
-  Windows AppUserModelID is currently `com.skilldrive.desktop-client`.
+- The builder `appId` and runtime Windows AppUserModelID are both
+  `com.openskillhub.skilldrive-desktop`.
+- `package.json` provides installer-visible package metadata:
+  `description` is `Open SkillHub desktop sync client`, and `author.name` is
+  `Open SkillHub contributors`.
 
 ## Design Decisions
 
 - Treat Windows as the v1 release packaging target.
 - Keep macOS builder settings documented as exploratory until macOS runtime
-  distribution has an implementation and validation plan.
+  distribution, signing, notarization, and smoke validation pass on macOS.
 - Keep `npm run build` as the normal development verification command; installer
   generation is an additional release validation step, not a replacement.
 - Keep code signing and auto-update out of v1.
 - Keep generated `dist/` artifacts local and uncommitted.
 - Preserve runtime secret handling: API tokens remain in `keytar`, and download
   decryption secrets remain current-session environment input only.
-- Audit AppUserModelID alignment before declaring the Windows installer
-  release-ready.
+- Keep the runtime Windows AppUserModelID aligned with the builder `appId`.
 
 ## Packaging Boundary
 
@@ -70,15 +73,17 @@ packaged files match the standard verified runtime build.
 
 ## macOS Boundary
 
-`npm run dist:mac` may remain available for exploratory packaging, but it is not
-a v1 acceptance gate. Before macOS is promoted to release scope, a future plan
-must address at least:
+`npm run dist:mac` remains available, but it is not a publishable release path
+until the dedicated macOS release plan passes. That plan must address at least:
 
-- cross-platform package extraction instead of Windows PowerShell
+- macOS validation of the cross-platform package extraction path
 - macOS tray/menu-bar expectations
 - macOS install smoke tests
 - macOS distribution smoke tests against supported local agent paths
 - platform-specific signing/notarization policy if release distribution needs it
+
+See `macos-release-packaging.md` and `../references/macos-release-runbook.md`
+for the active macOS release path.
 
 ## Documentation Updates
 
@@ -122,8 +127,5 @@ Manual Windows smoke test:
 
 ## Open Follow-Ups
 
-- Decide whether to align `APP_USER_MODEL_ID` with the builder `appId`.
-- Decide whether package metadata needs description, author, publisher, or
-  copyright fields before release.
 - Decide whether Windows code signing is still intentionally out of scope after
   the first installer validation pass.

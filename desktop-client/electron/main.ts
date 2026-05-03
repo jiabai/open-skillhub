@@ -1,11 +1,9 @@
-import { execFile } from "node:child_process"
 import { createHash } from "node:crypto"
 import { existsSync } from "node:fs"
 import { mkdtemp, rm, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { fileURLToPath } from "node:url"
-import { promisify } from "node:util"
 
 import {
   app,
@@ -23,6 +21,7 @@ import {
   createDistributionNotification,
   createDistributionService
 } from "@/core/distribution/distribution-service"
+import { extractZipArchive } from "@/core/distribution/archive-extraction"
 import { createPackageService } from "@/core/distribution/package-service"
 import { uploadLocalSkillPackage } from "@/core/local-skills/local-skill-client-api"
 import { createLocalSkillInventoryService } from "@/core/local-skills/local-skill-inventory-service"
@@ -61,8 +60,7 @@ import { createDecryptArtifactFromEnv } from "./encryption"
 
 const preloadPath = fileURLToPath(new URL("./preload.js", import.meta.url))
 const windowsIconPath = fileURLToPath(new URL("../resources/icons/icon.ico", import.meta.url))
-const execFileAsync = promisify(execFile)
-const APP_USER_MODEL_ID = "com.skilldrive.desktop-client"
+const APP_USER_MODEL_ID = "com.openskillhub.skilldrive-desktop"
 const TARGET_RENDERER_PHYSICAL_SIZE = {
   width: 1984,
   height: 1168
@@ -384,26 +382,8 @@ async function downloadSkillArtifact(
 }
 
 async function extractArchive(artifactPath: string, extractedPath: string): Promise<void> {
-  if (process.platform !== "win32") {
-    throw new Error("Archive extraction is currently implemented for Windows desktop only")
-  }
-
-  const escapedArtifactPath = artifactPath.replace(/'/g, "''")
-  const escapedExtractedPath = extractedPath.replace(/'/g, "''")
-
   try {
-    await execFileAsync(
-      "powershell.exe",
-      [
-        "-NoProfile",
-        "-NonInteractive",
-        "-Command",
-        `Expand-Archive -LiteralPath '${escapedArtifactPath}' -DestinationPath '${escapedExtractedPath}' -Force`
-      ],
-      {
-        windowsHide: true
-      }
-    )
+    await extractZipArchive(artifactPath, extractedPath)
   } catch (error) {
     throw new Error(`Failed to extract downloaded skill package: ${getErrorMessage(error)}`)
   }

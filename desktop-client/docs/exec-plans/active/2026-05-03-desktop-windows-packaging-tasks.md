@@ -22,13 +22,13 @@ Status: active
 
 ## Future Implementation Gate
 
-- [ ] Review and decide whether `package.json` metadata needs release fields
+- [x] Review and decide whether `package.json` metadata needs release fields
   such as description, author, publisher, or copyright.
-- [ ] Review and decide whether runtime `APP_USER_MODEL_ID` should match the
+- [x] Review and decide whether runtime `APP_USER_MODEL_ID` should match the
   builder `appId`.
-- [ ] If approved, make the smallest package metadata/AppUserModelID changes.
-- [ ] Confirm `npm run build` still behaves as the standard development build.
-- [ ] Confirm `npm run dist:win` generates expected Windows artifacts.
+- [x] If approved, make the smallest package metadata/AppUserModelID changes.
+- [x] Confirm `npm run build` still behaves as the standard development build.
+- [x] Confirm `npm run dist:win` generates expected Windows artifacts.
 
 ## Future Manual Validation Gate
 
@@ -40,7 +40,7 @@ Status: active
 - [ ] Verify sync review state and explicit distribution behavior.
 - [ ] Verify Local Skills inventory behavior.
 - [ ] Verify theme and locale persistence.
-- [ ] Confirm generated `dist/` output is not committed.
+- [x] Confirm generated `dist/` output is not committed.
 
 ## Archive Gate
 

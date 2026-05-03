@@ -25,6 +25,10 @@ runs
 logs
 *.egg-info/*
 build/
+!desktop-client/build/
+desktop-client/build/*
+!desktop-client/build/entitlements.mac.plist
+!desktop-client/build/entitlements.mac.inherit.plist
 **/cache/**
 *.pdf
 *.csv

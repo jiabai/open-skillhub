@@ -13,8 +13,8 @@ review, and explicit distribution behavior.
 
 The current v1 release target is Windows. macOS packaging commands and icon
 assets may exist in the repository, but macOS is not a v1 release claim until
-non-Windows runtime behavior is validated and the package extraction path no
-longer depends on Windows PowerShell.
+non-Windows runtime behavior, signing, notarization, stapling, and smoke
+testing are validated on a macOS release machine.
 
 ## Goals
 
@@ -50,8 +50,8 @@ longer depends on Windows PowerShell.
   `icon.svg`.
 - `electron/main.ts` prefers `resources/icons/icon.ico` on Windows and falls
   back to the embedded SVG icon elsewhere.
-- Runtime package extraction currently uses Windows PowerShell
-  `Expand-Archive`; non-Windows distribution fails closed before extraction.
+- Runtime package extraction uses the shared `extractZipArchive()` helper and
+  no longer shells out to Windows PowerShell.
 
 ## Packaging Output
 
@@ -68,19 +68,19 @@ longer depends on Windows PowerShell.
 |----------|----------|------|--------|
 | macOS | DMG installer | `dist/*.dmg` | Configured, not a v1 release gate |
 | macOS | ZIP archive | `dist/*.zip` | Configured, not an auto-update commitment |
-| macOS | App bundle | `dist/mac*/` | Configured, runtime support not validated |
+| macOS | App bundle | `dist/mac*/` | Configured, release support not validated |
 
 ## Application Metadata
 
 - Product name: `SkillDrive Desktop`
 - Builder appId: `com.openskillhub.skilldrive-desktop`
+- Runtime Windows AppUserModelID: `com.openskillhub.skilldrive-desktop`
 - Package name: `skilldrive-desktop`
 - Version: from `package.json`
+- Description: `Open SkillHub desktop sync client`
+- Author metadata: `Open SkillHub contributors`
 - Windows icon: `resources/icons/icon.ico`
 - macOS icon: `resources/icons/icon.icns` for exploratory builds
-
-Release implementation should audit whether the runtime Windows AppUserModelID
-should match the builder appId before the installer is treated as release-ready.
 
 ## Installation Behavior
 

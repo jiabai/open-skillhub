@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import React, { useEffect, useState } from "react"
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
 import { BarChart3, LogOut, Menu, User2, Boxes } from "lucide-react"
@@ -13,6 +13,7 @@ import type { User } from "@/types"
 import { ThemeToggle } from "@/components/app/theme-toggle"
 import { LanguageToggle } from "@/components/app/language-toggle"
 import { Button } from "@/components/ui/button"
+import { CurrentUserProvider } from "./current-user-context"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -42,19 +43,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const { config } = useRuntimeConfig()
   const { dictionary } = useI18n()
   const { appShell, navigation } = dictionary
-  const [isChecking, setIsChecking] = useState(!isAuthRoute && !isPublicRoute)
+  const [isChecking, setIsChecking] = useState(!isAuthRoute)
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
   const [currentUser, setCurrentUser] = useState<User | null>(null)
 
   useEffect(() => {
     let cancelled = false
-
-    if (isPublicRoute) {
-      setIsChecking(false)
-      return () => {
-        cancelled = true
-      }
-    }
 
     if (isAuthRoute) {
       const tokens = getStoredTokens()
@@ -65,6 +59,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         }
       }
       setIsChecking(false)
+      setCurrentUser(null)
       return () => {
         cancelled = true
       }
@@ -72,7 +67,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
     const tokens = getStoredTokens()
     if (!tokens?.access_token) {
-      router.replace("/login")
+      // 首页可以在没有 token 时正常显示
+      if (!isPublicRoute) {
+        router.replace("/login")
+      }
+      setIsChecking(false)
+      setCurrentUser(null)
       return () => {
         cancelled = true
       }
@@ -89,7 +89,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         clearTokens()
         setCurrentUser(null)
         setIsChecking(false)
-        router.replace("/login")
+        if (!isPublicRoute) {
+          router.replace("/login")
+        }
       }
     }
 
@@ -120,8 +122,16 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     }
   }
 
-  if (isAuthRoute || isPublicRoute) {
+  if (isAuthRoute) {
     return <main className="min-h-screen">{children}</main>
+  }
+
+  if (isPublicRoute) {
+    return <CurrentUserProvider currentUser={currentUser}>
+      <main className="min-h-screen">
+        {children}
+      </main>
+    </CurrentUserProvider>
   }
 
   if (isChecking) {

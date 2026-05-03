@@ -1,13 +1,35 @@
 "use client"
 
 import Link from "next/link"
-import { ArrowRight, Boxes, CheckCircle2, Database, KeyRound, Laptop, Layers3, ShieldCheck } from "lucide-react"
+import { useRouter } from "next/navigation"
+import { ArrowRight, Boxes, CheckCircle2, Database, KeyRound, Laptop, Layers3, ShieldCheck, BarChart3, LogOut, User2 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { LanguageToggle } from "@/components/app/language-toggle"
 import { ThemeToggle } from "@/components/app/theme-toggle"
 import { useI18n } from "@/i18n/use-i18n"
 import { cn } from "@/lib/utils"
+import { clearTokens, api } from "@/lib/api"
+import { useCurrentUser } from "@/components/app/current-user-context"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import type { User } from "@/types"
 
 type SkillPreview = {
   name: string
@@ -16,9 +38,40 @@ type SkillPreview = {
   status: string
 }
 
-export function LandingPage() {
+interface LandingPageProps {
+  currentUser?: User | null
+}
+
+export function LandingPage({ currentUser: propsCurrentUser }: LandingPageProps) {
   const { dictionary } = useI18n()
-  const { landing } = dictionary
+  const { landing, appShell, navigation } = dictionary
+  const router = useRouter()
+  const { currentUser: contextCurrentUser } = useCurrentUser()
+  const currentUser = propsCurrentUser || contextCurrentUser
+
+  const handleLogout = async () => {
+    try {
+      await api.logout()
+    } catch {
+      // Always clear local credentials, even if the revoke request fails.
+    } finally {
+      clearTokens()
+      router.replace("/login")
+    }
+  }
+
+  // Default values for when we don't receive appShell or navigation (for tests)
+  const safeAppShell = appShell || {
+    workbench: "工作台",
+    signOut: "退出登录",
+    signOutTitle: "确认退出？",
+    signOutDescription: "你确定要退出当前账户吗？",
+    cancel: "取消"
+  }
+  const safeNavigation = navigation || {
+    profile: "个人资料",
+    security: "安全设置"
+  }
 
   return (
     <div className="min-h-screen overflow-hidden bg-background text-foreground">
@@ -33,7 +86,13 @@ export function LandingPage() {
           }}
         />
 
-        <PublicNavbar landing={landing} />
+        <PublicNavbar 
+          landing={landing} 
+          appShell={safeAppShell} 
+          navigation={safeNavigation}
+          currentUser={currentUser} 
+          onLogout={handleLogout}
+        />
 
         <section className="relative z-10 grid flex-1 items-center gap-10 py-12 md:py-16 lg:grid-cols-[minmax(0,0.9fr)_minmax(520px,1.1fr)] lg:gap-12 lg:py-10">
           <div className="max-w-3xl">
@@ -80,11 +139,19 @@ export function LandingPage() {
   )
 }
 
-function PublicNavbar({ landing }: { landing: ReturnType<typeof useI18n>["dictionary"]["landing"] }) {
+interface PublicNavbarProps {
+  landing: ReturnType<typeof useI18n>["dictionary"]["landing"]
+  appShell: ReturnType<typeof useI18n>["dictionary"]["appShell"]
+  navigation: ReturnType<typeof useI18n>["dictionary"]["navigation"]
+  currentUser?: User | null
+  onLogout: () => Promise<void>
+}
+
+function PublicNavbar({ landing, appShell, navigation, currentUser, onLogout }: PublicNavbarProps) {
   return (
     <header className="relative z-20">
       <nav className="mx-auto flex min-h-[64px] max-w-screen-2xl items-center justify-between rounded-md border border-border/80 bg-card/85 px-4 py-3 shadow-sm backdrop-blur">
-        <Link href="/" className="flex items-center gap-3" aria-label={landing.title}>
+        <Link href={currentUser ? "/dashboard" : "/"} className="flex items-center gap-3" aria-label={landing.title}>
           <span className="flex h-10 w-10 items-center justify-center rounded-md bg-primary text-primary-foreground">
             <Boxes className="h-5 w-5" aria-hidden="true" />
           </span>
@@ -93,18 +160,78 @@ function PublicNavbar({ landing }: { landing: ReturnType<typeof useI18n>["dictio
 
         <div className="flex items-center gap-4">
           <div className="hidden items-center gap-6 text-sm font-medium text-muted-foreground md:flex">
-            <a href="#features" className="transition-colors hover:text-foreground">
-              {landing.navFeatures}
-            </a>
-            <Link href="/public-skills" className="transition-colors hover:text-foreground">
-              {landing.navPublicSkills}
-            </Link>
-            <Link href="/login" className="transition-colors hover:text-foreground">
-              {landing.navSignIn}
-            </Link>
-            <Button asChild size="sm" className="rounded-md">
-              <Link href="/register">{landing.navCreateAccount}</Link>
-            </Button>
+            {!currentUser ? (
+              <>
+                <a href="#features" className="transition-colors hover:text-foreground">
+                  {landing.navFeatures}
+                </a>
+                <Link href="/public-skills" className="transition-colors hover:text-foreground">
+                  {landing.navPublicSkills}
+                </Link>
+                <Link href="/login" className="transition-colors hover:text-foreground">
+                  {landing.navSignIn}
+                </Link>
+                <Button asChild size="sm" className="rounded-md">
+                  <Link href="/register">{landing.navCreateAccount}</Link>
+                </Button>
+              </>
+            ) : (
+              <>
+                <Link href="/public-skills" className="transition-colors hover:text-foreground">
+                  {landing.navPublicSkills}
+                </Link>
+                <Link href="/dashboard" className="transition-colors hover:text-foreground">
+                  {appShell.workbench}
+                </Link>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" size="sm">
+                      <span className="flex items-center gap-2">
+                        <User2 className="h-4 w-4" aria-hidden="true" />
+                        {currentUser.username || currentUser.email}
+                      </span>
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem>
+                      <Link href="/profile" className="flex w-full items-center gap-2">
+                        <User2 className="h-4 w-4" aria-hidden="true" />
+                        {navigation.profile}
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem>
+                      <Link href="/security" className="flex w-full items-center gap-2">
+                        <User2 className="h-4 w-4" aria-hidden="true" />
+                        {navigation.security}
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <DropdownMenuItem className="text-destructive focus:text-destructive" onSelect={(e) => e.preventDefault()}>
+                          <LogOut className="h-4 w-4" aria-hidden="true" />
+                          {appShell.signOut}
+                        </DropdownMenuItem>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>{appShell.signOutTitle}</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            {appShell.signOutDescription}
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>{appShell.cancel}</AlertDialogCancel>
+                          <AlertDialogAction onClick={() => void onLogout()} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                            {appShell.signOut}
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </>
+            )}
           </div>
           <div className="flex items-center gap-2">
             <LanguageToggle />

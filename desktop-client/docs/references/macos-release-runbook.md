@@ -1,6 +1,6 @@
 # macOS Release Runbook
 
-Status: operator runbook prepared on Windows; execute on macOS after signing configuration gates are complete
+Status: operator runbook prepared on Windows; execute on macOS with release signing credentials
 
 ## Purpose
 
@@ -19,7 +19,9 @@ Stop before release packaging unless all of these are true:
 - `electron/main.ts` uses `extractZipArchive()` instead of Windows PowerShell
   for package extraction.
 - macOS entitlements files are committed and do not contain secrets.
-- `package.json` macOS release config points at those entitlements.
+- `package.json` macOS release config points at those entitlements, enables
+  Hardened Runtime, requires code signing, and enables electron-builder
+  notarization.
 - The macOS machine has Xcode command line tools and current `notarytool`.
 - The release operator has a Developer ID Application certificate and Apple
   notarization credentials available outside the repository.

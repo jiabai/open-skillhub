@@ -1,6 +1,6 @@
 # macOS Release Packaging Technical Design
 
-Status: active design; cross-platform extraction implemented, macOS signing configuration and validation pending
+Status: active design; Windows-side release configuration implemented, macOS release validation pending
 
 ## Goal
 
@@ -23,19 +23,23 @@ on Windows now from work that must happen on a macOS build machine later.
 
 ## Current Blockers
 
-1. macOS entitlements are not present in the repository.
-2. `package.json` does not yet include explicit macOS signing/notarization
-   release configuration.
-3. The current machine is Windows, so the final signed DMG, notarization,
+1. The current machine is Windows, so the final signed DMG, notarization,
    stapling, Gatekeeper checks, and macOS runtime smoke test cannot be
    completed here.
+2. The macOS release operator still needs a Developer ID Application identity
+   and notarization credentials outside the repository.
 
-Resolved in the Windows implementation pass:
+Resolved in the Windows implementation passes:
 
 - `electron/main.ts` no longer shells out to Windows PowerShell for downloaded
   skill package extraction.
 - `src/__tests__/archive-extraction.test.ts` covers safe ZIP extraction,
   traversal rejection, symlink rejection, and absolute extraction destinations.
+- `package.json` points macOS builds at explicit entitlements, enables Hardened
+  Runtime, requires code signing, and leaves electron-builder notarization
+  enabled for credentialed release builds.
+- `build/entitlements.mac.plist` and `build/entitlements.mac.inherit.plist`
+  contain only Electron hardened runtime code-signing entitlements.
 
 ## Proposed Implementation Shape
 
@@ -56,20 +60,22 @@ require macOS. macOS runtime smoke testing remains required before release.
 
 ### macOS Builder Configuration
 
-After extraction is cross-platform, update `package.json` macOS config to make
-release intent explicit:
+`package.json` macOS config makes release intent explicit:
 
 - `target`: keep `dmg` and `zip`.
 - `icon`: keep `resources/icons/icon.icns`.
 - `hardenedRuntime`: `true`.
-- `entitlements`: add an explicit app entitlements file.
-- `entitlementsInherit`: add an explicit inherited entitlements file.
-- `notarize`: leave enabled by default for release builds once credentials are
-  supplied.
+- `entitlements`: `build/entitlements.mac.plist`.
+- `entitlementsInherit`: `build/entitlements.mac.inherit.plist`.
+- `hardenedRuntime`: `true`.
+- `forceCodeSigning`: `true`.
+- `notarize`: `true`; notarization runs when the operator supplies one of the
+  supported Apple credential sets.
 
-The concrete entitlement set should be minimal. Electron commonly needs JIT
-support for renderer/framework execution; avoid broad file, network, or sandbox
-entitlements unless a failing macOS smoke test proves they are required.
+The concrete entitlement set is intentionally minimal: JIT, unsigned executable
+memory, and library validation relaxation for Electron/native module runtime.
+It does not enable App Sandbox, file, network, or device permissions. Additions
+require a failing macOS smoke test or signing failure as evidence.
 
 ### Credential Handling
 
@@ -92,12 +98,12 @@ repository content.
 
 | File | Responsibility |
 |------|----------------|
-| `package.json` | Remaining: add explicit macOS release signing/notarization config |
+| `package.json` | Implemented: explicit macOS release signing/notarization config |
 | `electron/main.ts` | Implemented: call cross-platform extraction helper |
 | `src/core/distribution/archive-extraction.ts` | Implemented: own safe ZIP extraction rules |
 | `src/__tests__/archive-extraction.test.ts` | Implemented: cover safe extraction and unsafe archive rejection |
-| `build/entitlements.mac.plist` | Remaining: app entitlements for Developer ID macOS build |
-| `build/entitlements.mac.inherit.plist` | Remaining: inherited entitlements for Electron helpers/frameworks |
+| `build/entitlements.mac.plist` | Implemented: app entitlements for Developer ID macOS build |
+| `build/entitlements.mac.inherit.plist` | Implemented: inherited entitlements for Electron helpers/frameworks |
 | `docs/references/macos-release-runbook.md` | Operator release checklist and command transcript |
 
 ## Windows-Side Documentation Deliverables

@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs"
+import { existsSync, readFileSync } from "node:fs"
 import { join } from "node:path"
 import { describe, expect, it } from "vitest"
 
@@ -8,6 +8,16 @@ type PackageJson = {
   }
   build?: {
     appId?: string
+    mac?: {
+      category?: string
+      entitlements?: string
+      entitlementsInherit?: string
+      forceCodeSigning?: boolean
+      hardenedRuntime?: boolean
+      icon?: string
+      notarize?: boolean
+      target?: string[]
+    }
     productName?: string
   }
   description?: string
@@ -38,5 +48,50 @@ describe("desktop package scripts", () => {
     expect(packageJson.build?.appId).toBe("com.openskillhub.skilldrive-desktop")
     expect(packageJson.build?.productName).toBe("SkillDrive Desktop")
     expect(mainSource).toContain('const APP_USER_MODEL_ID = "com.openskillhub.skilldrive-desktop"')
+  })
+
+  it("configures macOS release signing and notarization inputs explicitly", () => {
+    const packageJsonPath = join(process.cwd(), "package.json")
+    const packageJson = JSON.parse(readFileSync(packageJsonPath, "utf8")) as PackageJson
+
+    expect(packageJson.scripts?.["dist:mac"]).toBe("electron-builder --mac")
+    expect(packageJson.build?.mac?.target).toEqual(["dmg", "zip"])
+    expect(packageJson.build?.mac?.icon).toBe("resources/icons/icon.icns")
+    expect(packageJson.build?.mac?.category).toBe("public.app-category.productivity")
+    expect(packageJson.build?.mac?.hardenedRuntime).toBe(true)
+    expect(packageJson.build?.mac?.forceCodeSigning).toBe(true)
+    expect(packageJson.build?.mac?.notarize).toBe(true)
+    expect(packageJson.build?.mac?.entitlements).toBe("build/entitlements.mac.plist")
+    expect(packageJson.build?.mac?.entitlementsInherit).toBe(
+      "build/entitlements.mac.inherit.plist"
+    )
+  })
+
+  it("commits minimal macOS hardened runtime entitlements without release secrets", () => {
+    const appEntitlementsPath = join(process.cwd(), "build", "entitlements.mac.plist")
+    const inheritEntitlementsPath = join(
+      process.cwd(),
+      "build",
+      "entitlements.mac.inherit.plist"
+    )
+
+    expect(existsSync(appEntitlementsPath)).toBe(true)
+    expect(existsSync(inheritEntitlementsPath)).toBe(true)
+
+    for (const entitlementsPath of [appEntitlementsPath, inheritEntitlementsPath]) {
+      const entitlements = readFileSync(entitlementsPath, "utf8")
+
+      expect(entitlements).toContain("<key>com.apple.security.cs.allow-jit</key>")
+      expect(entitlements).toContain(
+        "<key>com.apple.security.cs.allow-unsigned-executable-memory</key>"
+      )
+      expect(entitlements).toContain(
+        "<key>com.apple.security.cs.disable-library-validation</key>"
+      )
+      expect(entitlements).not.toContain("com.apple.security.app-sandbox")
+      expect(entitlements).not.toContain("com.apple.security.network")
+      expect(entitlements).not.toContain("APPLE_")
+      expect(entitlements).not.toContain("CSC_")
+    }
   })
 })

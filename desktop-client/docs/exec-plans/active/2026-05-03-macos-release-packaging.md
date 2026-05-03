@@ -4,7 +4,7 @@
 
 **Goal:** Make SkillDrive Desktop produce a publishable macOS DMG after a future macOS-machine validation pass.
 
-**Architecture:** Keep packaging as an `electron-builder` wrapper around the existing Vite renderer and Electron main/preload outputs. The Windows-only package extraction path has been replaced with a safe cross-platform ZIP extraction helper; before macOS can be released, add explicit macOS entitlements and signing configuration, then validate Developer ID signing, Apple notarization, stapling, Gatekeeper, and app behavior on macOS.
+**Architecture:** Keep packaging as an `electron-builder` wrapper around the existing Vite renderer and Electron main/preload outputs. The Windows-only package extraction path has been replaced with a safe cross-platform ZIP extraction helper, and macOS signing/notarization configuration now points at explicit entitlements. Before macOS can be released, validate Developer ID signing, Apple notarization, stapling, Gatekeeper, and app behavior on macOS.
 
 **Tech Stack:** Electron, Vite, TypeScript, electron-builder, Developer ID signing, Apple notarytool/stapler, Vitest, repository documentation gates.
 
@@ -50,7 +50,11 @@
   of PowerShell, and added `extract-zip` as a runtime dependency.
 - [x] 2026-05-03: Confirmed checksum, expiration, and cleanup ownership stay in
   the existing download/package-service flow.
-- [ ] Future implementation: macOS entitlements and signing/notarization config.
+- [x] 2026-05-03: Added RED tests for macOS release signing configuration and
+  minimal entitlements, then added `build/entitlements.mac.plist`,
+  `build/entitlements.mac.inherit.plist`, and explicit macOS
+  `hardenedRuntime`, `forceCodeSigning`, `notarize`, `entitlements`, and
+  `entitlementsInherit` configuration in `package.json`.
 - [ ] Future macOS validation: signed DMG, notarization, stapling, Gatekeeper,
   and manual smoke test.
 
@@ -92,13 +96,14 @@ Modified:
 | `README.md` | Point operators at the macOS release runbook |
 | `task-tracker.md` | Track macOS release documentation and future validation |
 
-Future implementation files:
+Implemented release configuration files:
 
-| File | Possible Change |
-|------|-----------------|
-| `package.json` | Add explicit macOS entitlements/signing/notarization config |
-| `build/entitlements.mac.plist` | App entitlements |
-| `build/entitlements.mac.inherit.plist` | Inherited Electron helper entitlements |
+| File | Change |
+|------|--------|
+| `package.json` | Added explicit macOS entitlements/signing/notarization config |
+| `.gitignore` | Allowed the committed desktop entitlements files under `desktop-client/build/` |
+| `build/entitlements.mac.plist` | Added app entitlements |
+| `build/entitlements.mac.inherit.plist` | Added inherited Electron helper entitlements |
 
 Implemented files:
 
@@ -110,6 +115,7 @@ Implemented files:
 | `src/core/distribution/archive-extraction.ts` | Added safe cross-platform ZIP extraction helper |
 | `src/__tests__/archive-extraction.test.ts` | Covered valid extraction, traversal rejection, symlink rejection, and absolute destination enforcement |
 | `src/__tests__/electron-shell.test.ts` | Guarded against reintroducing PowerShell extraction |
+| `src/__tests__/package-scripts.test.ts` | Guarded macOS release signing config and minimal entitlements |
 
 ## Implementation Tasks
 
@@ -124,7 +130,7 @@ python scripts/validate_agents_docs.py --level ERROR
 git diff --check
 ```
 
-Future implementation phase:
+Windows implementation validation phase:
 
 ```bash
 cd desktop-client
@@ -158,8 +164,8 @@ Manual smoke testing is defined in `../../references/macos-release-runbook.md`.
 - `npm test -- src/__tests__/electron-shell.test.ts` - RED before
   implementation because `electron/main.ts` did not call `extractZipArchive`;
   passed after implementation with 3 tests.
-- `npm test` - passed after cross-platform extraction implementation with 19
-  test files and 104 tests.
+- `npm test` - passed after macOS release signing configuration with 19 test
+  files and 106 tests.
 - `npm run build` - first attempt failed while Vite tried to remove
   `dist/win-unpacked` because a previous packaged `SkillDrive Desktop.exe`
   process was still running from that generated directory. After stopping those
@@ -172,9 +178,16 @@ Manual smoke testing is defined in `../../references/macos-release-runbook.md`.
   dependency, preserving Windows installer generation.
 - `node -e "const asar=require('@electron/asar'); ..."` - confirmed
   packaged `app.asar` includes `node_modules/extract-zip`.
+- `npm test -- src/__tests__/package-scripts.test.ts` - RED before macOS
+  signing config because `hardenedRuntime` was undefined and entitlements files
+  were missing; passed after implementation with 4 tests.
+- `npm run build` - passed after macOS release signing configuration.
+- `npm run dist:win` - passed after macOS release signing configuration,
+  preserving Windows installer generation.
 
 ## Outcome
 
-Pending. Cross-platform archive extraction is implemented and Windows-validated.
-This plan remains active until macOS release configuration, notarization, and
-manual smoke validation are complete or the release path is superseded.
+Pending. Cross-platform archive extraction and macOS release signing
+configuration are implemented and Windows-validated. This plan remains active
+until macOS notarization, stapling, Gatekeeper, and manual smoke validation are
+complete or the release path is superseded.

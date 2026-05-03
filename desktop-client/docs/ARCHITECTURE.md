@@ -10,9 +10,9 @@ The current repository-verified workflows are test, build, renderer-only dev,
 and the full desktop runtime launch through `npm run start:electron`.
 Installer packaging is configured with `electron-builder`; the current release
 scope is Windows installer validation. macOS release packaging is tracked as a
-separate release path. Package extraction is no longer Windows-only, but macOS
-release remains blocked until entitlements, Developer ID signing, notarization,
-stapling, and macOS smoke testing are implemented and verified.
+separate release path. Package extraction and macOS release configuration are
+implemented, but macOS release remains blocked until Developer ID signing,
+notarization, stapling, and macOS smoke testing are verified on macOS.
 
 ## Code Map
 

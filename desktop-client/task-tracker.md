@@ -3,7 +3,7 @@
 ## In Progress
 
 - [ ] Desktop Windows packaging documentation and validation plan (2026-05-03) ✅ Docs phase requires `python scripts/validate_agents_docs.py --level ERROR` and `git diff --check`; future release phase requires Windows installer validation. See `docs/exec-plans/active/2026-05-03-desktop-windows-packaging.md`
-- [ ] macOS release packaging and runbook (2026-05-03) ✅ Cross-platform extraction is implemented and Windows-validated; remaining release phase requires macOS entitlements/signing config, macOS `npm run dist:mac`, notarization, stapling, Gatekeeper, and smoke validation. See `docs/exec-plans/active/2026-05-03-macos-release-packaging.md`
+- [ ] macOS release packaging and runbook (2026-05-03) ✅ Cross-platform extraction and macOS release signing config are implemented and Windows-validated; remaining release phase requires macOS `npm run dist:mac`, Developer ID signing, notarization, stapling, Gatekeeper, and smoke validation. See `docs/exec-plans/active/2026-05-03-macos-release-packaging.md`
 
 ## Todo
 

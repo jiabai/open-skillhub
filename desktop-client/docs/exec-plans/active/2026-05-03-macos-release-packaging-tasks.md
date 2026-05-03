@@ -30,8 +30,8 @@ Status: active
 - [x] Implement safe cross-platform extraction without shelling out to
   PowerShell.
 - [x] Preserve checksum, expiration, and cleanup ownership behavior.
-- [ ] Add explicit macOS entitlements files.
-- [ ] Add macOS signing/notarization config to `package.json`.
+- [x] Add explicit macOS entitlements files.
+- [x] Add macOS signing/notarization config to `package.json`.
 - [x] Run `npm test`.
 - [x] Run `npm run build`.
 

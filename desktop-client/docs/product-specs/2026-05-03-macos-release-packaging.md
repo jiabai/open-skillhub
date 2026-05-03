@@ -1,6 +1,6 @@
 # macOS Release Packaging
 
-Status: canonical local product spec; cross-platform extraction implemented, macOS signing configuration and validation pending
+Status: canonical local product spec; cross-platform extraction and macOS signing configuration implemented, macOS release validation pending
 
 ## Purpose
 
@@ -41,22 +41,27 @@ as a public macOS installer.
 
 - Electron main-process package extraction and distribution runtime.
 - `electron-builder` macOS configuration in `package.json`.
-- macOS entitlements files under a future build-resource path.
+- macOS entitlements files under `build/`.
 - Release credentials configured in the macOS operator environment or keychain.
 - Documentation under product specs, design docs, references, ExecPlans, and
   task tracker.
 
 ## Current State
 
-- `package.json` already exposes `npm run dist:mac` and configures `dmg` plus
-  `zip` targets with `resources/icons/icon.icns`.
+- `package.json` exposes `npm run dist:mac`, configures `dmg` plus `zip`
+  targets with `resources/icons/icon.icns`, enables Hardened Runtime, requires
+  macOS code signing, points at explicit entitlements files, and leaves
+  electron-builder notarization enabled for credentialed release builds.
 - Runtime package extraction now uses `extractZipArchive()` from
   `src/core/distribution/archive-extraction.ts`; focused tests cover valid
   extraction, traversal rejection, symlink rejection, and absolute destination
   enforcement.
-- The repository does not yet include macOS entitlements files.
-- The repository does not yet include a notarization helper script or explicit
-  electron-builder notarization configuration.
+- The repository includes `build/entitlements.mac.plist` and
+  `build/entitlements.mac.inherit.plist`; they contain Electron hardened
+  runtime code-signing entitlements only and no release secrets.
+- The repository does not include a separate notarization helper script because
+  electron-builder's built-in `@electron/notarize` integration is enabled and
+  consumes operator-provided environment or keychain credentials.
 - The current Windows environment cannot produce the final signed and notarized
   DMG; that final validation must run on macOS with Xcode tooling and Apple
   credentials.
@@ -84,17 +89,19 @@ Before a macOS DMG is publishable, all of the following must be true:
 
 - Safe cross-platform ZIP extraction is implemented without Windows PowerShell
   and has focused regression coverage.
-- macOS signing entitlements are documented and committed without secrets.
+- macOS signing entitlements are documented, committed, and covered by tests
+  without secrets.
+- `package.json` points macOS builds at the entitlements, enables Hardened
+  Runtime, requires code signing, and enables electron-builder notarization.
 - The macOS runbook can be followed on a clean macOS build machine without
   relying on chat history.
 - Apple signing and notarization credentials are referenced only as operator
   environment/keychain inputs.
 - `python scripts/validate_agents_docs.py --level ERROR` passes after the docs
   are updated.
-- The final release remains blocked until macOS entitlements/signing config is
-  implemented and macOS machine validation records `npm test`,
-  `npm run build`, `npm run dist:mac`, notarization, stapling, and smoke-test
-  results.
+- The final release remains blocked until macOS machine validation records
+  `npm test`, `npm run build`, `npm run dist:mac`, notarization, stapling, and
+  smoke-test results.
 
 ## References
 

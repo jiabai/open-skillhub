@@ -148,12 +148,13 @@ Manual smoke test after installer generation:
   LF-to-CRLF working-copy warnings only.
 - `npm test -- src/__tests__/package-scripts.test.ts` - passed after package
   metadata and AppUserModelID alignment changes.
-- `npm test` - passed after current implementation: 19 test files and 104
+- `npm test` - passed after current implementation: 19 test files and 106
   tests.
 - `npm run build` - passed after implementation, including Electron
   typecheck, renderer build, main build, and preload build.
 - `npm run dist:win` - passed after adding the runtime ZIP extraction
-  dependency and generated Windows artifacts:
+  dependency and again after adding macOS release signing configuration; it
+  generated Windows artifacts:
   `dist/SkillDrive Desktop Setup 0.1.0.exe`,
   `dist/SkillDrive Desktop 0.1.0.exe`, and `dist/win-unpacked/`.
 - `node -e "const asar=require('@electron/asar'); ..."` - confirmed

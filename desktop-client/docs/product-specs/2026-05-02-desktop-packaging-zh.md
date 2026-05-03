@@ -68,13 +68,13 @@ PowerShell 之前，macOS 不作为 v1 发布承诺。
 
 - 产品名：`SkillDrive Desktop`
 - Builder appId：`com.openskillhub.skilldrive-desktop`
+- 运行时 Windows AppUserModelID：`com.openskillhub.skilldrive-desktop`
 - 包名：`skilldrive-desktop`
 - 版本：来自 `package.json`
+- 描述：`Open SkillHub desktop sync client`
+- 作者元数据：`Open SkillHub contributors`
 - Windows 图标：`resources/icons/icon.ico`
 - macOS 图标：`resources/icons/icon.icns`，仅用于探索性构建
-
-发布实现阶段应审计运行时 Windows AppUserModelID 是否需要与 builder appId
-保持一致，然后再把安装包视为可发布状态。
 
 ## 安装行为
 

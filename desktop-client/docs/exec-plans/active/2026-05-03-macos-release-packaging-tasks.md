@@ -1,0 +1,56 @@
+# macOS Release Packaging Task Checklist
+
+Status: active
+
+## Documentation Gate
+
+- [x] Review root `WORKFLOW.md` and `docs/EXECUTION_GATES.md`.
+- [x] Review desktop `AGENTS.md`, architecture, security, task tracker, and
+  product/design/reference/ExecPlan indexes.
+- [x] Inspect current `package.json`, Electron main package extraction, and
+  existing packaging docs.
+- [x] Check current Apple Developer ID and notarization guidance from official
+  Apple docs.
+- [x] Check installed electron-builder macOS signing/notarization schema.
+- [x] Add English macOS release product spec.
+- [x] Add Chinese macOS release product spec.
+- [x] Add macOS release technical design.
+- [x] Add macOS release runbook.
+- [x] Add active ExecPlan.
+- [x] Add this task checklist.
+- [x] Update indexes, architecture, security, README, runtime reference, and
+  task tracker.
+- [x] Run documentation validation.
+- [x] Run whitespace diff validation.
+
+## Future Implementation Gate
+
+- [ ] Write failing extraction tests for safe ZIP extraction on Windows and
+  macOS-compatible path semantics.
+- [ ] Implement safe cross-platform extraction without shelling out to
+  PowerShell.
+- [ ] Preserve checksum, expiration, and cleanup ownership behavior.
+- [ ] Add explicit macOS entitlements files.
+- [ ] Add macOS signing/notarization config to `package.json`.
+- [ ] Run `npm test`.
+- [ ] Run `npm run build`.
+
+## Future macOS Release Gate
+
+- [ ] Prepare macOS machine with Xcode, Developer ID Application certificate,
+  and notarization credentials outside the repo.
+- [ ] Run `npm install`.
+- [ ] Run `npm test`.
+- [ ] Run `npm run build`.
+- [ ] Run `npm run dist:mac`.
+- [ ] Verify signed `.app` with `codesign`.
+- [ ] Submit DMG for notarization.
+- [ ] Staple and validate the notarization ticket.
+- [ ] Run Gatekeeper assessment on the DMG and installed app.
+- [ ] Execute the manual smoke test in `docs/references/macos-release-runbook.md`.
+- [ ] Record the release evidence template in the active ExecPlan.
+
+## Archive Gate
+
+- [ ] Move this checklist and the plan to `docs/exec-plans/completed/` after
+  macOS release validation is complete or document why the plan was superseded.

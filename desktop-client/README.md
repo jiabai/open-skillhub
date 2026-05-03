@@ -72,7 +72,13 @@ Additional configured packaging scripts:
 
 - `npm run pack` - build unpacked output for the current platform
 - `npm run dist` - build installer output for the current platform
-- `npm run dist:mac` - exploratory macOS packaging, requiring macOS for reliable validation
+- `npm run dist:mac` - macOS packaging command; release use requires the
+  macOS runbook, Developer ID signing, notarization, stapling, Gatekeeper, and
+  smoke validation
+
+macOS release preparation lives in
+`docs/product-specs/2026-05-03-macos-release-packaging.md` and the operator
+runbook lives in `docs/references/macos-release-runbook.md`.
 
 ## Current Scope
 

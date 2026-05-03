@@ -74,13 +74,13 @@ longer depends on Windows PowerShell.
 
 - Product name: `SkillDrive Desktop`
 - Builder appId: `com.openskillhub.skilldrive-desktop`
+- Runtime Windows AppUserModelID: `com.openskillhub.skilldrive-desktop`
 - Package name: `skilldrive-desktop`
 - Version: from `package.json`
+- Description: `Open SkillHub desktop sync client`
+- Author metadata: `Open SkillHub contributors`
 - Windows icon: `resources/icons/icon.ico`
 - macOS icon: `resources/icons/icon.icns` for exploratory builds
-
-Release implementation should audit whether the runtime Windows AppUserModelID
-should match the builder appId before the installer is treated as release-ready.
 
 ## Installation Behavior
 

@@ -9,9 +9,10 @@ shows in the Windows taskbar and Alt+Tab switcher, closes back to the notificati
 The current repository-verified workflows are test, build, renderer-only dev,
 and the full desktop runtime launch through `npm run start:electron`.
 Installer packaging is configured with `electron-builder`; the current release
-scope is Windows installer validation, while macOS builder settings remain
-exploratory until non-Windows distribution runtime behavior is implemented and
-verified.
+scope is Windows installer validation. macOS release packaging is now tracked
+as a separate release path that remains blocked until non-Windows distribution
+runtime behavior, Developer ID signing, notarization, stapling, and smoke
+testing are implemented and verified.
 
 ## Code Map
 
@@ -139,9 +140,13 @@ Dependencies should only point downward across those boundaries.
   scripts.
 - Windows packaging uses the `nsis` and `portable` targets with
   `resources/icons/icon.ico`.
-- macOS `dmg` and `zip` targets are configured with `resources/icons/icon.icns`,
-  but macOS is not a v1 release runtime because package extraction currently
-  fails closed on non-Windows platforms.
+- macOS `dmg` and `zip` targets are configured with `resources/icons/icon.icns`.
+  They are not publishable release artifacts until the macOS release plan and
+  runbook gates pass.
+- macOS release guidance lives in
+  `docs/product-specs/2026-05-03-macos-release-packaging.md`,
+  `docs/design-docs/macos-release-packaging.md`, and
+  `docs/references/macos-release-runbook.md`.
 - Installer artifacts are generated under `desktop-client/dist/` and are not
   repository source files.
 

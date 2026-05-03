@@ -16,13 +16,15 @@ entry.
 - `npm run pack` (unpacked output for the current platform)
 - `npm run dist` (installer output for the current platform)
 - `npm run dist:win` (Windows release packaging path)
-- `npm run dist:mac` (exploratory macOS packaging; not a v1 release gate)
+- `npm run dist:mac` (macOS packaging command; release use requires the
+  macOS release runbook gates)
 
 Packaging uses `electron-builder` configuration in `package.json` and writes
 generated artifacts under `desktop-client/dist/`. The current release scope is
-Windows installer validation. macOS packaging is not a release claim until the
-runtime no longer depends on Windows-only package extraction and macOS smoke
-tests exist.
+Windows installer validation. macOS packaging is tracked separately in
+`macos-release-runbook.md` and is not a release claim until the runtime no
+longer depends on Windows-only package extraction, the app is Developer
+ID-signed and notarized, and macOS smoke tests are recorded.
 
 ## Environment Variables Read By The Runtime
 

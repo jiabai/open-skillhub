@@ -23,8 +23,11 @@ generated artifact churn in source control.
   Windows PowerShell `Expand-Archive`; non-Windows distribution fails closed.
 - Runtime data paths are owned by `src/core/storage/app-paths.ts`, not by the
   installer configuration.
-- The builder `appId` is `com.openskillhub.skilldrive-desktop`; the runtime
-  Windows AppUserModelID is currently `com.skilldrive.desktop-client`.
+- The builder `appId` and runtime Windows AppUserModelID are both
+  `com.openskillhub.skilldrive-desktop`.
+- `package.json` provides installer-visible package metadata:
+  `description` is `Open SkillHub desktop sync client`, and `author.name` is
+  `Open SkillHub contributors`.
 
 ## Design Decisions
 
@@ -37,8 +40,7 @@ generated artifact churn in source control.
 - Keep generated `dist/` artifacts local and uncommitted.
 - Preserve runtime secret handling: API tokens remain in `keytar`, and download
   decryption secrets remain current-session environment input only.
-- Audit AppUserModelID alignment before declaring the Windows installer
-  release-ready.
+- Keep the runtime Windows AppUserModelID aligned with the builder `appId`.
 
 ## Packaging Boundary
 
@@ -70,15 +72,17 @@ packaged files match the standard verified runtime build.
 
 ## macOS Boundary
 
-`npm run dist:mac` may remain available for exploratory packaging, but it is not
-a v1 acceptance gate. Before macOS is promoted to release scope, a future plan
-must address at least:
+`npm run dist:mac` remains available, but it is not a publishable release path
+until the dedicated macOS release plan passes. That plan must address at least:
 
 - cross-platform package extraction instead of Windows PowerShell
 - macOS tray/menu-bar expectations
 - macOS install smoke tests
 - macOS distribution smoke tests against supported local agent paths
 - platform-specific signing/notarization policy if release distribution needs it
+
+See `macos-release-packaging.md` and `../references/macos-release-runbook.md`
+for the active macOS release path.
 
 ## Documentation Updates
 
@@ -122,8 +126,5 @@ Manual Windows smoke test:
 
 ## Open Follow-Ups
 
-- Decide whether to align `APP_USER_MODEL_ID` with the builder `appId`.
-- Decide whether package metadata needs description, author, publisher, or
-  copyright fields before release.
 - Decide whether Windows code signing is still intentionally out of scope after
   the first installer validation pass.

@@ -12,5 +12,7 @@
 - `2026-05-02-desktop-dark-mode-zh.md` - 桌面端暗黑模式产品规格（中文版）
 - `2026-05-02-desktop-packaging.md` - Desktop client Windows installer packaging scope and validation spec (English)
 - `2026-05-02-desktop-packaging-zh.md` - 桌面客户端 Windows 安装包范围和验证规格（中文版）
+- `2026-05-03-macos-release-packaging.md` - macOS release packaging, signing, notarization, and validation spec (English)
+- `2026-05-03-macos-release-packaging-zh.md` - macOS 发布打包、签名、公证和验证规格（中文版）
 
 Canonical rule: work from the local product spec first.

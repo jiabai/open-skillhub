@@ -1,6 +1,10 @@
 {
   "name": "skilldrive-desktop",
   "version": "0.1.0",
+  "description": "Open SkillHub desktop sync client",
+  "author": {
+    "name": "Open SkillHub contributors"
+  },
   "private": true,
   "type": "module",
   "main": "dist-electron/main.js",

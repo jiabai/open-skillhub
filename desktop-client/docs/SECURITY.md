@@ -63,6 +63,20 @@
 - Logs may record request outcomes, target agent IDs, and normalized error classes.
 - Logs must not record the raw API token or decrypted package contents.
 
+## Release Signing Secrets
+
+- Apple Developer ID certificates, `.p12` exports, `.p8` API keys,
+  app-specific passwords, keychain profiles, and notarization logs containing
+  team metadata must not be committed.
+- macOS release signing credentials belong in the operator's macOS keychain,
+  shell environment, or CI secret store only.
+- `CSC_LINK`, `CSC_KEY_PASSWORD`, `APPLE_API_KEY`, `APPLE_API_KEY_ID`,
+  `APPLE_API_ISSUER`, `APPLE_ID`, `APPLE_TEAM_ID`,
+  `APPLE_APP_SPECIFIC_PASSWORD`, `APPLE_KEYCHAIN`, and
+  `APPLE_KEYCHAIN_PROFILE` are release-time secret inputs, not runtime config.
+- Release docs may name required environment variables but must never include
+  real values.
+
 ## Current V1 Contract Gap
 
 - The current implementation supports backend-encrypted downloads only when the

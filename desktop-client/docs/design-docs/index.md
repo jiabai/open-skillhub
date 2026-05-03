@@ -10,5 +10,6 @@
 - `local-skills-management.md` - 本地 SKILL 库存、服务端存在性匹配和显式上传的技术设计
 - `desktop-dark-mode.md` - 桌面端暗黑模式、主题持久化和 frontend 视觉对齐的技术设计
 - `desktop-packaging.md` - Windows installer packaging boundary and validation design
+- `macos-release-packaging.md` - macOS release packaging, signing, notarization, and validation design
 
 This local `design-docs/` directory is the canonical home for durable design guidance.

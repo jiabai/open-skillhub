@@ -27,8 +27,8 @@ repository documentation gates.
   references.
 - Create this active ExecPlan and a sibling task checklist for future code or
   release validation work.
-- Later implementation may adjust package metadata or AppUserModelID alignment
-  after review.
+- Implementation aligns package metadata and AppUserModelID before installer
+  validation.
 
 ## Non-Goals
 
@@ -54,8 +54,12 @@ repository documentation gates.
   accurate runtime paths.
 - [x] 2026-05-03: Added technical design, active plan, task checklist, README
   packaging workflow, and supporting index/reference updates.
-- [ ] Human review of the docs-only packaging plan.
-- [ ] Implementation/validation phase for Windows installer release readiness.
+- [x] 2026-05-03: Human approved proceeding to the implementation/validation
+  phase.
+- [x] 2026-05-03: Added package description and author metadata, aligned runtime
+  Windows AppUserModelID with builder appId, and added regression coverage.
+- [x] Windows installer generation completed.
+- [ ] Manual installed-app smoke validation.
 
 ## Decisions
 
@@ -65,8 +69,9 @@ repository documentation gates.
 - `npm run build` remains the standard development verification command.
 - `npm run dist:win` is the Windows release packaging command.
 - Generated `dist/` artifacts are local build output and must not be committed.
-- The docs phase records, but does not fix, the builder appId vs runtime
-  AppUserModelID mismatch.
+- Runtime Windows AppUserModelID must match the builder `appId`.
+- Package description and author metadata are sufficient for v1 installer
+  resource metadata; publisher trust remains out of scope without code signing.
 
 ## File Map
 
@@ -98,6 +103,7 @@ Future implementation may modify:
 |------|-----------------|
 | `package.json` | Align metadata, target architecture, or package scripts after review |
 | `electron/main.ts` | Align Windows AppUserModelID after review |
+| `src/__tests__/package-scripts.test.ts` | Cover package metadata and AppUserModelID alignment |
 
 ## Implementation Tasks
 
@@ -140,8 +146,22 @@ Manual smoke test after installer generation:
   and 0 warnings after the tracker fix.
 - `git diff --check` - passed with exit code 0; Git reported expected Windows
   LF-to-CRLF working-copy warnings only.
+- `npm test -- src/__tests__/package-scripts.test.ts` - passed after package
+  metadata and AppUserModelID alignment changes.
+- `npm test` - passed after implementation: 18 test files and 97 tests.
+- `npm run build` - passed after implementation, including Electron
+  typecheck, renderer build, main build, and preload build.
+- `npm run dist:win` - passed and generated Windows artifacts:
+  `dist/SkillDrive Desktop Setup 0.1.0.exe`,
+  `dist/SkillDrive Desktop 0.1.0.exe`, and `dist/win-unpacked/`.
+- `git status --short --ignored=matching desktop-client\dist` - confirmed
+  `dist/` and `dist-electron/` are ignored generated outputs.
+- Error note: a PowerShell inspection attempt using
+  `Select-Object -Index 90..150` failed because the range was parsed as a
+  string; reran the inspection with `-Skip` and `-First`.
 
 ## Outcome
 
-Pending. This plan should remain active until Windows installer validation is
-complete or the packaging work is explicitly superseded.
+Windows installer generation is working. This plan should remain active until
+the generated installer is installed and smoke-tested, or until the owner
+accepts the remaining manual validation risk.

@@ -28,6 +28,12 @@
     "directories": {
       "output": "dist"
     },
+    "extraResources": [
+      {
+        "from": "resources/icons/icon.ico",
+        "to": "icons/icon.ico"
+      }
+    ],
     "files": [
       "dist/**/*",
       "dist-electron/**/*",

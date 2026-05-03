@@ -59,7 +59,7 @@ import { registerDesktopClientIpc } from "./ipc"
 import { createDecryptArtifactFromEnv } from "./encryption"
 
 const preloadPath = fileURLToPath(new URL("./preload.js", import.meta.url))
-const windowsIconPath = fileURLToPath(new URL("../resources/icons/icon.ico", import.meta.url))
+const devWindowsIconPath = fileURLToPath(new URL("../resources/icons/icon.ico", import.meta.url))
 const APP_USER_MODEL_ID = "com.openskillhub.skilldrive-desktop"
 const TARGET_RENDERER_PHYSICAL_SIZE = {
   width: 1984,
@@ -193,12 +193,21 @@ function createEmbeddedIcon(size = 256) {
   })
 }
 
+function resolveWindowsIconPath(): string {
+  if (app.isPackaged) {
+    return join(process.resourcesPath, "icons", "icon.ico")
+  }
+
+  return devWindowsIconPath
+}
+
 function createWindowsIcon(size = 256) {
-  if (!existsSync(windowsIconPath)) {
+  const iconPath = resolveWindowsIconPath()
+  if (!existsSync(iconPath)) {
     return null
   }
 
-  const icon = nativeImage.createFromPath(windowsIconPath)
+  const icon = nativeImage.createFromPath(iconPath)
 
   if (icon.isEmpty()) {
     return null

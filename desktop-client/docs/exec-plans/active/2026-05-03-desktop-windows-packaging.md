@@ -59,7 +59,12 @@ repository documentation gates.
 - [x] 2026-05-03: Added package description and author metadata, aligned runtime
   Windows AppUserModelID with builder appId, and added regression coverage.
 - [x] Windows installer generation completed.
-- [ ] Manual installed-app smoke validation.
+- [x] Human confirmed installer install and app launch work.
+- [x] Diagnosed and fixed packaged tray icon not visible: added `extraResources`
+  for `icon.ico` and `resolveWindowsIconPath()` using `process.resourcesPath`
+  when `app.isPackaged`.
+- [x] Re-test installed app tray icon visibility after fix.
+- [ ] Manual installed-app smoke validation (remaining items).
 
 ## Decisions
 
@@ -72,6 +77,12 @@ repository documentation gates.
 - Runtime Windows AppUserModelID must match the builder `appId`.
 - Package description and author metadata are sufficient for v1 installer
   resource metadata; publisher trust remains out of scope without code signing.
+- Packaged Windows icon must be in `extraResources` (outside the asar) because
+  `import.meta.url`-relative paths resolve inside the asar where
+  `resources/icons/icon.ico` does not exist.
+- `resolveWindowsIconPath()` uses `process.resourcesPath` when
+  `app.isPackaged` and falls back to the `import.meta.url`-relative path in
+  development.
 
 ## File Map
 
@@ -104,6 +115,15 @@ Future implementation may modify:
 | `package.json` | Align metadata, target architecture, or package scripts after review |
 | `electron/main.ts` | Align Windows AppUserModelID after review |
 | `src/__tests__/package-scripts.test.ts` | Cover package metadata and AppUserModelID alignment |
+
+Implemented:
+
+| File | Change |
+|------|--------|
+| `package.json` | Added `extraResources` for `resources/icons/icon.ico` |
+| `electron/main.ts` | Added `resolveWindowsIconPath()` using `process.resourcesPath` when packaged |
+| `src/__tests__/electron-icon.test.ts` | Assert `resolveWindowsIconPath`, `app.isPackaged`, `process.resourcesPath` |
+| `src/__tests__/package-scripts.test.ts` | Assert `extraResources` configuration |
 
 ## Implementation Tasks
 
@@ -164,6 +184,20 @@ Manual smoke test after installer generation:
 - Error note: a PowerShell inspection attempt using
   `Select-Object -Index 90..150` failed because the range was parsed as a
   string; reran the inspection with `-Skip` and `-First`.
+- Human smoke test: installer install and app launch confirmed working.
+- Human smoke test: tray icon not visible in installed app.
+- Root cause: `windowsIconPath` used `import.meta.url`-relative path which
+  resolves inside `app.asar` where `resources/icons/icon.ico` does not exist;
+  the embedded SVG fallback renders as invisible in the Windows tray.
+- Fix: added `extraResources` in `package.json` and `resolveWindowsIconPath()`
+  in `electron/main.ts` that uses `process.resourcesPath` when packaged.
+- `npm test` - passed after tray icon fix: 19 test files and 107 tests.
+- `npm run build` - passed after tray icon fix.
+- `npm run dist:win` - passed after tray icon fix; confirmed
+  `dist/win-unpacked/resources/icons/icon.ico` exists.
+- Pending: re-test installed app tray icon visibility with the new build.
+- Human confirmed: tray icon visible, single-instance locking works,
+  close-to-tray and tray click toggling work.
 
 ## Outcome
 

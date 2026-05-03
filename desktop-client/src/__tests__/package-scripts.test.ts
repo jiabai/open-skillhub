@@ -8,6 +8,7 @@ type PackageJson = {
   }
   build?: {
     appId?: string
+    extraResources?: Array<{ from: string; to: string }>
     mac?: {
       category?: string
       entitlements?: string
@@ -48,6 +49,15 @@ describe("desktop package scripts", () => {
     expect(packageJson.build?.appId).toBe("com.openskillhub.skilldrive-desktop")
     expect(packageJson.build?.productName).toBe("SkillDrive Desktop")
     expect(mainSource).toContain('const APP_USER_MODEL_ID = "com.openskillhub.skilldrive-desktop"')
+  })
+
+  it("includes the Windows tray icon in extraResources for packaged runtime", () => {
+    const packageJsonPath = join(process.cwd(), "package.json")
+    const packageJson = JSON.parse(readFileSync(packageJsonPath, "utf8")) as PackageJson
+
+    expect(packageJson.build?.extraResources).toEqual([
+      { from: "resources/icons/icon.ico", to: "icons/icon.ico" }
+    ])
   })
 
   it("configures macOS release signing and notarization inputs explicitly", () => {

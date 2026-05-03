@@ -32,15 +32,33 @@ Status: active
 
 ## Future Manual Validation Gate
 
-- [ ] Install the generated Windows `.exe`.
-- [ ] Launch the installed app.
-- [ ] Verify single-instance locking.
-- [ ] Verify close-to-tray and tray click toggling.
+- [x] Install the generated Windows `.exe`.
+- [x] Launch the installed app.
+- [x] Verify single-instance locking.
+- [x] Verify close-to-tray and tray click toggling.
 - [ ] Verify API configuration or expected missing-token state.
 - [ ] Verify sync review state and explicit distribution behavior.
 - [ ] Verify Local Skills inventory behavior.
 - [ ] Verify theme and locale persistence.
 - [x] Confirm generated `dist/` output is not committed.
+
+## Bug Fix: Packaged Tray Icon Not Visible
+
+- [x] Diagnose root cause: `windowsIconPath` resolved relative to `import.meta.url`
+  inside `app.asar`, but `resources/icons/icon.ico` was not included in the
+  asar or extraResources.
+- [x] Add `extraResources` to `package.json` builder config to copy
+  `resources/icons/icon.ico` to `resources/icons/icon.ico` outside the asar.
+- [x] Add `resolveWindowsIconPath()` in `electron/main.ts` that uses
+  `process.resourcesPath` when `app.isPackaged` is true.
+- [x] Update icon embedding test to assert `resolveWindowsIconPath`,
+  `app.isPackaged`, and `process.resourcesPath`.
+- [x] Add `extraResources` assertion to package-scripts test.
+- [x] Confirm `npm test` passes (19 files, 107 tests).
+- [x] Confirm `npm run build` passes.
+- [x] Confirm `npm run dist:win` generates artifacts with
+  `resources/icons/icon.ico` present in `win-unpacked/`.
+- [x] Re-test installed app tray icon visibility after fix.
 
 ## Archive Gate
 

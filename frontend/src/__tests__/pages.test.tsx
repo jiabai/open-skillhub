@@ -113,7 +113,7 @@ describe("console pages", () => {
   it("renders the public landing page control room", () => {
     renderWithRuntimeConfig(<HomePage />)
 
-    expect(screen.getByRole("heading", { name: "Open SkillHub" })).toBeInTheDocument()
+    expect(screen.getByRole("heading", { name: "8xf SkillDrive" })).toBeInTheDocument()
     expect(screen.getByText("Agent Skill Control Room")).toBeInTheDocument()
     expect(screen.getByText("review-checklist")).toBeInTheDocument()
     expect(screen.getByText("v1.2.0 active")).toBeInTheDocument()

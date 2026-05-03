@@ -26,8 +26,8 @@ describe("i18n config", () => {
   })
 
   it("returns domain dictionaries for each locale", () => {
-    expect(getDictionary("en-US").metadata.title).toBe("SkillHub Console")
-    expect(getDictionary("zh-CN").metadata.title).toBe("SkillHub 控制台")
+    expect(getDictionary("en-US").metadata.title).toBe("SkillDrive Console")
+    expect(getDictionary("zh-CN").metadata.title).toBe("SkillDrive 控制台")
   })
 
   it("defaults to zh-CN", () => {

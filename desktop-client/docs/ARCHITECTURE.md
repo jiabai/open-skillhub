@@ -8,6 +8,10 @@ The desktop shell is a tray-first window: it hides the native app menu,
 shows in the Windows taskbar and Alt+Tab switcher, closes back to the notification area, and uses the tray icon to show or hide the window.
 The current repository-verified workflows are test, build, renderer-only dev,
 and the full desktop runtime launch through `npm run start:electron`.
+Installer packaging is configured with `electron-builder`; the current release
+scope is Windows installer validation, while macOS builder settings remain
+exploratory until non-Windows distribution runtime behavior is implemented and
+verified.
 
 ## Code Map
 
@@ -128,6 +132,18 @@ Dependencies should only point downward across those boundaries.
 - Agent detection snapshots are runtime state only. They are rebuilt on runtime
   config reload, manual rediscovery, pre-distribution checks, reconcile, and
   distribution, and are not persisted to SQLite or JSON config.
+
+## Packaging Surface
+
+- `package.json` contains the `electron-builder` configuration and packaging
+  scripts.
+- Windows packaging uses the `nsis` and `portable` targets with
+  `resources/icons/icon.ico`.
+- macOS `dmg` and `zip` targets are configured with `resources/icons/icon.icns`,
+  but macOS is not a v1 release runtime because package extraction currently
+  fails closed on non-Windows platforms.
+- Installer artifacts are generated under `desktop-client/dist/` and are not
+  repository source files.
 
 ## Key Files
 

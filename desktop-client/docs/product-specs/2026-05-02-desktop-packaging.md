@@ -1,127 +1,160 @@
-# Desktop Client Packaging
+# Desktop Client Windows Packaging
 
-Status: canonical local product spec, implementation pending
+Status: canonical local product spec; packaging configuration exists, Windows installer validation pending
 
 ## Purpose
 
-Enable packaging the desktop client into distributable installers for Windows
-and macOS distribution. Operators should be able to build `.exe` installers for
-Windows and `.dmg` for macOS, each installing an auto-upgrade-ready Electron app
-with proper icon, startup behavior, and tray persistence.
+Enable the desktop client to ship as a Windows distributable installer without
+changing the review-first sync and distribution runtime. Operators should be
+able to build a Windows `.exe` installer and an unpacked portable directory from
+the current Electron app, install it locally, and confirm that the installed app
+preserves single-instance locking, tray persistence, API configuration, skill
+review, and explicit distribution behavior.
+
+The current v1 release target is Windows. macOS packaging commands and icon
+assets may exist in the repository, but macOS is not a v1 release claim until
+non-Windows runtime behavior is validated and the package extraction path no
+longer depends on Windows PowerShell.
 
 ## Goals
 
-- Add `electron-builder` as the packaging toolchain.
-- Configure Windows NSIS installer output targeting Windows x64.
-- Configure macOS DMG installer output targeting macOS (x64 + arm64 universal).
-- Configure proper application metadata: app name, version, description, publisher, copyright.
-- Configure application icon using existing `resources/icons/icon.ico` (Windows) and add macOS icon.
-- Configure single-instance locking (already implemented, preserve).
-- Configure tray persistence and startup behavior.
-- Add npm scripts for building installers for both platforms.
-- Document packaging workflow in `README.md`.
-- Preserve all existing runtime behavior unchanged.
+- Use the existing `electron-builder` packaging toolchain.
+- Keep Windows NSIS installer output and the unpacked Windows directory output.
+- Preserve the existing `npm run build` verification workflow unchanged.
+- Preserve single-instance locking, taskbar visibility, close-to-tray behavior,
+  tray toggling, and explicit distribution approval.
+- Use `resources/icons/icon.ico` as the Windows installer/application icon.
+- Document the packaging workflow in `README.md`.
+- Make installer outputs easy to recognize under `dist/`.
+- Keep generated packaging artifacts out of source control.
 
 ## Non-Goals
 
-- No auto-update server or auto-update UI in v1 (future scope).
-- No Linux packaging targets in v1 (Windows + macOS only).
-- No code signing or certificate management in v1.
-- No changes to runtime functionality or UI.
-- No changes to existing build workflow (`npm run build` continues to work as before).
-- No changes to agent detection, skill distribution, or local skills management.
+- No code signing, certificate management, or publisher trust workflow in v1.
+- No auto-update server, auto-update UI, or automatic upgrade behavior in v1.
+- No Linux packaging target in v1.
+- No macOS release support in v1. Existing macOS builder settings are
+  exploratory until macOS runtime distribution is made and validated as a
+  first-class target.
+- No runtime functionality, UI, agent detection, skill distribution, or local
+  skills management changes as part of documentation-only planning.
+
+## Current Implementation Facts
+
+- `package.json` already includes `electron-builder` and packaging scripts:
+  `pack`, `dist`, `dist:win`, and `dist:mac`.
+- `package.json` already defines a builder `appId`,
+  `productName`, Windows `nsis` and `portable` targets, macOS `dmg` and `zip`
+  targets, and output directory `dist/`.
+- `resources/icons/` already contains `icon.ico`, `icon.icns`, `icon.png`, and
+  `icon.svg`.
+- `electron/main.ts` prefers `resources/icons/icon.ico` on Windows and falls
+  back to the embedded SVG icon elsewhere.
+- Runtime package extraction currently uses Windows PowerShell
+  `Expand-Archive`; non-Windows distribution fails closed before extraction.
 
 ## Packaging Output
 
-### Installer Artifacts
+### V1 Release Artifacts
 
 | Platform | Artifact | Path | Purpose |
 |----------|----------|------|---------|
 | Windows | NSIS installer | `dist/*.exe` | Single-file Windows installer |
-| Windows | Portable build | `dist/win-unpacked/` | Unpacked portable directory |
-| macOS | DMG installer | `dist/*.dmg` | macOS disk image installer |
-| macOS | ZIP archive | `dist/*.zip` | macOS ZIP archive for auto-update |
-| macOS | App bundle | `dist/mac/` | Unpacked macOS `.app` bundle |
+| Windows | Portable build | `dist/win-unpacked/` | Unpacked Windows app directory for smoke testing |
 
-### Application Metadata
+### Exploratory Artifacts
 
-- Name: `SkillDrive Desktop`
-- AppId: `com.openskillhub.skilldrive-desktop`
+| Platform | Artifact | Path | Status |
+|----------|----------|------|--------|
+| macOS | DMG installer | `dist/*.dmg` | Configured, not a v1 release gate |
+| macOS | ZIP archive | `dist/*.zip` | Configured, not an auto-update commitment |
+| macOS | App bundle | `dist/mac*/` | Configured, runtime support not validated |
+
+## Application Metadata
+
+- Product name: `SkillDrive Desktop`
+- Builder appId: `com.openskillhub.skilldrive-desktop`
+- Package name: `skilldrive-desktop`
 - Version: from `package.json`
-- Description: Open SkillHub desktop sync client
-- Publisher: Open SkillHub
-- Copyright: Open SkillHub contributors
+- Windows icon: `resources/icons/icon.ico`
+- macOS icon: `resources/icons/icon.icns` for exploratory builds
+
+Release implementation should audit whether the runtime Windows AppUserModelID
+should match the builder appId before the installer is treated as release-ready.
 
 ## Installation Behavior
 
 ### Windows Installer
 
-- Standard NSIS installer with default install wizard.
-- Install to `%LOCALAPPDATA%/Programs/SkillDrive Desktop` by default.
-- Create desktop shortcut.
-- Create Start Menu entry.
-- Add uninstall entry in Add/Remove Programs.
-- Preserve single-instance locking on first run.
-
-### macOS Installer
-
-- Standard DMG disk image with drag-drop install to Applications.
-- `.app` bundle installed to `/Applications/SkillDrive Desktop.app`.
-- Add app to Dock on first launch (optional, user-configurable).
-- Preserve single-instance locking on first run.
+- Build through `npm run dist:win` from `desktop-client/`.
+- Produce a standard NSIS installer with an install wizard.
+- Allow the operator to change the installation directory.
+- Install to Electron Builder's normal per-user Windows application location by
+  default.
+- Preserve the app's existing single-instance behavior on launch.
+- Preserve close-to-tray behavior and tray click toggling after install.
 
 ### Runtime After Install
 
-- Application behaves exactly as development mode on both platforms.
-- Tray persistence remains.
-- Configuration and state stored in platform-specific user data directories:
-  - Windows: `%APPDATA%/skilldrive-desktop`
-  - macOS: `~/Library/Application Support/skilldrive-desktop`
-- Existing `SKILLDRIVE_*` environment variables still work for configuration.
+- Application behavior should match `npm run start:electron` for the same
+  runtime environment.
+- API URL, locale, theme, sync snapshot, and cache data continue to use the
+  runtime app paths from `src/core/storage/app-paths.ts`:
+  - Windows: `%LOCALAPPDATA%/SkillDrive` or `%APPDATA%/SkillDrive`
+  - macOS exploratory runtime: `~/Library/Application Support/SkillDrive`
+  - Override: `SKILLDRIVE_DESKTOP_DATA_DIR`
+- Existing `SKILLDRIVE_*` environment variables still work when supplied to the
+  installed process environment.
+- API tokens and download decryption secrets must not be packaged into the app
+  or written to plaintext config.
 
 ## Build Workflow
 
-### New npm Scripts
+### Existing npm Scripts
 
 | Script | Purpose |
 |--------|---------|
-| `npm run build` | Existing build (unchanged) |
-| `npm run pack` | Build unpacked directories for current platform |
-| `npm run dist` | Build full installers for current platform |
-| `npm run dist:win` | Build Windows installers (on Windows or cross-platform) |
-| `npm run dist:mac` | Build macOS installers (requires macOS) |
+| `npm run build` | Existing verification build: typecheck, renderer build, Electron main/preload build |
+| `npm run pack` | Build unpacked directories for the current platform |
+| `npm run dist` | Build full installer artifacts for the current platform |
+| `npm run dist:win` | Build Windows installer artifacts |
+| `npm run dist:mac` | Exploratory macOS packaging; requires macOS for reliable validation |
 
-### Packaging Configuration
+### Windows Release Workflow
 
-- `electron-builder` config in `package.json`.
-- Use existing `resources/icons/icon.ico` as Windows app icon.
-- Add macOS icon at `resources/icons/icon.icns`.
-- Configure `nsis` target for Windows x64.
-- Configure `dmg` and `zip` targets for macOS (universal x64 + arm64).
-- Configure `directories.output` to `dist/`.
-- Configure `files` to include built renderer and Electron main process artifacts.
-- Configure `extraResources` for icons if needed.
-- Configure platform-specific settings for Windows and macOS.
+```bash
+cd desktop-client
+npm install
+npm run build
+npm run dist:win
+```
+
+Generated artifacts in `desktop-client/dist/` are local build outputs and should
+not be committed.
 
 ## Acceptance Criteria
 
-- `npm run dist:win` completes without errors on Windows.
-- `dist/` directory contains Windows `.exe` installer.
-- Windows installer runs and installs correctly.
-- Installed Windows app launches correctly.
-- `npm run dist:mac` completes without errors on macOS.
-- `dist/` directory contains macOS `.dmg` installer.
-- macOS DMG opens and drag-drop install works correctly.
-- Installed macOS app launches correctly.
-- Single-instance locking works on both platforms.
-- Tray persistence works on both platforms.
-- All existing functionality works unchanged on both platforms.
-- `npm run build` still works for development.
-- `npm run start:electron` still works for development.
-- `npm test` still passes.
+- `npm run build` still passes.
+- `npm run dist:win` completes without errors on a Windows release machine.
+- `dist/` contains a Windows `.exe` installer.
+- `dist/win-unpacked/` exists and launches for smoke testing.
+- The installed Windows app launches correctly.
+- Single-instance locking works after install.
+- Closing the window keeps the app resident in the tray.
+- The tray icon opens or hides the installed window.
+- API configuration, background refresh, pending review, explicit distribution,
+  local skills inventory, and theme/locale persistence behave the same as the
+  development runtime.
+- No secrets or generated `dist/` artifacts are committed.
+- `python scripts/validate_agents_docs.py --level ERROR` passes after docs are
+  updated.
 
 ## References
 
 - Existing architecture: `../ARCHITECTURE.md`
-- Electron main: `../../electron/main.ts`
-- Runtime config: `src/core/storage/config-store.ts`
+- Technical design: `../design-docs/desktop-packaging.md`
+- Runtime and storage surface: `../references/runtime-and-storage-surface.md`
+- Electron main process: `../../electron/main.ts`
+- Packaging configuration: `../../package.json`
+- Runtime app paths: `../../src/core/storage/app-paths.ts`
+- Packaging workflow: `../../README.md`

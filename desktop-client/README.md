@@ -50,6 +50,30 @@ plaintext config, renderer state, or logs.
 
 The tray stays resident after the window is closed so background refreshes can continue.
 
+## Packaging
+
+Windows installer packaging is configured through `electron-builder`. The v1
+release target is the Windows installer path; macOS builder settings may exist
+for exploratory builds, but macOS runtime distribution is not a release claim
+until non-Windows package extraction and smoke tests are implemented.
+
+```bash
+cd desktop-client
+npm install
+npm run build
+npm run dist:win
+```
+
+Windows release artifacts are written under `dist/`, including a `.exe` NSIS
+installer and `win-unpacked/` for smoke testing. `dist/` is generated local
+output and should not be committed.
+
+Additional configured packaging scripts:
+
+- `npm run pack` - build unpacked output for the current platform
+- `npm run dist` - build installer output for the current platform
+- `npm run dist:mac` - exploratory macOS packaging, requiring macOS for reliable validation
+
 ## Current Scope
 
 - Poll the backend for reviewable skill updates

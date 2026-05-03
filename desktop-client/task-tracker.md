@@ -2,7 +2,7 @@
 
 ## In Progress
 
-None.
+- [ ] Desktop Windows packaging documentation and validation plan (2026-05-03) ✅ Docs phase requires `python scripts/validate_agents_docs.py --level ERROR` and `git diff --check`; future release phase requires Windows installer validation. See `docs/exec-plans/active/2026-05-03-desktop-windows-packaging.md`
 
 ## Todo
 

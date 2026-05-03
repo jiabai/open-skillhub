@@ -1,0 +1,147 @@
+# Desktop Windows Packaging Plan
+
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans
+> to implement this plan task-by-task after human review. Steps use checkbox
+> (`- [ ]`) syntax in the sibling task file for progress tracking.
+
+**Goal:** Make the desktop client Windows installer story release-ready without
+over-claiming macOS runtime support.
+
+**Architecture:** Treat `electron-builder` as a packaging wrapper around the
+existing Vite renderer and Electron main/preload build outputs. Windows is the
+v1 release target; macOS packaging remains exploratory until non-Windows
+distribution is implemented and validated.
+
+**Tech Stack:** Electron, Vite, TypeScript, electron-builder, NSIS, Vitest,
+repository documentation gates.
+
+---
+
+## Scope
+
+- Correct product specs so they distinguish current implementation facts,
+  Windows v1 release scope, and exploratory macOS builder settings.
+- Add a technical design for installer packaging boundaries and validation.
+- Document the Windows packaging workflow in `README.md`.
+- Record configured packaging commands and app path reality in runtime
+  references.
+- Create this active ExecPlan and a sibling task checklist for future code or
+  release validation work.
+- Later implementation may adjust package metadata or AppUserModelID alignment
+  after review.
+
+## Non-Goals
+
+- No code edits in the documentation/planning phase requested on 2026-05-03.
+- No installer artifact generation in the documentation/planning phase.
+- No macOS runtime release claim.
+- No code signing, auto-update, or Linux packaging.
+- No changes to sync, distribution, local skills, backend API contracts, or UI
+  behavior unless a future implementation phase explicitly approves them.
+
+## Progress
+
+- [x] 2026-05-03: Reviewed root workflow, execution gates, root constitution
+  docs, desktop local AGENTS guidance, desktop architecture/design/security,
+  task tracker, indexes, current packaging specs, `package.json`,
+  `electron/main.ts`, resources, README, and app-path code.
+- [x] 2026-05-03: Found documentation issues: specs said implementation was
+  pending even though builder configuration exists, promised macOS as a v1
+  release target despite Windows-only archive extraction, and listed incorrect
+  runtime data paths.
+- [x] 2026-05-03: Updated English and Chinese product specs to describe Windows
+  v1 packaging, current implementation facts, exploratory macOS scope, and
+  accurate runtime paths.
+- [x] 2026-05-03: Added technical design, active plan, task checklist, README
+  packaging workflow, and supporting index/reference updates.
+- [ ] Human review of the docs-only packaging plan.
+- [ ] Implementation/validation phase for Windows installer release readiness.
+
+## Decisions
+
+- Windows is the only v1 release packaging target.
+- Existing macOS builder configuration is exploratory and should not be treated
+  as a release gate yet.
+- `npm run build` remains the standard development verification command.
+- `npm run dist:win` is the Windows release packaging command.
+- Generated `dist/` artifacts are local build output and must not be committed.
+- The docs phase records, but does not fix, the builder appId vs runtime
+  AppUserModelID mismatch.
+
+## File Map
+
+Created:
+
+| File | Responsibility |
+|------|----------------|
+| `docs/design-docs/desktop-packaging.md` | Durable technical packaging boundary and validation design |
+| `docs/exec-plans/active/2026-05-03-desktop-windows-packaging.md` | Active packaging execution plan |
+| `docs/exec-plans/active/2026-05-03-desktop-windows-packaging-tasks.md` | Reviewable task checklist |
+
+Modified:
+
+| File | Change |
+|------|--------|
+| `docs/product-specs/2026-05-02-desktop-packaging.md` | Correct scope to Windows v1 and current implementation facts |
+| `docs/product-specs/2026-05-02-desktop-packaging-zh.md` | Chinese version of corrected product scope |
+| `docs/product-specs/index.md` | Update packaging spec summaries |
+| `docs/design-docs/index.md` | Add packaging technical design |
+| `docs/references/runtime-and-storage-surface.md` | Add configured packaging commands and accurate release boundary |
+| `docs/ARCHITECTURE.md` | Record packaging configuration and Windows release boundary |
+| `README.md` | Document packaging workflow and generated artifact policy |
+| `task-tracker.md` | Track active packaging documentation/validation work |
+| `docs/exec-plans/active/index.md` | List this active plan and checklist |
+
+Future implementation may modify:
+
+| File | Possible Change |
+|------|-----------------|
+| `package.json` | Align metadata, target architecture, or package scripts after review |
+| `electron/main.ts` | Align Windows AppUserModelID after review |
+
+## Implementation Tasks
+
+See `2026-05-03-desktop-windows-packaging-tasks.md`.
+
+## Validation Plan
+
+Docs phase:
+
+```bash
+python scripts/validate_agents_docs.py --level ERROR
+git diff --check
+```
+
+Future Windows packaging validation:
+
+```bash
+cd desktop-client
+npm test
+npm run build
+npm run dist:win
+```
+
+Manual smoke test after installer generation:
+
+- Install from the generated `.exe`.
+- Launch the installed app.
+- Verify repeat launch focuses the existing instance.
+- Close the window and reopen it through the tray.
+- Verify API configuration, missing-token state or authenticated sync,
+  explicit distribution, Local Skills, theme, and locale behavior.
+
+## Validation Results
+
+- `python scripts/validate_agents_docs.py --level ERROR` - first run failed
+  because the active `task-tracker.md` item lacked the repository-required
+  validation marker; fixed by adding the docs-phase validation condition to the
+  tracker item.
+- `python scripts/validate_agents_docs.py --level ERROR` - passed with 0 errors
+  and 0 warnings after the tracker fix.
+- `git diff --check` - passed with exit code 0; Git reported expected Windows
+  LF-to-CRLF working-copy warnings only.
+
+## Outcome
+
+Pending. This plan should remain active until Windows installer validation is
+complete or the packaging work is explicitly superseded.

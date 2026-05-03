@@ -11,6 +11,19 @@
 bundle into `dist-electron/`, and launches Electron through the package `main`
 entry.
 
+## Configured Packaging Commands
+
+- `npm run pack` (unpacked output for the current platform)
+- `npm run dist` (installer output for the current platform)
+- `npm run dist:win` (Windows release packaging path)
+- `npm run dist:mac` (exploratory macOS packaging; not a v1 release gate)
+
+Packaging uses `electron-builder` configuration in `package.json` and writes
+generated artifacts under `desktop-client/dist/`. The current release scope is
+Windows installer validation. macOS packaging is not a release claim until the
+runtime no longer depends on Windows-only package extraction and macOS smoke
+tests exist.
+
 ## Environment Variables Read By The Runtime
 
 - `SKILLDRIVE_API_BASE_URL`

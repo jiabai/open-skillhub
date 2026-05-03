@@ -14,6 +14,7 @@ Product specs describe user-visible intent and boundaries for a feature before o
 | `2026-04-24-client-skills-private-space.md` | Client API skill listing semantics: only user-owned private-space skills, including reference/clone records |
 | `2026-05-01-client-skills-upload.md` | Client API ZIP skill upload endpoint: API-token-only skill creation and version append |
 | `2026-05-02-landing-page-light-mode.md` | Public light-mode Landing Page intent, Shell boundary, copy, and visual acceptance criteria |
+| `2026-05-04-content-hash-dedup.md` | Content hash dedup for skill distribution: replace version-string comparison with SHA-256 hash |
 
 ## Guidelines
 

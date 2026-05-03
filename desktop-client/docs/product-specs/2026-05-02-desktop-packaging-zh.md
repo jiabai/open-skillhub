@@ -10,8 +10,8 @@ Windows 可分发安装包。操作者应该能够从当前 Electron 应用构�
 实例锁定、托盘驻留、API 配置、技能审核和显式分发行为。
 
 当前 v1 发布目标是 Windows。仓库中可以保留 macOS 打包脚本和图标资源，
-但在非 Windows 运行时经过验证、且技能包解压路径不再依赖 Windows
-PowerShell 之前，macOS 不作为 v1 发布承诺。
+但在 macOS 发布机器上完成非 Windows 运行时、签名、公证、stapling 和冒烟
+测试验证前，macOS 不作为 v1 发布承诺。
 
 ## 目标
 
@@ -44,8 +44,8 @@ PowerShell 之前，macOS 不作为 v1 发布承诺。
   `icon.svg`。
 - `electron/main.ts` 在 Windows 上优先使用 `resources/icons/icon.ico`，
   其他平台回退到内嵌 SVG 图标。
-- 当前技能包解压通过 Windows PowerShell `Expand-Archive` 实现；非
-  Windows 分发会在解压前失败关闭。
+- 当前技能包解压使用共享的 `extractZipArchive()` helper，不再调用 Windows
+  PowerShell。
 
 ## 打包输出
 
@@ -62,7 +62,7 @@ PowerShell 之前，macOS 不作为 v1 发布承诺。
 |------|------|------|------|
 | macOS | DMG 安装包 | `dist/*.dmg` | 已配置，但不是 v1 发布门禁 |
 | macOS | ZIP 归档 | `dist/*.zip` | 已配置，但不代表自动更新承诺 |
-| macOS | App 包 | `dist/mac*/` | 已配置，运行时支持未验证 |
+| macOS | App 包 | `dist/mac*/` | 已配置，发布支持未验证 |
 
 ## 应用元数据
 

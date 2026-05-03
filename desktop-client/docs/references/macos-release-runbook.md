@@ -1,6 +1,6 @@
 # macOS Release Runbook
 
-Status: operator runbook prepared on Windows; execute on macOS after implementation gates are complete
+Status: operator runbook prepared on Windows; execute on macOS after signing configuration gates are complete
 
 ## Purpose
 
@@ -14,9 +14,10 @@ below must be satisfied before running the release commands.
 
 Stop before release packaging unless all of these are true:
 
-- The active macOS release ExecPlan says cross-platform archive extraction is
-  implemented.
-- `electron/main.ts` no longer fails closed for non-Windows package extraction.
+- The active macOS release ExecPlan records passing cross-platform archive
+  extraction tests.
+- `electron/main.ts` uses `extractZipArchive()` instead of Windows PowerShell
+  for package extraction.
 - macOS entitlements files are committed and do not contain secrets.
 - `package.json` macOS release config points at those entitlements.
 - The macOS machine has Xcode command line tools and current `notarytool`.

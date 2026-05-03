@@ -47,8 +47,8 @@ repository documentation gates.
   `electron/main.ts`, resources, README, and app-path code.
 - [x] 2026-05-03: Found documentation issues: specs said implementation was
   pending even though builder configuration exists, promised macOS as a v1
-  release target despite Windows-only archive extraction, and listed incorrect
-  runtime data paths.
+  release target despite the then-current Windows-only archive extraction, and
+  listed incorrect runtime data paths.
 - [x] 2026-05-03: Updated English and Chinese product specs to describe Windows
   v1 packaging, current implementation facts, exploratory macOS scope, and
   accurate runtime paths.
@@ -148,12 +148,16 @@ Manual smoke test after installer generation:
   LF-to-CRLF working-copy warnings only.
 - `npm test -- src/__tests__/package-scripts.test.ts` - passed after package
   metadata and AppUserModelID alignment changes.
-- `npm test` - passed after implementation: 18 test files and 97 tests.
+- `npm test` - passed after current implementation: 19 test files and 104
+  tests.
 - `npm run build` - passed after implementation, including Electron
   typecheck, renderer build, main build, and preload build.
-- `npm run dist:win` - passed and generated Windows artifacts:
+- `npm run dist:win` - passed after adding the runtime ZIP extraction
+  dependency and generated Windows artifacts:
   `dist/SkillDrive Desktop Setup 0.1.0.exe`,
   `dist/SkillDrive Desktop 0.1.0.exe`, and `dist/win-unpacked/`.
+- `node -e "const asar=require('@electron/asar'); ..."` - confirmed
+  packaged `app.asar` includes `node_modules/extract-zip`.
 - `git status --short --ignored=matching desktop-client\dist` - confirmed
   `dist/` and `dist-electron/` are ignored generated outputs.
 - Error note: a PowerShell inspection attempt using

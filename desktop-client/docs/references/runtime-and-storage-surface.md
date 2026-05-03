@@ -22,9 +22,9 @@ entry.
 Packaging uses `electron-builder` configuration in `package.json` and writes
 generated artifacts under `desktop-client/dist/`. The current release scope is
 Windows installer validation. macOS packaging is tracked separately in
-`macos-release-runbook.md` and is not a release claim until the runtime no
-longer depends on Windows-only package extraction, the app is Developer
-ID-signed and notarized, and macOS smoke tests are recorded.
+`macos-release-runbook.md` and is not a release claim until the app is
+Developer ID-signed and notarized, the DMG is stapled, and macOS runtime smoke
+tests are recorded.
 
 ## Environment Variables Read By The Runtime
 

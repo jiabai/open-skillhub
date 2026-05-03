@@ -1,6 +1,6 @@
 # macOS Release Packaging
 
-Status: canonical local product spec; documentation and release runbook prepared, implementation and macOS validation pending
+Status: canonical local product spec; cross-platform extraction implemented, macOS signing configuration and validation pending
 
 ## Purpose
 
@@ -17,8 +17,8 @@ as a public macOS installer.
 
 - Preserve the existing review-first sync and explicit distribution model on
   macOS.
-- Replace the current Windows-only package extraction dependency before macOS is
-  considered releaseable.
+- Keep runtime package extraction independent of Windows shell tooling before
+  macOS is considered releaseable.
 - Configure macOS release signing inputs for `electron-builder`.
 - Use Developer ID signing for distribution outside the Mac App Store.
 - Use Apple notarization and stapling for the final DMG.
@@ -50,8 +50,10 @@ as a public macOS installer.
 
 - `package.json` already exposes `npm run dist:mac` and configures `dmg` plus
   `zip` targets with `resources/icons/icon.icns`.
-- The current runtime package extraction path in `electron/main.ts` uses
-  Windows PowerShell `Expand-Archive` and fails closed on non-Windows platforms.
+- Runtime package extraction now uses `extractZipArchive()` from
+  `src/core/distribution/archive-extraction.ts`; focused tests cover valid
+  extraction, traversal rejection, symlink rejection, and absolute destination
+  enforcement.
 - The repository does not yet include macOS entitlements files.
 - The repository does not yet include a notarization helper script or explicit
   electron-builder notarization configuration.
@@ -65,7 +67,8 @@ Before a macOS DMG is publishable, all of the following must be true:
 
 - `npm test` passes on the macOS build machine.
 - `npm run build` passes on the macOS build machine.
-- Runtime package extraction no longer depends on Windows PowerShell.
+- Runtime package extraction no longer depends on Windows PowerShell and has
+  Windows-side automated coverage.
 - `npm run dist:mac` produces a signed `.app`, `.dmg`, and `.zip`.
 - The app is signed with a Developer ID Application identity.
 - Hardened Runtime is enabled.
@@ -79,8 +82,8 @@ Before a macOS DMG is publishable, all of the following must be true:
 
 ## Acceptance Criteria
 
-- A future implementation plan replaces Windows-only extraction with a safe
-  cross-platform ZIP extraction path and adds focused regression coverage.
+- Safe cross-platform ZIP extraction is implemented without Windows PowerShell
+  and has focused regression coverage.
 - macOS signing entitlements are documented and committed without secrets.
 - The macOS runbook can be followed on a clean macOS build machine without
   relying on chat history.
@@ -88,9 +91,10 @@ Before a macOS DMG is publishable, all of the following must be true:
   environment/keychain inputs.
 - `python scripts/validate_agents_docs.py --level ERROR` passes after the docs
   are updated.
-- The final release remains blocked until macOS machine validation records
-  `npm test`, `npm run build`, `npm run dist:mac`, notarization, stapling, and
-  smoke-test results.
+- The final release remains blocked until macOS entitlements/signing config is
+  implemented and macOS machine validation records `npm test`,
+  `npm run build`, `npm run dist:mac`, notarization, stapling, and smoke-test
+  results.
 
 ## References
 

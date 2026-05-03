@@ -1,6 +1,6 @@
 # macOS Release Packaging Technical Design
 
-Status: active design; Windows-side documentation complete, implementation and macOS validation pending
+Status: active design; cross-platform extraction implemented, macOS signing configuration and validation pending
 
 ## Goal
 
@@ -23,31 +23,36 @@ on Windows now from work that must happen on a macOS build machine later.
 
 ## Current Blockers
 
-1. `electron/main.ts` uses Windows PowerShell `Expand-Archive` for downloaded
-   skill package extraction.
-2. macOS package extraction and distribution are not covered by tests.
-3. macOS entitlements are not present in the repository.
-4. Notarization credentials and process are not documented in a repo-local
-   runbook until this plan.
-5. The current machine is Windows, so the final signed DMG and Gatekeeper
-   checks cannot be completed here.
+1. macOS entitlements are not present in the repository.
+2. `package.json` does not yet include explicit macOS signing/notarization
+   release configuration.
+3. The current machine is Windows, so the final signed DMG, notarization,
+   stapling, Gatekeeper checks, and macOS runtime smoke test cannot be
+   completed here.
+
+Resolved in the Windows implementation pass:
+
+- `electron/main.ts` no longer shells out to Windows PowerShell for downloaded
+  skill package extraction.
+- `src/__tests__/archive-extraction.test.ts` covers safe ZIP extraction,
+  traversal rejection, symlink rejection, and absolute extraction destinations.
 
 ## Proposed Implementation Shape
 
 ### Cross-Platform Extraction
 
-Replace the Windows-only `extractArchive()` dependency with a safe ZIP
-extraction implementation that works on Windows and macOS:
+The Windows-only `extractArchive()` dependency has been replaced with
+`extractZipArchive()` in `src/core/distribution/archive-extraction.ts`:
 
-- Reject absolute paths.
-- Reject `..` traversal after normalizing path segments.
-- Reject symlink escapes if the chosen ZIP library exposes symlink metadata.
+- ZIP path traversal rejection is provided by `extract-zip`.
+- Symlink entries are rejected before materialization.
+- Archive and extraction destination paths must be absolute.
 - Extract into the existing package-service temporary directory.
 - Preserve existing checksum and expiry checks before extraction.
 - Keep package-service cleanup ownership unchanged.
 
-The implementation should be covered by tests that exercise safe extraction and
-path traversal rejection without requiring macOS.
+The implementation is covered by Windows-side Vitest coverage that does not
+require macOS. macOS runtime smoke testing remains required before release.
 
 ### macOS Builder Configuration
 
@@ -83,16 +88,16 @@ macOS login keychain. CI-style `.p12` import through `CSC_LINK` and
 `CSC_KEY_PASSWORD` is allowed only as local/CI secret configuration, never as
 repository content.
 
-## File Plan For Future Implementation
+## File Plan
 
 | File | Responsibility |
 |------|----------------|
-| `package.json` | Add explicit macOS release signing/notarization config |
-| `electron/main.ts` | Replace Windows-only extraction adapter with cross-platform helper |
-| `src/core/distribution/archive-extraction.ts` | Own safe ZIP extraction rules if extraction is split from Electron main |
-| `src/__tests__/archive-extraction.test.ts` | Cover safe extraction and traversal rejection |
-| `build/entitlements.mac.plist` | App entitlements for Developer ID macOS build |
-| `build/entitlements.mac.inherit.plist` | Inherited entitlements for Electron helpers/frameworks |
+| `package.json` | Remaining: add explicit macOS release signing/notarization config |
+| `electron/main.ts` | Implemented: call cross-platform extraction helper |
+| `src/core/distribution/archive-extraction.ts` | Implemented: own safe ZIP extraction rules |
+| `src/__tests__/archive-extraction.test.ts` | Implemented: cover safe extraction and unsafe archive rejection |
+| `build/entitlements.mac.plist` | Remaining: app entitlements for Developer ID macOS build |
+| `build/entitlements.mac.inherit.plist` | Remaining: inherited entitlements for Electron helpers/frameworks |
 | `docs/references/macos-release-runbook.md` | Operator release checklist and command transcript |
 
 ## Windows-Side Documentation Deliverables

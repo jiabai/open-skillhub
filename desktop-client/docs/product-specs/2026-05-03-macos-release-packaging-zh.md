@@ -1,6 +1,6 @@
 # macOS 发布打包
 
-状态：规范本地产品文档；文档和发布操作手册已准备，代码实现和 macOS 验证待完成
+状态：规范本地产品文档；跨平台解压已实现，macOS 签名配置和验证待完成
 
 ## 目的
 
@@ -15,7 +15,7 @@ stapling 的 `.dmg`，操作者在完成 macOS 冒烟测试后可以在 Mac App 
 ## 目标
 
 - 在 macOS 上保留现有“先审核、再显式分发”的同步模型。
-- 在 macOS 可发布前，替换当前 Windows-only 的技能包解压依赖。
+- 在 macOS 可发布前，保持运行时技能包解压不依赖 Windows shell 工具。
 - 为 `electron-builder` 配置 macOS release 签名输入。
 - 使用 Developer ID 签名支持 Mac App Store 外分发。
 - 使用 Apple notarization 和 stapling 处理最终 DMG。
@@ -44,8 +44,9 @@ stapling 的 `.dmg`，操作者在完成 macOS 冒烟测试后可以在 Mac App 
 
 - `package.json` 已暴露 `npm run dist:mac`，并配置了 `dmg` 和 `zip` 目标，
   使用 `resources/icons/icon.icns`。
-- 当前 `electron/main.ts` 中的运行时技能包解压依赖 Windows PowerShell
-  `Expand-Archive`，在非 Windows 平台会失败关闭。
+- 当前运行时技能包解压使用
+  `src/core/distribution/archive-extraction.ts` 中的 `extractZipArchive()`；
+  聚焦测试已覆盖正常解压、路径穿越拒绝、symlink 拒绝和绝对输出目录要求。
 - 仓库还没有 macOS entitlements 文件。
 - 仓库还没有 notarization helper 脚本或明确的 electron-builder notarization 配置。
 - 当前 Windows 环境无法产出最终签名并公证的 DMG；最终验证必须在具备 Xcode
@@ -57,7 +58,7 @@ macOS DMG 可发布前，必须满足：
 
 - `npm test` 在 macOS 构建机器上通过。
 - `npm run build` 在 macOS 构建机器上通过。
-- 运行时技能包解压不再依赖 Windows PowerShell。
+- 运行时技能包解压不再依赖 Windows PowerShell，并已有 Windows 侧自动化覆盖。
 - `npm run dist:mac` 产出 signed `.app`、`.dmg` 和 `.zip`。
 - 应用使用 Developer ID Application identity 签名。
 - Hardened Runtime 已启用。
@@ -70,13 +71,14 @@ macOS DMG 可发布前，必须满足：
 
 ## 验收标准
 
-- 后续实现计划替换 Windows-only 解压为安全的跨平台 ZIP 解压，并补聚焦回归测试。
+- 安全的跨平台 ZIP 解压已实现，不依赖 Windows PowerShell，并已有聚焦回归测试。
 - macOS 签名 entitlements 已文档化并提交，且不包含 secrets。
 - macOS 操作手册可以在干净 macOS 构建机器上执行，不依赖聊天历史。
 - Apple 签名和公证凭据只作为操作者环境变量或 keychain 输入出现。
 - 文档更新后 `python scripts/validate_agents_docs.py --level ERROR` 通过。
-- 最终 release 仍然阻塞，直到 macOS 机器记录 `npm test`、`npm run build`、
-  `npm run dist:mac`、notarization、stapling 和冒烟测试结果。
+- 最终 release 仍然阻塞，直到 macOS entitlements/签名配置完成，且 macOS
+  机器记录 `npm test`、`npm run build`、`npm run dist:mac`、notarization、
+  stapling 和冒烟测试结果。
 
 ## 参考
 

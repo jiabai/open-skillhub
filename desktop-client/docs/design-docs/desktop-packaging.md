@@ -1,6 +1,6 @@
 # Desktop Packaging Technical Design
 
-Status: active design; documentation/planning phase complete, installer validation pending
+Status: active design; packaging implementation in progress, installer validation pending
 
 ## Goal
 
@@ -19,8 +19,9 @@ generated artifact churn in source control.
   already exists.
 - `electron/main.ts` prefers `resources/icons/icon.ico` on Windows and uses the
   embedded SVG fallback on other platforms.
-- `electron/main.ts` currently extracts downloaded skill packages through
-  Windows PowerShell `Expand-Archive`; non-Windows distribution fails closed.
+- Downloaded skill package extraction uses
+  `src/core/distribution/archive-extraction.ts`, which avoids shelling out to
+  Windows PowerShell.
 - Runtime data paths are owned by `src/core/storage/app-paths.ts`, not by the
   installer configuration.
 - The builder `appId` and runtime Windows AppUserModelID are both
@@ -33,7 +34,7 @@ generated artifact churn in source control.
 
 - Treat Windows as the v1 release packaging target.
 - Keep macOS builder settings documented as exploratory until macOS runtime
-  distribution has an implementation and validation plan.
+  distribution, signing, notarization, and smoke validation pass on macOS.
 - Keep `npm run build` as the normal development verification command; installer
   generation is an additional release validation step, not a replacement.
 - Keep code signing and auto-update out of v1.
@@ -75,7 +76,7 @@ packaged files match the standard verified runtime build.
 `npm run dist:mac` remains available, but it is not a publishable release path
 until the dedicated macOS release plan passes. That plan must address at least:
 
-- cross-platform package extraction instead of Windows PowerShell
+- macOS validation of the cross-platform package extraction path
 - macOS tray/menu-bar expectations
 - macOS install smoke tests
 - macOS distribution smoke tests against supported local agent paths

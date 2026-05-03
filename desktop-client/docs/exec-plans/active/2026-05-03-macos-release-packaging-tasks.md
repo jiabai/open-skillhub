@@ -25,15 +25,15 @@ Status: active
 
 ## Future Implementation Gate
 
-- [ ] Write failing extraction tests for safe ZIP extraction on Windows and
+- [x] Write failing extraction tests for safe ZIP extraction on Windows and
   macOS-compatible path semantics.
-- [ ] Implement safe cross-platform extraction without shelling out to
+- [x] Implement safe cross-platform extraction without shelling out to
   PowerShell.
-- [ ] Preserve checksum, expiration, and cleanup ownership behavior.
+- [x] Preserve checksum, expiration, and cleanup ownership behavior.
 - [ ] Add explicit macOS entitlements files.
 - [ ] Add macOS signing/notarization config to `package.json`.
-- [ ] Run `npm test`.
-- [ ] Run `npm run build`.
+- [x] Run `npm test`.
+- [x] Run `npm run build`.
 
 ## Future macOS Release Gate
 

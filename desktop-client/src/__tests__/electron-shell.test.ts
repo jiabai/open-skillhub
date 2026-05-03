@@ -32,4 +32,13 @@ describe("Electron shell behavior", () => {
     expect(mainSource).toContain("cleanupPaths: [artifactRoot]")
     expect(mainSource).toContain("rm(artifactRoot, { recursive: true, force: true })")
   })
+
+  it("uses cross-platform archive extraction instead of Windows PowerShell", () => {
+    const mainSource = readFileSync(join(process.cwd(), "electron", "main.ts"), "utf8")
+
+    expect(mainSource).toContain("extractZipArchive")
+    expect(mainSource).not.toContain("powershell.exe")
+    expect(mainSource).not.toContain("Expand-Archive")
+    expect(mainSource).not.toContain("Archive extraction is currently implemented for Windows desktop only")
+  })
 })

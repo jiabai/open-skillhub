@@ -4,7 +4,7 @@
 
 **Goal:** Make SkillDrive Desktop produce a publishable macOS DMG after a future macOS-machine validation pass.
 
-**Architecture:** Keep packaging as an `electron-builder` wrapper around the existing Vite renderer and Electron main/preload outputs. Before macOS can be released, replace Windows-only package extraction with a safe cross-platform ZIP extraction path, add explicit macOS entitlements and signing configuration, then validate Developer ID signing, Apple notarization, stapling, Gatekeeper, and app behavior on macOS.
+**Architecture:** Keep packaging as an `electron-builder` wrapper around the existing Vite renderer and Electron main/preload outputs. The Windows-only package extraction path has been replaced with a safe cross-platform ZIP extraction helper; before macOS can be released, add explicit macOS entitlements and signing configuration, then validate Developer ID signing, Apple notarization, stapling, Gatekeeper, and app behavior on macOS.
 
 **Tech Stack:** Electron, Vite, TypeScript, electron-builder, Developer ID signing, Apple notarytool/stapler, Vitest, repository documentation gates.
 
@@ -17,7 +17,7 @@
   runtime blockers.
 - Add a macOS release operation runbook that can be executed later on a macOS
   build machine.
-- Track future implementation tasks for cross-platform extraction, entitlements,
+- Track implementation tasks for cross-platform extraction, entitlements,
   electron-builder config, and macOS validation.
 - Update indexes, architecture, security, references, and task tracker.
 
@@ -25,7 +25,6 @@
 
 - No macOS build execution on the current Windows machine.
 - No Apple credential creation or storage in this repository.
-- No code change in this documentation-only preparation phase.
 - No Mac App Store distribution.
 - No auto-update work.
 - No Windows packaging regression scope beyond preserving existing behavior.
@@ -36,20 +35,29 @@
   guidance, task tracker, product/design/reference indexes, current packaging
   docs, current package configuration, electron-builder local schema, and Apple
   Developer ID/notarization documentation.
-- [x] 2026-05-03: Confirmed macOS remains blocked by Windows-only archive
-  extraction and lack of macOS signing/notarization release validation.
+- [x] 2026-05-03: Confirmed macOS was blocked by Windows-only archive
+  extraction and remains blocked by lack of macOS signing/notarization release
+  validation.
 - [x] 2026-05-03: Added English and Chinese macOS release product specs.
 - [x] 2026-05-03: Added macOS release packaging technical design.
 - [x] 2026-05-03: Added macOS release runbook for the future macOS build
   machine.
 - [x] 2026-05-03: Added active ExecPlan and task checklist.
-- [ ] Future implementation: cross-platform extraction and macOS signing config.
+- [x] 2026-05-03: Added failing tests for safe archive extraction and verified
+  the RED state when the helper was missing.
+- [x] 2026-05-03: Implemented `extractZipArchive()` with absolute-path
+  enforcement and symlink rejection, wired `electron/main.ts` to use it instead
+  of PowerShell, and added `extract-zip` as a runtime dependency.
+- [x] 2026-05-03: Confirmed checksum, expiration, and cleanup ownership stay in
+  the existing download/package-service flow.
+- [ ] Future implementation: macOS entitlements and signing/notarization config.
 - [ ] Future macOS validation: signed DMG, notarization, stapling, Gatekeeper,
   and manual smoke test.
 
 ## Decisions
 
-- The macOS DMG is not releaseable until runtime distribution works on macOS.
+- The macOS DMG is not releaseable until runtime distribution is smoke-tested
+  on macOS.
 - Apple signing and notarization secrets must remain operator environment or
   keychain inputs, never committed files.
 - Developer ID distribution outside the Mac App Store is the intended macOS
@@ -89,11 +97,19 @@ Future implementation files:
 | File | Possible Change |
 |------|-----------------|
 | `package.json` | Add explicit macOS entitlements/signing/notarization config |
-| `electron/main.ts` | Remove Windows-only extraction dependency |
-| `src/core/distribution/archive-extraction.ts` | Add safe cross-platform ZIP extraction helper if split out |
-| `src/__tests__/archive-extraction.test.ts` | Cover safe extraction and traversal rejection |
 | `build/entitlements.mac.plist` | App entitlements |
 | `build/entitlements.mac.inherit.plist` | Inherited Electron helper entitlements |
+
+Implemented files:
+
+| File | Change |
+|------|--------|
+| `package.json` | Added runtime `extract-zip` dependency |
+| `package-lock.json` | Locked direct runtime ZIP extraction dependency |
+| `electron/main.ts` | Removed Windows PowerShell extraction and called `extractZipArchive()` |
+| `src/core/distribution/archive-extraction.ts` | Added safe cross-platform ZIP extraction helper |
+| `src/__tests__/archive-extraction.test.ts` | Covered valid extraction, traversal rejection, symlink rejection, and absolute destination enforcement |
+| `src/__tests__/electron-shell.test.ts` | Guarded against reintroducing PowerShell extraction |
 
 ## Implementation Tasks
 
@@ -136,9 +152,29 @@ Manual smoke testing is defined in `../../references/macos-release-runbook.md`.
   errors and 0 warnings for the Windows documentation phase.
 - `git diff --check` - passed with exit code 0; Git reported expected Windows
   LF-to-CRLF working-copy warnings only.
+- `npm test -- src/__tests__/archive-extraction.test.ts` - RED before
+  implementation because `@/core/distribution/archive-extraction` did not
+  exist; passed after implementation and absolute-entry coverage with 6 tests.
+- `npm test -- src/__tests__/electron-shell.test.ts` - RED before
+  implementation because `electron/main.ts` did not call `extractZipArchive`;
+  passed after implementation with 3 tests.
+- `npm test` - passed after cross-platform extraction implementation with 19
+  test files and 104 tests.
+- `npm run build` - first attempt failed while Vite tried to remove
+  `dist/win-unpacked` because a previous packaged `SkillDrive Desktop.exe`
+  process was still running from that generated directory. After stopping those
+  generated build-output processes, the same command passed.
+- `python scripts\validate_agents_docs.py --level ERROR` - passed after
+  implementation documentation updates with 0 errors and 0 warnings.
+- `git diff --check` - passed after implementation documentation updates; Git
+  reported expected Windows LF-to-CRLF working-copy warnings only.
+- `npm run dist:win` - passed after adding the runtime ZIP extraction
+  dependency, preserving Windows installer generation.
+- `node -e "const asar=require('@electron/asar'); ..."` - confirmed
+  packaged `app.asar` includes `node_modules/extract-zip`.
 
 ## Outcome
 
-Pending. This plan remains active until macOS runtime support, release
-configuration, notarization, and manual smoke validation are complete or the
-release path is superseded.
+Pending. Cross-platform archive extraction is implemented and Windows-validated.
+This plan remains active until macOS release configuration, notarization, and
+manual smoke validation are complete or the release path is superseded.

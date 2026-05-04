@@ -106,21 +106,52 @@ uv run uvicorn backend.api_app:app --host 0.0.0.0 --port 8001
 
 ### 桌面客户端
 
-仓库里还包含一个 Windows Electron 桌面客户端，位于 `desktop-client/`。它会轮询后端中的待审核技能更新，显示托盘提示和桌面通知，但不会自动分发，保持“先审核、后操作”的流程。
+仓库中还包含一个跨平台 Electron 桌面客户端，位于 `desktop-client/`。它会轮询后端中的待审核技能更新，显示托盘提示和桌面通知，但不会自动分发，保持"先审核、后操作"的流程。
 
 ```bash
 cd desktop-client
 npm install
-set OPEN_SKILLHUB_API_BASE_URL=http://127.0.0.1:8001
-set OPEN_SKILLHUB_API_TOKEN=ask_live_your_token
-set OPEN_SKILLHUB_CODEX_SKILLS_PATH=%USERPROFILE%\\.codex\\skills
-set OPEN_SKILLHUB_CLAUDE_CODE_SKILLS_PATH=%USERPROFILE%\\.claude\\skills
-set OPEN_SKILLHUB_GEMINI_CLI_SKILLS_PATH=%USERPROFILE%\\.gemini\\skills
-npm run test
+set SKILLDRIVE_API_BASE_URL=http://127.0.0.1:8001
+set SKILLDRIVE_API_TOKEN=ask_live_your_token
+set SKILLDRIVE_CODEX_SKILLS_PATH=%USERPROFILE%\.codex\skills
+set SKILLDRIVE_CLAUDE_CODE_SKILLS_PATH=%USERPROFILE%\.claude\skills
+set SKILLDRIVE_GEMINI_CLI_SKILLS_PATH=%USERPROFILE%\.gemini\skills
+npm test
 npm run build
 ```
 
-`npm run build` 会同时执行 Electron 的 TypeScript 检查和前端构建。关闭窗口后托盘会继续保活，这样后台轮询可以持续运行，而已审核的更新只有在你明确触发分发时才会真正写入各个 agent 目录。当前桌面端链路要求客户端下载为未加密版本。
+#### 桌面端功能
+
+- **先审核后同步与分发**：轮询后端更新，安装前需要明确审批
+- **本地技能管理**：扫描本地 Agent 技能目录，允许上传服务器上缺失的技能
+- **深色/浅色主题切换**：一键主题切换并持久化
+- **多 Agent 支持**：分发给 Claude Code、Codex、Gemini CLI、Cursor、Windsurf、Copilot 等
+- **跨平台打包**：Windows 安装包和 macOS DMG（已签名、公证、装订）
+- **系统托盘驻留**：窗口关闭后应用在后台继续轮询
+- **加密下载支持**：可使用后端密钥解密技能包
+
+#### 快速命令
+
+```bash
+cd desktop-client
+
+# 完整桌面运行时（推荐用于本地测试）
+npm run start:electron
+
+# 仅渲染器开发（更快的 UI 迭代）
+npm run dev
+
+# 运行测试
+npm test
+
+# 构建 Windows 版本（生成 NSIS 安装包）
+npm run dist:win
+
+# 构建 macOS 版本（需要 Apple 凭证进行签名/公证）
+npm run dist:mac
+```
+
+关闭窗口后托盘会继续保活，这样后台轮询可以持续运行，而已审核的更新只有在你明确触发分发时才会真正写入各个 agent 目录。完整的手动测试指南和故障排查请参考 `desktop-client/README-zh.md`。
 
 ---
 
@@ -137,6 +168,15 @@ npm run build
      ↑                                   |
      └────────────────── 回滚 / 停用 ←───┘
 ```
+
+### 本地技能上传
+
+从你的 Agent 目录上传现有的本地技能：
+
+- 从 Claude Code、Codex、Gemini CLI、Cursor、Windsurf、Copilot 等扫描本地技能包
+- 按 SKILL 名称对比本地技能与服务器库存
+- 上传服务器上缺失的有效本地技能
+- 上传后刷新库存以验证服务器状态
 
 ### 企业级安全保障（后端能力开关）
 

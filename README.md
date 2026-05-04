@@ -106,21 +106,52 @@ If you edit `shared/user-statuses.json`, run `python scripts/sync_shared_catalog
 
 ### Desktop Client
 
-The repository also includes a Windows Electron desktop client under `desktop-client/`. It polls the backend for reviewable skill updates, shows tray tooltips and desktop notifications, and keeps distribution manual so operators can review before they act.
+The repository also includes a cross-platform Electron desktop client under `desktop-client/`. It polls the backend for reviewable skill updates, shows tray tooltips and desktop notifications, and keeps distribution manual so operators can review before they act.
 
 ```bash
 cd desktop-client
 npm install
-set OPEN_SKILLHUB_API_BASE_URL=http://127.0.0.1:8001
-set OPEN_SKILLHUB_API_TOKEN=ask_live_your_token
-set OPEN_SKILLHUB_CODEX_SKILLS_PATH=%USERPROFILE%\\.codex\\skills
-set OPEN_SKILLHUB_CLAUDE_CODE_SKILLS_PATH=%USERPROFILE%\\.claude\\skills
-set OPEN_SKILLHUB_GEMINI_CLI_SKILLS_PATH=%USERPROFILE%\\.gemini\\skills
-npm run test
+set SKILLDRIVE_API_BASE_URL=http://127.0.0.1:8001
+set SKILLDRIVE_API_TOKEN=ask_live_your_token
+set SKILLDRIVE_CODEX_SKILLS_PATH=%USERPROFILE%\.codex\skills
+set SKILLDRIVE_CLAUDE_CODE_SKILLS_PATH=%USERPROFILE%\.claude\skills
+set SKILLDRIVE_GEMINI_CLI_SKILLS_PATH=%USERPROFILE%\.gemini\skills
+npm test
 npm run build
 ```
 
-`npm run build` performs the Electron TypeScript check and the renderer build. The tray keeps the app resident after the window is closed so background polling can continue, and approved updates are distributed only when you explicitly trigger them from the review UI. The current desktop pipeline expects unencrypted client downloads.
+#### Desktop Features
+
+- **Review-first sync & distribution**: Polls backend for updates, requires explicit approval before installing
+- **Local Skills management**: Scans local agent skill directories and lets you upload server-missing skills
+- **Dark/Light theme toggle**: One-click theme switching with persistence
+- **Multi-agent support**: Distributes to Claude Code, Codex, Gemini CLI, Cursor, Windsurf, Copilot, and more
+- **Cross-platform packaging**: Windows installer and macOS DMG (signed, notarized, stapled)
+- **System tray residency**: App stays in background with polling after window closes
+- **Encrypted download support**: Optionally decrypts skill packages using backend secret key
+
+#### Quick Commands
+
+```bash
+cd desktop-client
+
+# Full desktop runtime (recommended for local testing)
+npm run start:electron
+
+# Renderer-only development (faster UI iteration)
+npm run dev
+
+# Run tests
+npm test
+
+# Build for Windows (produces NSIS installer)
+npm run dist:win
+
+# Build for macOS (requires Apple credentials for signing/notarization)
+npm run dist:mac
+```
+
+The tray keeps the app resident after the window is closed so background polling can continue, and approved updates are distributed only when you explicitly trigger them from the review UI. See `desktop-client/README.md` for complete manual testing guide and troubleshooting.
 
 ---
 
@@ -134,9 +165,18 @@ Every user gets an isolated skill space with a clear auth boundary: JWT for the 
 
 ```
 Upload ZIP → Parse SKILL.md → Version Control → Activate → Download
-     ↑                                                       |
-     └───────────────────── Rollback / Deactivate ←──────────┘
+  ↑                                                                   │
+  └───────────────────── Rollback / Deactivate ←──────────────────────┘
 ```
+
+### Local Skill Upload
+
+Upload existing local skills from your agent directories:
+
+- Scan local skill packages from Claude Code, Codex, Gemini CLI, Cursor, Windsurf, Copilot, and more
+- Compare local skills against server inventory by SKILL name
+- Upload valid local skills that are missing from the server
+- Refresh inventory after upload to verify server status
 
 ### Enterprise-Grade Security (Backend Capabilities)
 

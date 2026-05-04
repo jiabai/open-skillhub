@@ -10,7 +10,6 @@
 | `public-skill-import-cli-plan.md` | Host-side single-skill public import command for preprod |
 | `runtime-capabilities-enhancement-plan.md` | Expand capability tests, add permission helper, document contract constraints |
 | `skills-api-boundary-plan.md` | Clarify JWT console APIs versus API-token client APIs |
-| `content-hash-dedup-plan.md` | Replace version-string comparison with content hash for skill distribution dedup |
 
 ## Working Agreement
 

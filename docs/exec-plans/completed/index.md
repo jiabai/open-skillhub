@@ -15,6 +15,8 @@
 | `runtime-config-capabilities-plan.md` | Runtime capability contract moved to the backend and consumed by the frontend |
 | `runtime-config-capabilities-tasks.md` | Implementation checklist preserved after the runtime capability migration completed |
 | `user-status-followup-plan.md` | User-status build-time catalog sync completed; broader enum consolidation moved into a new follow-up plan |
+| `content-hash-dedup-plan.md` | Content hash (SHA-256) replaced version-string comparison for skill distribution dedup; three-state sync model (installed/not-installed/update) implemented across backend and desktop client |
+| `content-hash-dedup-tasks.md` | 4-phase execution checklist completed; backend hash computation, API exposure, desktop client sync logic, and full validation all passed |
 
 ## Notes
 

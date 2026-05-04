@@ -30,7 +30,7 @@ reviewed.
 - [x] (2026-05-02) Ran `uv run pytest`; all 633 tests passed.
 - [x] (2026-05-02) Ran `uv run ruff check .`; passed.
 - [x] (2026-05-02) Ran `python scripts/validate_agents_docs.py --level ERROR`; passed with 0 errors and 0 warnings.
-- [ ] (blocked by existing baseline) `uv run mypy backend` still fails with 142 existing type errors outside the new endpoint.
+- [x] (2026-05-04) `uv run mypy backend` now passes: `Success: no issues found in 140 source files`. The 142 baseline errors were resolved by prior type-cleanup work outside this feature.
 
 ## Surprises & Discoveries
 
@@ -49,8 +49,8 @@ reviewed.
 - Observation: the full pytest suite had stale mock targets in `tests/test_skill_upload_branches.py` that still patched `backend.services.skill.*` even though upload and lifecycle helpers now live in `backend.services.skill_upload` and `backend.services.skill_lifecycle`.
   Evidence: the first full `uv run pytest` failed 5 tests with `AttributeError` for missing `save_archive`, `delete_skill_dir`, and `list_archive_versions` attributes on `backend.services.skill`.
 
-- Observation: the backend mypy baseline does not currently pass independently of this feature.
-  Evidence: `uv run mypy backend` reports 142 errors, starting with `enum.StrEnum` under `python_version = "3.13"` and cascading through `SkillErrorCode` typing in existing service modules.
+- Observation: the backend mypy baseline previously did not pass independently of this feature (142 errors around `enum.StrEnum` under `python_version = "3.13"` and `SkillErrorCode` typing).
+  Resolution: the baseline was resolved by prior type-cleanup work. As of 2026-05-04, `uv run mypy backend` reports `Success: no issues found in 140 source files`.
 
 ## Decision Log
 
@@ -72,10 +72,9 @@ reviewed.
 
 ## Outcomes & Retrospective
 
-Implementation is functionally complete and covered by focused and full pytest
-validation. The plan remains active because the repository's `mypy backend` hard
-gate has an existing failing baseline that needs a separate type-cleanup effort or
-owner acceptance of residual risk.
+Implementation is complete and all backend gates pass. The mypy baseline that
+previously blocked this plan has been resolved by prior type-cleanup work.
+All acceptance criteria are met.
 
 ## Context and Orientation
 
@@ -98,8 +97,8 @@ owner acceptance of residual risk.
 
 - `docs/product-specs/2026-05-01-client-skills-upload.md`
 - `docs/design-docs/client-skills-upload-api.md`
-- `docs/exec-plans/active/client-skills-upload-tasks.md`
-- `docs/exec-plans/active/skills-api-boundary-plan.md`
+- `docs/exec-plans/completed/client-skills-upload-tasks.md`
+- `docs/exec-plans/completed/skills-api-boundary-plan.md`
 
 ## Plan of Work
 

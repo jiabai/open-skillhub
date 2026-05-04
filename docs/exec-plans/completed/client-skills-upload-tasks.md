@@ -4,7 +4,7 @@
 
 - [x] Revise `docs/product-specs/2026-05-01-client-skills-upload.md`.
 - [x] Add `docs/design-docs/client-skills-upload-api.md`.
-- [x] Add `docs/exec-plans/active/client-skills-upload-plan.md`.
+- [x] Add `docs/exec-plans/completed/client-skills-upload-plan.md`.
 - [x] Add this task checklist.
 - [x] Update `ARCHITECTURE.md` and `docs/SECURITY.md` for the client upload API-token boundary.
 - [x] Run `python scripts/validate_agents_docs.py --level ERROR`.
@@ -50,12 +50,14 @@
 - [x] Run `uv run pytest`.
 - [x] Run `uv run ruff check .`.
 - [x] Run `uv run mypy backend`.
-- [ ] Resolve the existing backend mypy baseline failure or get owner acceptance of residual risk.
+- [x] Resolve the existing backend mypy baseline failure or get owner acceptance of residual risk.
 - [x] Run `python scripts/validate_agents_docs.py --level ERROR`.
-- [x] Update `docs/exec-plans/active/client-skills-upload-plan.md` with final progress, discoveries, decisions, and validation notes.
+- [x] Update `docs/exec-plans/completed/client-skills-upload-plan.md` with final progress, discoveries, decisions, and validation notes.
 - Dependencies: Tasks 2 to 4.
 - Validation:
   - `uv run pytest` passed on 2026-05-02 with 633 tests.
   - `uv run ruff check .` passed on 2026-05-02.
   - `python scripts/validate_agents_docs.py --level ERROR` passed on 2026-05-02 with 0 errors and 0 warnings.
   - `uv run mypy backend` failed on 2026-05-02 with 142 existing baseline errors, primarily around `enum.StrEnum` under the configured Python 3.13 mypy target and existing `SkillErrorCode` typing.
+  - `uv run mypy backend` passed on 2026-05-04: `Success: no issues found in 140 source files`. The baseline was resolved by prior type-cleanup work.
+  - `uv run pytest` passed on 2026-05-04 with 635 tests.

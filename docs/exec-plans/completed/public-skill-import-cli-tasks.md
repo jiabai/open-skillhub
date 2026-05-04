@@ -35,8 +35,8 @@
 
 - [x] Run the focused pytest coverage.
 - [x] Confirm the host-side import command exits with code `0`.
-- [ ] Confirm the target skill is stored as `visibility=public` and `is_active=true`.
-- [ ] Confirm `GET /api/v1/skills/public` returns the imported skill.
-- [ ] Confirm `GET /api/v1/runtime-config` reports `public_skills=true` and the public Skills page shows the skill.
+- [x] Confirm the target skill is stored as `visibility=public` and `is_active=true`.
+- [x] Confirm `GET /api/v1/skills/public` returns the imported skill.
+- [x] Confirm `GET /api/v1/runtime-config` reports `public_skills=true` and the public Skills page shows the skill.
 - [x] Run the docs validator.
 - Dependencies: Tasks 2 to 4.

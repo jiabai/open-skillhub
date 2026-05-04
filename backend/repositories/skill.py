@@ -1,3 +1,4 @@
+from collections.abc import Sequence
 from typing import Any
 
 from sqlalchemy import String, and_, cast, func, or_, select
@@ -10,7 +11,7 @@ from backend.repositories.base import BaseRepository
 
 class SkillRepository(BaseRepository):
     @staticmethod
-    def _normalize_skill_ids(values: list[Any]) -> set[str]:
+    def _normalize_skill_ids(values: Sequence[object]) -> set[str]:
         return {value for value in values if isinstance(value, str) and value.strip()}
 
     @staticmethod

@@ -42,6 +42,7 @@ class SkillStorageCoordinator:
     async def read_skill_file(self, user: User, skill_id: str, file_path: str) -> str:
         skill = await self.lifecycle.get_skill(user, skill_id)
         self.lifecycle.ensure_active(skill)
+        safe_path: Path | None
         if self.lifecycle.is_reference_skill(skill):
             _, _, _, version_dir = await self.version_service.resolve_version_dir(skill)
             valid, error = validate_file_path(file_path)

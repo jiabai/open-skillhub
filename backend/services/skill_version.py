@@ -4,6 +4,7 @@ from pathlib import Path
 from backend.core.utils.skill_archive import load_archive
 from backend.core.utils.skill_storage import clear_skill_current_dir, get_skill_versions_dir, get_user_skill_dir, validate_skill_name
 from backend.models.skill import Skill
+from backend.models.skill_version import SkillVersion
 from backend.models.user import User
 from backend.repositories.skill_version import SkillVersionRepository
 from backend.services.skill_clone import CloneCreationResult, SkillCloneService
@@ -41,7 +42,7 @@ class SkillVersionCoordinator:
         self,
         skill: Skill,
         requested_version: str | None = None,
-    ) -> tuple[Skill, str, object]:
+    ) -> tuple[Skill, str, SkillVersion]:
         repo = self.require_version_repo()
         source_skill = await self.lifecycle.resolve_source_skill(skill)
         if self.lifecycle.is_reference_skill(skill):

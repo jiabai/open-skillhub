@@ -14,7 +14,7 @@ from backend.services.skill_errors import SkillError, SkillErrorCode
 @dataclass(frozen=True)
 class ValidatedArchive:
     archive: zipfile.ZipFile
-    entries: list[object]
+    entries: list[zipfile.ZipInfo]
     entry_names: set[str]
 
 
@@ -147,7 +147,7 @@ async def next_version(skill, repo, strategy: str = "patch") -> str:
 
 def detect_python_dependency_spec(
     entry_names: set[str],
-    archive,
+    archive: zipfile.ZipFile,
     requirements: list[str],
 ) -> tuple[dict[str, object], list[str]]:
     python_spec: dict[str, object] = {}
@@ -264,20 +264,20 @@ def validate_zip_archive(filename: str, archive_path, missing_skill_code: SkillE
     return ValidatedArchive(archive=archive, entries=entries, entry_names=entry_names)
 
 
-def read_skill_frontmatter(archive: object) -> dict:
+def read_skill_frontmatter(archive: zipfile.ZipFile) -> dict:
     skill_md_content = archive.read("SKILL.md").decode("utf-8", errors="replace")
     return parse_frontmatter(skill_md_content)
 
 
 def build_dependency_spec_from_archive(
-    archive: object,
+    archive: zipfile.ZipFile,
     entry_names: set[str],
     dependencies: list[str],
     explicit_dependency_spec: dict | None,
 ) -> tuple[list[str], dict, str | None]:
     if explicit_dependency_spec is not None:
-        dependency_spec = normalize_explicit_dependency_spec(explicit_dependency_spec)
-        return dependencies, dependency_spec, str(dependency_spec.get("schema_version") or "1")
+        normalized_dependency_spec = normalize_explicit_dependency_spec(explicit_dependency_spec)
+        return dependencies, normalized_dependency_spec, str(normalized_dependency_spec.get("schema_version") or "1")
 
     dependency_spec: dict[str, object] = {"schema_version": 1}
     dependency_spec_version = "1"

@@ -141,7 +141,7 @@
   - `uv run pytest`
   - `uv run ruff check .`
   - `uv run mypy backend`
-  - 结果：pytest/ruff 通过；mypy 已运行但命中既有基线类型债，详见 ExecPlan Validation notes
+  - 结果：pytest/ruff/mypy 均通过
 
 - [x] **T4.2** 客户端全量测试
   - `cd desktop-client && npm test`

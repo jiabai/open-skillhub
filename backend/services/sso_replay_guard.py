@@ -3,8 +3,10 @@ from __future__ import annotations
 import hashlib
 import secrets
 from datetime import datetime, timedelta, timezone
+from typing import Any, cast
 
 from sqlalchemy import delete, select, update
+from sqlalchemy.engine import CursorResult
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.config.settings import settings
@@ -100,7 +102,7 @@ class SSOReplayGuardService:
         await self._session.execute(
             delete(SSONonce).where(SSONonce.expires_at <= now, SSONonce.used_at.is_(None)),
         )
-        result = await self._session.execute(
+        result = cast(CursorResult[Any], await self._session.execute(
             update(SSONonce)
             .where(
                 SSONonce.nonce_hash == nonce_hash,
@@ -109,7 +111,7 @@ class SSOReplayGuardService:
                 SSONonce.expires_at > now,
             )
             .values(used_at=now),
-        )
+        ))
         if (result.rowcount or 0) == 1:
             await self._session.commit()
             return

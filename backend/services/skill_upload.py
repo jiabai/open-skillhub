@@ -1,5 +1,6 @@
 from pathlib import Path
 import tempfile
+import zipfile
 
 from loguru import logger
 
@@ -301,7 +302,7 @@ class SkillUploadCoordinator:
         return version_dir
 
     @staticmethod
-    def extract_archive_to_dir(archive, entries: list[object], version_dir: Path) -> None:
+    def extract_archive_to_dir(archive: zipfile.ZipFile, entries: list[zipfile.ZipInfo], version_dir: Path) -> None:
         for info in entries:
             file_path = info.filename.replace("\\", "/").lstrip("/")
             target = version_dir / file_path

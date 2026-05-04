@@ -24,7 +24,7 @@ Implementation proceeded after spec and plan review approval on 2026-05-04.
 - [x] (2026-05-04) 审查并修正了 spec/design/plan/task 之间的口径：API 只在客户端摘要暴露 hash，公共 skill 同步只补 hash 不改语义，桌面端补充 State DB 兼容迁移和本地目录 hash 检查。
 - [x] (2026-05-04) 完成后端 Phase 1/2：新增 `skill_versions.content_hash`、后端 hash 工具、上传与公共同步写 hash、回填脚本、客户端 API 顶层 `content_hash`。
 - [x] (2026-05-04) 完成桌面端 Phase 3：远端摘要映射 `contentHash`、State DB 兼容迁移、content hash 同步比较、分发写回/跳过语义、本地目录 hash、`contentComparison` 预检查、UI/i18n 三态文案。
-- [x] (2026-05-04) 完成 Phase 4 验证：后端/桌面端全量测试、构建、ruff、文档校验已执行；`mypy backend` 命中既有基线类型债。
+- [x] (2026-05-04) 完成 Phase 4 验证：后端/桌面端全量测试、构建、ruff、mypy、文档校验已执行并通过。
 
 ## Surprises & Discoveries
 
@@ -93,7 +93,7 @@ Validation notes:
 - Passed (2026-05-04): `uv run pytest`，635 passed。
 - Passed (2026-05-04): `uv run ruff check .`，All checks passed。
 - Passed (2026-05-04): `python scripts/validate_agents_docs.py --level ERROR`，0 errors, 0 warnings。
-- Failed with existing baseline debt (2026-05-04): `uv run mypy backend`，142 errors in 10 files，集中在既有 `StrEnum` / `SkillErrorCode` 类型建模、`sso_replay_guard.rowcount`、`skill_support` archive typing、`SkillRepository._normalize_skill_ids` 等；本次新增内容指纹逻辑未扩大处理该无关类型债。
+- Passed (2026-05-04): `uv run mypy backend`，Success: no issues found in 140 source files。此前 Python 3.10 目标版本导致 `StrEnum` / `SkillErrorCode` 级联错误；切换到 Python 3.13 后剩余 14 个既有类型标注问题已修复。
 - Backfill validation (2026-05-04): `tests/test_backfill_content_hash.py` 在隔离测试库中验证可定位版本目录会写入非空 `content_hash`；未对本机持久化数据库运行 CLI，避免修改本地数据。
 
 ## Context and Orientation

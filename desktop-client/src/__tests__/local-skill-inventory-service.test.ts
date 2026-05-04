@@ -89,12 +89,14 @@ describe("createLocalSkillInventoryService", () => {
         id: "remote-server-skill",
         name: "server-skill",
         version: "2.0.0",
+        contentHash: "hash-server-skill",
         updatedAt: "2026-05-02T00:00:00.000Z"
       },
       {
         id: "case-mismatch",
         name: "LOCAL-ONLY",
         version: "9.9.9",
+        contentHash: "hash-case-mismatch",
         updatedAt: "2026-05-02T00:00:00.000Z"
       }
     ]

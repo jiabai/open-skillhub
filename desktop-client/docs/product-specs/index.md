@@ -14,5 +14,9 @@
 - `2026-05-02-desktop-packaging-zh.md` - 桌面客户端 Windows 安装包范围和验证规格（中文版）
 - `2026-05-03-macos-release-packaging.md` - macOS release packaging, signing, notarization, and validation spec (English)
 - `2026-05-03-macos-release-packaging-zh.md` - macOS 发布打包、签名、公证和验证规格（中文版）
+- `2026-05-04-agent-path-configuration.md` - Agent path JSON configuration, environment variable removal, and UI entry point (English)
+- `2026-05-04-agent-path-configuration-zh.md` - Agent 路径 JSON 配置、环境变量移除与 UI 入口产品规格（中文版）
+- `2026-05-04-upload-button-label-simplification.md` - Upload button label simplification: remove skill name from the Local Skills upload button (English)
+- `2026-05-04-upload-button-label-simplification-zh.md` - 上传按钮标签简化：移除本地 SKILL 上传按钮中的 SKILL 名称（中文版）
 
 Canonical rule: work from the local product spec first.

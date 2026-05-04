@@ -23,6 +23,7 @@ from pathlib import Path
 from typing import Sequence
 
 from backend.config.settings import settings
+from backend.core.utils.skill_hash import compute_skill_content_hash
 from backend.core.utils.skill_storage import (
     SYSTEM_STORAGE_OWNER,
     SYSTEM_USER_ID,
@@ -147,8 +148,14 @@ async def _ensure_version_record(
     skill_name: str,
     version: str,
     description: str,
+    version_dir: Path | None = None,
 ) -> None:
-    if await version_repo.get_by_version(skill_id, version):
+    content_hash = compute_skill_content_hash(version_dir) if version_dir is not None and version_dir.exists() else ""
+    existing = await version_repo.get_by_version(skill_id, version)
+    if existing:
+        if content_hash and not existing.content_hash:
+            existing.content_hash = content_hash
+            await version_repo.session.commit()
         return
     await version_repo.create_version(
         skill_id=skill_id,
@@ -157,6 +164,7 @@ async def _ensure_version_record(
         dependencies=[],
         dependency_spec={},
         dependency_spec_version=None,
+        content_hash=content_hash,
         metadata={"name": skill_name, "description": description, "version": version},
     )
 
@@ -170,13 +178,15 @@ async def _create_snapshot_version(
     version: str,
     description: str,
 ) -> None:
-    _copy_skill_snapshot(skill_dir, skill_dir / "_versions" / version)
+    version_dir = skill_dir / "_versions" / version
+    _copy_skill_snapshot(skill_dir, version_dir)
     await _ensure_version_record(
         version_repo,
         skill_id=skill_id,
         skill_name=skill_name,
         version=version,
         description=description,
+        version_dir=version_dir,
     )
 
 
@@ -224,6 +234,7 @@ async def _sync_skill_dir(
                 skill_name=existing.name,
                 version=version_dir.name,
                 description=description,
+                version_dir=version_dir,
             )
         if available_versions:
             latest_version = max(available_versions, key=_version_sort_key)

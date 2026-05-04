@@ -100,7 +100,7 @@ function formatLongTimestamp(locale: AppLocale, value: string | null, fallback: 
 
 function createPendingUpdateFingerprint(pendingUpdates: PendingSyncUpdate[]): string {
   return pendingUpdates
-    .map((update) => `${update.remoteSkillId}@${update.remoteVersion}`)
+    .map((update) => `${update.remoteSkillId}@${update.remoteVersion}@${update.remoteContentHash ?? ""}`)
     .sort()
     .join("|")
 }
@@ -152,7 +152,7 @@ function createDistributionConfirmationSummary(
     const everyCoveredAgentIsSame =
       target.coveredAgentIds.length > 0 &&
       target.coveredAgentIds.every(
-        (agentId) => resultsByAgent[agentId]?.versionComparison === "same"
+        (agentId) => resultsByAgent[agentId]?.contentComparison === "installed"
       )
 
     if (everyCoveredAgentIsSame) {
@@ -896,6 +896,30 @@ export function App() {
     await refreshAgentDetectionState()
   }
 
+  const handleOpenAgentPathsConfigDir = async () => {
+    if (!bridgeAvailable) {
+      setErrorMessage(createBridgeUnavailableMessage(selectedLocale, dictionary.agentsPanel.openConfigDir))
+      return
+    }
+
+    try {
+      await desktopClient.openAgentPathsConfigDir()
+    } catch (error: unknown) {
+      const message = getErrorMessage(error)
+      setErrorMessage(message)
+      setActivity((current) =>
+        [
+          createActivityEntry(
+            dictionary.activity.refreshFailedTitle,
+            dictionary.activity.refreshFailedDetail(message),
+            "warning"
+          ),
+          ...current
+        ].slice(0, 5)
+      )
+    }
+  }
+
   const handleToggleTheme = async () => {
     if (!bridgeAvailable) {
       setErrorMessage(
@@ -1084,6 +1108,7 @@ export function App() {
           onChangeLocale={handleChangeLocale}
           onClearConfiguration={handleClearConfiguration}
           onClose={() => setSettingsOpen(false)}
+          onOpenAgentPathsConfigDir={handleOpenAgentPathsConfigDir}
           onRefreshAgentDetection={handleRefreshAgentDetection}
           onSaveConfiguration={handleSaveConfiguration}
           onTestConnection={handleTestConnection}

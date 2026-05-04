@@ -13,7 +13,8 @@ import {
   Tray,
   ipcMain,
   nativeImage,
-  screen
+  screen,
+  shell
 } from "electron"
 
 import { getAgentAdapter } from "@/adapters/agents/registry"
@@ -34,10 +35,12 @@ import {
 } from "@/core/runtime/runtime-config-manager"
 import { testApiConnection } from "@/core/runtime/api-connection"
 import { ensureAppDirectories } from "@/core/storage/app-paths"
+import { createAgentPathsConfigStore } from "@/core/storage/agent-paths-config"
 import { createSqliteStateStore } from "@/core/storage/state-db"
 import { createSyncPollingController, createSyncService } from "@/core/sync/sync-service"
 import type {
   AgentDetectionSnapshot,
+  AgentPathsConfig,
   AppLocale,
   AppTheme,
   AgentId,
@@ -98,6 +101,11 @@ function getTargetWindowContentSize() {
 
 function normalizeVersion(version: string | null | undefined): string | null {
   const trimmed = version?.trim()
+  return trimmed ? trimmed : null
+}
+
+function normalizeContentHash(value: unknown): string | null {
+  const trimmed = typeof value === "string" ? value.trim() : ""
   return trimmed ? trimmed : null
 }
 
@@ -291,6 +299,9 @@ function normalizeSkillSummary(item: unknown): RemoteSkillSummary | null {
         String(record.version ?? record.current_version ?? record.currentVersion ?? "").trim() ||
           null
       ) ?? normalizeVersion(versionRecord?.version as string | null | undefined),
+    contentHash:
+      normalizeContentHash(record.content_hash ?? record.contentHash) ??
+      normalizeContentHash(versionRecord?.content_hash ?? versionRecord?.contentHash),
     updatedAt: String(
       record.updatedAt ?? record.updated_at ?? versionRecord?.updated_at ?? new Date().toISOString()
     )
@@ -434,9 +445,9 @@ function getDistributionTargets(
     writeMode:
       target.coveredAgentIds.length > 0 &&
       target.coveredAgentIds.every(
-        (agentId) => resultsByAgent[agentId]?.versionComparison === "same"
+        (agentId) => resultsByAgent[agentId]?.contentComparison === "installed"
       )
-        ? "skip-same-version"
+        ? "skip-installed-content"
         : "write"
   }))
 }
@@ -462,7 +473,9 @@ function reconcileStateAfterInstalled(
     remoteSkillId: pendingUpdate.remoteSkillId,
     name: pendingUpdate.name,
     installedVersion: pendingUpdate.remoteVersion,
+    installedContentHash: pendingUpdate.remoteContentHash,
     remoteVersion: pendingUpdate.remoteVersion,
+    remoteContentHash: pendingUpdate.remoteContentHash,
     lastComparedAt: comparedAt
   }
 
@@ -532,6 +545,7 @@ async function closeStateStore(): Promise<void> {
 
 async function createApplicationServices(): Promise<void> {
   const appPaths = ensureAppDirectories()
+  const agentPathsConfigStore = createAgentPathsConfigStore(appPaths.agentPathsFilePath)
   const runtimeConfigManager = createRuntimeConfigManager()
   const initialRuntimeState = await runtimeConfigManager.reload()
   const getRuntimeConfig = () => runtimeConfigManager.getState().config
@@ -708,6 +722,20 @@ async function createApplicationServices(): Promise<void> {
     }
   }
 
+  const openAgentPathsConfigDir = async (): Promise<void> => {
+    await agentPathsConfigStore.ensureFile()
+
+    try {
+      shell.showItemInFolder(appPaths.agentPathsFilePath)
+    } catch {
+      const openError = await shell.openPath(appPaths.configDir)
+
+      if (openError) {
+        throw new Error(`Failed to open agent paths config directory: ${openError}`)
+      }
+    }
+  }
+
   registerDesktopClientIpc(ipcMain, {
     getConfiguration: () => toConfigurationState(runtimeConfigManager.getState()),
     saveConfiguration: async (payload: ConfigurationPayload): Promise<ConfigurationState> => {
@@ -745,6 +773,15 @@ async function createApplicationServices(): Promise<void> {
     },
     testConnection: (payload: ConfigurationPayload) =>
       testApiConnection(payload, getRuntimeConfig().apiToken),
+    getAgentPathsConfig: () => agentPathsConfigStore.read(),
+    saveAgentPathsConfig: async (config: AgentPathsConfig): Promise<AgentPathsConfig> => {
+      await agentPathsConfigStore.write(config)
+      const nextConfig = await agentPathsConfigStore.read()
+      await runtimeConfigManager.reload()
+
+      return nextConfig
+    },
+    openAgentPathsConfigDir,
     refreshSync: async (): Promise<DesktopSyncState> => {
       await pollingController.refreshNow()
 
@@ -814,9 +851,9 @@ async function createApplicationServices(): Promise<void> {
 
       if (
         results.length !== snapshot.targetAgentIds.length ||
-        !results.every((result) => result.versionComparison === "same")
+        !results.every((result) => result.contentComparison === "installed")
       ) {
-        throw new Error("Installed target versions are not all identical to the remote version.")
+        throw new Error("Installed target contents are not all identical to the remote content hash.")
       }
 
       const nextState = reconcileStateAfterInstalled(
@@ -862,7 +899,7 @@ async function createApplicationServices(): Promise<void> {
 
       if (distributionTargets.length === 0) {
         throw new Error(
-          "No supported agent skills directories were detected. Configure SKILLDRIVE_*_SKILLS_PATH to continue."
+          "No supported agent skills directories were detected. Configure agent-paths.json or install a supported agent to continue."
         )
       }
 
@@ -870,6 +907,7 @@ async function createApplicationServices(): Promise<void> {
         skillId: pendingUpdate.remoteSkillId,
         name: pendingUpdate.name,
         version: pendingUpdate.remoteVersion,
+        contentHash: pendingUpdate.remoteContentHash,
         packageSource: {
           source: "client-download"
         },

@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest"
 
 import { supportedAgentDefinitions, type AgentPathDefinition } from "@/adapters/agents/definitions"
 import { createAgentDetectionService } from "@/core/detection/agent-detection-service"
+import type { AgentPathsConfig } from "@/types"
 
 const homeDir = normalize("C:/Users/Ada")
 
@@ -29,16 +30,16 @@ function definition(id: AgentPathDefinition["id"]): AgentPathDefinition {
 }
 
 function createService(args: {
+  agentPathsConfig?: AgentPathsConfig
   definitions?: AgentPathDefinition[]
   existingPaths?: string[]
-  env?: NodeJS.ProcessEnv
   platform?: NodeJS.Platform
 }) {
   const existingPaths = new Set((args.existingPaths ?? []).map((pathValue) => normalize(pathValue)))
 
   return createAgentDetectionService({
+    agentPathsConfig: args.agentPathsConfig,
     definitions: args.definitions ?? supportedAgentDefinitions,
-    env: args.env ?? {},
     homeDir: () => homeDir,
     now: () => new Date("2026-04-28T00:00:00.000Z"),
     platform: args.platform ?? "win32",
@@ -82,11 +83,13 @@ describe("agent detection service", () => {
     ])
   })
 
-  it("treats environment paths as explicit configured targets", async () => {
+  it("treats JSON configured paths as explicit configured targets", async () => {
     const service = createService({
       definitions: [definition("cursor")],
-      env: {
-        SKILLDRIVE_CURSOR_SKILLS_PATH: normalize("D:/Agents/Cursor/skills")
+      agentPathsConfig: {
+        cursor: {
+          targetPath: "D:/Agents/Cursor/skills"
+        }
       }
     })
 
@@ -96,14 +99,73 @@ describe("agent detection service", () => {
     expect(snapshot.agentStatuses[0]).toMatchObject({
       agentId: "cursor",
       installed: true,
-      source: "environment",
+      source: "auto-detected",
       targetPaths: [normalize("D:/Agents/Cursor/skills")]
     })
     expect(snapshot.uniqueTargets[0]).toMatchObject({
       targetPath: normalize("D:/Agents/Cursor/skills"),
       primaryAgentId: "cursor",
       coveredAgentIds: ["cursor"],
-      source: "environment"
+      source: "auto-detected"
+    })
+  })
+
+  it("ignores invalid JSON configured paths and falls back to missing", async () => {
+    const service = createService({
+      definitions: [definition("cursor"), definition("codex")],
+      agentPathsConfig: {
+        cursor: {
+          targetPath: "../escape"
+        },
+        codex: {
+          targetPath: "relative/skills"
+        }
+      }
+    })
+
+    const snapshot = await service.refresh()
+
+    expect(snapshot.installedAgentIds).toEqual([])
+    expect(snapshot.agentStatuses).toMatchObject([
+      {
+        agentId: "cursor",
+        installed: false,
+        source: "missing",
+        targetPaths: []
+      },
+      {
+        agentId: "codex",
+        installed: false,
+        source: "missing",
+        targetPaths: []
+      }
+    ])
+    expect(snapshot.uniqueTargets).toEqual([])
+  })
+
+  it("deduplicates JSON configured shared targets while preserving coverage", async () => {
+    const service = createService({
+      definitions: [definition("cline"), definition("codex")],
+      agentPathsConfig: {
+        cline: {
+          targetPath: "D:/Agents/shared-skills"
+        },
+        codex: {
+          targetPath: "D:/Agents/shared-skills"
+        }
+      }
+    })
+
+    const snapshot = await service.refresh()
+
+    expect(snapshot.installedAgentIds).toEqual(["cline", "codex"])
+    expect(snapshot.uniqueTargets).toHaveLength(1)
+    expect(snapshot.uniqueTargets[0]).toMatchObject({
+      targetPath: normalize("D:/Agents/shared-skills"),
+      primaryAgentId: "cline",
+      coveredAgentIds: ["cline", "codex"],
+      sharedPathKey: "agents-universal",
+      source: "auto-detected"
     })
   })
 

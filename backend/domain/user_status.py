@@ -14,7 +14,16 @@ DEFAULT_USER_STATUS = _USER_STATUS_CATALOG["default"]
 USER_STATUS_VALUES = tuple(_USER_STATUS_CATALOG["statuses"])
 ALLOWED_USER_STATUSES = frozenset(USER_STATUS_VALUES)
 USER_STATUS_LABELS = dict(_USER_STATUS_CATALOG["labels"])
-UserStatus = StrEnum("UserStatus", {value.upper(): value for value in USER_STATUS_VALUES})
+
+
+class UserStatus(StrEnum):
+    ACTIVE = "active"
+    INACTIVE = "inactive"
+    PENDING = "pending"
+
+
+if tuple(status.value for status in UserStatus) != USER_STATUS_VALUES:
+    raise RuntimeError("UserStatus enum values must match user-statuses.json")
 
 
 def normalize_user_status(value: object, default: str = DEFAULT_USER_STATUS) -> str:

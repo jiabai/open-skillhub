@@ -3,6 +3,10 @@ import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { afterEach, describe, expect, it, vi } from "vitest"
 import { createRuntimeConfigManager } from "@/core/runtime/runtime-config-manager"
+import {
+  createAgentPathsConfigStore,
+  sanitizeAgentPathsConfig
+} from "@/core/storage/agent-paths-config"
 import { APP_NAME, createAppPaths, ensureAppDirectories } from "@/core/storage/app-paths"
 import { resolveApiTokenBootstrap } from "@/core/storage/auth-bootstrap"
 import { createJsonConfigStore } from "@/core/storage/config-store"
@@ -40,6 +44,7 @@ describe("storage foundation", () => {
         configDir: join(rootDir, "config"),
         stateDir: join(rootDir, "state"),
         configFilePath: join(rootDir, "config", "config.json"),
+        agentPathsFilePath: join(rootDir, "config", "agent-paths.json"),
         stateFilePath: join(rootDir, "state", "state.json")
       })
     )
@@ -230,6 +235,71 @@ describe("storage foundation", () => {
     expect(reloadedState.config.locale).toBe("en-US")
   })
 
+  it("sanitizes agent path configuration entries before they are used", () => {
+    const config = sanitizeAgentPathsConfig(
+      {
+        codex: {
+          targetPath: " ~/custom/codex "
+        },
+        cursor: {
+          targetPath: "D:/Agents/Cursor/skills"
+        },
+        cline: {
+          targetPath: "D:/Agents/../escape"
+        },
+        "gemini-cli": {
+          targetPath: "relative/skills"
+        },
+        unknown: {
+          targetPath: "D:/Agents/unknown"
+        },
+        "claude-code": null
+      },
+      {
+        homeDir: () => "C:\\Users\\Ada",
+        platform: "win32"
+      }
+    )
+
+    expect(config).toEqual({
+      codex: {
+        targetPath: "~/custom/codex"
+      },
+      cursor: {
+        targetPath: "D:/Agents/Cursor/skills"
+      }
+    })
+  })
+
+  it("persists only sanitized agent path configuration entries", async () => {
+    const rootDir = createTempRoot()
+    const paths = ensureAppDirectories({ baseDir: rootDir })
+    const store = createAgentPathsConfigStore(paths.agentPathsFilePath, {
+      homeDir: () => "C:\\Users\\Ada",
+      platform: "win32"
+    })
+
+    await store.write({
+      codex: {
+        targetPath: " D:/Codex/skills "
+      },
+      cursor: {
+        targetPath: "../escape"
+      }
+    })
+
+    expect(await store.read()).toEqual({
+      codex: {
+        targetPath: "D:/Codex/skills"
+      }
+    })
+    expect(JSON.parse(readFileSync(paths.agentPathsFilePath, "utf8"))).toEqual({
+      codex: {
+        targetPath: "D:/Codex/skills"
+      }
+    })
+  })
+
   it("defaults the desktop theme to dark", async () => {
     const rootDir = createTempRoot()
     const manager = createRuntimeConfigManager({
@@ -348,22 +418,29 @@ describe("storage foundation", () => {
     expect(await store.getApiToken()).toBeNull()
   })
 
-  it("preserves per-agent skill path environment overrides in the detection snapshot", async () => {
+  it("preserves per-agent JSON skill path overrides in the detection snapshot", async () => {
     const rootDir = createTempRoot()
     const manager = createRuntimeConfigManager({
       appPathsOptions: { baseDir: rootDir },
-      env: {
-        SKILLDRIVE_CODEX_SKILLS_PATH: "D:\\Codex\\skills"
-      } as NodeJS.ProcessEnv,
+      env: {} as NodeJS.ProcessEnv,
       secretStore: createInMemorySecretStore()
     })
+    writeFileSync(
+      join(rootDir, "config", "agent-paths.json"),
+      `${JSON.stringify({
+        codex: {
+          targetPath: "D:\\Codex\\skills"
+        }
+      })}\n`,
+      "utf8"
+    )
 
     const state = await manager.reload()
 
     expect(state.config.agentDetection.installedAgentIds).toContain("codex")
     expect(state.config.agentDetection.agentStatuses.find((status) => status.agentId === "codex")).toMatchObject({
       installed: true,
-      source: "environment",
+      source: "auto-detected",
       targetPaths: ["D:\\Codex\\skills"]
     })
     expect(state.config.agentDetection.uniqueTargets).toContainEqual(
@@ -371,7 +448,7 @@ describe("storage foundation", () => {
         targetPath: "D:\\Codex\\skills",
         primaryAgentId: "codex",
         coveredAgentIds: ["codex"],
-        source: "environment"
+        source: "auto-detected"
       })
     )
   })

@@ -37,9 +37,9 @@ notarization, stapling, and macOS smoke testing are verified on macOS.
 - `src/core/local-skills/`
   - read-only local skill inventory, server presence comparison, safe upload ZIP packaging, and Client API upload helper
 - `src/core/detection/`
-  - catalog-driven assistant detection, environment target overrides, OpenClaw priority target selection, and shared physical target dedupe
+  - catalog-driven assistant detection, JSON target overrides, OpenClaw priority target selection, and shared physical target dedupe
 - `src/core/storage/`
-  - app paths, JSON config, secret storage, and SQLite-backed state
+  - app paths, JSON config, agent path overrides, secret storage, and SQLite-backed state
 - `src/core/runtime/`
   - reloadable runtime configuration assembled from JSON config, secret store, environment bootstrap, cache, and agent detection snapshots
 - `src/adapters/agents/`
@@ -77,7 +77,8 @@ agent adapters -> local agent installations and skill directories
 - Sync code only compares remote and local state; it does not mutate agent skill directories.
 - Pre-distribution checks are read-only and transient; results are returned through IPC for review context and are not persisted.
 - Distribution only runs for explicitly approved pending updates.
-- Agent detection decides the effective installed/configured target set before pre-check, reconcile, and distribution actions.
+- Agent detection merges validated `agent-paths.json` overrides with built-in
+  catalog defaults before pre-check, reconcile, and distribution actions.
 - Distribution writes each unique physical target at most once, marks shared-path coverage, and skips writing when every target is already same-version.
 - Local Skills inventory is read-only. Uploads require an explicit row action,
   revalidate the selected row in the main process, and only create server-missing
@@ -112,6 +113,8 @@ Dependencies should only point downward across those boundaries.
 - Current persisted directories are `config/` and `state/`
 - API Base URL is persisted in `config/config.json` through `src/core/storage/config-store.ts`
 - Locale and theme are persisted in `config/config.json` through `src/core/runtime/runtime-config-manager.ts` alongside the API Base URL
+- Agent skill path overrides are persisted in `config/agent-paths.json`; only
+  validated `targetPath` overrides for built-in Agent IDs are used at runtime.
 - `electron/main.ts` also creates a runtime `cache/` directory below the app root
 - Runtime API token bootstrap is coordinated by `src/core/runtime/runtime-config-manager.ts`; it reads from the `keytar` secret store, with
   `SKILLDRIVE_API_TOKEN` as an explicit first-run seed and current-session

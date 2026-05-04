@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto"
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
@@ -26,6 +27,18 @@ describe("agent adapters", () => {
     const root = mkdtempSync(join(tmpdir(), "skilldrive-agent-"))
     tempRoots.push(root)
     return root
+  }
+
+  function computeExpectedContentHash(entries: Array<[string, string]>): string {
+    const hasher = createHash("sha256")
+
+    for (const [relativePath, content] of entries.sort(([left], [right]) => left < right ? -1 : left > right ? 1 : 0)) {
+      hasher.update(`${relativePath}\0`)
+      hasher.update(content)
+      hasher.update("\0")
+    }
+
+    return hasher.digest("hex")
   }
 
   function createExtractedSkillDirectory(): { extractedPath: string; expectedFiles: string[] } {
@@ -126,6 +139,8 @@ describe("agent adapters", () => {
     mkdirSync(skillDir, { recursive: true })
     writeFileSync(join(skillDir, "SKILL.md"), "---\nversion: 2.0.0\n---\n# Sample")
     writeFileSync(join(skillDir, "manifest.json"), JSON.stringify({ version: "1.0.0" }))
+    writeFileSync(join(skillDir, ".env.example"), "dotfile participates")
+    writeFileSync(join(skillDir, ".DS_Store"), "ignored")
 
     await expect(
       getAgentAdapter("codex").readInstalledSkillMetadata("Sample Skill", { skillsPath })
@@ -133,7 +148,12 @@ describe("agent adapters", () => {
       exists: true,
       skillDir,
       version: "2.0.0",
-      versionSource: "skill-frontmatter"
+      versionSource: "skill-frontmatter",
+      contentHash: computeExpectedContentHash([
+        ([".env.example", "dotfile participates"]),
+        (["SKILL.md", "---\nversion: 2.0.0\n---\n# Sample"]),
+        (["manifest.json", JSON.stringify({ version: "1.0.0" })])
+      ])
     })
   })
 
@@ -176,7 +196,8 @@ describe("agent adapters", () => {
       exists: false,
       skillDir,
       version: null,
-      versionSource: null
+      versionSource: null,
+      contentHash: null
     })
     expect(() => statSync(skillDir)).toThrow()
   })

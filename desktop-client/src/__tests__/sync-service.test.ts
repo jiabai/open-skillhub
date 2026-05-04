@@ -41,7 +41,9 @@ describe("createSyncService", () => {
           remoteSkillId: "skill-a",
           name: "Skill A",
           installedVersion: "1.0.0",
+          installedContentHash: "hash-a-local",
           remoteVersion: "1.0.0",
+          remoteContentHash: "hash-a-local",
           lastComparedAt: "2026-04-16T08:00:00.000Z"
         }
       ],
@@ -55,12 +57,14 @@ describe("createSyncService", () => {
         id: "skill-a",
         name: "Skill A",
         version: "1.1.0",
+        contentHash: "hash-a-remote",
         updatedAt: "2026-04-17T08:00:00.000Z"
       },
       {
         id: "skill-b",
         name: "Skill B",
         version: "1.0.0",
+        contentHash: "hash-b",
         updatedAt: "2026-04-17T08:01:00.000Z"
       }
     ]
@@ -82,15 +86,19 @@ describe("createSyncService", () => {
         remoteSkillId: "skill-a",
         name: "Skill A",
         localVersion: "1.0.0",
+        localContentHash: "hash-a-local",
         remoteVersion: "1.1.0",
-        reason: "version-mismatch"
+        remoteContentHash: "hash-a-remote",
+        reason: "update"
       },
       {
         remoteSkillId: "skill-b",
         name: "Skill B",
         localVersion: null,
+        localContentHash: null,
         remoteVersion: "1.0.0",
-        reason: "missing-local-record"
+        remoteContentHash: "hash-b",
+        reason: "not-installed"
       }
     ])
 
@@ -100,14 +108,18 @@ describe("createSyncService", () => {
           remoteSkillId: "skill-a",
           name: "Skill A",
           installedVersion: "1.0.0",
+          installedContentHash: "hash-a-local",
           remoteVersion: "1.1.0",
+          remoteContentHash: "hash-a-remote",
           lastComparedAt: "2026-04-17T09:00:00.000Z"
         },
         {
           remoteSkillId: "skill-b",
           name: "Skill B",
           installedVersion: null,
+          installedContentHash: null,
           remoteVersion: "1.0.0",
+          remoteContentHash: "hash-b",
           lastComparedAt: "2026-04-17T09:00:00.000Z"
         }
       ],
@@ -116,15 +128,19 @@ describe("createSyncService", () => {
           remoteSkillId: "skill-a",
           name: "Skill A",
           localVersion: "1.0.0",
+          localContentHash: "hash-a-local",
           remoteVersion: "1.1.0",
-          reason: "version-mismatch"
+          remoteContentHash: "hash-a-remote",
+          reason: "update"
         },
         {
           remoteSkillId: "skill-b",
           name: "Skill B",
           localVersion: null,
+          localContentHash: null,
           remoteVersion: "1.0.0",
-          reason: "missing-local-record"
+          remoteContentHash: "hash-b",
+          reason: "not-installed"
         }
       ],
       successfulDistributionCount: 2,
@@ -147,8 +163,10 @@ describe("createSyncService", () => {
             remoteSkillId: "skill-a",
             name: "Skill A",
             localVersion: null,
+            localContentHash: null,
             remoteVersion: "1.0.0",
-            reason: "missing-local-record"
+            remoteContentHash: "hash-a",
+            reason: "not-installed"
           }
         ],
         comparedAt: "2026-04-17T09:00:00.000Z",
@@ -162,8 +180,10 @@ describe("createSyncService", () => {
             remoteSkillId: "skill-a",
             name: "Skill A",
             localVersion: null,
+            localContentHash: null,
             remoteVersion: "1.0.0",
-            reason: "missing-local-record"
+            remoteContentHash: "hash-a",
+            reason: "not-installed"
           }
         ],
         comparedAt: "2026-04-17T09:01:00.000Z",

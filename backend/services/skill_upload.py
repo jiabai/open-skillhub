@@ -1,9 +1,11 @@
 from pathlib import Path
 import tempfile
+import zipfile
 
 from loguru import logger
 
 from backend.config.settings import settings
+from backend.core.utils.skill_hash import compute_skill_content_hash
 from backend.core.utils.skill_archive import bump_patch_version, list_archive_versions, save_archive, save_archive_from_path
 from backend.core.utils.skill_storage import clear_skill_current_dir, get_skill_versions_dir, get_user_skill_dir, validate_skill_name
 from backend.models.user import User
@@ -120,6 +122,7 @@ class SkillUploadCoordinator:
             logger.debug(f"[UPLOAD_ZIP] Creating version directory: {version_dir}")
             logger.debug(f"[UPLOAD_ZIP] Extracting {len(entries)} files to version directory")
             self.extract_archive_to_dir(archive, entries, version_dir)
+            content_hash = compute_skill_content_hash(version_dir)
             logger.debug(f"[UPLOAD_ZIP] Copying files to current directory: {get_user_skill_dir(user.id, skill.name)}")
             self.sync_version_dir_to_current(user.id, skill.name, version_dir)
             logger.debug(f"[UPLOAD_ZIP] Creating version record, version={version}")
@@ -138,6 +141,7 @@ class SkillUploadCoordinator:
                 dependencies=dependencies,
                 dependency_spec=dependency_spec,
                 dependency_spec_version=dependency_spec_version,
+                content_hash=content_hash,
                 metadata=version_metadata,
             )
             await self.lifecycle.skill_repo.update(skill, current_version=version, description=description, is_active=True)
@@ -248,6 +252,7 @@ class SkillUploadCoordinator:
             logger.debug(f"[UPLOAD_ZIP_CREATE] Creating version directory: {version_dir}")
             logger.debug(f"[UPLOAD_ZIP_CREATE] Extracting {len(entries)} files to version directory")
             self.extract_archive_to_dir(archive, entries, version_dir)
+            content_hash = compute_skill_content_hash(version_dir)
             logger.debug(f"[UPLOAD_ZIP_CREATE] Copying files to current directory: {get_user_skill_dir(user.id, skill.name)}")
             self.sync_version_dir_to_current(user.id, skill.name, version_dir)
             logger.debug(f"[UPLOAD_ZIP_CREATE] Creating version record, version={version}")
@@ -258,6 +263,7 @@ class SkillUploadCoordinator:
                 dependencies=dependencies,
                 dependency_spec=dependency_spec,
                 dependency_spec_version=dependency_spec_version,
+                content_hash=content_hash,
                 metadata={
                     "name": name,
                     "description": description,
@@ -296,7 +302,7 @@ class SkillUploadCoordinator:
         return version_dir
 
     @staticmethod
-    def extract_archive_to_dir(archive, entries: list[object], version_dir: Path) -> None:
+    def extract_archive_to_dir(archive: zipfile.ZipFile, entries: list[zipfile.ZipInfo], version_dir: Path) -> None:
         for info in entries:
             file_path = info.filename.replace("\\", "/").lstrip("/")
             target = version_dir / file_path

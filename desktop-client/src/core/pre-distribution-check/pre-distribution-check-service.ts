@@ -6,7 +6,6 @@ import {
   DEFAULT_PRE_DISTRIBUTION_CHECK_TOTAL_TIMEOUT_MS
 } from "@/core/pre-distribution-check/pre-distribution-check-config"
 import {
-  compareStrictSemverVersions,
   getVersionFormat
 } from "@/core/pre-distribution-check/version-compare"
 import type {
@@ -14,9 +13,9 @@ import type {
   AgentSkillTarget,
   AgentPreDistributionCheckResult,
   PendingSyncUpdate,
+  PreDistributionContentComparison,
   PreDistributionCheckResults,
   PreDistributionCheckSnapshot,
-  PreDistributionVersionComparison,
   StateStore
 } from "@/types"
 
@@ -59,10 +58,10 @@ type TimeoutError = Error & {
 }
 
 export function createPendingUpdateFingerprint(
-  pendingUpdates: Pick<PendingSyncUpdate, "remoteSkillId" | "remoteVersion">[]
+  pendingUpdates: Pick<PendingSyncUpdate, "remoteSkillId" | "remoteVersion" | "remoteContentHash">[]
 ): string {
   return pendingUpdates
-    .map((update) => `${update.remoteSkillId}@${update.remoteVersion}`)
+    .map((update) => `${update.remoteSkillId}@${update.remoteVersion}@${update.remoteContentHash ?? ""}`)
     .sort()
     .join("|")
 }
@@ -146,18 +145,18 @@ function createEmptySnapshot(args: {
 
 function determineComparison(
   exists: boolean,
-  installedVersion: string | null,
-  remoteVersion: string
-): PreDistributionVersionComparison {
+  installedContentHash: string | null,
+  remoteContentHash: string | null
+): PreDistributionContentComparison {
   if (!exists) {
     return "not-installed"
   }
 
-  if (installedVersion === null) {
-    return "unknown"
+  if (remoteContentHash === null) {
+    return "installed"
   }
 
-  return compareStrictSemverVersions(installedVersion, remoteVersion)
+  return installedContentHash === remoteContentHash ? "installed" : "update"
 }
 
 function withTimeout<T>(
@@ -220,10 +219,12 @@ export function createPreDistributionCheckService(
       exists: false,
       installedVersion: null,
       installedVersionSource: null,
+      installedContentHash: null,
       remoteVersion: job.pendingUpdate.remoteVersion,
+      remoteContentHash: job.pendingUpdate.remoteContentHash,
       installedVersionFormat: "unknown",
       remoteVersionFormat: getVersionFormat(job.pendingUpdate.remoteVersion),
-      versionComparison: "error",
+      contentComparison: "error",
       checkedAt: checkedAt.toISOString(),
       durationMs: Math.max(0, clock() - startedAtMs),
       errorCode: getErrorCode(error),
@@ -245,13 +246,15 @@ export function createPreDistributionCheckService(
       exists: args.metadata.exists,
       installedVersion: args.metadata.version,
       installedVersionSource: args.metadata.versionSource,
+      installedContentHash: args.metadata.contentHash,
       remoteVersion: args.job.pendingUpdate.remoteVersion,
+      remoteContentHash: args.job.pendingUpdate.remoteContentHash,
       installedVersionFormat: getVersionFormat(args.metadata.version),
       remoteVersionFormat: getVersionFormat(args.job.pendingUpdate.remoteVersion),
-      versionComparison: determineComparison(
+      contentComparison: determineComparison(
         args.metadata.exists,
-        args.metadata.version,
-        args.job.pendingUpdate.remoteVersion
+        args.metadata.contentHash,
+        args.job.pendingUpdate.remoteContentHash
       ),
       checkedAt: args.checkedAt.toISOString(),
       durationMs: Math.max(0, clock() - args.startedAtMs),

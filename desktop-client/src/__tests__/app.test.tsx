@@ -11,6 +11,9 @@ type MockDesktopClientBridge = {
   saveTheme: ReturnType<typeof vi.fn>
   clearConfiguration: ReturnType<typeof vi.fn>
   testConnection: ReturnType<typeof vi.fn>
+  getAgentPathsConfig: ReturnType<typeof vi.fn>
+  saveAgentPathsConfig: ReturnType<typeof vi.fn>
+  openAgentPathsConfigDir: ReturnType<typeof vi.fn>
   refreshSync: ReturnType<typeof vi.fn>
   refreshAgentDetection: ReturnType<typeof vi.fn>
   refreshPreDistributionCheck: ReturnType<typeof vi.fn>
@@ -27,6 +30,9 @@ const mockDesktopClient = {
   saveTheme: vi.fn(),
   clearConfiguration: vi.fn(),
   testConnection: vi.fn(),
+  getAgentPathsConfig: vi.fn(),
+  saveAgentPathsConfig: vi.fn(),
+  openAgentPathsConfigDir: vi.fn(),
   refreshSync: vi.fn(),
   refreshAgentDetection: vi.fn(),
   refreshPreDistributionCheck: vi.fn(),
@@ -72,7 +78,7 @@ const defaultAgentDetection = {
       agentId: "claude-code",
       displayName: "Claude Code",
       installed: true,
-      source: "environment",
+      source: "auto-detected",
       detectionDirs: ["C:\\Users\\test\\.claude"],
       targetPaths: ["D:\\Claude\\skills"],
       compatibleReadPaths: [],
@@ -104,7 +110,7 @@ const defaultAgentDetection = {
       primaryAgentId: "claude-code",
       coveredAgentIds: ["claude-code"],
       sharedPathKey: null,
-      source: "environment"
+      source: "auto-detected"
     }
   ]
 }
@@ -150,6 +156,9 @@ beforeEach(() => {
     status: 200,
     message: "Connection succeeded."
   })
+  mockDesktopClient.getAgentPathsConfig.mockResolvedValue({})
+  mockDesktopClient.saveAgentPathsConfig.mockResolvedValue({})
+  mockDesktopClient.openAgentPathsConfigDir.mockResolvedValue(undefined)
   mockDesktopClient.refreshSync.mockResolvedValue(emptySyncState)
   mockDesktopClient.refreshPreDistributionCheck.mockResolvedValue({
     results: {},
@@ -198,6 +207,9 @@ describe("App", () => {
     expect(window.desktopClient?.saveTheme).toBeTypeOf("function")
     expect(window.desktopClient?.clearConfiguration).toBeTypeOf("function")
     expect(window.desktopClient?.testConnection).toBeTypeOf("function")
+    expect(window.desktopClient?.getAgentPathsConfig).toBeTypeOf("function")
+    expect(window.desktopClient?.saveAgentPathsConfig).toBeTypeOf("function")
+    expect(window.desktopClient?.openAgentPathsConfigDir).toBeTypeOf("function")
     expect(window.desktopClient?.refreshSync).toBeTypeOf("function")
     expect(window.desktopClient?.refreshAgentDetection).toBeTypeOf("function")
     expect(window.desktopClient?.refreshPreDistributionCheck).toBeTypeOf("function")
@@ -267,6 +279,17 @@ describe("App", () => {
       status: 200,
       message: "Connection succeeded."
     })
+    mockDesktopClient.getAgentPathsConfig.mockResolvedValue({
+      codex: {
+        targetPath: "C:\\Users\\test\\.codex\\skills"
+      }
+    })
+    mockDesktopClient.saveAgentPathsConfig.mockResolvedValue({
+      codex: {
+        targetPath: "C:\\Users\\test\\.codex\\skills"
+      }
+    })
+    mockDesktopClient.openAgentPathsConfigDir.mockResolvedValue(undefined)
     mockDesktopClient.refreshSync.mockResolvedValue({
       localRecords: [],
       pendingUpdates: [],
@@ -339,6 +362,23 @@ describe("App", () => {
       status: 200,
       message: "Connection succeeded."
     })
+    await expect(desktopClient.getAgentPathsConfig()).resolves.toEqual({
+      codex: {
+        targetPath: "C:\\Users\\test\\.codex\\skills"
+      }
+    })
+    await expect(
+      desktopClient.saveAgentPathsConfig({
+        codex: {
+          targetPath: "C:\\Users\\test\\.codex\\skills"
+        }
+      })
+    ).resolves.toEqual({
+      codex: {
+        targetPath: "C:\\Users\\test\\.codex\\skills"
+      }
+    })
+    await expect(desktopClient.openAgentPathsConfigDir()).resolves.toBeUndefined()
     await expect(desktopClient.refreshSync()).resolves.toEqual({
       localRecords: [],
       pendingUpdates: [],
@@ -392,6 +432,13 @@ describe("App", () => {
       apiBaseUrl: "http://localhost:8001",
       apiToken: "ask_live"
     })
+    expect(mockDesktopClient.getAgentPathsConfig).toHaveBeenCalledTimes(1)
+    expect(mockDesktopClient.saveAgentPathsConfig).toHaveBeenCalledWith({
+      codex: {
+        targetPath: "C:\\Users\\test\\.codex\\skills"
+      }
+    })
+    expect(mockDesktopClient.openAgentPathsConfigDir).toHaveBeenCalledTimes(1)
     expect(mockDesktopClient.refreshSync).toHaveBeenCalledTimes(1)
     expect(mockDesktopClient.refreshAgentDetection).toHaveBeenCalledTimes(1)
     expect(mockDesktopClient.refreshPreDistributionCheck).toHaveBeenCalledTimes(1)
@@ -536,29 +583,31 @@ describe("App", () => {
           remoteSkillId: "skill-a",
           name: "Skill A",
           localVersion: null,
+          localContentHash: null,
           remoteVersion: "1.0.0",
-          reason: "missing-local-record"
+          remoteContentHash: "hash-remote",
+          reason: "not-installed"
         },
         {
           remoteSkillId: "skill-b",
           name: "Skill B",
           localVersion: "1.0.0",
           remoteVersion: "1.1.0",
-          reason: "version-mismatch"
+          reason: "update"
         },
         {
           remoteSkillId: "skill-c",
           name: "Skill C",
           localVersion: null,
           remoteVersion: "1.0.0",
-          reason: "missing-local-record"
+          reason: "not-installed"
         },
         {
           remoteSkillId: "skill-d",
           name: "Skill D",
           localVersion: "1.0.0",
           remoteVersion: "2.0.0",
-          reason: "version-mismatch"
+          reason: "update"
         }
       ],
       successfulDistributionCount: 0,
@@ -634,12 +683,12 @@ describe("App", () => {
       expect(screen.getByText(/Codex/)).toBeInTheDocument()
     })
 
-    fireEvent.click(screen.getByRole("button", { name: "Upload local-only" }))
+    fireEvent.click(screen.getByRole("button", { name: "Upload" }))
 
     await waitFor(() => {
       expect(mockDesktopClient.uploadLocalSkill).toHaveBeenCalledWith("row-local-only")
       expect(screen.getByText(/uploaded-skill/)).toBeInTheDocument()
-      expect(screen.queryByRole("button", { name: "Upload local-only" })).not.toBeInTheDocument()
+      expect(screen.queryByRole("button", { name: "Upload" })).not.toBeInTheDocument()
     })
   })
 
@@ -679,10 +728,10 @@ describe("App", () => {
     fireEvent.click(within(navigation).getByRole("button", { name: "Local Skills" }))
 
     await waitFor(() => {
-      expect(screen.getByRole("button", { name: "Upload local-only" })).toBeInTheDocument()
+      expect(screen.getByRole("button", { name: "Upload" })).toBeInTheDocument()
     })
 
-    fireEvent.click(screen.getByRole("button", { name: "Upload local-only" }))
+    fireEvent.click(screen.getByRole("button", { name: "Upload" }))
 
     await waitFor(() => {
       expect(mockDesktopClient.uploadLocalSkill).toHaveBeenCalledWith("row-local-only")
@@ -712,14 +761,41 @@ describe("App", () => {
 
     await waitFor(() => {
       expect(screen.getByText("Claude Code")).toBeInTheDocument()
-      expect(screen.getByText("Configured by environment")).toBeInTheDocument()
+      expect(screen.getAllByText("Detected or configured").length).toBeGreaterThan(0)
       expect(screen.getByText(/D:\\Claude\\skills/)).toBeInTheDocument()
       expect(screen.getByText("Gemini CLI")).toBeInTheDocument()
       expect(screen.getAllByText("Not installed").length).toBeGreaterThan(0)
     })
   })
 
-  it("runs a pre-distribution check after loading pending updates", async () => {
+  it("opens the agent paths configuration directory from settings", async () => {
+    mockDesktopClient.refreshSync.mockResolvedValueOnce({
+      localRecords: [],
+      pendingUpdates: [],
+      successfulDistributionCount: 0,
+      lastRefreshedAt: "2026-04-17T00:00:00.000Z"
+    })
+    mockDesktopClient.refreshAgentDetection.mockResolvedValueOnce(defaultAgentDetection)
+
+    render(<App />)
+
+    await waitFor(() => {
+      expect(screen.getAllByRole("button", { name: "Settings" })[0]).toBeInTheDocument()
+    })
+
+    fireEvent.click(screen.getAllByRole("button", { name: "Settings" })[0])
+
+    const openConfigButton = await screen.findByRole("button", {
+      name: "Open Agent Paths Config"
+    })
+    fireEvent.click(openConfigButton)
+
+    await waitFor(() => {
+      expect(mockDesktopClient.openAgentPathsConfigDir).toHaveBeenCalledTimes(1)
+    })
+  })
+
+  it("runs a content-based pre-distribution check after loading pending updates", async () => {
     mockDesktopClient.refreshSync.mockResolvedValueOnce({
       localRecords: [],
       pendingUpdates: [
@@ -727,8 +803,10 @@ describe("App", () => {
           remoteSkillId: "skill-a",
           name: "Skill A",
           localVersion: "2.0.0",
+          localContentHash: "hash-local",
           remoteVersion: "1.0.0",
-          reason: "version-mismatch"
+          remoteContentHash: "hash-remote",
+          reason: "update"
         }
       ],
       successfulDistributionCount: 0,
@@ -744,10 +822,12 @@ describe("App", () => {
             exists: true,
             installedVersion: "2.0.0",
             installedVersionSource: "skill-frontmatter",
+            installedContentHash: "hash-local",
             remoteVersion: "1.0.0",
+            remoteContentHash: "hash-remote",
             installedVersionFormat: "semver",
             remoteVersionFormat: "semver",
-            versionComparison: "installed-newer",
+            contentComparison: "update",
             checkedAt: "2026-04-17T00:00:01.000Z",
             durationMs: 4,
             errorCode: null,
@@ -757,7 +837,7 @@ describe("App", () => {
       },
       checkedAt: "2026-04-17T00:00:01.000Z",
       expiresAt: "2099-04-17T00:00:01.000Z",
-      pendingUpdateFingerprint: "skill-a@1.0.0",
+      pendingUpdateFingerprint: "skill-a@1.0.0@hash-remote",
       targetAgentIds: ["codex"],
       totalDurationMs: 4,
       globalErrors: []
@@ -767,8 +847,10 @@ describe("App", () => {
 
     await waitFor(() => {
       expect(mockDesktopClient.refreshPreDistributionCheck).toHaveBeenCalledTimes(1)
-      expect(screen.getByText("Review target warnings before distributing.")).toBeInTheDocument()
-      expect(screen.getByText("Codex: 2.0.0")).toBeInTheDocument()
+      expect(screen.getByText("Codex: Update")).toBeInTheDocument()
+      expect(
+        screen.queryByText("Review target warnings before distributing.")
+      ).not.toBeInTheDocument()
     })
   })
 
@@ -780,8 +862,10 @@ describe("App", () => {
           remoteSkillId: "skill-a",
           name: "Skill A",
           localVersion: null,
+          localContentHash: null,
           remoteVersion: "1.0.0",
-          reason: "missing-local-record"
+          remoteContentHash: "hash-new",
+          reason: "not-installed"
         }
       ],
       successfulDistributionCount: 0,
@@ -797,10 +881,12 @@ describe("App", () => {
             exists: true,
             installedVersion: "9.0.0",
             installedVersionSource: "skill-frontmatter",
+            installedContentHash: "hash-old",
             remoteVersion: "1.0.0",
+            remoteContentHash: "hash-old",
             installedVersionFormat: "semver",
             remoteVersionFormat: "semver",
-            versionComparison: "installed-newer",
+            contentComparison: "installed",
             checkedAt: "2026-04-17T00:00:01.000Z",
             durationMs: 4,
             errorCode: null,
@@ -810,7 +896,7 @@ describe("App", () => {
       },
       checkedAt: "2026-04-17T00:00:01.000Z",
       expiresAt: "2099-04-17T00:00:01.000Z",
-      pendingUpdateFingerprint: "skill-old@1.0.0",
+      pendingUpdateFingerprint: "skill-old@1.0.0@hash-old",
       targetAgentIds: ["codex"],
       totalDurationMs: 4,
       globalErrors: []
@@ -819,12 +905,12 @@ describe("App", () => {
     render(<App />)
 
     await waitFor(() => {
-      expect(screen.getByText("Refresh check to read installed target versions before distribution.")).toBeInTheDocument()
-      expect(screen.queryByText("Codex: 9.0.0")).not.toBeInTheDocument()
+      expect(screen.getByText("Refresh check to read installed target content before distribution.")).toBeInTheDocument()
+      expect(screen.queryByText("Codex: Installed")).not.toBeInTheDocument()
     })
   })
 
-  it("syncs the local record instead of distributing when every target already has the remote version", async () => {
+  it("syncs the local record instead of distributing when every target already has the remote content", async () => {
     mockDesktopClient.refreshSync.mockResolvedValueOnce({
       localRecords: [],
       pendingUpdates: [
@@ -832,8 +918,10 @@ describe("App", () => {
           remoteSkillId: "skill-a",
           name: "Skill A",
           localVersion: null,
+          localContentHash: null,
           remoteVersion: "1.0.0",
-          reason: "missing-local-record"
+          remoteContentHash: "hash-remote",
+          reason: "not-installed"
         }
       ],
       successfulDistributionCount: 0,
@@ -849,10 +937,12 @@ describe("App", () => {
             exists: true,
             installedVersion: "1.0.0",
             installedVersionSource: "skill-frontmatter",
+            installedContentHash: "hash-remote",
             remoteVersion: "1.0.0",
+            remoteContentHash: "hash-remote",
             installedVersionFormat: "semver",
             remoteVersionFormat: "semver",
-            versionComparison: "same",
+            contentComparison: "installed",
             checkedAt: "2026-04-17T00:00:01.000Z",
             durationMs: 4,
             errorCode: null,
@@ -862,7 +952,7 @@ describe("App", () => {
       },
       checkedAt: "2026-04-17T00:00:01.000Z",
       expiresAt: "2099-04-17T00:00:01.000Z",
-      pendingUpdateFingerprint: "skill-a@1.0.0",
+      pendingUpdateFingerprint: "skill-a@1.0.0@hash-remote",
       targetAgentIds: ["codex"],
       totalDurationMs: 4,
       globalErrors: []
@@ -873,7 +963,9 @@ describe("App", () => {
           remoteSkillId: "skill-a",
           name: "Skill A",
           installedVersion: "1.0.0",
+          installedContentHash: "hash-remote",
           remoteVersion: "1.0.0",
+          remoteContentHash: "hash-remote",
           lastComparedAt: "2026-04-17T00:00:05.000Z"
         }
       ],
@@ -915,7 +1007,7 @@ describe("App", () => {
           name: "Skill A",
           localVersion: null,
           remoteVersion: "1.0.0",
-          reason: "missing-local-record"
+          reason: "not-installed"
         }
       ],
       successfulDistributionCount: 0,
@@ -925,7 +1017,7 @@ describe("App", () => {
       results: {},
       checkedAt: "2026-04-17T00:00:01.000Z",
       expiresAt: "2099-04-17T00:00:01.000Z",
-      pendingUpdateFingerprint: "skill-a@1.0.0",
+      pendingUpdateFingerprint: "skill-a@1.0.0@hash-remote",
       targetAgentIds: [],
       totalDurationMs: 1,
       globalErrors: ["No configured agent skill directories are available for pre-distribution checks."]
@@ -962,7 +1054,7 @@ describe("App", () => {
             name: "Skill A",
             localVersion: null,
             remoteVersion: "1.0.0",
-            reason: "missing-local-record"
+            reason: "not-installed"
           }
         ],
         successfulDistributionCount: 0,
@@ -1039,8 +1131,10 @@ describe("App", () => {
           remoteSkillId: "skill-a",
           name: "Skill A",
           localVersion: null,
+          localContentHash: null,
           remoteVersion: "1.0.0",
-          reason: "missing-local-record"
+          remoteContentHash: "hash-new",
+          reason: "not-installed"
         }
       ],
       successfulDistributionCount: 0,
@@ -1078,7 +1172,7 @@ describe("App", () => {
             name: "Skill A",
             localVersion: null,
             remoteVersion: "1.0.0",
-            reason: "missing-local-record"
+            reason: "not-installed"
           }
         ],
         successfulDistributionCount: 0,
@@ -1128,7 +1222,7 @@ describe("App", () => {
             name: "Skill A",
             localVersion: null,
             remoteVersion: "1.0.0",
-            reason: "missing-local-record"
+            reason: "not-installed"
           }
         ],
         successfulDistributionCount: 0,
@@ -1142,7 +1236,7 @@ describe("App", () => {
             name: "Skill A",
             localVersion: null,
             remoteVersion: "1.0.0",
-            reason: "missing-local-record"
+            reason: "not-installed"
           }
         ],
         successfulDistributionCount: 0,

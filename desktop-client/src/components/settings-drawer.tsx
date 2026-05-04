@@ -36,6 +36,7 @@ type SettingsDrawerProps = {
   onRefreshAgentDetection: () => void
   onSaveConfiguration: (payload: ConfigurationPayload) => void
   onChangeLocale: (locale: AppLocale) => void
+  onOpenAgentPathsConfigDir: () => void
   onTestConnection: (payload: ConfigurationPayload) => void
 }
 
@@ -59,6 +60,7 @@ export function SettingsDrawer({
   onRefreshAgentDetection,
   onSaveConfiguration,
   onChangeLocale,
+  onOpenAgentPathsConfigDir,
   onTestConnection
 }: SettingsDrawerProps) {
   const { dictionary } = useI18n()
@@ -116,6 +118,7 @@ export function SettingsDrawer({
       <AgentsPanel
         detectionSnapshot={agentDetectionSnapshot}
         isRefreshing={isAgentDetectionRefreshing}
+        onOpenConfigDir={onOpenAgentPathsConfigDir}
         onRefresh={onRefreshAgentDetection}
       />
       <ActivityPanel entries={activity} />

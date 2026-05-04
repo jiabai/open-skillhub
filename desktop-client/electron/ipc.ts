@@ -3,6 +3,7 @@ import type {
   AppLocale,
   AppTheme,
   AgentDetectionSnapshot,
+  AgentPathsConfig,
   ConfigurationPayload,
   ConfigurationState,
   ConnectionTestResult,
@@ -20,6 +21,9 @@ export const desktopClientIpcChannels = {
   saveTheme: "configuration:save-theme",
   clearConfiguration: "configuration:clear",
   testConnection: "configuration:test-connection",
+  getAgentPathsConfig: "agent-paths:read",
+  saveAgentPathsConfig: "agent-paths:save",
+  openAgentPathsConfigDir: "agent-paths:open-config-dir",
   refreshSync: "sync:refresh",
   refreshAgentDetection: "agent-detection:refresh",
   refreshPreDistributionCheck: "pre-distribution-check:refresh",
@@ -36,6 +40,9 @@ export interface DesktopClientBridge {
   saveTheme(theme: AppTheme): Promise<ConfigurationState>
   clearConfiguration(): Promise<ConfigurationState>
   testConnection(payload: ConfigurationPayload): Promise<ConnectionTestResult>
+  getAgentPathsConfig(): Promise<AgentPathsConfig>
+  saveAgentPathsConfig(config: AgentPathsConfig): Promise<AgentPathsConfig>
+  openAgentPathsConfigDir(): Promise<void>
   refreshSync(): Promise<DesktopSyncState>
   refreshAgentDetection(): Promise<AgentDetectionSnapshot>
   refreshPreDistributionCheck(): Promise<PreDistributionCheckSnapshot>
@@ -52,6 +59,9 @@ export interface DesktopClientIpcHandlers {
   saveTheme(theme: AppTheme): Promise<ConfigurationState>
   clearConfiguration(): Promise<ConfigurationState>
   testConnection(payload: ConfigurationPayload): Promise<ConnectionTestResult>
+  getAgentPathsConfig(): Promise<AgentPathsConfig>
+  saveAgentPathsConfig(config: AgentPathsConfig): Promise<AgentPathsConfig>
+  openAgentPathsConfigDir(): Promise<void>
   refreshSync(): Promise<DesktopSyncState>
   refreshAgentDetection(): Promise<AgentDetectionSnapshot>
   refreshPreDistributionCheck(): Promise<PreDistributionCheckSnapshot>
@@ -71,6 +81,9 @@ export function registerDesktopClientIpc(
   ipcMain.removeHandler(desktopClientIpcChannels.saveTheme)
   ipcMain.removeHandler(desktopClientIpcChannels.clearConfiguration)
   ipcMain.removeHandler(desktopClientIpcChannels.testConnection)
+  ipcMain.removeHandler(desktopClientIpcChannels.getAgentPathsConfig)
+  ipcMain.removeHandler(desktopClientIpcChannels.saveAgentPathsConfig)
+  ipcMain.removeHandler(desktopClientIpcChannels.openAgentPathsConfigDir)
   ipcMain.removeHandler(desktopClientIpcChannels.refreshSync)
   ipcMain.removeHandler(desktopClientIpcChannels.refreshAgentDetection)
   ipcMain.removeHandler(desktopClientIpcChannels.refreshPreDistributionCheck)
@@ -92,6 +105,15 @@ export function registerDesktopClientIpc(
   ipcMain.handle(desktopClientIpcChannels.clearConfiguration, async () => handlers.clearConfiguration())
   ipcMain.handle(desktopClientIpcChannels.testConnection, async (_event, payload: ConfigurationPayload) =>
     handlers.testConnection(payload)
+  )
+  ipcMain.handle(desktopClientIpcChannels.getAgentPathsConfig, async () =>
+    handlers.getAgentPathsConfig()
+  )
+  ipcMain.handle(desktopClientIpcChannels.saveAgentPathsConfig, async (_event, config: AgentPathsConfig) =>
+    handlers.saveAgentPathsConfig(config)
+  )
+  ipcMain.handle(desktopClientIpcChannels.openAgentPathsConfigDir, async () =>
+    handlers.openAgentPathsConfigDir()
   )
   ipcMain.handle(desktopClientIpcChannels.refreshSync, async () => handlers.refreshSync())
   ipcMain.handle(desktopClientIpcChannels.refreshAgentDetection, async () =>

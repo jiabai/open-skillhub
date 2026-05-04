@@ -44,7 +44,10 @@
 - Skill directory names used in filesystem paths, including SKILL names, must reject empty values, path separators, `.` and `..`.
 - Agent skills directories must be explicit, validated, and writable before distribution begins.
 - Adapter-specific path assumptions belong in agent adapters, not shared core services.
-- Agent detection may use environment variables as explicit user-configured targets, but those paths are still normalized and validated by the adapter/distribution path before writes.
+- Agent detection may use `config/agent-paths.json` as explicit
+  user-configured targets. Unknown agent IDs, non-object entries, empty paths,
+  relative paths, and raw or normalized `..` path segments are ignored before
+  detection or distribution can use them.
 - Compatible read paths are explanatory metadata only. They must not become write targets unless the agent catalog also declares them as owned targets.
 - Shared physical target dedupe must happen on normalized paths before distribution so one user-controlled directory is written at most once per approved skill.
 

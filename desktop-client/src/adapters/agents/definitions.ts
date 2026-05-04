@@ -15,7 +15,6 @@ export interface AgentPathDefinition {
   defaultTargets: AgentTargetDefinition[]
   compatibleReadPaths?: string[]
   pathResolution: "all-owned" | "priority"
-  envVar: string
 }
 
 export const supportedAgentDefinitions: AgentPathDefinition[] = [
@@ -25,8 +24,7 @@ export const supportedAgentDefinitions: AgentPathDefinition[] = [
     detectionDirs: ["~/.claude"],
     defaultTargets: [{ path: "~/.claude/skills", role: "primary" }],
     compatibleReadPaths: ["~/.claude/plugins/marketplaces/*/skills"],
-    pathResolution: "all-owned",
-    envVar: "SKILLDRIVE_CLAUDE_CODE_SKILLS_PATH"
+    pathResolution: "all-owned"
   },
   {
     id: "cursor",
@@ -34,32 +32,28 @@ export const supportedAgentDefinitions: AgentPathDefinition[] = [
     detectionDirs: ["~/.cursor"],
     defaultTargets: [{ path: "~/.cursor/skills", role: "primary" }],
     compatibleReadPaths: ["~/.claude/skills", "~/.codex/skills"],
-    pathResolution: "all-owned",
-    envVar: "SKILLDRIVE_CURSOR_SKILLS_PATH"
+    pathResolution: "all-owned"
   },
   {
     id: "windsurf",
     displayName: "Windsurf",
     detectionDirs: ["~/.codeium/windsurf"],
     defaultTargets: [{ path: "~/.codeium/windsurf/skills", role: "primary" }],
-    pathResolution: "all-owned",
-    envVar: "SKILLDRIVE_WINDSURF_SKILLS_PATH"
+    pathResolution: "all-owned"
   },
   {
     id: "copilot",
     displayName: "GitHub Copilot",
     detectionDirs: ["~/.copilot"],
     defaultTargets: [{ path: "~/.copilot/skills", role: "primary" }],
-    pathResolution: "all-owned",
-    envVar: "SKILLDRIVE_COPILOT_SKILLS_PATH"
+    pathResolution: "all-owned"
   },
   {
     id: "roocode",
     displayName: "RooCode",
     detectionDirs: ["~/.roo"],
     defaultTargets: [{ path: "~/.roo/skills", role: "primary" }],
-    pathResolution: "all-owned",
-    envVar: "SKILLDRIVE_ROOCODE_SKILLS_PATH"
+    pathResolution: "all-owned"
   },
   {
     id: "cline",
@@ -68,16 +62,14 @@ export const supportedAgentDefinitions: AgentPathDefinition[] = [
     defaultTargets: [
       { path: "~/.agents/skills", role: "primary", sharedPathKey: "agents-universal" }
     ],
-    pathResolution: "all-owned",
-    envVar: "SKILLDRIVE_CLINE_SKILLS_PATH"
+    pathResolution: "all-owned"
   },
   {
     id: "gemini-cli",
     displayName: "Gemini CLI",
     detectionDirs: ["~/.gemini"],
     defaultTargets: [{ path: "~/.gemini/skills", role: "primary" }],
-    pathResolution: "all-owned",
-    envVar: "SKILLDRIVE_GEMINI_CLI_SKILLS_PATH"
+    pathResolution: "all-owned"
   },
   {
     id: "codex",
@@ -87,8 +79,7 @@ export const supportedAgentDefinitions: AgentPathDefinition[] = [
       { path: "~/.agents/skills", role: "primary", sharedPathKey: "agents-universal" }
     ],
     compatibleReadPaths: ["~/.codex/skills", "/etc/codex/skills"],
-    pathResolution: "all-owned",
-    envVar: "SKILLDRIVE_CODEX_SKILLS_PATH"
+    pathResolution: "all-owned"
   },
   {
     id: "opencode",
@@ -96,16 +87,14 @@ export const supportedAgentDefinitions: AgentPathDefinition[] = [
     detectionDirs: ["~/.config/opencode"],
     defaultTargets: [{ path: "~/.config/opencode/skills", role: "primary" }],
     compatibleReadPaths: ["~/.claude/skills", "~/.agents/skills"],
-    pathResolution: "all-owned",
-    envVar: "SKILLDRIVE_OPENCODE_SKILLS_PATH"
+    pathResolution: "all-owned"
   },
   {
     id: "kilocode",
     displayName: "KiloCode",
     detectionDirs: ["~/.kilocode"],
     defaultTargets: [{ path: "~/.kilocode/skills", role: "primary" }],
-    pathResolution: "all-owned",
-    envVar: "SKILLDRIVE_KILOCODE_SKILLS_PATH"
+    pathResolution: "all-owned"
   },
   {
     id: "amp",
@@ -114,16 +103,14 @@ export const supportedAgentDefinitions: AgentPathDefinition[] = [
     defaultTargets: [
       { path: "~/.config/agents/skills", role: "primary", sharedPathKey: "config-agents" }
     ],
-    pathResolution: "all-owned",
-    envVar: "SKILLDRIVE_AMP_SKILLS_PATH"
+    pathResolution: "all-owned"
   },
   {
     id: "kiro",
     displayName: "Kiro",
     detectionDirs: ["~/.kiro"],
     defaultTargets: [{ path: "~/.kiro/skills", role: "primary" }],
-    pathResolution: "all-owned",
-    envVar: "SKILLDRIVE_KIRO_SKILLS_PATH"
+    pathResolution: "all-owned"
   },
   {
     id: "warp",
@@ -132,24 +119,21 @@ export const supportedAgentDefinitions: AgentPathDefinition[] = [
     defaultTargets: [
       { path: "~/.agents/skills", role: "primary", sharedPathKey: "agents-universal" }
     ],
-    pathResolution: "all-owned",
-    envVar: "SKILLDRIVE_WARP_SKILLS_PATH"
+    pathResolution: "all-owned"
   },
   {
     id: "trae",
     displayName: "Trae",
     detectionDirs: ["~/.trae"],
     defaultTargets: [{ path: "~/.trae/skills", role: "primary" }],
-    pathResolution: "all-owned",
-    envVar: "SKILLDRIVE_TRAE_SKILLS_PATH"
+    pathResolution: "all-owned"
   },
   {
     id: "factory",
     displayName: "Factory",
     detectionDirs: ["~/.factory"],
     defaultTargets: [{ path: "~/.factory/skills", role: "primary" }],
-    pathResolution: "all-owned",
-    envVar: "SKILLDRIVE_FACTORY_SKILLS_PATH"
+    pathResolution: "all-owned"
   },
   {
     id: "kimi",
@@ -158,32 +142,28 @@ export const supportedAgentDefinitions: AgentPathDefinition[] = [
     defaultTargets: [
       { path: "~/.config/agents/skills", role: "primary", sharedPathKey: "config-agents" }
     ],
-    pathResolution: "all-owned",
-    envVar: "SKILLDRIVE_KIMI_SKILLS_PATH"
+    pathResolution: "all-owned"
   },
   {
     id: "mistral",
     displayName: "Mistral Le Chat",
     detectionDirs: ["~/.vibe"],
     defaultTargets: [{ path: "~/.vibe/skills", role: "primary" }],
-    pathResolution: "all-owned",
-    envVar: "SKILLDRIVE_MISTRAL_SKILLS_PATH"
+    pathResolution: "all-owned"
   },
   {
     id: "pi",
     displayName: "Pi Coding Agent",
     detectionDirs: ["~/.pi/agent"],
     defaultTargets: [{ path: "~/.pi/agent/skills", role: "primary" }],
-    pathResolution: "all-owned",
-    envVar: "SKILLDRIVE_PI_SKILLS_PATH"
+    pathResolution: "all-owned"
   },
   {
     id: "antigravity",
     displayName: "Antigravity",
     detectionDirs: ["~/.gemini/antigravity"],
     defaultTargets: [{ path: "~/.gemini/antigravity/skills", role: "primary" }],
-    pathResolution: "all-owned",
-    envVar: "SKILLDRIVE_ANTIGRAVITY_SKILLS_PATH"
+    pathResolution: "all-owned"
   },
   {
     id: "openclaw",
@@ -194,8 +174,7 @@ export const supportedAgentDefinitions: AgentPathDefinition[] = [
       { path: "~/.clawdbot/skills", role: "primary" },
       { path: "~/.moltbot/skills", role: "primary" }
     ],
-    pathResolution: "priority",
-    envVar: "SKILLDRIVE_OPENCLAW_SKILLS_PATH"
+    pathResolution: "priority"
   }
 ]
 

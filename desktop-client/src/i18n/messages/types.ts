@@ -111,7 +111,7 @@ export interface AppDictionary {
     loading: string
     noSnapshot: string
     empty: string
-    upload: (name: string) => string
+    upload: string
     uploading: string
     sourceAgents: (value: string) => string
     localVersion: (value: string) => string
@@ -224,11 +224,15 @@ export interface AppDictionary {
     }
     comparisonLabels: {
       "not-installed": string
-      "installed-older": (installed: string, remote: string) => string
-      same: (version: string) => string
-      "installed-newer": (installed: string, remote: string) => string
-      unknown: (installed: string, remote: string) => string
+      installed: (remote: string) => string
+      update: (remote: string) => string
       error: (message: string) => string
+    }
+    comparisonStatusLabels: {
+      "not-installed": string
+      installed: string
+      update: string
+      error: string
     }
   }
   distributionConfirmation: {
@@ -250,12 +254,12 @@ export interface AppDictionary {
     description: string
     rediscover: string
     rediscovering: string
+    openConfigDir: string
     noSnapshot: string
     summary: (installed: number, supported: number) => string
     statusLabels: {
       installed: string
       missing: string
-      environment: string
       autoDetected: string
     }
     targetPath: (value: string) => string

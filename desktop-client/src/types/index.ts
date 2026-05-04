@@ -26,7 +26,13 @@ export type AgentId =
   | "antigravity"
   | "openclaw"
 
-export type AgentInstallSource = "auto-detected" | "environment" | "missing"
+export type AgentInstallSource = "auto-detected" | "missing"
+
+export interface AgentPathConfigEntry {
+  targetPath: string
+}
+
+export type AgentPathsConfig = Partial<Record<AgentId, AgentPathConfigEntry>>
 
 export interface AgentInstallStatus {
   agentId: AgentId
@@ -60,10 +66,10 @@ export type SkillDistributionTargetStatus =
   | "success"
   | "covered-by-shared-path"
   | "skipped-agent-not-installed"
-  | "skipped-same-version"
+  | "skipped-installed-content"
   | "failed"
 
-export type SkillDistributionWriteMode = "write" | "skip-same-version"
+export type SkillDistributionWriteMode = "write" | "skip-installed-content"
 
 export interface SkillDistributionTarget extends AgentSkillTarget {
   writeMode?: SkillDistributionWriteMode
@@ -96,6 +102,7 @@ export interface RemoteSkillSummary {
   id: string
   name: string
   version: string | null
+  contentHash: string | null
   updatedAt: string
 }
 
@@ -149,7 +156,9 @@ export interface LocalDistributedSkillRecord {
   remoteSkillId: string
   name: string
   installedVersion: string | null
+  installedContentHash: string | null
   remoteVersion: string | null
+  remoteContentHash: string | null
   lastComparedAt: string | null
 }
 
@@ -157,16 +166,20 @@ export interface PendingSyncUpdate {
   remoteSkillId: string
   name: string
   localVersion: string | null
+  localContentHash: string | null
   remoteVersion: string
-  reason: "missing-local-record" | "version-mismatch"
+  remoteContentHash: string | null
+  reason: "not-installed" | "update"
 }
 
 export interface SyncComparisonItem {
   remoteSkillId: string
   name: string
   localVersion: string | null
+  localContentHash: string | null
   remoteVersion: string | null
-  status: "in-sync" | "install" | "update"
+  remoteContentHash: string | null
+  status: "installed" | "not-installed" | "update"
 }
 
 export interface DesktopSyncState {
@@ -187,6 +200,7 @@ export interface InstalledSkillMetadataV1 {
   skillDir: string
   version: string | null
   versionSource: InstalledSkillVersionSource
+  contentHash: string | null
 }
 
 export type PreDistributionVersionFormat = "semver" | "unknown"
@@ -199,6 +213,12 @@ export type PreDistributionVersionComparison =
   | "unknown"
   | "error"
 
+export type PreDistributionContentComparison =
+  | "not-installed"
+  | "installed"
+  | "update"
+  | "error"
+
 export interface AgentPreDistributionCheckResult {
   agentId: AgentId
   displayName: string
@@ -206,10 +226,12 @@ export interface AgentPreDistributionCheckResult {
   exists: boolean
   installedVersion: string | null
   installedVersionSource: InstalledSkillVersionSource
+  installedContentHash: string | null
   remoteVersion: string
+  remoteContentHash: string | null
   installedVersionFormat: PreDistributionVersionFormat
   remoteVersionFormat: PreDistributionVersionFormat
-  versionComparison: PreDistributionVersionComparison
+  contentComparison: PreDistributionContentComparison
   checkedAt: string
   durationMs: number
   errorCode: string | null
@@ -285,6 +307,7 @@ export interface SkillDistributionRequest {
   skillId: string
   name: string
   version: string | null
+  contentHash: string | null
   packageSource: unknown
   targets: SkillDistributionTarget[]
 }

@@ -118,7 +118,7 @@ export function LocalSkillsView({
                         </Badge>
                         {row.uploadable ? (
                           <Button size="sm" disabled={isUploading} onClick={() => onUpload(row)}>
-                            {isUploading ? copy.uploading : copy.upload(name)}
+                            {isUploading ? copy.uploading : copy.upload}
                           </Button>
                         ) : null}
                       </div>

@@ -136,7 +136,9 @@ describe("distribution pipeline", () => {
           remoteSkillId: "legacy-skill",
           name: "Legacy Skill",
           installedVersion: "0.1.0",
+          installedContentHash: "hash-legacy",
           remoteVersion: "0.1.0",
+          remoteContentHash: "hash-legacy",
           lastComparedAt: "2026-04-16T10:00:00.000Z"
         }
       ],
@@ -145,15 +147,19 @@ describe("distribution pipeline", () => {
           remoteSkillId: "skill-x",
           name: "Skill X",
           localVersion: "0.9.0",
+          localContentHash: "hash-x-local",
           remoteVersion: "1.0.0",
-          reason: "version-mismatch"
+          remoteContentHash: "hash-x-remote",
+          reason: "update"
         },
         {
           remoteSkillId: "other-skill",
           name: "Other Skill",
           localVersion: null,
+          localContentHash: null,
           remoteVersion: "2.0.0",
-          reason: "missing-local-record"
+          remoteContentHash: "hash-other",
+          reason: "not-installed"
         }
       ],
       successfulDistributionCount: 0,
@@ -164,6 +170,7 @@ describe("distribution pipeline", () => {
       skillId: "skill-x",
       name: "Skill X",
       version: "1.0.0",
+      contentHash: "hash-x-remote",
       packageSource: { source: packageSource },
       targets: [
         createTarget("codex", skillsPathByAgent.codex),
@@ -213,14 +220,18 @@ describe("distribution pipeline", () => {
           remoteSkillId: "legacy-skill",
           name: "Legacy Skill",
           installedVersion: "0.1.0",
+          installedContentHash: "hash-legacy",
           remoteVersion: "0.1.0",
+          remoteContentHash: "hash-legacy",
           lastComparedAt: "2026-04-16T10:00:00.000Z"
         },
         {
           remoteSkillId: "skill-x",
           name: "Skill X",
           installedVersion: "1.0.0",
+          installedContentHash: "hash-x-remote",
           remoteVersion: "1.0.0",
+          remoteContentHash: "hash-x-remote",
           lastComparedAt: "2026-04-17T10:00:00.000Z"
         }
       ],
@@ -229,8 +240,10 @@ describe("distribution pipeline", () => {
           remoteSkillId: "other-skill",
           name: "Other Skill",
           localVersion: null,
+          localContentHash: null,
           remoteVersion: "2.0.0",
-          reason: "missing-local-record"
+          remoteContentHash: "hash-other",
+          reason: "not-installed"
         }
       ],
       successfulDistributionCount: 1,
@@ -269,6 +282,7 @@ describe("distribution pipeline", () => {
       skillId: "skill-y",
       name: "Skill Y",
       version: "1.0.0",
+      contentHash: "hash-y",
       packageSource: { source: packageSource },
       targets: [
         createTarget("codex", skillsPathByAgent.codex),
@@ -341,6 +355,7 @@ describe("distribution pipeline", () => {
         skillId: "skill-z",
         name: "Skill Z",
         version: "1.0.0",
+        contentHash: "hash-z",
         packageSource: { source: packageSource },
         targets: [createTarget("codex", join(rootDir, "skills", "codex"))]
       })
@@ -376,8 +391,10 @@ describe("distribution pipeline", () => {
           remoteSkillId: "skill-shared",
           name: "Skill Shared",
           localVersion: null,
+          localContentHash: null,
           remoteVersion: "1.0.0",
-          reason: "missing-local-record"
+          remoteContentHash: "hash-shared",
+          reason: "not-installed"
         }
       ],
       successfulDistributionCount: 0,
@@ -388,6 +405,7 @@ describe("distribution pipeline", () => {
       skillId: "skill-shared",
       name: "Skill Shared",
       version: "1.0.0",
+      contentHash: "hash-shared",
       packageSource: { source: packageSource },
       targets: [createTarget("cline", sharedSkillsPath, ["cline", "warp"])]
     })
@@ -417,7 +435,7 @@ describe("distribution pipeline", () => {
     await stateStore.close()
   })
 
-  it("skips same-version targets without downloading a package and reconciles local state", async () => {
+  it("skips installed-content targets without downloading a package and reconciles local state", async () => {
     const rootDir = createTempRoot()
     const dbPath = join(rootDir, "state", "state.sqlite3")
     const stateStore = await createSqliteStateStore(dbPath)
@@ -442,8 +460,10 @@ describe("distribution pipeline", () => {
           remoteSkillId: "skill-same",
           name: "Skill Same",
           localVersion: null,
+          localContentHash: null,
           remoteVersion: "1.0.0",
-          reason: "missing-local-record"
+          remoteContentHash: "hash-same",
+          reason: "not-installed"
         }
       ],
       successfulDistributionCount: 0,
@@ -454,8 +474,9 @@ describe("distribution pipeline", () => {
       skillId: "skill-same",
       name: "Skill Same",
       version: "1.0.0",
+      contentHash: "hash-same",
       packageSource: { source: packageSource },
-      targets: [createTarget("codex", skillsPath, ["codex"], "skip-same-version")]
+      targets: [createTarget("codex", skillsPath, ["codex"], "skip-installed-content")]
     })
 
     expect(downloadArtifact).not.toHaveBeenCalled()
@@ -464,7 +485,7 @@ describe("distribution pipeline", () => {
       {
         agentId: "codex",
         targetPath: skillsPath,
-        status: "skipped-same-version",
+        status: "skipped-installed-content",
         success: true,
         errorMessage: null
       }
@@ -476,7 +497,9 @@ describe("distribution pipeline", () => {
           remoteSkillId: "skill-same",
           name: "Skill Same",
           installedVersion: "1.0.0",
+          installedContentHash: "hash-same",
           remoteVersion: "1.0.0",
+          remoteContentHash: "hash-same",
           lastComparedAt: "2026-04-17T10:00:00.000Z"
         }
       ],
@@ -493,6 +516,7 @@ describe("distribution pipeline", () => {
         skillId: "skill-a",
         name: "Skill A",
         version: "1.0.0",
+        contentHash: "hash-a",
         extractedPath: null,
         targets: [
           {
@@ -525,6 +549,7 @@ describe("distribution pipeline", () => {
         skillId: "skill-b",
         name: "Skill B",
         version: "1.0.0",
+        contentHash: "hash-b",
         extractedPath: null,
         targets: [
           {

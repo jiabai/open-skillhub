@@ -44,6 +44,9 @@ class ClientSkillCatalogService:
             version_record = await self.version_repo.get_by_version(lookup_skill_id, resolved_version)
             if version_record:
                 latest_version = SkillVersionResponse.model_validate(version_record)
+                payload["content_hash"] = version_record.content_hash or None
+        else:
+            payload["content_hash"] = None
         payload["resolved_version"] = resolved_version
         payload["skill_kind"] = await self.skill_service.skill_kind(skill)
         payload["is_reference_read_only"] = self.skill_service.is_reference_skill(skill)

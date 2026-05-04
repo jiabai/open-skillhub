@@ -25,13 +25,15 @@ function createStateStore(pendingUpdates: PendingSyncUpdate[]): StateStore {
   }
 }
 
-function createPendingUpdate(version = "1.0.0"): PendingSyncUpdate {
+function createPendingUpdate(version = "1.0.0", remoteContentHash = "hash-remote"): PendingSyncUpdate {
   return {
     remoteSkillId: "skill-a",
     name: "Skill A",
     localVersion: null,
+    localContentHash: null,
     remoteVersion: version,
-    reason: "missing-local-record"
+    remoteContentHash,
+    reason: "not-installed"
   }
 }
 
@@ -96,7 +98,7 @@ describe("pre-distribution check service", () => {
     const snapshot = await service.refresh()
 
     expect(snapshot.results).toEqual({})
-    expect(snapshot.pendingUpdateFingerprint).toBe("skill-a@1.0.0")
+    expect(snapshot.pendingUpdateFingerprint).toBe("skill-a@1.0.0@hash-remote")
     expect(snapshot.globalErrors).toEqual([
       "No configured agent skill directories are available for pre-distribution checks."
     ])
@@ -110,13 +112,15 @@ describe("pre-distribution check service", () => {
           exists: true,
           skillDir: "C:\\skills\\codex\\skill-a",
           version: "2.0.0",
-          versionSource: "skill-frontmatter"
+          versionSource: "skill-frontmatter",
+          contentHash: "hash-remote"
         })),
         createTarget("gemini-cli", "Gemini CLI", async () => ({
           exists: false,
           skillDir: "C:\\skills\\gemini-cli\\skill-a",
           version: null,
-          versionSource: null
+          versionSource: null,
+          contentHash: null
         }))
       ],
       now: () => new Date("2026-04-17T00:00:00.000Z")
@@ -128,13 +132,17 @@ describe("pre-distribution check service", () => {
       exists: true,
       installedVersion: "2.0.0",
       installedVersionSource: "skill-frontmatter",
-      versionComparison: "installed-newer",
+      installedContentHash: "hash-remote",
+      remoteContentHash: "hash-remote",
+      contentComparison: "installed",
       errorCode: null
     })
     expect(snapshot.results["skill-a"]?.["gemini-cli"]).toMatchObject({
       exists: false,
       installedVersion: null,
-      versionComparison: "not-installed"
+      installedContentHash: null,
+      remoteContentHash: "hash-remote",
+      contentComparison: "not-installed"
     })
   })
 
@@ -144,7 +152,8 @@ describe("pre-distribution check service", () => {
         exists: skillName === "Skill A",
         skillDir: `C:\\skills\\codex\\${skillName}`,
         version: skillName === "Skill A" ? "2.0.0" : null,
-        versionSource: skillName === "Skill A" ? "skill-frontmatter" : null
+        versionSource: skillName === "Skill A" ? "skill-frontmatter" : null,
+        contentHash: skillName === "Skill A" ? "hash-remote" : null
       })
     )
     const service = createPreDistributionCheckService({
@@ -153,8 +162,10 @@ describe("pre-distribution check service", () => {
           remoteSkillId: "f4919f10-e7fc-40df-ae6f-fe7bfe050ac5",
           name: "Skill A",
           localVersion: null,
+          localContentHash: null,
           remoteVersion: "1.0.0",
-          reason: "missing-local-record"
+          remoteContentHash: "hash-remote",
+          reason: "not-installed"
         }
       ]),
       targets: [
@@ -171,7 +182,8 @@ describe("pre-distribution check service", () => {
     expect(snapshot.results["f4919f10-e7fc-40df-ae6f-fe7bfe050ac5"]?.codex).toMatchObject({
       exists: true,
       installedVersion: "2.0.0",
-      versionComparison: "installed-newer"
+      installedContentHash: "hash-remote",
+      contentComparison: "installed"
     })
   })
 
@@ -180,7 +192,8 @@ describe("pre-distribution check service", () => {
       exists: true,
       skillDir: "C:\\skills\\shared\\skill-a",
       version: "1.0.0",
-      versionSource: "manifest-json" as const
+      versionSource: "manifest-json" as const,
+      contentHash: "hash-remote"
     }))
     const service = createPreDistributionCheckService({
       stateStore: createStateStore([createPendingUpdate("1.0.0")]),
@@ -197,12 +210,12 @@ describe("pre-distribution check service", () => {
     expect(snapshot.results["skill-a"]?.cline).toMatchObject({
       agentId: "cline",
       displayName: "Cline",
-      versionComparison: "same"
+      contentComparison: "installed"
     })
     expect(snapshot.results["skill-a"]?.warp).toMatchObject({
       agentId: "warp",
       displayName: "Covered warp",
-      versionComparison: "same"
+      contentComparison: "installed"
     })
   })
 
@@ -220,7 +233,7 @@ describe("pre-distribution check service", () => {
     const snapshot = await service.refresh()
 
     expect(snapshot.results["skill-a"]?.codex).toMatchObject({
-      versionComparison: "error",
+      contentComparison: "error",
       errorCode: "READ_FAILED",
       errorMessage: "path unreadable"
     })
@@ -234,7 +247,8 @@ describe("pre-distribution check service", () => {
           exists: true,
           skillDir: "C:\\skills\\codex\\skill-a",
           version: "0.9.0",
-          versionSource: "manifest-json"
+          versionSource: "manifest-json",
+          contentHash: "hash-local"
         })),
         createTarget(
           "claude-code",
@@ -253,11 +267,11 @@ describe("pre-distribution check service", () => {
     const snapshot = await service.refresh()
 
     expect(snapshot.results["skill-a"]?.codex).toMatchObject({
-      versionComparison: "installed-older",
+      contentComparison: "update",
       errorCode: null
     })
     expect(snapshot.results["skill-a"]?.["claude-code"]).toMatchObject({
-      versionComparison: "error",
+      contentComparison: "error",
       errorCode: "TIMEOUT"
     })
     expect(snapshot.globalErrors).toEqual([

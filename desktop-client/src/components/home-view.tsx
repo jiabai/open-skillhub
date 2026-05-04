@@ -3,7 +3,7 @@ import { Badge, Button, Card, CardContent, CardDescription, CardHeader, CardTitl
 import {
   PreDistributionActionWarning,
   PreDistributionCheckSummary,
-  areAllPreDistributionTargetsSame
+  areAllPreDistributionTargetsInstalled
 } from "@/components/pre-distribution-check-summary"
 import { useI18n } from "@/i18n/use-i18n"
 
@@ -157,13 +157,13 @@ export function HomeView({
                 <div className="list-stack">
                   {previewUpdates.map((pendingUpdate) => {
                     const isBusy = busyUpdateId === pendingUpdate.remoteSkillId
-                    const canSyncLocalRecord = areAllPreDistributionTargetsSame(
+                    const canSyncLocalRecord = areAllPreDistributionTargetsInstalled(
                       pendingUpdate,
                       preDistributionCheckSnapshot,
                       isPreDistributionCheckStale
                     )
                     const reasonLabel =
-                      pendingUpdate.reason === "missing-local-record"
+                      pendingUpdate.reason === "not-installed"
                         ? dictionary.homeView.reasonLabels.missingLocalRecord
                         : dictionary.homeView.reasonLabels.versionMismatch
 

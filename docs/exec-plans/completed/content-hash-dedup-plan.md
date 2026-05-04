@@ -12,7 +12,7 @@ Skill 版本号不是强制的，大多数 skill 不写 version，后端自动�
 引入 content hash（SHA-256）替代版本号作为分发状态判定依据，将同步状态简化为
 `installed` / `not-installed` / `update` 三态模型。
 
-This plan intentionally stops before implementation until the spec and plan are reviewed.
+Implementation proceeded after spec and plan review approval on 2026-05-04.
 
 ## Progress
 
@@ -22,6 +22,9 @@ This plan intentionally stops before implementation until the spec and plan are 
 - [x] (2026-05-04) 创建了设计文档 `docs/design-docs/content-hash-dedup.md`。
 - [x] (2026-05-04) 创建了本执行计划和任务清单。
 - [x] (2026-05-04) 审查并修正了 spec/design/plan/task 之间的口径：API 只在客户端摘要暴露 hash，公共 skill 同步只补 hash 不改语义，桌面端补充 State DB 兼容迁移和本地目录 hash 检查。
+- [x] (2026-05-04) 完成后端 Phase 1/2：新增 `skill_versions.content_hash`、后端 hash 工具、上传与公共同步写 hash、回填脚本、客户端 API 顶层 `content_hash`。
+- [x] (2026-05-04) 完成桌面端 Phase 3：远端摘要映射 `contentHash`、State DB 兼容迁移、content hash 同步比较、分发写回/跳过语义、本地目录 hash、`contentComparison` 预检查、UI/i18n 三态文案。
+- [x] (2026-05-04) 完成 Phase 4 验证：后端/桌面端全量测试、构建、ruff、mypy、文档校验已执行并通过。
 
 ## Surprises & Discoveries
 
@@ -82,6 +85,16 @@ This plan intentionally stops before implementation until the spec and plan are 
 Validation notes:
 
 - Passed (2026-05-04): `python scripts/validate_agents_docs.py --level ERROR`，0 errors, 0 warnings。
+- Passed (2026-05-04): `uv run pytest tests/test_skill_content_hash.py tests/test_backfill_content_hash.py tests/test_sync_public_skills.py tests/test_client_skills_api.py -q`，24 passed。
+- Passed (2026-05-04): `uv run python -m alembic -c backend/alembic.ini upgrade head`。`uv run alembic ...` 在当前 Windows 环境触发 `uv trampoline failed to canonicalize script path`，因此使用等价模块形式验证迁移。
+- Passed (2026-05-04): `cd desktop-client && npm test -- src/__tests__/compare.test.ts src/__tests__/sync-service.test.ts src/__tests__/state-db.test.ts src/__tests__/pre-distribution-check-service.test.ts src/__tests__/distribution-service.test.ts src/__tests__/local-skill-inventory-service.test.ts src/__tests__/app.test.tsx`，40 passed。
+- Passed (2026-05-04): `cd desktop-client && npm test`，108 passed。
+- Passed (2026-05-04): `cd desktop-client && npm run build`，Electron typecheck、renderer build、main/preload build 全部成功。
+- Passed (2026-05-04): `uv run pytest`，635 passed。
+- Passed (2026-05-04): `uv run ruff check .`，All checks passed。
+- Passed (2026-05-04): `python scripts/validate_agents_docs.py --level ERROR`，0 errors, 0 warnings。
+- Passed (2026-05-04): `uv run mypy backend`，Success: no issues found in 140 source files。此前 Python 3.10 目标版本导致 `StrEnum` / `SkillErrorCode` 级联错误；切换到 Python 3.13 后剩余 14 个既有类型标注问题已修复。
+- Backfill validation (2026-05-04): `tests/test_backfill_content_hash.py` 在隔离测试库中验证可定位版本目录会写入非空 `content_hash`；未对本机持久化数据库运行 CLI，避免修改本地数据。
 
 ## Context and Orientation
 

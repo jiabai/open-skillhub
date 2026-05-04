@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto"
 import { mkdir, readdir, stat, copyFile, readFile } from "node:fs/promises"
 import { isAbsolute, join, normalize, relative } from "node:path"
 
@@ -206,6 +207,28 @@ async function collectRelativeFiles(rootPath: string, currentPath = rootPath): P
   return collected
 }
 
+function shouldSkipContentHashFile(relativeFilePath: string): boolean {
+  const parts = relativeFilePath.split("/")
+  const fileName = parts.at(-1)
+
+  return fileName === ".DS_Store" || fileName === "Thumbs.db" || parts.includes("__MACOSX")
+}
+
+async function computeSkillContentHash(rootPath: string): Promise<string> {
+  const relativeFilePaths = (await collectRelativeFiles(rootPath))
+    .filter((relativeFilePath) => !shouldSkipContentHashFile(relativeFilePath))
+    .sort()
+  const hasher = createHash("sha256")
+
+  for (const relativeFilePath of relativeFilePaths) {
+    hasher.update(`${relativeFilePath}\0`)
+    hasher.update(await readFile(join(rootPath, relativeFilePath)))
+    hasher.update("\0")
+  }
+
+  return hasher.digest("hex")
+}
+
 async function copyDirectoryContents(sourcePath: string, targetPath: string): Promise<void> {
   const entries = await readdir(sourcePath, { withFileTypes: true })
 
@@ -307,7 +330,8 @@ export function createFilesystemAgentAdapter(definition: AgentAdapterDefinition)
           exists: true,
           skillDir,
           version: metadata.version,
-          versionSource: metadata.versionSource
+          versionSource: metadata.versionSource,
+          contentHash: await computeSkillContentHash(skillDir)
         }
       } catch (error) {
         if (isMissingFileError(error)) {
@@ -315,7 +339,8 @@ export function createFilesystemAgentAdapter(definition: AgentAdapterDefinition)
             exists: false,
             skillDir,
             version: null,
-            versionSource: null
+            versionSource: null,
+            contentHash: null
           }
         }
 

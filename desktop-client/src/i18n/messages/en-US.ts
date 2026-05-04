@@ -94,8 +94,8 @@ export const enUSDictionary = {
       remote: (value: string) => `Remote ${value}`
     },
     reasonLabels: {
-      missingLocalRecord: "Missing local record",
-      versionMismatch: "Version mismatch"
+      missingLocalRecord: "Not installed",
+      versionMismatch: "Content changed"
     }
   },
   updatesView: {
@@ -204,14 +204,14 @@ export const enUSDictionary = {
     syncingRecord: "Syncing...",
     reviewReasonLabel: "Review reason:",
     reasonLabels: {
-      missingLocalRecord: "Missing local record",
-      versionMismatch: "Version mismatch"
+      missingLocalRecord: "Not installed",
+      versionMismatch: "Content changed"
     }
   },
   preDistributionCheck: {
     loading: "Checking configured agent targets...",
-    refreshNeeded: "Refresh check to read installed target versions before distribution.",
-    stale: "Check results are stale. Refresh before relying on target version claims.",
+    refreshNeeded: "Refresh check to read installed target content before distribution.",
+    stale: "Check results are stale. Refresh before relying on target content claims.",
     noTargets: "No configured agent targets are available for this check.",
     globalErrorsTitle: "Pre-distribution check warning",
     targetCheckTitle: "Target check",
@@ -227,14 +227,17 @@ export const enUSDictionary = {
     },
     comparisonLabels: {
       "not-installed": "Not installed on this target.",
-      "installed-older": (installed: string, remote: string) =>
-        `Installed ${installed} is older than remote ${remote}; distribution upgrades it.`,
-      same: (version: string) => `Same version ${version}; distribution is an overwrite.`,
-      "installed-newer": (installed: string, remote: string) =>
-        `Installed ${installed} is newer than remote ${remote}; distribution may downgrade it.`,
-      unknown: (installed: string, remote: string) =>
-        `Version ordering cannot be determined: installed ${installed}, remote ${remote}.`,
+      installed: (remote: string) =>
+        `Installed content already matches remote ${remote}; distribution will skip this target.`,
+      update: (remote: string) =>
+        `Installed content differs from remote ${remote}; distribution will write this target.`,
       error: (message: string) => `Check failed: ${message}`
+    },
+    comparisonStatusLabels: {
+      "not-installed": "Not installed",
+      installed: "Installed",
+      update: "Update",
+      error: "Error"
     }
   },
   distributionConfirmation: {
@@ -246,7 +249,7 @@ export const enUSDictionary = {
     skippedTargetsTitle: "Already up to date",
     missingAgentsTitle: "Missing assistants skipped",
     noWriteTargets: "No detected write targets.",
-    noSkippedTargets: "No same-version targets.",
+    noSkippedTargets: "No already-installed targets.",
     noMissingAgents: "No missing supported assistants.",
     confirm: "Confirm distribution",
     cancel: "Cancel"

@@ -55,6 +55,7 @@ function readLocalRecords(database: Database): LocalDistributedSkillRecord[] {
   const statement = database.prepare(
     [
       "SELECT remote_skill_id, name, installed_version, remote_version, last_compared_at",
+      ", installed_content_hash, remote_content_hash",
       "FROM distributed_skills",
       "ORDER BY name ASC, remote_skill_id ASC"
     ].join(" ")
@@ -71,9 +72,17 @@ function readLocalRecords(database: Database): LocalDistributedSkillRecord[] {
           typeof row.installed_version === "string" && row.installed_version.length > 0
             ? row.installed_version
             : null,
+        installedContentHash:
+          typeof row.installed_content_hash === "string" && row.installed_content_hash.length > 0
+            ? row.installed_content_hash
+            : null,
         remoteVersion:
           typeof row.remote_version === "string" && row.remote_version.length > 0
             ? row.remote_version
+            : null,
+        remoteContentHash:
+          typeof row.remote_content_hash === "string" && row.remote_content_hash.length > 0
+            ? row.remote_content_hash
             : null,
         lastComparedAt:
           typeof row.last_compared_at === "string" && row.last_compared_at.length > 0
@@ -92,6 +101,7 @@ function readPendingUpdates(database: Database): PendingSyncUpdate[] {
   const statement = database.prepare(
     [
       "SELECT remote_skill_id, name, local_version, remote_version, reason",
+      ", local_content_hash, remote_content_hash",
       "FROM pending_updates",
       "ORDER BY name ASC, remote_skill_id ASC"
     ].join(" ")
@@ -108,9 +118,19 @@ function readPendingUpdates(database: Database): PendingSyncUpdate[] {
           typeof row.local_version === "string" && row.local_version.length > 0
             ? row.local_version
             : null,
+        localContentHash:
+          typeof row.local_content_hash === "string" && row.local_content_hash.length > 0
+            ? row.local_content_hash
+            : null,
         remoteVersion: String(row.remote_version),
+        remoteContentHash:
+          typeof row.remote_content_hash === "string" && row.remote_content_hash.length > 0
+            ? row.remote_content_hash
+            : null,
         reason:
-          row.reason === "version-mismatch" ? "version-mismatch" : "missing-local-record"
+          row.reason === "missing-local-record" || row.reason === "not-installed"
+            ? "not-installed"
+            : "update"
       })
     }
   } finally {
@@ -123,13 +143,17 @@ function readPendingUpdates(database: Database): PendingSyncUpdate[] {
 function writeLocalRecords(database: Database, records: LocalDistributedSkillRecord[]): void {
   const statement = database.prepare(
     [
-      "INSERT INTO distributed_skills (remote_skill_id, name, installed_version, remote_version, last_compared_at)",
-      "VALUES (?, ?, ?, ?, ?)",
+      "INSERT INTO distributed_skills",
+      "(remote_skill_id, name, installed_version, remote_version, last_compared_at,",
+      "installed_content_hash, remote_content_hash)",
+      "VALUES (?, ?, ?, ?, ?, ?, ?)",
       "ON CONFLICT(remote_skill_id) DO UPDATE SET",
       "name = excluded.name,",
       "installed_version = excluded.installed_version,",
       "remote_version = excluded.remote_version,",
-      "last_compared_at = excluded.last_compared_at"
+      "last_compared_at = excluded.last_compared_at,",
+      "installed_content_hash = excluded.installed_content_hash,",
+      "remote_content_hash = excluded.remote_content_hash"
     ].join(" ")
   )
 
@@ -142,7 +166,9 @@ function writeLocalRecords(database: Database, records: LocalDistributedSkillRec
         record.name,
         record.installedVersion,
         record.remoteVersion,
-        record.lastComparedAt
+        record.lastComparedAt,
+        record.installedContentHash ?? null,
+        record.remoteContentHash ?? null
       ])
     }
   } finally {
@@ -153,13 +179,17 @@ function writeLocalRecords(database: Database, records: LocalDistributedSkillRec
 function writePendingUpdates(database: Database, updates: PendingSyncUpdate[]): void {
   const statement = database.prepare(
     [
-      "INSERT INTO pending_updates (remote_skill_id, name, local_version, remote_version, reason)",
-      "VALUES (?, ?, ?, ?, ?)",
+      "INSERT INTO pending_updates",
+      "(remote_skill_id, name, local_version, remote_version, reason,",
+      "local_content_hash, remote_content_hash)",
+      "VALUES (?, ?, ?, ?, ?, ?, ?)",
       "ON CONFLICT(remote_skill_id) DO UPDATE SET",
       "name = excluded.name,",
       "local_version = excluded.local_version,",
       "remote_version = excluded.remote_version,",
-      "reason = excluded.reason"
+      "reason = excluded.reason,",
+      "local_content_hash = excluded.local_content_hash,",
+      "remote_content_hash = excluded.remote_content_hash"
     ].join(" ")
   )
 
@@ -172,7 +202,9 @@ function writePendingUpdates(database: Database, updates: PendingSyncUpdate[]): 
         update.name,
         update.localVersion,
         update.remoteVersion,
-        update.reason
+        update.reason,
+        update.localContentHash ?? null,
+        update.remoteContentHash ?? null
       ])
     }
   } finally {
@@ -264,6 +296,8 @@ function createSchema(database: Database): void {
       name TEXT NOT NULL,
       installed_version TEXT,
       remote_version TEXT,
+      installed_content_hash TEXT,
+      remote_content_hash TEXT,
       last_compared_at TEXT
     );
 
@@ -272,6 +306,8 @@ function createSchema(database: Database): void {
       name TEXT NOT NULL,
       local_version TEXT,
       remote_version TEXT NOT NULL,
+      local_content_hash TEXT,
+      remote_content_hash TEXT,
       reason TEXT NOT NULL
     );
 
@@ -280,6 +316,28 @@ function createSchema(database: Database): void {
       value TEXT NOT NULL
     );
   `)
+}
+
+function readColumnNames(database: Database, tableName: string): Set<string> {
+  const result = database.exec(`PRAGMA table_info(${tableName})`)
+  const values = result[0]?.values ?? []
+
+  return new Set(values.map((row) => String(row[1])))
+}
+
+function ensureColumn(database: Database, tableName: string, columnName: string, definition: string): void {
+  if (readColumnNames(database, tableName).has(columnName)) {
+    return
+  }
+
+  database.exec(`ALTER TABLE ${tableName} ADD COLUMN ${columnName} ${definition}`)
+}
+
+function migrateSchema(database: Database): void {
+  ensureColumn(database, "distributed_skills", "installed_content_hash", "TEXT")
+  ensureColumn(database, "distributed_skills", "remote_content_hash", "TEXT")
+  ensureColumn(database, "pending_updates", "local_content_hash", "TEXT")
+  ensureColumn(database, "pending_updates", "remote_content_hash", "TEXT")
 }
 
 export async function createSqliteStateStore(dbPath: string): Promise<StateStore> {
@@ -301,6 +359,7 @@ export async function createSqliteStateStore(dbPath: string): Promise<StateStore
   const database = existingBytes ? new SQL.Database(existingBytes) : new SQL.Database()
 
   createSchema(database)
+  migrateSchema(database)
 
   return {
     async readState(): Promise<DesktopSyncState> {

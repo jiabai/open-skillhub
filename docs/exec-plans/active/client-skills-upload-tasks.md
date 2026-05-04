@@ -58,4 +58,4 @@
   - `uv run pytest` passed on 2026-05-02 with 633 tests.
   - `uv run ruff check .` passed on 2026-05-02.
   - `python scripts/validate_agents_docs.py --level ERROR` passed on 2026-05-02 with 0 errors and 0 warnings.
-  - `uv run mypy backend` failed on 2026-05-02 with 142 existing baseline errors, primarily around `enum.StrEnum` under the configured Python 3.10 mypy target and existing `SkillErrorCode` typing.
+  - `uv run mypy backend` failed on 2026-05-02 with 142 existing baseline errors, primarily around `enum.StrEnum` under the configured Python 3.13 mypy target and existing `SkillErrorCode` typing.

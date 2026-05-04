@@ -224,11 +224,15 @@ export interface AppDictionary {
     }
     comparisonLabels: {
       "not-installed": string
-      "installed-older": (installed: string, remote: string) => string
-      same: (version: string) => string
-      "installed-newer": (installed: string, remote: string) => string
-      unknown: (installed: string, remote: string) => string
+      installed: (remote: string) => string
+      update: (remote: string) => string
       error: (message: string) => string
+    }
+    comparisonStatusLabels: {
+      "not-installed": string
+      installed: string
+      update: string
+      error: string
     }
   }
   distributionConfirmation: {

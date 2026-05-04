@@ -9,7 +9,7 @@
 </p>
 
 <p align="center">
-  <a href="https://pypi.org/project/open-skillhub/"><img src="https://img.shields.io/badge/python-3.10+-blue?style=flat-square&logo=python" alt="Python Version"></a>
+  <a href="https://pypi.org/project/open-skillhub/"><img src="https://img.shields.io/badge/python-3.13+-blue?style=flat-square&logo=python" alt="Python Version"></a>
   <a href="https://pypi.org/project/open-skillhub/"><img src="https://img.shields.io/pypi/v/open-skillhub.svg?style=flat-square&logo=pypi&color=green" alt="PyPI Version"></a>
   <a href="./LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0-black?style=flat-square" alt="License"></a>
   <a href="https://github.com/jiabai/open-skillhub"><img src="https://img.shields.io/github/stars/jiabai/open-skillhub?style=social" alt="GitHub Stars"></a>
@@ -40,7 +40,7 @@
 
 ### Prerequisites
 
-- **Python 3.10+**
+- **Python 3.13+**
 - **Node.js 18+** (frontend, optional)
 
 > **Database**: SQLite is used by default (zero-config). PostgreSQL 14+ is recommended for production — see [Deployment Guide](docs/deployment.md) for details.
@@ -355,7 +355,7 @@ For full API docs, visit `/docs` when running the server (FastAPI auto-generated
 
 | Layer | Technology |
 |-------|-----------|
-| Backend | Python 3.10+, FastAPI, SQLAlchemy (async) |
+| Backend | Python 3.13+, FastAPI, SQLAlchemy (async) |
 | Database | SQLite (default) / PostgreSQL 14+ (via asyncpg) |
 | Frontend | Next.js 14, TypeScript, Tailwind CSS, shadcn/ui |
 | Auth | JWT (PyJWT), OTP email verification, SSO, LDAP |

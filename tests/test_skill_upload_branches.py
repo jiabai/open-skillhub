@@ -149,7 +149,7 @@ class TestSkillServiceUploadZipMetadata:
         service = SkillService(mock_skill_repo, mock_version_repo)
 
         zip_content = create_zip_with_files({
-            "environment.yml": "name: test\ndependencies:\n  - python=3.10"
+            "environment.yml": "name: test\ndependencies:\n  - python=3.13"
         })
 
         with patch.object(settings, 'SKILL_STORAGE_PATH', '/tmp'):

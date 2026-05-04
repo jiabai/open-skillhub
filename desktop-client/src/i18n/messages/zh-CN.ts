@@ -92,8 +92,8 @@ export const zhCNDictionary = {
       remote: (value: string) => `远程 ${value}`
     },
     reasonLabels: {
-      missingLocalRecord: "缺少本地记录",
-      versionMismatch: "版本不一致"
+      missingLocalRecord: "尚未安装",
+      versionMismatch: "内容已变化"
     }
   },
   updatesView: {
@@ -202,14 +202,14 @@ export const zhCNDictionary = {
     syncingRecord: "同步中...",
     reviewReasonLabel: "审核原因：",
     reasonLabels: {
-      missingLocalRecord: "缺少本地记录",
-      versionMismatch: "版本不一致"
+      missingLocalRecord: "尚未安装",
+      versionMismatch: "内容已变化"
     }
   },
   preDistributionCheck: {
     loading: "正在检查已配置代理目标...",
-    refreshNeeded: "刷新检查以读取分发前的目标已安装版本。",
-    stale: "检查结果已过期。请先刷新，再依赖目标版本判断。",
+    refreshNeeded: "刷新检查以读取分发前的目标已安装内容。",
+    stale: "检查结果已过期。请先刷新，再依赖目标内容判断。",
     noTargets: "没有可用于此检查的已配置代理目标。",
     globalErrorsTitle: "分发前检查警告",
     targetCheckTitle: "目标检查",
@@ -225,14 +225,17 @@ export const zhCNDictionary = {
     },
     comparisonLabels: {
       "not-installed": "此目标尚未安装。",
-      "installed-older": (installed: string, remote: string) =>
-        `已安装 ${installed} 低于远程 ${remote}；分发会升级它。`,
-      same: (version: string) => `同为 ${version}；分发会执行幂等覆盖。`,
-      "installed-newer": (installed: string, remote: string) =>
-        `已安装 ${installed} 高于远程 ${remote}；分发可能造成降级。`,
-      unknown: (installed: string, remote: string) =>
-        `无法判断版本顺序：已安装 ${installed}，远程 ${remote}。`,
+      installed: (remote: string) =>
+        `已安装内容已匹配远程 ${remote}；分发会跳过此目标。`,
+      update: (remote: string) =>
+        `已安装内容不同于远程 ${remote}；分发会写入此目标。`,
       error: (message: string) => `检查失败：${message}`
+    },
+    comparisonStatusLabels: {
+      "not-installed": "未安装",
+      installed: "已安装",
+      update: "需更新",
+      error: "错误"
     }
   },
   distributionConfirmation: {
@@ -244,7 +247,7 @@ export const zhCNDictionary = {
     skippedTargetsTitle: "已是最新",
     missingAgentsTitle: "未安装并跳过的助手",
     noWriteTargets: "没有检测到写入目标。",
-    noSkippedTargets: "没有同版本目标。",
+    noSkippedTargets: "没有已安装相同内容的目标。",
     noMissingAgents: "没有缺失的受支持助手。",
     confirm: "确认分发",
     cancel: "取消"

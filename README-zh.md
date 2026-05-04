@@ -9,7 +9,7 @@
 </p>
 
 <p align="center">
-  <a href="https://pypi.org/project/open-skillhub/"><img src="https://img.shields.io/badge/python-3.10+-blue?style=flat-square&logo=python" alt="Python 版本"></a>
+  <a href="https://pypi.org/project/open-skillhub/"><img src="https://img.shields.io/badge/python-3.13+-blue?style=flat-square&logo=python" alt="Python 版本"></a>
   <a href="https://pypi.org/project/open-skillhub/"><img src="https://img.shields.io/pypi/v/open-skillhub.svg?style=flat-square&logo=pypi&color=green" alt="PyPI 版本"></a>
   <a href="./LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0-black?style=flat-square" alt="许可证"></a>
   <a href="https://github.com/jiabai/open-skillhub"><img src="https://img.shields.io/github/stars/jiabai/open-skillhub?style=social" alt="GitHub Stars"></a>
@@ -40,7 +40,7 @@
 
 ### 环境要求
 
-- **Python 3.10+**
+- **Python 3.13+**
 - **Node.js 18+**（前端，可选）
 
 > **数据库**：默认使用 SQLite（零配置开箱即用）。生产环境推荐 PostgreSQL 14+，详见[部署指南](docs/deployment-zh.md)。
@@ -355,7 +355,7 @@ sequenceDiagram
 
 | 层面 | 技术 |
 |------|------|
-| 后端 | Python 3.10+, FastAPI, SQLAlchemy (async) |
+| 后端 | Python 3.13+, FastAPI, SQLAlchemy (async) |
 | 数据库 | SQLite（默认）/ PostgreSQL 14+ (asyncpg) |
 | 前端 | Next.js 14, TypeScript, Tailwind CSS, shadcn/ui |
 | 认证 | JWT (PyJWT), OTP 邮箱验证, SSO, LDAP |

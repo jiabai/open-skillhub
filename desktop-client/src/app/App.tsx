@@ -100,7 +100,7 @@ function formatLongTimestamp(locale: AppLocale, value: string | null, fallback: 
 
 function createPendingUpdateFingerprint(pendingUpdates: PendingSyncUpdate[]): string {
   return pendingUpdates
-    .map((update) => `${update.remoteSkillId}@${update.remoteVersion}`)
+    .map((update) => `${update.remoteSkillId}@${update.remoteVersion}@${update.remoteContentHash ?? ""}`)
     .sort()
     .join("|")
 }
@@ -152,7 +152,7 @@ function createDistributionConfirmationSummary(
     const everyCoveredAgentIsSame =
       target.coveredAgentIds.length > 0 &&
       target.coveredAgentIds.every(
-        (agentId) => resultsByAgent[agentId]?.versionComparison === "same"
+        (agentId) => resultsByAgent[agentId]?.contentComparison === "installed"
       )
 
     if (everyCoveredAgentIsSame) {

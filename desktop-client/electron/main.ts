@@ -101,6 +101,11 @@ function normalizeVersion(version: string | null | undefined): string | null {
   return trimmed ? trimmed : null
 }
 
+function normalizeContentHash(value: unknown): string | null {
+  const trimmed = typeof value === "string" ? value.trim() : ""
+  return trimmed ? trimmed : null
+}
+
 function sanitizeCacheSegment(value: string): string {
   return value.replace(/[^a-zA-Z0-9._-]+/g, "_")
 }
@@ -291,6 +296,9 @@ function normalizeSkillSummary(item: unknown): RemoteSkillSummary | null {
         String(record.version ?? record.current_version ?? record.currentVersion ?? "").trim() ||
           null
       ) ?? normalizeVersion(versionRecord?.version as string | null | undefined),
+    contentHash:
+      normalizeContentHash(record.content_hash ?? record.contentHash) ??
+      normalizeContentHash(versionRecord?.content_hash ?? versionRecord?.contentHash),
     updatedAt: String(
       record.updatedAt ?? record.updated_at ?? versionRecord?.updated_at ?? new Date().toISOString()
     )
@@ -434,9 +442,9 @@ function getDistributionTargets(
     writeMode:
       target.coveredAgentIds.length > 0 &&
       target.coveredAgentIds.every(
-        (agentId) => resultsByAgent[agentId]?.versionComparison === "same"
+        (agentId) => resultsByAgent[agentId]?.contentComparison === "installed"
       )
-        ? "skip-same-version"
+        ? "skip-installed-content"
         : "write"
   }))
 }
@@ -462,7 +470,9 @@ function reconcileStateAfterInstalled(
     remoteSkillId: pendingUpdate.remoteSkillId,
     name: pendingUpdate.name,
     installedVersion: pendingUpdate.remoteVersion,
+    installedContentHash: pendingUpdate.remoteContentHash,
     remoteVersion: pendingUpdate.remoteVersion,
+    remoteContentHash: pendingUpdate.remoteContentHash,
     lastComparedAt: comparedAt
   }
 
@@ -814,9 +824,9 @@ async function createApplicationServices(): Promise<void> {
 
       if (
         results.length !== snapshot.targetAgentIds.length ||
-        !results.every((result) => result.versionComparison === "same")
+        !results.every((result) => result.contentComparison === "installed")
       ) {
-        throw new Error("Installed target versions are not all identical to the remote version.")
+        throw new Error("Installed target contents are not all identical to the remote content hash.")
       }
 
       const nextState = reconcileStateAfterInstalled(
@@ -870,6 +880,7 @@ async function createApplicationServices(): Promise<void> {
         skillId: pendingUpdate.remoteSkillId,
         name: pendingUpdate.name,
         version: pendingUpdate.remoteVersion,
+        contentHash: pendingUpdate.remoteContentHash,
         packageSource: {
           source: "client-download"
         },

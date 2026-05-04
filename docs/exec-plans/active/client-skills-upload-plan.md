@@ -50,7 +50,7 @@ reviewed.
   Evidence: the first full `uv run pytest` failed 5 tests with `AttributeError` for missing `save_archive`, `delete_skill_dir`, and `list_archive_versions` attributes on `backend.services.skill`.
 
 - Observation: the backend mypy baseline does not currently pass independently of this feature.
-  Evidence: `uv run mypy backend` reports 142 errors, starting with `enum.StrEnum` under `python_version = "3.10"` and cascading through `SkillErrorCode` typing in existing service modules.
+  Evidence: `uv run mypy backend` reports 142 errors, starting with `enum.StrEnum` under `python_version = "3.13"` and cascading through `SkillErrorCode` typing in existing service modules.
 
 ## Decision Log
 

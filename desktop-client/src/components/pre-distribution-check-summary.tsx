@@ -2,7 +2,7 @@ import type {
   AgentPreDistributionCheckResult,
   PendingSyncUpdate,
   PreDistributionCheckSnapshot,
-  PreDistributionVersionComparison
+  PreDistributionContentComparison
 } from "@/types"
 import { Badge } from "@/components/ui-primitives"
 import { formatDateTime } from "@/i18n/format-date"
@@ -22,11 +22,7 @@ type PreDistributionActionWarningProps = {
   isStale: boolean
 }
 
-const warningComparisons: PreDistributionVersionComparison[] = [
-  "installed-newer",
-  "unknown",
-  "error"
-]
+const warningComparisons: PreDistributionContentComparison[] = ["error"]
 
 function formatVersion(value: string | null, fallback: string): string {
   return value ?? fallback
@@ -52,11 +48,11 @@ export function hasPreDistributionActionWarning(
   isStale: boolean
 ): boolean {
   return getPreDistributionCheckResults(pendingUpdate, snapshot, isStale).some((result) =>
-    warningComparisons.includes(result.versionComparison)
+    warningComparisons.includes(result.contentComparison)
   )
 }
 
-export function areAllPreDistributionTargetsSame(
+export function areAllPreDistributionTargetsInstalled(
   pendingUpdate: PendingSyncUpdate,
   snapshot: PreDistributionCheckSnapshot | null,
   isStale: boolean
@@ -68,17 +64,21 @@ export function areAllPreDistributionTargetsSame(
   const resultsByAgent = snapshot.results[pendingUpdate.remoteSkillId] ?? {}
 
   return snapshot.targetAgentIds.every(
-    (agentId) => resultsByAgent[agentId]?.versionComparison === "same"
+    (agentId) => resultsByAgent[agentId]?.contentComparison === "installed"
   )
 }
 
-function getBadgeTone(comparison: PreDistributionVersionComparison) {
-  if (comparison === "installed-older") {
+function getBadgeTone(comparison: PreDistributionContentComparison) {
+  if (comparison === "installed") {
     return "success" as const
   }
 
-  if (comparison === "installed-newer" || comparison === "unknown" || comparison === "error") {
+  if (comparison === "error") {
     return "warning" as const
+  }
+
+  if (comparison === "update") {
+    return "accent" as const
   }
 
   return "primary" as const
@@ -86,25 +86,25 @@ function getBadgeTone(comparison: PreDistributionVersionComparison) {
 
 function getComparisonLabel(
   result: AgentPreDistributionCheckResult,
-  fallbackVersion: string,
   labels: ReturnType<typeof useI18n>["dictionary"]["preDistributionCheck"]["comparisonLabels"]
 ): string {
-  const installedVersion = formatVersion(result.installedVersion, fallbackVersion)
-
-  switch (result.versionComparison) {
+  switch (result.contentComparison) {
     case "not-installed":
       return labels["not-installed"]
-    case "installed-older":
-      return labels["installed-older"](installedVersion, result.remoteVersion)
-    case "same":
-      return labels.same(result.remoteVersion)
-    case "installed-newer":
-      return labels["installed-newer"](installedVersion, result.remoteVersion)
-    case "unknown":
-      return labels.unknown(installedVersion, result.remoteVersion)
+    case "installed":
+      return labels.installed(result.remoteVersion)
+    case "update":
+      return labels.update(result.remoteVersion)
     case "error":
       return labels.error(result.errorMessage ?? "Unknown error")
   }
+}
+
+function getComparisonStatusLabel(
+  comparison: PreDistributionContentComparison,
+  labels: ReturnType<typeof useI18n>["dictionary"]["preDistributionCheck"]["comparisonStatusLabels"]
+): string {
+  return labels[comparison]
 }
 
 function getEarliestCheckedAt(results: AgentPreDistributionCheckResult[]): string | null {
@@ -175,11 +175,12 @@ export function PreDistributionCheckSummary({
       <div className="precheck-summary" aria-label={copy.targetCheckTitle}>
         <div className="precheck-summary__badges">
           {results.map((result) => (
-            <Badge key={result.agentId} tone={getBadgeTone(result.versionComparison)}>
+            <Badge key={result.agentId} tone={getBadgeTone(result.contentComparison)}>
               {result.displayName}:{" "}
-              {result.versionComparison === "not-installed"
-                ? dictionary.common.nA
-                : formatVersion(result.installedVersion, dictionary.common.nA)}
+              {getComparisonStatusLabel(
+                result.contentComparison,
+                copy.comparisonStatusLabels
+              )}
             </Badge>
           ))}
         </div>
@@ -211,14 +212,16 @@ export function PreDistributionCheckSummary({
             <div className="precheck-target" key={result.agentId}>
               <div className="precheck-target__header">
                 <strong>{result.displayName}</strong>
-                <Badge tone={getBadgeTone(result.versionComparison)}>
-                  {result.versionComparison}
+                <Badge tone={getBadgeTone(result.contentComparison)}>
+                  {getComparisonStatusLabel(
+                    result.contentComparison,
+                    copy.comparisonStatusLabels
+                  )}
                 </Badge>
               </div>
               <p>
                 {getComparisonLabel(
                   result,
-                  dictionary.common.nA,
                   copy.comparisonLabels
                 )}
               </p>

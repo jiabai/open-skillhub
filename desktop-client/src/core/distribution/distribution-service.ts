@@ -82,7 +82,7 @@ function createTargetSuccess(
 
 function updateStateAfterSuccessfulDistribution(
   currentState: DesktopSyncState,
-  request: Pick<SkillDistributionRequest, "skillId" | "name" | "version">,
+  request: Pick<SkillDistributionRequest, "skillId" | "name" | "version" | "contentHash">,
   comparedAt: string
 ): DesktopSyncState {
   const nextLocalRecords = [...currentState.localRecords]
@@ -93,7 +93,9 @@ function updateStateAfterSuccessfulDistribution(
     remoteSkillId: request.skillId,
     name: request.name,
     installedVersion: request.version,
+    installedContentHash: request.contentHash,
     remoteVersion: request.version,
+    remoteContentHash: request.contentHash,
     lastComparedAt: comparedAt
   }
 
@@ -139,7 +141,7 @@ function normalizeDistributionTarget(target: SkillDistributionTarget): SkillDist
 
 function createSkipResults(target: SkillDistributionTarget): SkillDistributionTargetResult[] {
   return target.coveredAgentIds.map((agentId) =>
-    createTargetSuccess(agentId, target.targetPath, "skipped-same-version")
+    createTargetSuccess(agentId, target.targetPath, "skipped-installed-content")
   )
 }
 
@@ -173,6 +175,7 @@ export function createDistributionService(
       const skillId = normalizeField(request.skillId, "skillId")
       const name = normalizeField(request.name, "name")
       const version = request.version?.trim() || null
+      const contentHash = request.contentHash?.trim() || null
       const targets = request.targets.map(normalizeDistributionTarget)
 
       if (targets.length === 0) {
@@ -180,11 +183,11 @@ export function createDistributionService(
       }
 
       const targetResults: SkillDistributionTargetResult[] = []
-      const writeTargets = targets.filter((target) => target.writeMode !== "skip-same-version")
+      const writeTargets = targets.filter((target) => target.writeMode !== "skip-installed-content")
       let preparedPackage: PreparedSkillPackage | null = null
 
       for (const target of targets) {
-        if (target.writeMode === "skip-same-version") {
+        if (target.writeMode === "skip-installed-content") {
           targetResults.push(...createSkipResults(target))
         }
       }
@@ -244,7 +247,8 @@ export function createDistributionService(
           const nextState = updateStateAfterSuccessfulDistribution(currentState, {
             skillId,
             name,
-            version
+            version,
+            contentHash
           }, now())
 
           await dependencies.stateStore.writeState(nextState)

@@ -9,6 +9,7 @@ from sqlalchemy import select
 from backend.config.settings import settings
 
 from backend.core.security.user_state import UserStatus
+from backend.core.utils.skill_hash import compute_skill_content_hash
 from backend.core.utils.skill_storage import SYSTEM_USER_ID, create_skill_dir, get_skill_versions_dir
 from backend.models.audit_log import AuditLog
 from backend.models.skill import Skill
@@ -152,7 +153,7 @@ async def _create_public_skill(async_session, name: str = "public-catalog-skill"
 
 
 @pytest.mark.asyncio
-async def test_client_skill_summary_returns_latest_version_metadata(client, tmp_path, monkeypatch):
+async def test_client_skill_summary_returns_latest_version_metadata(client, async_session, tmp_path, monkeypatch):
     monkeypatch.setenv("SKILL_STORAGE_PATH", str(tmp_path))
     monkeypatch.setattr(settings, "SKILL_STORAGE_PATH", str(tmp_path))
     access_token, api_token = await _create_client_token(
@@ -188,6 +189,15 @@ async def test_client_skill_summary_returns_latest_version_metadata(client, tmp_
     assert item["latest_version"]["version"] == "1.1.0"
     assert item["latest_version"]["metadata_json"]["version"] == "1.1.0"
     assert item["latest_version"]["metadata_json"]["name"] == "catalog-skill"
+    skill_record = await async_session.get(Skill, skill_id)
+    assert skill_record is not None
+    expected_hash = compute_skill_content_hash(get_skill_versions_dir(skill_record.user_id, "catalog-skill") / "1.1.0")
+    assert item["content_hash"] == expected_hash
+    assert "content_hash" not in item["latest_version"]
+
+    versions_response = await client.get(f"/api/v1/skills/{skill_id}/versions", headers=headers)
+    assert versions_response.status_code == 200
+    assert "content_hash" not in versions_response.json()["items"][0]
 
 
 @pytest.mark.asyncio

@@ -536,29 +536,31 @@ describe("App", () => {
           remoteSkillId: "skill-a",
           name: "Skill A",
           localVersion: null,
+          localContentHash: null,
           remoteVersion: "1.0.0",
-          reason: "missing-local-record"
+          remoteContentHash: "hash-remote",
+          reason: "not-installed"
         },
         {
           remoteSkillId: "skill-b",
           name: "Skill B",
           localVersion: "1.0.0",
           remoteVersion: "1.1.0",
-          reason: "version-mismatch"
+          reason: "update"
         },
         {
           remoteSkillId: "skill-c",
           name: "Skill C",
           localVersion: null,
           remoteVersion: "1.0.0",
-          reason: "missing-local-record"
+          reason: "not-installed"
         },
         {
           remoteSkillId: "skill-d",
           name: "Skill D",
           localVersion: "1.0.0",
           remoteVersion: "2.0.0",
-          reason: "version-mismatch"
+          reason: "update"
         }
       ],
       successfulDistributionCount: 0,
@@ -719,7 +721,7 @@ describe("App", () => {
     })
   })
 
-  it("runs a pre-distribution check after loading pending updates", async () => {
+  it("runs a content-based pre-distribution check after loading pending updates", async () => {
     mockDesktopClient.refreshSync.mockResolvedValueOnce({
       localRecords: [],
       pendingUpdates: [
@@ -727,8 +729,10 @@ describe("App", () => {
           remoteSkillId: "skill-a",
           name: "Skill A",
           localVersion: "2.0.0",
+          localContentHash: "hash-local",
           remoteVersion: "1.0.0",
-          reason: "version-mismatch"
+          remoteContentHash: "hash-remote",
+          reason: "update"
         }
       ],
       successfulDistributionCount: 0,
@@ -744,10 +748,12 @@ describe("App", () => {
             exists: true,
             installedVersion: "2.0.0",
             installedVersionSource: "skill-frontmatter",
+            installedContentHash: "hash-local",
             remoteVersion: "1.0.0",
+            remoteContentHash: "hash-remote",
             installedVersionFormat: "semver",
             remoteVersionFormat: "semver",
-            versionComparison: "installed-newer",
+            contentComparison: "update",
             checkedAt: "2026-04-17T00:00:01.000Z",
             durationMs: 4,
             errorCode: null,
@@ -757,7 +763,7 @@ describe("App", () => {
       },
       checkedAt: "2026-04-17T00:00:01.000Z",
       expiresAt: "2099-04-17T00:00:01.000Z",
-      pendingUpdateFingerprint: "skill-a@1.0.0",
+      pendingUpdateFingerprint: "skill-a@1.0.0@hash-remote",
       targetAgentIds: ["codex"],
       totalDurationMs: 4,
       globalErrors: []
@@ -767,8 +773,10 @@ describe("App", () => {
 
     await waitFor(() => {
       expect(mockDesktopClient.refreshPreDistributionCheck).toHaveBeenCalledTimes(1)
-      expect(screen.getByText("Review target warnings before distributing.")).toBeInTheDocument()
-      expect(screen.getByText("Codex: 2.0.0")).toBeInTheDocument()
+      expect(screen.getByText("Codex: Update")).toBeInTheDocument()
+      expect(
+        screen.queryByText("Review target warnings before distributing.")
+      ).not.toBeInTheDocument()
     })
   })
 
@@ -780,8 +788,10 @@ describe("App", () => {
           remoteSkillId: "skill-a",
           name: "Skill A",
           localVersion: null,
+          localContentHash: null,
           remoteVersion: "1.0.0",
-          reason: "missing-local-record"
+          remoteContentHash: "hash-new",
+          reason: "not-installed"
         }
       ],
       successfulDistributionCount: 0,
@@ -797,10 +807,12 @@ describe("App", () => {
             exists: true,
             installedVersion: "9.0.0",
             installedVersionSource: "skill-frontmatter",
+            installedContentHash: "hash-old",
             remoteVersion: "1.0.0",
+            remoteContentHash: "hash-old",
             installedVersionFormat: "semver",
             remoteVersionFormat: "semver",
-            versionComparison: "installed-newer",
+            contentComparison: "installed",
             checkedAt: "2026-04-17T00:00:01.000Z",
             durationMs: 4,
             errorCode: null,
@@ -810,7 +822,7 @@ describe("App", () => {
       },
       checkedAt: "2026-04-17T00:00:01.000Z",
       expiresAt: "2099-04-17T00:00:01.000Z",
-      pendingUpdateFingerprint: "skill-old@1.0.0",
+      pendingUpdateFingerprint: "skill-old@1.0.0@hash-old",
       targetAgentIds: ["codex"],
       totalDurationMs: 4,
       globalErrors: []
@@ -819,12 +831,12 @@ describe("App", () => {
     render(<App />)
 
     await waitFor(() => {
-      expect(screen.getByText("Refresh check to read installed target versions before distribution.")).toBeInTheDocument()
-      expect(screen.queryByText("Codex: 9.0.0")).not.toBeInTheDocument()
+      expect(screen.getByText("Refresh check to read installed target content before distribution.")).toBeInTheDocument()
+      expect(screen.queryByText("Codex: Installed")).not.toBeInTheDocument()
     })
   })
 
-  it("syncs the local record instead of distributing when every target already has the remote version", async () => {
+  it("syncs the local record instead of distributing when every target already has the remote content", async () => {
     mockDesktopClient.refreshSync.mockResolvedValueOnce({
       localRecords: [],
       pendingUpdates: [
@@ -832,8 +844,10 @@ describe("App", () => {
           remoteSkillId: "skill-a",
           name: "Skill A",
           localVersion: null,
+          localContentHash: null,
           remoteVersion: "1.0.0",
-          reason: "missing-local-record"
+          remoteContentHash: "hash-remote",
+          reason: "not-installed"
         }
       ],
       successfulDistributionCount: 0,
@@ -849,10 +863,12 @@ describe("App", () => {
             exists: true,
             installedVersion: "1.0.0",
             installedVersionSource: "skill-frontmatter",
+            installedContentHash: "hash-remote",
             remoteVersion: "1.0.0",
+            remoteContentHash: "hash-remote",
             installedVersionFormat: "semver",
             remoteVersionFormat: "semver",
-            versionComparison: "same",
+            contentComparison: "installed",
             checkedAt: "2026-04-17T00:00:01.000Z",
             durationMs: 4,
             errorCode: null,
@@ -862,7 +878,7 @@ describe("App", () => {
       },
       checkedAt: "2026-04-17T00:00:01.000Z",
       expiresAt: "2099-04-17T00:00:01.000Z",
-      pendingUpdateFingerprint: "skill-a@1.0.0",
+      pendingUpdateFingerprint: "skill-a@1.0.0@hash-remote",
       targetAgentIds: ["codex"],
       totalDurationMs: 4,
       globalErrors: []
@@ -873,7 +889,9 @@ describe("App", () => {
           remoteSkillId: "skill-a",
           name: "Skill A",
           installedVersion: "1.0.0",
+          installedContentHash: "hash-remote",
           remoteVersion: "1.0.0",
+          remoteContentHash: "hash-remote",
           lastComparedAt: "2026-04-17T00:00:05.000Z"
         }
       ],
@@ -915,7 +933,7 @@ describe("App", () => {
           name: "Skill A",
           localVersion: null,
           remoteVersion: "1.0.0",
-          reason: "missing-local-record"
+          reason: "not-installed"
         }
       ],
       successfulDistributionCount: 0,
@@ -925,7 +943,7 @@ describe("App", () => {
       results: {},
       checkedAt: "2026-04-17T00:00:01.000Z",
       expiresAt: "2099-04-17T00:00:01.000Z",
-      pendingUpdateFingerprint: "skill-a@1.0.0",
+      pendingUpdateFingerprint: "skill-a@1.0.0@hash-remote",
       targetAgentIds: [],
       totalDurationMs: 1,
       globalErrors: ["No configured agent skill directories are available for pre-distribution checks."]
@@ -962,7 +980,7 @@ describe("App", () => {
             name: "Skill A",
             localVersion: null,
             remoteVersion: "1.0.0",
-            reason: "missing-local-record"
+            reason: "not-installed"
           }
         ],
         successfulDistributionCount: 0,
@@ -1039,8 +1057,10 @@ describe("App", () => {
           remoteSkillId: "skill-a",
           name: "Skill A",
           localVersion: null,
+          localContentHash: null,
           remoteVersion: "1.0.0",
-          reason: "missing-local-record"
+          remoteContentHash: "hash-new",
+          reason: "not-installed"
         }
       ],
       successfulDistributionCount: 0,
@@ -1078,7 +1098,7 @@ describe("App", () => {
             name: "Skill A",
             localVersion: null,
             remoteVersion: "1.0.0",
-            reason: "missing-local-record"
+            reason: "not-installed"
           }
         ],
         successfulDistributionCount: 0,
@@ -1128,7 +1148,7 @@ describe("App", () => {
             name: "Skill A",
             localVersion: null,
             remoteVersion: "1.0.0",
-            reason: "missing-local-record"
+            reason: "not-installed"
           }
         ],
         successfulDistributionCount: 0,
@@ -1142,7 +1162,7 @@ describe("App", () => {
             name: "Skill A",
             localVersion: null,
             remoteVersion: "1.0.0",
-            reason: "missing-local-record"
+            reason: "not-installed"
           }
         ],
         successfulDistributionCount: 0,

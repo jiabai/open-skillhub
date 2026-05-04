@@ -12,6 +12,11 @@ function normalizeVersion(version: string | null | undefined): string | null {
   return trimmed ? trimmed : null
 }
 
+function normalizeHash(contentHash: string | null | undefined): string | null {
+  const trimmed = contentHash?.trim()
+  return trimmed ? trimmed : null
+}
+
 function createLocalRecord(
   remoteSkill: RemoteSkillSummary,
   comparedAt: string,
@@ -21,7 +26,9 @@ function createLocalRecord(
     remoteSkillId: remoteSkill.id,
     name: remoteSkill.name,
     installedVersion: existingRecord?.installedVersion ?? null,
+    installedContentHash: existingRecord?.installedContentHash ?? null,
     remoteVersion: normalizeVersion(remoteSkill.version),
+    remoteContentHash: normalizeHash(remoteSkill.contentHash),
     lastComparedAt: comparedAt
   }
 }
@@ -29,14 +36,19 @@ function createLocalRecord(
 function createPendingUpdate(
   remoteSkill: RemoteSkillSummary,
   localVersion: string | null,
-  remoteVersion: string
+  localContentHash: string | null,
+  remoteVersion: string,
+  remoteContentHash: string | null,
+  reason: PendingSyncUpdate["reason"]
 ): PendingSyncUpdate {
   return {
     remoteSkillId: remoteSkill.id,
     name: remoteSkill.name,
     localVersion,
+    localContentHash,
     remoteVersion,
-    reason: localVersion === null ? "missing-local-record" : "version-mismatch"
+    remoteContentHash,
+    reason
   }
 }
 
@@ -54,29 +66,46 @@ export function compareRemoteSkills(
 
   for (const remoteSkill of remoteSkills) {
     const remoteVersion = normalizeVersion(remoteSkill.version)
+    const remoteContentHash = normalizeHash(remoteSkill.contentHash)
     const localRecord = localByRemoteId.get(remoteSkill.id)
     const nextRecord = createLocalRecord(remoteSkill, comparedAt, localRecord)
     const localVersion = localRecord?.installedVersion ?? null
+    const localContentHash = localRecord?.installedContentHash ?? null
 
     nextLocalRecords.push(nextRecord)
 
-    let status: SyncComparisonItem["status"] = "in-sync"
+    let status: SyncComparisonItem["status"] = "installed"
 
     if (remoteVersion === null) {
-      status = "in-sync"
-    } else if (localVersion === null) {
-      status = "install"
-      pendingUpdates.push(createPendingUpdate(remoteSkill, null, remoteVersion))
-    } else if (localVersion !== remoteVersion) {
+      status = "installed"
+    } else if (!localRecord) {
+      status = "not-installed"
+      pendingUpdates.push(
+        createPendingUpdate(remoteSkill, null, null, remoteVersion, remoteContentHash, "not-installed")
+      )
+    } else if (remoteContentHash === null) {
+      status = "installed"
+    } else if (localContentHash === null || localContentHash !== remoteContentHash) {
       status = "update"
-      pendingUpdates.push(createPendingUpdate(remoteSkill, localVersion, remoteVersion))
+      pendingUpdates.push(
+        createPendingUpdate(
+          remoteSkill,
+          localVersion,
+          localContentHash,
+          remoteVersion,
+          remoteContentHash,
+          "update"
+        )
+      )
     }
 
     items.push({
       remoteSkillId: remoteSkill.id,
       name: remoteSkill.name,
       localVersion,
+      localContentHash,
       remoteVersion,
+      remoteContentHash,
       status
     })
   }

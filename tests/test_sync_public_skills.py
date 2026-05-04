@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import async_sessionmaker
 
 from backend.config.settings import settings
 from backend.core.security.user_state import UserStatus
+from backend.core.utils.skill_hash import compute_skill_content_hash
 from backend.core.utils.skill_storage import SYSTEM_STORAGE_OWNER, SYSTEM_USER_ID
 from backend.models.skill import Skill
 from backend.models.skill_version import SkillVersion
@@ -102,6 +103,9 @@ async def test_sync_public_skills_creates_public_skill_and_versions(async_sessio
     )
     version_items = versions.scalars().all()
     assert [item.version for item in version_items] == ["1.0.0", "1.2.0"]
+    for item in version_items:
+        version_dir = tmp_path / SYSTEM_STORAGE_OWNER / "starter-skill" / "_versions" / item.version
+        assert item.content_hash == compute_skill_content_hash(version_dir)
 
 
 @pytest.mark.asyncio
@@ -138,7 +142,11 @@ async def test_sync_public_skills_creates_new_version_when_root_snapshot_changes
     versions = await async_session.execute(
         select(SkillVersion).where(SkillVersion.skill_id == skill.id).order_by(SkillVersion.version.asc())
     )
-    assert [item.version for item in versions.scalars().all()] == ["1.0.0", "1.0.1"]
+    version_items = versions.scalars().all()
+    assert [item.version for item in version_items] == ["1.0.0", "1.0.1"]
+    for item in version_items:
+        version_dir = skill_dir / "_versions" / item.version
+        assert item.content_hash == compute_skill_content_hash(version_dir)
 
     new_version_dir = skill_dir / "_versions" / "1.0.1"
     assert (new_version_dir / "SKILL.md").read_text(encoding="utf-8").endswith("new body")

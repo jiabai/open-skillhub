@@ -112,7 +112,7 @@ export const zhCNDictionary = {
     loading: "正在加载本地 SKILL...",
     noSnapshot: "尚未刷新本地 SKILL 库存。",
     empty: "没有发现本地 SKILL 包根目录。",
-    upload: (name: string) => `上传 ${name}`,
+    upload: "上传",
     uploading: "上传中...",
     sourceAgents: (value: string) => `来源 ${value}`,
     localVersion: (value: string) => `本地 ${value}`,
@@ -258,14 +258,14 @@ export const zhCNDictionary = {
     description: "本地助手检测结果决定哪些目标能接收已审核更新。",
     rediscover: "重新检测",
     rediscovering: "检测中...",
+    openConfigDir: "打开 Agent 路径配置",
     noSnapshot: "尚未执行助手检测。",
     summary: (installed: number, supported: number) =>
       `已安装 ${installed} 个，共支持 ${supported} 个助手。`,
     statusLabels: {
       installed: "已安装",
       missing: "未安装",
-      environment: "环境变量配置",
-      autoDetected: "自动检测"
+      autoDetected: "已检测或已配置"
     },
     targetPath: (value: string) => `目标 ${value}`,
     detectionDirs: (value: string) => `检测 ${value}`

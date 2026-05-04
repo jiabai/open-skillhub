@@ -5,6 +5,10 @@ import { join } from "node:path";
 import { createAgentDetectionService } from "@/core/detection/agent-detection-service";
 import { resolveLocale } from "@/i18n/config";
 import { APP_NAME, ensureAppDirectories, type AppPathsOptions } from "@/core/storage/app-paths";
+import {
+  createAgentPathsConfigStore,
+  type AgentPathsConfigStore
+} from "@/core/storage/agent-paths-config";
 import { resolveApiTokenBootstrap, type ApiTokenBootstrapResult } from "@/core/storage/auth-bootstrap";
 import { createJsonConfigStore, type ConfigStore, type JsonRecord } from "@/core/storage/config-store";
 import { createKeytarSecretStore, type SecretStore } from "@/core/storage/secret-store";
@@ -45,6 +49,7 @@ export interface RuntimeConfigManager {
 
 export interface RuntimeConfigManagerOptions {
   appPathsOptions?: AppPathsOptions;
+  agentPathsConfigStore?: AgentPathsConfigStore;
   configStore?: ConfigStore<DesktopLocalConfig>;
   env?: NodeJS.ProcessEnv;
   secretStore?: SecretStore;
@@ -90,6 +95,11 @@ export function createRuntimeConfigManager(options: RuntimeConfigManagerOptions 
   const env = options.env ?? process.env;
   const paths = ensureAppDirectories(options.appPathsOptions);
   const secretStore = options.secretStore ?? createKeytarSecretStore(APP_NAME);
+  const agentPathsConfigStore =
+    options.agentPathsConfigStore ??
+    createAgentPathsConfigStore(paths.agentPathsFilePath, {
+      homeDir: () => homedir()
+    });
   const configStore =
     options.configStore ??
     createJsonConfigStore<DesktopLocalConfig>(paths.configFilePath, {
@@ -112,8 +122,9 @@ export function createRuntimeConfigManager(options: RuntimeConfigManagerOptions 
     });
     const cacheDirectory = env.SKILLDRIVE_CACHE_DIR ?? join(paths.rootDir, "cache");
     mkdirSync(cacheDirectory, { recursive: true });
+    const agentPathsConfig = await agentPathsConfigStore.read();
     const agentDetection = await createAgentDetectionService({
-      env,
+      agentPathsConfig,
       homeDir: () => homedir()
     }).refresh();
 

@@ -5,10 +5,16 @@ import { useI18n } from "@/i18n/use-i18n"
 type AgentsPanelProps = {
   detectionSnapshot: AgentDetectionSnapshot | null
   isRefreshing: boolean
+  onOpenConfigDir: () => void
   onRefresh: () => void
 }
 
-export function AgentsPanel({ detectionSnapshot, isRefreshing, onRefresh }: AgentsPanelProps) {
+export function AgentsPanel({
+  detectionSnapshot,
+  isRefreshing,
+  onOpenConfigDir,
+  onRefresh
+}: AgentsPanelProps) {
   const { dictionary } = useI18n()
   const copy = dictionary.agentsPanel
 
@@ -29,9 +35,14 @@ export function AgentsPanel({ detectionSnapshot, isRefreshing, onRefresh }: Agen
             <CardTitle id="agents-heading">{copy.title}</CardTitle>
             <CardDescription>{copy.description}</CardDescription>
           </div>
-          <Button variant="secondary" disabled={isRefreshing} onClick={onRefresh}>
-            {isRefreshing ? copy.rediscovering : copy.rediscover}
-          </Button>
+          <div className="page-intro__actions">
+            <Button variant="outline" onClick={onOpenConfigDir}>
+              {copy.openConfigDir}
+            </Button>
+            <Button variant="secondary" disabled={isRefreshing} onClick={onRefresh}>
+              {isRefreshing ? copy.rediscovering : copy.rediscover}
+            </Button>
+          </div>
         </div>
       </CardHeader>
 
@@ -48,9 +59,7 @@ export function AgentsPanel({ detectionSnapshot, isRefreshing, onRefresh }: Agen
             </p>
             {sortedAgentStatuses.map((agent) => {
               const statusLabel = agent.installed
-                ? agent.source === "environment"
-                  ? copy.statusLabels.environment
-                  : copy.statusLabels.autoDetected
+                ? copy.statusLabels.autoDetected
                 : copy.statusLabels.missing
 
               return (

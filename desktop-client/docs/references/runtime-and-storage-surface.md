@@ -35,32 +35,13 @@ tests are recorded.
   backend download decryption secret; required only when encrypted downloads are
   enabled server-side)
 - `SKILLDRIVE_POLL_INTERVAL_MS`
-- `SKILLDRIVE_CLAUDE_CODE_SKILLS_PATH`
-- `SKILLDRIVE_CURSOR_SKILLS_PATH`
-- `SKILLDRIVE_WINDSURF_SKILLS_PATH`
-- `SKILLDRIVE_COPILOT_SKILLS_PATH`
-- `SKILLDRIVE_ROOCODE_SKILLS_PATH`
-- `SKILLDRIVE_CLINE_SKILLS_PATH`
-- `SKILLDRIVE_GEMINI_CLI_SKILLS_PATH`
-- `SKILLDRIVE_CODEX_SKILLS_PATH`
-- `SKILLDRIVE_OPENCODE_SKILLS_PATH`
-- `SKILLDRIVE_KILOCODE_SKILLS_PATH`
-- `SKILLDRIVE_AMP_SKILLS_PATH`
-- `SKILLDRIVE_KIRO_SKILLS_PATH`
-- `SKILLDRIVE_WARP_SKILLS_PATH`
-- `SKILLDRIVE_TRAE_SKILLS_PATH`
-- `SKILLDRIVE_FACTORY_SKILLS_PATH`
-- `SKILLDRIVE_KIMI_SKILLS_PATH`
-- `SKILLDRIVE_MISTRAL_SKILLS_PATH`
-- `SKILLDRIVE_PI_SKILLS_PATH`
-- `SKILLDRIVE_ANTIGRAVITY_SKILLS_PATH`
-- `SKILLDRIVE_OPENCLAW_SKILLS_PATH`
 - `SKILLDRIVE_DESKTOP_DATA_DIR`
 
-Agent skill path variables are explicit target overrides. A non-empty value
-marks that assistant as configured even when its automatic detection directory
-does not exist. Overrides replace that assistant's owned write target only; they
-do not turn compatible read paths into write targets.
+Agent skill path overrides live in `config/agent-paths.json`, not environment
+variables. A valid non-empty `targetPath` for a built-in Agent ID marks that
+assistant as configured even when its automatic detection directory does not
+exist. Overrides replace that assistant's first owned write target only; they do
+not turn compatible read paths into write targets.
 
 ## IPC Channels
 
@@ -72,6 +53,9 @@ Defined in `electron/ipc.ts`:
 - `configuration:save-theme`
 - `configuration:clear`
 - `configuration:test-connection`
+- `agent-paths:read`
+- `agent-paths:save`
+- `agent-paths:open-config-dir`
 - `sync:refresh`
 - `agent-detection:refresh`
 - `local-skills:refresh`
@@ -88,6 +72,9 @@ Renderer bridge methods:
 - `saveTheme(theme)`
 - `clearConfiguration()`
 - `testConnection(payload)`
+- `getAgentPathsConfig()`
+- `saveAgentPathsConfig(config)`
+- `openAgentPathsConfigDir()`
 - `refreshSync()`
 - `refreshAgentDetection()`
 - `refreshLocalSkills()`
@@ -115,6 +102,10 @@ The theme channel persists an explicit `light` or `dark` value in
 renderer uses the returned `ConfigurationState.theme` to toggle `.dark` on the
 document root; theme changes do not touch secrets or sync state.
 
+The agent paths channels read, write, and reveal `config/agent-paths.json`.
+Read/save responses return sanitized entries only. Opening the directory creates
+an empty `{}` file first when the file does not exist.
+
 ## App Paths
 
 Computed in `src/core/storage/app-paths.ts`:
@@ -123,6 +114,7 @@ Computed in `src/core/storage/app-paths.ts`:
 <app-root>/
   config/
     config.json
+    agent-paths.json
   state/
     state.json
     state.sqlite3
@@ -142,6 +134,9 @@ Platform base directory rules:
 
 - `config.json` stores non-secret runtime preferences such as API Base URL,
   locale, and theme; API token persistence remains separate from this file
+- `agent-paths.json` stores optional per-Agent `{ "targetPath": "..." }`
+  overrides after sanitization; missing or invalid entries fall back to catalog
+  defaults
 - API token persistence uses the `keytar` secret store through `src/core/storage/secret-store.ts`
 - `state.sqlite3` stores sync snapshot tables only
 - package downloads and decrypted plaintext artifacts are written to unique

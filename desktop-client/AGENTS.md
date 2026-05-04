@@ -53,6 +53,7 @@ Guidance for AI coding agents working in `desktop-client/`.
   is an optional first-run bootstrap that seeds the `keytar` secret store when
   no stored token exists, and a current-session fallback if the secret store is
   unavailable.
-- Use `SKILLDRIVE_CODEX_SKILLS_PATH`, `SKILLDRIVE_CLAUDE_CODE_SKILLS_PATH`, and `SKILLDRIVE_GEMINI_CLI_SKILLS_PATH` when auto-detected agent paths are not suitable.
+- Use `config/agent-paths.json` in the SkillDrive app data directory when
+  auto-detected agent skill paths are not suitable.
 - Polling should only refresh review state and surface pending updates; it must not auto-distribute skills.
 - When the window closes, the tray should keep the app resident so review state stays current.

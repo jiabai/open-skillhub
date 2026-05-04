@@ -103,8 +103,10 @@ testing are validated on a macOS release machine.
   - Windows: `%LOCALAPPDATA%/SkillDrive` or `%APPDATA%/SkillDrive`
   - macOS exploratory runtime: `~/Library/Application Support/SkillDrive`
   - Override: `SKILLDRIVE_DESKTOP_DATA_DIR`
-- Existing `SKILLDRIVE_*` environment variables still work when supplied to the
-  installed process environment.
+- Runtime environment variables documented in
+  `docs/references/runtime-and-storage-surface.md` still work when supplied to
+  the installed process environment. Agent skill path overrides use
+  `config/agent-paths.json` instead of environment variables.
 - API tokens and download decryption secrets must not be packaged into the app
   or written to plaintext config.
 

@@ -12,6 +12,11 @@ const desktopClientBridge: DesktopClientBridge = {
   clearConfiguration: () => ipcRenderer.invoke(desktopClientIpcChannels.clearConfiguration),
   testConnection: (payload) =>
     ipcRenderer.invoke(desktopClientIpcChannels.testConnection, payload),
+  getAgentPathsConfig: () => ipcRenderer.invoke(desktopClientIpcChannels.getAgentPathsConfig),
+  saveAgentPathsConfig: (config) =>
+    ipcRenderer.invoke(desktopClientIpcChannels.saveAgentPathsConfig, config),
+  openAgentPathsConfigDir: () =>
+    ipcRenderer.invoke(desktopClientIpcChannels.openAgentPathsConfigDir),
   refreshSync: () => ipcRenderer.invoke(desktopClientIpcChannels.refreshSync),
   refreshAgentDetection: () =>
     ipcRenderer.invoke(desktopClientIpcChannels.refreshAgentDetection),

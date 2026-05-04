@@ -26,7 +26,13 @@ export type AgentId =
   | "antigravity"
   | "openclaw"
 
-export type AgentInstallSource = "auto-detected" | "environment" | "missing"
+export type AgentInstallSource = "auto-detected" | "missing"
+
+export interface AgentPathConfigEntry {
+  targetPath: string
+}
+
+export type AgentPathsConfig = Partial<Record<AgentId, AgentPathConfigEntry>>
 
 export interface AgentInstallStatus {
   agentId: AgentId

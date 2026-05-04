@@ -7,17 +7,22 @@ import {
   type AgentPathDefinition,
   type AgentTargetDefinition
 } from "@/adapters/agents/definitions"
+import {
+  resolveAgentPath,
+  resolveAgentPathConfigTarget
+} from "@/core/storage/agent-paths-config"
 import type {
   AgentDetectionSnapshot,
   AgentId,
   AgentInstallSource,
   AgentInstallStatus,
+  AgentPathsConfig,
   AgentSkillTarget
 } from "@/types"
 
 export interface AgentDetectionServiceDependencies {
+  agentPathsConfig?: AgentPathsConfig
   definitions?: AgentPathDefinition[]
-  env?: NodeJS.ProcessEnv
   homeDir?: () => string
   now?: () => Date
   pathExists?: (path: string) => Promise<boolean>
@@ -35,12 +40,6 @@ type ResolvedTarget = {
 
 function getPathModule(platform: NodeJS.Platform) {
   return platform === "win32" ? win32 : posix
-}
-
-function normalizeConfiguredPath(value: string | undefined): string | null {
-  const trimmed = value?.trim()
-
-  return trimmed ? trimmed : null
 }
 
 async function defaultPathExists(pathValue: string): Promise<boolean> {
@@ -65,23 +64,17 @@ export function createAgentDetectionService(
   dependencies: AgentDetectionServiceDependencies = {}
 ): AgentDetectionService {
   const definitions = dependencies.definitions ?? supportedAgentDefinitions
-  const env = dependencies.env ?? process.env
+  const agentPathsConfig = dependencies.agentPathsConfig ?? {}
   const homeDir = dependencies.homeDir ?? (() => process.env.HOME ?? process.env.USERPROFILE ?? "")
   const now = dependencies.now ?? (() => new Date())
   const pathExists = dependencies.pathExists ?? defaultPathExists
   const platform = dependencies.platform ?? process.platform
-  const pathModule = getPathModule(platform)
 
   function resolvePath(pathValue: string): string {
-    if (pathValue === "~") {
-      return pathModule.normalize(homeDir())
-    }
-
-    if (pathValue.startsWith("~/")) {
-      return pathModule.normalize(pathModule.join(homeDir(), pathValue.slice(2)))
-    }
-
-    return pathModule.normalize(pathValue)
+    return resolveAgentPath(pathValue, {
+      homeDir,
+      platform
+    })
   }
 
   function resolveTarget(target: AgentTargetDefinition): ResolvedTarget {
@@ -107,34 +100,48 @@ export function createAgentDetectionService(
     return definition.defaultTargets.map(resolveTarget)
   }
 
+  function resolveConfiguredTarget(definition: AgentPathDefinition): ResolvedTarget | null {
+    const configuredPath = resolveAgentPathConfigTarget({
+      agentId: definition.id,
+      config: agentPathsConfig,
+      options: {
+        definitions,
+        homeDir,
+        platform
+      }
+    })
+
+    if (!configuredPath) {
+      return null
+    }
+
+    return {
+      path: configuredPath,
+      sharedPathKey: definition.defaultTargets[0]?.sharedPathKey ?? null
+    }
+  }
+
   async function resolveStatus(definition: AgentPathDefinition): Promise<{
     status: AgentInstallStatus
     targets: ResolvedTarget[]
   }> {
     const detectionDirs = definition.detectionDirs.map(resolvePath)
     const compatibleReadPaths = (definition.compatibleReadPaths ?? []).map(resolvePath)
-    const configuredPath = normalizeConfiguredPath(env[definition.envVar])
+    const configuredTarget = resolveConfiguredTarget(definition)
 
-    if (configuredPath) {
-      const targetPath = pathModule.normalize(configuredPath)
-
+    if (configuredTarget) {
       return {
         status: {
           agentId: definition.id,
           displayName: definition.displayName,
           installed: true,
-          source: "environment",
+          source: "auto-detected",
           detectionDirs,
-          targetPaths: [targetPath],
+          targetPaths: [configuredTarget.path],
           compatibleReadPaths,
           reason: null
         },
-        targets: [
-          {
-            path: targetPath,
-            sharedPathKey: null
-          }
-        ]
+        targets: [configuredTarget]
       }
     }
 

@@ -13,7 +13,8 @@ import {
   Tray,
   ipcMain,
   nativeImage,
-  screen
+  screen,
+  shell
 } from "electron"
 
 import { getAgentAdapter } from "@/adapters/agents/registry"
@@ -34,10 +35,12 @@ import {
 } from "@/core/runtime/runtime-config-manager"
 import { testApiConnection } from "@/core/runtime/api-connection"
 import { ensureAppDirectories } from "@/core/storage/app-paths"
+import { createAgentPathsConfigStore } from "@/core/storage/agent-paths-config"
 import { createSqliteStateStore } from "@/core/storage/state-db"
 import { createSyncPollingController, createSyncService } from "@/core/sync/sync-service"
 import type {
   AgentDetectionSnapshot,
+  AgentPathsConfig,
   AppLocale,
   AppTheme,
   AgentId,
@@ -542,6 +545,7 @@ async function closeStateStore(): Promise<void> {
 
 async function createApplicationServices(): Promise<void> {
   const appPaths = ensureAppDirectories()
+  const agentPathsConfigStore = createAgentPathsConfigStore(appPaths.agentPathsFilePath)
   const runtimeConfigManager = createRuntimeConfigManager()
   const initialRuntimeState = await runtimeConfigManager.reload()
   const getRuntimeConfig = () => runtimeConfigManager.getState().config
@@ -718,6 +722,20 @@ async function createApplicationServices(): Promise<void> {
     }
   }
 
+  const openAgentPathsConfigDir = async (): Promise<void> => {
+    await agentPathsConfigStore.ensureFile()
+
+    try {
+      shell.showItemInFolder(appPaths.agentPathsFilePath)
+    } catch {
+      const openError = await shell.openPath(appPaths.configDir)
+
+      if (openError) {
+        throw new Error(`Failed to open agent paths config directory: ${openError}`)
+      }
+    }
+  }
+
   registerDesktopClientIpc(ipcMain, {
     getConfiguration: () => toConfigurationState(runtimeConfigManager.getState()),
     saveConfiguration: async (payload: ConfigurationPayload): Promise<ConfigurationState> => {
@@ -755,6 +773,15 @@ async function createApplicationServices(): Promise<void> {
     },
     testConnection: (payload: ConfigurationPayload) =>
       testApiConnection(payload, getRuntimeConfig().apiToken),
+    getAgentPathsConfig: () => agentPathsConfigStore.read(),
+    saveAgentPathsConfig: async (config: AgentPathsConfig): Promise<AgentPathsConfig> => {
+      await agentPathsConfigStore.write(config)
+      const nextConfig = await agentPathsConfigStore.read()
+      await runtimeConfigManager.reload()
+
+      return nextConfig
+    },
+    openAgentPathsConfigDir,
     refreshSync: async (): Promise<DesktopSyncState> => {
       await pollingController.refreshNow()
 
@@ -872,7 +899,7 @@ async function createApplicationServices(): Promise<void> {
 
       if (distributionTargets.length === 0) {
         throw new Error(
-          "No supported agent skills directories were detected. Configure SKILLDRIVE_*_SKILLS_PATH to continue."
+          "No supported agent skills directories were detected. Configure agent-paths.json or install a supported agent to continue."
         )
       }
 

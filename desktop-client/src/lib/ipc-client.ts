@@ -2,6 +2,7 @@ import type {
   AppLocale,
   AppTheme,
   AgentDetectionSnapshot,
+  AgentPathsConfig,
   ConfigurationPayload,
   ConfigurationState,
   ConnectionTestResult,
@@ -19,6 +20,9 @@ export interface DesktopClientBridge {
   saveTheme(theme: AppTheme): Promise<ConfigurationState>
   clearConfiguration(): Promise<ConfigurationState>
   testConnection(payload: ConfigurationPayload): Promise<ConnectionTestResult>
+  getAgentPathsConfig(): Promise<AgentPathsConfig>
+  saveAgentPathsConfig(config: AgentPathsConfig): Promise<AgentPathsConfig>
+  openAgentPathsConfigDir(): Promise<void>
   refreshSync(): Promise<DesktopSyncState>
   refreshAgentDetection(): Promise<AgentDetectionSnapshot>
   refreshPreDistributionCheck(): Promise<PreDistributionCheckSnapshot>
@@ -106,6 +110,36 @@ function invokeTestConnection(payload: ConfigurationPayload): Promise<Connection
   return bridge.testConnection(payload)
 }
 
+function invokeGetAgentPathsConfig(): Promise<AgentPathsConfig> {
+  const bridge = getDesktopClientBridge()
+
+  if (!bridge) {
+    throw new Error("Desktop client bridge is unavailable")
+  }
+
+  return bridge.getAgentPathsConfig()
+}
+
+function invokeSaveAgentPathsConfig(config: AgentPathsConfig): Promise<AgentPathsConfig> {
+  const bridge = getDesktopClientBridge()
+
+  if (!bridge) {
+    throw new Error("Desktop client bridge is unavailable")
+  }
+
+  return bridge.saveAgentPathsConfig(config)
+}
+
+function invokeOpenAgentPathsConfigDir(): Promise<void> {
+  const bridge = getDesktopClientBridge()
+
+  if (!bridge) {
+    throw new Error("Desktop client bridge is unavailable")
+  }
+
+  return bridge.openAgentPathsConfigDir()
+}
+
 function invokeRefreshSync(): Promise<DesktopSyncState> {
   const bridge = getDesktopClientBridge()
 
@@ -186,6 +220,9 @@ export const desktopClient = {
   saveTheme: invokeSaveTheme,
   clearConfiguration: invokeClearConfiguration,
   testConnection: invokeTestConnection,
+  getAgentPathsConfig: invokeGetAgentPathsConfig,
+  saveAgentPathsConfig: invokeSaveAgentPathsConfig,
+  openAgentPathsConfigDir: invokeOpenAgentPathsConfigDir,
   refreshSync: invokeRefreshSync,
   refreshAgentDetection: invokeRefreshAgentDetection,
   refreshPreDistributionCheck: invokeRefreshPreDistributionCheck,

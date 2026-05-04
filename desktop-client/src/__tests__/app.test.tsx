@@ -11,6 +11,9 @@ type MockDesktopClientBridge = {
   saveTheme: ReturnType<typeof vi.fn>
   clearConfiguration: ReturnType<typeof vi.fn>
   testConnection: ReturnType<typeof vi.fn>
+  getAgentPathsConfig: ReturnType<typeof vi.fn>
+  saveAgentPathsConfig: ReturnType<typeof vi.fn>
+  openAgentPathsConfigDir: ReturnType<typeof vi.fn>
   refreshSync: ReturnType<typeof vi.fn>
   refreshAgentDetection: ReturnType<typeof vi.fn>
   refreshPreDistributionCheck: ReturnType<typeof vi.fn>
@@ -27,6 +30,9 @@ const mockDesktopClient = {
   saveTheme: vi.fn(),
   clearConfiguration: vi.fn(),
   testConnection: vi.fn(),
+  getAgentPathsConfig: vi.fn(),
+  saveAgentPathsConfig: vi.fn(),
+  openAgentPathsConfigDir: vi.fn(),
   refreshSync: vi.fn(),
   refreshAgentDetection: vi.fn(),
   refreshPreDistributionCheck: vi.fn(),
@@ -72,7 +78,7 @@ const defaultAgentDetection = {
       agentId: "claude-code",
       displayName: "Claude Code",
       installed: true,
-      source: "environment",
+      source: "auto-detected",
       detectionDirs: ["C:\\Users\\test\\.claude"],
       targetPaths: ["D:\\Claude\\skills"],
       compatibleReadPaths: [],
@@ -104,7 +110,7 @@ const defaultAgentDetection = {
       primaryAgentId: "claude-code",
       coveredAgentIds: ["claude-code"],
       sharedPathKey: null,
-      source: "environment"
+      source: "auto-detected"
     }
   ]
 }
@@ -150,6 +156,9 @@ beforeEach(() => {
     status: 200,
     message: "Connection succeeded."
   })
+  mockDesktopClient.getAgentPathsConfig.mockResolvedValue({})
+  mockDesktopClient.saveAgentPathsConfig.mockResolvedValue({})
+  mockDesktopClient.openAgentPathsConfigDir.mockResolvedValue(undefined)
   mockDesktopClient.refreshSync.mockResolvedValue(emptySyncState)
   mockDesktopClient.refreshPreDistributionCheck.mockResolvedValue({
     results: {},
@@ -198,6 +207,9 @@ describe("App", () => {
     expect(window.desktopClient?.saveTheme).toBeTypeOf("function")
     expect(window.desktopClient?.clearConfiguration).toBeTypeOf("function")
     expect(window.desktopClient?.testConnection).toBeTypeOf("function")
+    expect(window.desktopClient?.getAgentPathsConfig).toBeTypeOf("function")
+    expect(window.desktopClient?.saveAgentPathsConfig).toBeTypeOf("function")
+    expect(window.desktopClient?.openAgentPathsConfigDir).toBeTypeOf("function")
     expect(window.desktopClient?.refreshSync).toBeTypeOf("function")
     expect(window.desktopClient?.refreshAgentDetection).toBeTypeOf("function")
     expect(window.desktopClient?.refreshPreDistributionCheck).toBeTypeOf("function")
@@ -267,6 +279,17 @@ describe("App", () => {
       status: 200,
       message: "Connection succeeded."
     })
+    mockDesktopClient.getAgentPathsConfig.mockResolvedValue({
+      codex: {
+        targetPath: "C:\\Users\\test\\.codex\\skills"
+      }
+    })
+    mockDesktopClient.saveAgentPathsConfig.mockResolvedValue({
+      codex: {
+        targetPath: "C:\\Users\\test\\.codex\\skills"
+      }
+    })
+    mockDesktopClient.openAgentPathsConfigDir.mockResolvedValue(undefined)
     mockDesktopClient.refreshSync.mockResolvedValue({
       localRecords: [],
       pendingUpdates: [],
@@ -339,6 +362,23 @@ describe("App", () => {
       status: 200,
       message: "Connection succeeded."
     })
+    await expect(desktopClient.getAgentPathsConfig()).resolves.toEqual({
+      codex: {
+        targetPath: "C:\\Users\\test\\.codex\\skills"
+      }
+    })
+    await expect(
+      desktopClient.saveAgentPathsConfig({
+        codex: {
+          targetPath: "C:\\Users\\test\\.codex\\skills"
+        }
+      })
+    ).resolves.toEqual({
+      codex: {
+        targetPath: "C:\\Users\\test\\.codex\\skills"
+      }
+    })
+    await expect(desktopClient.openAgentPathsConfigDir()).resolves.toBeUndefined()
     await expect(desktopClient.refreshSync()).resolves.toEqual({
       localRecords: [],
       pendingUpdates: [],
@@ -392,6 +432,13 @@ describe("App", () => {
       apiBaseUrl: "http://localhost:8001",
       apiToken: "ask_live"
     })
+    expect(mockDesktopClient.getAgentPathsConfig).toHaveBeenCalledTimes(1)
+    expect(mockDesktopClient.saveAgentPathsConfig).toHaveBeenCalledWith({
+      codex: {
+        targetPath: "C:\\Users\\test\\.codex\\skills"
+      }
+    })
+    expect(mockDesktopClient.openAgentPathsConfigDir).toHaveBeenCalledTimes(1)
     expect(mockDesktopClient.refreshSync).toHaveBeenCalledTimes(1)
     expect(mockDesktopClient.refreshAgentDetection).toHaveBeenCalledTimes(1)
     expect(mockDesktopClient.refreshPreDistributionCheck).toHaveBeenCalledTimes(1)
@@ -636,12 +683,12 @@ describe("App", () => {
       expect(screen.getByText(/Codex/)).toBeInTheDocument()
     })
 
-    fireEvent.click(screen.getByRole("button", { name: "Upload local-only" }))
+    fireEvent.click(screen.getByRole("button", { name: "Upload" }))
 
     await waitFor(() => {
       expect(mockDesktopClient.uploadLocalSkill).toHaveBeenCalledWith("row-local-only")
       expect(screen.getByText(/uploaded-skill/)).toBeInTheDocument()
-      expect(screen.queryByRole("button", { name: "Upload local-only" })).not.toBeInTheDocument()
+      expect(screen.queryByRole("button", { name: "Upload" })).not.toBeInTheDocument()
     })
   })
 
@@ -681,10 +728,10 @@ describe("App", () => {
     fireEvent.click(within(navigation).getByRole("button", { name: "Local Skills" }))
 
     await waitFor(() => {
-      expect(screen.getByRole("button", { name: "Upload local-only" })).toBeInTheDocument()
+      expect(screen.getByRole("button", { name: "Upload" })).toBeInTheDocument()
     })
 
-    fireEvent.click(screen.getByRole("button", { name: "Upload local-only" }))
+    fireEvent.click(screen.getByRole("button", { name: "Upload" }))
 
     await waitFor(() => {
       expect(mockDesktopClient.uploadLocalSkill).toHaveBeenCalledWith("row-local-only")
@@ -714,10 +761,37 @@ describe("App", () => {
 
     await waitFor(() => {
       expect(screen.getByText("Claude Code")).toBeInTheDocument()
-      expect(screen.getByText("Configured by environment")).toBeInTheDocument()
+      expect(screen.getAllByText("Detected or configured").length).toBeGreaterThan(0)
       expect(screen.getByText(/D:\\Claude\\skills/)).toBeInTheDocument()
       expect(screen.getByText("Gemini CLI")).toBeInTheDocument()
       expect(screen.getAllByText("Not installed").length).toBeGreaterThan(0)
+    })
+  })
+
+  it("opens the agent paths configuration directory from settings", async () => {
+    mockDesktopClient.refreshSync.mockResolvedValueOnce({
+      localRecords: [],
+      pendingUpdates: [],
+      successfulDistributionCount: 0,
+      lastRefreshedAt: "2026-04-17T00:00:00.000Z"
+    })
+    mockDesktopClient.refreshAgentDetection.mockResolvedValueOnce(defaultAgentDetection)
+
+    render(<App />)
+
+    await waitFor(() => {
+      expect(screen.getAllByRole("button", { name: "Settings" })[0]).toBeInTheDocument()
+    })
+
+    fireEvent.click(screen.getAllByRole("button", { name: "Settings" })[0])
+
+    const openConfigButton = await screen.findByRole("button", {
+      name: "Open Agent Paths Config"
+    })
+    fireEvent.click(openConfigButton)
+
+    await waitFor(() => {
+      expect(mockDesktopClient.openAgentPathsConfigDir).toHaveBeenCalledTimes(1)
     })
   })
 

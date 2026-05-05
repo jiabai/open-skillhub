@@ -15,6 +15,9 @@ Product specs describe user-visible intent and boundaries for a feature before o
 | `2026-05-01-client-skills-upload.md` | Client API ZIP skill upload endpoint: API-token-only skill creation and version append |
 | `2026-05-02-landing-page-light-mode.md` | Public light-mode Landing Page intent, Shell boundary, copy, and visual acceptance criteria |
 | `2026-05-04-content-hash-dedup.md` | Content hash dedup for skill distribution: replace version-string comparison with SHA-256 hash |
+| `2026-05-06-distributed-rate-limits.md` | Production-safe global and download rate-limit store behavior |
+| `2026-05-06-list-count-consistency.md` | Paginated API list/count consistency strategy |
+| `2026-05-06-refresh-token-hardening.md` | Single-use refresh-token rotation and reuse detection for web sessions |
 
 ## Guidelines
 

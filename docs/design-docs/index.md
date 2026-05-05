@@ -17,6 +17,15 @@ This directory stores durable design decisions, architecture notes, and review f
 | `landing-page-light-mode.md` | Light-mode landing page visual design decisions and color mapping |
 | `content-hash-dedup.md` | Content hash computation, storage, and three-state sync model for skill distribution dedup |
 | `capability-contract.md` | Stable runtime capability contract rules and capability/permission boundary |
+| `refresh-token-hardening.md` | Stateful refresh-token rotation, token-family reuse detection, and revocation design |
+| `distributed-rate-limit-stores.md` | Shared rate-limit store boundary for global and download limits |
+| `backend-service-boundaries.md` | Repository transaction and SkillService boundary refactor design |
+| `audit-permission-consistency.md` | Audit recorder and permission constant consistency design |
+| `skill-data-contract-cleanup.md` | Skill upload, visibility, kind, and serializer cleanup design |
+| `legacy-compatibility-retirement.md` | Exit strategy for legacy shims and compatibility fallbacks |
+| `auth-provider-consistency.md` | Shared SSO validation and explicit email provider selection design |
+| `list-count-consistency.md` | Paginated list/count consistency decision framework |
+| `documentation-freshness-automation.md` | Validator checks for stale docs, plan indexes, and tech-debt links |
 
 ## How To Use This Directory
 

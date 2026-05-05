@@ -4,7 +4,7 @@ import secrets
 from urllib.parse import urlencode, urlsplit, urlunsplit
 
 from backend.config.settings import settings
-from backend.core.errors import verification_error_payload
+from backend.core.errors import VerificationError, build_http_error_detail
 from backend.core.middleware.auth import get_current_active_user
 from backend.core.security.jwt_utils import decode_token
 from backend.db.session import get_async_session
@@ -54,16 +54,15 @@ async def send_verification_code(
     service = get_verification_service(session)
     try:
         response = await service.send_code(payload.email, payload.purpose, schedule=background_tasks.add_task)
+    except VerificationError as exc:
+        raise HTTPException(
+            status_code=exc.status_code,
+            detail=build_http_error_detail(exc),
+        ) from exc
     except ValueError as exc:
-        detail = str(exc)
-        if detail == "RESEND_TOO_FREQUENT":
-            raise HTTPException(
-                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-                detail=verification_error_payload(detail) or detail,
-            ) from exc
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=verification_error_payload(detail) or detail,
+            detail=str(exc),
         ) from exc
     if settings.ENABLE_AUDIT_LOG:
         audit_service = AuditService(AuditLogRepository(session))
@@ -91,13 +90,18 @@ async def register(payload: UserRegisterCode, session=Depends(get_async_session)
             username=payload.username,
             password=None,
         )
+    except VerificationError as exc:
+        raise HTTPException(
+            status_code=exc.status_code,
+            detail=build_http_error_detail(exc),
+        ) from exc
     except ValueError as exc:
         detail = str(exc)
         if "already" in detail.lower():
             raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=detail) from exc
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=verification_error_payload(detail) or detail,
+            detail=detail,
         ) from exc
     token_pair = service.issue_token(user)
     if settings.ENABLE_AUDIT_LOG:
@@ -128,6 +132,20 @@ async def login(payload: UserLoginCode, session=Depends(get_async_session)):
         service._assert_user_enabled(user)
     except HTTPException:
         raise
+    except VerificationError as exc:
+        if settings.ENABLE_AUDIT_LOG:
+            audit_service = AuditService(AuditLogRepository(session))
+            await audit_service.create_event(
+                actor_id="anonymous",
+                action="auth.login.failed",
+                target=payload.email,
+                result="failed",
+                metadata={"detail": exc.code},
+            )
+        raise HTTPException(
+            status_code=exc.status_code,
+            detail=build_http_error_detail(exc),
+        ) from exc
     except ValueError as exc:
         detail = str(exc)
         if settings.ENABLE_AUDIT_LOG:
@@ -141,7 +159,7 @@ async def login(payload: UserLoginCode, session=Depends(get_async_session)):
             )
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=verification_error_payload(detail) or detail,
+            detail=detail,
         ) from exc
     token_pair = service.issue_token(user)
     if settings.ENABLE_AUDIT_LOG:

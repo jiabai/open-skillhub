@@ -4,7 +4,7 @@ from pathlib import Path
 from loguru import logger
 
 from backend.config.settings import settings
-from backend.core.errors import error_payload_json
+from backend.core.errors import build_tool_error_payload
 
 ALLOWED_EXTENSIONS = {
     ".md", ".py", ".js", ".ts", ".sh", ".txt", ".json", ".yaml", ".yml",
@@ -40,7 +40,7 @@ def validate_skill_name(skill_name: str) -> tuple[bool, str]:
 
 
 def tool_error_payload(detail: object, code: str) -> str:
-    return error_payload_json(detail, code, ensure_ascii=False)
+    return build_tool_error_payload(detail=detail, code=code, ensure_ascii=False)
 
 
 def resolve_storage_owner(user_id: str) -> str:

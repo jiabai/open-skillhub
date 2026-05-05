@@ -1,8 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 
 from backend.config.settings import settings
-from backend.core.errors import verification_error_payload
 from backend.core.deps import require_management_access
+from backend.core.errors import VerificationError, build_http_error_detail
 from backend.core.middleware.auth import get_current_active_user
 from backend.db.session import get_async_session
 from backend.repositories.audit_log import AuditLogRepository
@@ -70,8 +70,11 @@ async def delete_me(
     verification_service = get_verification_service(session)
     try:
         await verification_service.verify_code(current_user.email, "delete_account", payload.code)
-    except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    except VerificationError as exc:
+        raise HTTPException(
+            status_code=exc.status_code,
+            detail=build_http_error_detail(exc),
+        ) from exc
     user_id = current_user.id
     service = UserService(UserRepository(session))
     await service.delete_user(current_user)
@@ -96,11 +99,10 @@ async def bind_email(
     verification_service = get_verification_service(session)
     try:
         await verification_service.verify_code(payload.email, "bind_email", payload.code)
-    except ValueError as exc:
-        detail = str(exc)
+    except VerificationError as exc:
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=verification_error_payload(detail) or detail,
+            status_code=exc.status_code,
+            detail=build_http_error_detail(exc),
         ) from exc
     user_repo = UserRepository(session)
     existing = await user_repo.get_by_email(payload.email)

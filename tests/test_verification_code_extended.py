@@ -7,6 +7,13 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from backend.config.settings import settings
+from backend.core.errors import (
+    CodeExpiredError,
+    CodeInvalidError,
+    ErrorCode,
+    ResendTooFrequentError,
+    TooManyAttemptsError,
+)
 from backend.services.verification_code import (
     VerificationCodeService,
     get_verification_service,
@@ -108,8 +115,11 @@ class TestVerificationCodeServiceSend:
 
         service = VerificationCodeService(mock_session, email_sender=mock_email_sender)
 
-        with pytest.raises(ValueError, match="RESEND_TOO_FREQUENT"):
+        with pytest.raises(ResendTooFrequentError) as exc:
             await service.send_code("test@example.com", "login")
+
+        assert exc.value.code == ErrorCode.RESEND_TOO_FREQUENT
+        assert exc.value.detail == "重发过于频繁"
 
     @pytest.mark.asyncio
     async def test_send_code_update_existing(self, mock_session, mock_email_sender):
@@ -165,8 +175,11 @@ class TestVerificationCodeServiceVerify:
 
         service = VerificationCodeService(mock_session)
 
-        with pytest.raises(ValueError, match="CODE_INVALID"):
+        with pytest.raises(CodeInvalidError) as exc:
             await service.verify_code("test@example.com", "login", "123456")
+
+        assert exc.value.code == ErrorCode.CODE_INVALID
+        assert exc.value.detail == "验证码错误"
 
     @pytest.mark.asyncio
     async def test_verify_code_expired(self, mock_session):
@@ -183,8 +196,11 @@ class TestVerificationCodeServiceVerify:
         mock_session.execute = AsyncMock(return_value=mock_result)
         mock_session.commit = AsyncMock()
 
-        with pytest.raises(ValueError, match="CODE_EXPIRED"):
+        with pytest.raises(CodeExpiredError) as exc:
             await service.verify_code("test@example.com", "login", "123456")
+
+        assert exc.value.code == ErrorCode.CODE_EXPIRED
+        assert exc.value.detail == "验证码已过期"
 
     @pytest.mark.asyncio
     async def test_verify_code_too_many_attempts(self, mock_session):
@@ -200,8 +216,11 @@ class TestVerificationCodeServiceVerify:
         mock_result.scalar_one_or_none.return_value = existing
         mock_session.execute = AsyncMock(return_value=mock_result)
 
-        with pytest.raises(ValueError, match="TOO_MANY_ATTEMPTS"):
+        with pytest.raises(TooManyAttemptsError) as exc:
             await service.verify_code("test@example.com", "login", "123456")
+
+        assert exc.value.code == ErrorCode.TOO_MANY_ATTEMPTS
+        assert exc.value.detail == "尝试次数过多，请稍后再试"
 
     @pytest.mark.asyncio
     async def test_verify_code_wrong_code(self, mock_session):
@@ -218,9 +237,10 @@ class TestVerificationCodeServiceVerify:
         mock_session.execute = AsyncMock(return_value=mock_result)
         mock_session.commit = AsyncMock()
 
-        with pytest.raises(ValueError, match="CODE_INVALID"):
+        with pytest.raises(CodeInvalidError) as exc:
             await service.verify_code("test@example.com", "login", "654321")
 
+        assert exc.value.code == ErrorCode.CODE_INVALID
         # Verify attempts were decremented
         assert existing.attempts_left == 4
 

@@ -90,14 +90,21 @@ They should differ only at the adapter layer, not in their underlying semantic r
 
 ### 1. Canonical error codes
 
-Add:
+Extend the existing public error module:
 
-- `backend/core/errors/codes.py`
+- `backend/core/errors.py`
 
 Purpose:
 
 - define stable application error codes
 - avoid repeating raw strings in services and routers
+
+Implementation note:
+
+- The repository already imports `backend.core.errors` as a module from routes,
+  exception handlers, and utility adapters. Do not convert it into a package in
+  this pass; keep the existing import surface stable and add canonical codes,
+  domain exceptions, and presenter helpers inside the current module.
 
 Suggested structure:
 
@@ -119,9 +126,9 @@ class ErrorCode:
 
 ### 2. Canonical domain exceptions
 
-Add:
+Extend:
 
-- `backend/core/errors/exceptions.py`
+- `backend/core/errors.py`
 
 Purpose:
 
@@ -152,9 +159,9 @@ Requirements:
 
 ### 3. Transport presenters
 
-Add:
+Extend:
 
-- `backend/core/errors/presenters.py`
+- `backend/core/errors.py`
 
 Purpose:
 
@@ -245,11 +252,16 @@ This keeps transport differences at the adapter level only.
 
 ### Phase 1. Establish the error foundation
 
-Create:
+Extend:
 
-- `backend/core/errors/codes.py`
-- `backend/core/errors/exceptions.py`
-- `backend/core/errors/presenters.py`
+- `backend/core/errors.py`
+
+Keep compatibility wrappers for existing call sites:
+
+- `error_payload()`
+- `error_payload_from_exception()`
+- `error_payload_json()`
+- `verification_error_payload()`
 
 ### Phase 2. Move verification flows to canonical exceptions
 
@@ -333,6 +345,73 @@ This refactor is complete when:
 - HTTP and tool error payloads are rendered from one canonical presenter layer
 - error code and detail are consistently structured across transports
 - regression tests lock in the new behavior
+
+## Execution Checklist
+
+- [ ] Extend `backend/core/errors.py` with canonical codes, application errors,
+      verification-specific exceptions, and presenter helpers while preserving
+      existing public helpers.
+- [ ] Refactor `backend/services/verification_code.py` to raise canonical
+      verification exceptions instead of raw string `ValueError`s.
+- [ ] Refactor `backend/api/v1/auth.py` and `backend/api/v1/users.py` to catch
+      `VerificationError` and delegate payload rendering to shared presenters.
+- [ ] Refactor `backend/core/utils/skill_storage.py` to keep `tool_error_payload()`
+      as the tool adapter while delegating serialization to the shared presenter.
+- [ ] Update focused backend tests for service exceptions, HTTP envelope behavior,
+      router consistency, and tool payload consistency.
+- [ ] Run backend/documentation gates and record the results here before archiving.
+
+## Decisions
+
+- 2026-05-05: Keep `backend.core.errors` as a single module for this pass instead
+  of creating `backend/core/errors/` package files, because existing code already
+  imports `backend.core.errors` directly. This preserves the import boundary and
+  keeps the refactor focused on semantics rather than module migration.
+- 2026-05-05: Verification-specific canonical exceptions are in scope; replacing
+  all other backend `ValueError` paths remains out of scope for this refactor.
+- 2026-05-05: Tool error output remains a JSON string adapter, but the payload
+  shape must be produced by the same presenter source as HTTP structured details.
+- 2026-05-05: `backend/api_app.py` already delegates exception shaping to
+  `backend/api/_exceptions.py`; no direct app-factory change was needed because
+  the existing exception handlers already call the shared `backend.core.errors`
+  helpers.
+
+## Progress
+
+- [x] Reviewed `WORKFLOW.md`, `docs/EXECUTION_GATES.md`, backend guidance, and
+      constitution docs for this backend architecture change.
+- [x] Reviewed the current error, verification, router, exception-handler, and
+      tool-storage code paths before editing implementation files.
+- [x] Updated this plan to match the existing `backend/core/errors.py` import
+      surface and to add explicit execution, decision, and validation tracking.
+- [x] Implement canonical error helpers and verification exceptions.
+- [x] Refactor service/router/tool adapters.
+- [x] Update regression tests.
+- [x] Run validation gates.
+- [x] Archive completed plan and update indexes.
+
+## Validation Log
+
+- 2026-05-05: Red check confirmed the new tests failed before implementation:
+  `uv run pytest tests/test_error_presenters.py tests/test_verification_code_extended.py::TestVerificationCodeServiceSend::test_send_code_resend_too_frequent tests/test_verification_code_extended.py::TestVerificationCodeServiceVerify::test_verify_code_not_found tests/test_users_api.py::TestUsersAPIErrorHandling::test_delete_me_invalid_code_returns_structured_verification_error`
+  failed on missing canonical error imports.
+- 2026-05-05: Focused regression check passed:
+  `uv run pytest tests/test_error_presenters.py tests/test_verification_code_extended.py::TestVerificationCodeServiceSend::test_send_code_resend_too_frequent tests/test_verification_code_extended.py::TestVerificationCodeServiceVerify::test_verify_code_not_found tests/test_users_api.py::TestUsersAPIErrorHandling::test_delete_me_invalid_code_returns_structured_verification_error`
+  passed with 6 tests.
+- 2026-05-05: Related backend check passed:
+  `uv run pytest tests/test_error_presenters.py tests/test_core_errors.py tests/test_verification_code_extended.py tests/test_api_auth.py tests/test_users_api.py tests/test_skill_support.py`
+  passed with 60 tests.
+- 2026-05-05: Backend hard gates passed:
+  `uv run ruff check .`, `uv run mypy backend`, and `uv run pytest` passed
+  with 638 tests.
+- 2026-05-05: Documentation hard gate passed:
+  `python scripts/validate_agents_docs.py --level ERROR` reported 0 errors and
+  0 warnings.
+
+## Follow-Up Notes
+
+- If a later task wants a multi-file `backend/core/errors/` package, handle it as
+  a separate migration with explicit import-compatibility checks.
 
 ## One-Line Summary
 

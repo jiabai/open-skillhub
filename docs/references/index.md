@@ -13,6 +13,7 @@ This directory is for durable technical references that help contributors naviga
 | `docs/references/public-skill-import-preprod-sop.md` | Short host-side preprod workflow for importing one public skill |
 | `deploy/nginx/skillhub.conf` | Reverse-proxy example for the default deployment topology |
 | `shared/user-statuses.json` | Authoring source for the build-time synced user-status catalogs consumed by backend and frontend |
+| `shared/skill-visibilities.json` | Authoring source for the build-time synced skill visibility catalog consumed by backend and frontend |
 | `backend/.env.example` | Backend configuration surface |
 | `frontend/.env.example` | Frontend public API base configuration |
 

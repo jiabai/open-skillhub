@@ -7,7 +7,14 @@ import { Copy, Eye, FileText, Loader2, Save, Trash2 } from "lucide-react"
 
 import { api } from "@/lib/api"
 import { useRuntimeConfig } from "@/hooks/use-runtime-config"
-import type { ConsoleSkill, SkillVisible } from "@/types"
+import type { ConsoleSkill } from "@/types"
+import {
+  DEFAULT_SKILL_VISIBILITY,
+  WRITABLE_SKILL_VISIBILITY_VALUES,
+  getSkillVisibilityLabel,
+  isWritableSkillVisibility,
+  type WritableSkillVisible,
+} from "@/lib/skill-visibility"
 import { useToast } from "@/hooks/use-toast"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog"
 import { Badge } from "@/components/ui/badge"
@@ -21,8 +28,6 @@ import { Textarea } from "@/components/ui/textarea"
 import { VersionsTab } from "./_components/versions-tab"
 import { formatMessage } from "@/i18n/format-message"
 import { useI18n } from "@/i18n/use-i18n"
-
-type EditableSkillVisible = Exclude<SkillVisible, "public">
 
 type SkillDetailProps = {
   params: { skillUuid: string }
@@ -40,7 +45,7 @@ export default function SkillDetailPage({ params }: SkillDetailProps) {
   const [error, setError] = useState<string | null>(null)
   const [name, setName] = useState("")
   const [description, setDescription] = useState("")
-  const [visible, setVisible] = useState<EditableSkillVisible>("private")
+  const [visible, setVisible] = useState<WritableSkillVisible>(DEFAULT_SKILL_VISIBILITY)
   const [saving, setSaving] = useState(false)
   const [cloning, setCloning] = useState(false)
   const [previewOpen, setPreviewOpen] = useState(false)
@@ -59,7 +64,7 @@ export default function SkillDetailPage({ params }: SkillDetailProps) {
       setSkill(data)
       setName(data.name)
       setDescription(data.description || "")
-      setVisible((data.visible === "team" || data.visible === "enterprise" ? data.visible : "private") as EditableSkillVisible)
+      setVisible(data.visible && isWritableSkillVisibility(data.visible) ? data.visible : DEFAULT_SKILL_VISIBILITY)
       const fileList = await api.listSkillFiles(params.skillUuid)
       setFiles(fileList)
       setStatus("ready")
@@ -234,7 +239,7 @@ export default function SkillDetailPage({ params }: SkillDetailProps) {
                   <Badge variant="muted">id: {skill.id.slice(0, 8)}</Badge>
                   {config.capabilities.skill_visibility && skill.visible ? (
                     <Badge variant={skill.visible === "private" ? "outline" : skill.visible === "team" ? "secondary" : "accent"}>
-                      {skill.visible === "private" ? copy.visibilityPrivate : skill.visible === "team" ? copy.visibilityTeam : copy.visibilityEnterprise}
+                      {getSkillVisibilityLabel(skill.visible, copy)}
                     </Badge>
                   ) : null}
                   {skill.skill_kind ? <Badge variant="muted">{skill.skill_kind}</Badge> : null}
@@ -346,14 +351,16 @@ export default function SkillDetailPage({ params }: SkillDetailProps) {
                       <Eye className="h-4 w-4 text-muted-foreground" />
                       {copy.visibilityLabel}
                     </Label>
-                    <Select value={visible} onValueChange={(value) => setVisible(value as EditableSkillVisible)} disabled={!!isReference}>
+                    <Select value={visible} onValueChange={(value) => setVisible(value as WritableSkillVisible)} disabled={!!isReference}>
                       <SelectTrigger id="visible">
                         <SelectValue placeholder={copy.visibilityPlaceholder} />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="private">{copy.visibilityPrivate}</SelectItem>
-                        <SelectItem value="team">{copy.visibilityTeam}</SelectItem>
-                        <SelectItem value="enterprise">{copy.visibilityEnterprise}</SelectItem>
+                        {WRITABLE_SKILL_VISIBILITY_VALUES.map((value) => (
+                          <SelectItem key={value} value={value}>
+                            {getSkillVisibilityLabel(value, copy)}
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                     <p className="text-xs text-muted-foreground">{copy.visibilityHelp}</p>

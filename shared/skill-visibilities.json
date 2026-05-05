@@ -1,0 +1,11 @@
+{
+  "default": "private",
+  "values": ["private", "team", "enterprise", "public"],
+  "writable": ["private", "team", "enterprise"],
+  "labels": {
+    "private": "私有",
+    "team": "团队",
+    "enterprise": "企业",
+    "public": "公共"
+  }
+}

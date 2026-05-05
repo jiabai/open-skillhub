@@ -1,6 +1,13 @@
 from collections.abc import Iterable
 
 from backend.config.settings import settings
+from backend.domain.skill_visibility import (
+    ENTERPRISE_SKILL_VISIBILITY,
+    PRIVATE_SKILL_VISIBILITY,
+    PUBLIC_SKILL_VISIBILITY,
+    TEAM_SKILL_VISIBILITY,
+    normalize_skill_visibility,
+)
 from backend.models.skill import Skill
 from backend.models.user import User
 
@@ -53,12 +60,15 @@ def has_permission(user: User, permission: str) -> bool:
 def is_skill_visible(user: User, skill: Skill) -> bool:
     if not settings.ENABLE_SKILL_VISIBILITY:
         return skill.user_id == user.id
-    visibility = (skill.visibility or settings.DEFAULT_SKILL_VISIBILITY or "private").strip().lower()
-    if visibility == "public" and not settings.ENABLE_RBAC:
+    try:
+        visibility = normalize_skill_visibility(skill.visibility, settings.DEFAULT_SKILL_VISIBILITY)
+    except ValueError:
+        visibility = PRIVATE_SKILL_VISIBILITY
+    if visibility == PUBLIC_SKILL_VISIBILITY and not settings.ENABLE_RBAC:
         return True
-    if visibility == "enterprise":
+    if visibility == ENTERPRISE_SKILL_VISIBILITY:
         return bool(user.enterprise_id) and user.enterprise_id == skill.enterprise_id
-    if visibility == "team":
+    if visibility == TEAM_SKILL_VISIBILITY:
         return (
             bool(user.enterprise_id)
             and user.enterprise_id == skill.enterprise_id

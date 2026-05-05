@@ -8,6 +8,7 @@ import { BarChart3, LogOut, Menu, User2, Boxes } from "lucide-react"
 import { api, clearTokens, getStoredTokens } from "@/lib/api"
 import { useRuntimeConfig } from "@/hooks/use-runtime-config"
 import { getPrimaryNavigation } from "@/lib/navigation"
+import { canManageUsers, canViewAuditLogs } from "@/lib/user-permissions"
 import { cn } from "@/lib/utils"
 import type { User } from "@/types"
 import { ThemeToggle } from "@/components/app/theme-toggle"
@@ -103,11 +104,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }, [isAuthRoute, isPublicRoute, router])
 
   const rbacEnabled = config.capabilities.rbac
-  const canManageUsers = currentUser?.is_superuser || currentUser?.role === "admin"
+  const mayManageUsers = canManageUsers(currentUser, config.capabilities)
+  const mayViewAuditLogs = canViewAuditLogs(currentUser, config.capabilities)
   const navItems = getPrimaryNavigation({
     rbacEnabled,
-    canManageUsers: Boolean(canManageUsers),
-    enableAuditLog: config.capabilities.audit_log,
+    canManageUsers: mayManageUsers,
+    enableAuditLog: mayViewAuditLogs,
     labels: navigation,
   })
 

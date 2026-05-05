@@ -1,5 +1,8 @@
 # Runtime Capabilities Enhancement Follow-up
 
+Status: Completed
+Updated: 2026-05-05
+
 This ExecPlan is a living document. The sections Progress, Surprises & Discoveries,
 Decision Log, and Outcomes & Retrospective must be kept up to date as work proceeds.
 
@@ -23,14 +26,21 @@ reference document that explains how to safely evolve the capability contract.
 
 ## Progress
 
-- [ ] (pending) Add backend integration tests for capability edge cases
-- [ ] (pending) Create frontend permission helper module
-- [ ] (pending) Write capability contract constraint documentation
-- [ ] (pending) Run full validation suite
+- [x] (completed) Add backend integration tests for capability edge cases
+- [x] (completed) Create frontend permission helper module and wire navigation consumers
+- [x] (completed) Write capability contract constraint documentation
+- [x] (completed) Run full validation suite
+- [x] (completed) Archive the plan and task checklist after validation
 
 ## Surprises & Discoveries
 
-_No discoveries yet — work has not started._
+- The frontend default runtime capabilities intentionally keep `no_rbac_mode=true`
+  when RBAC is disabled; "all defaults false" would contradict the backend
+  capability formula.
+- The audit backend uses management access, so audit navigation must combine
+  workspace capability with admin/superuser user permission.
+- `public_skills` describes public catalog availability, not a writable "create
+  public skill" permission.
 
 ## Decision Log
 
@@ -38,17 +48,39 @@ _No discoveries yet — work has not started._
   Rationale: Capability answers "does this workspace support this feature?" while
   permission answers "is this user allowed to perform this action?". Mixing them
   creates confusion when a feature exists but a user lacks access.
-  Date/Author: 2026-04-20 / pending
+  Date/Author: 2026-05-05 / Codex
 
 - Decision: Test coverage should focus on capability derivation, not individual
   settings parsing.
   Rationale: Settings parsing is already validated by pydantic; the interesting
   logic is how settings combine into derived capabilities like `public_skills`.
-  Date/Author: 2026-04-20 / pending
+  Date/Author: 2026-05-05 / Codex
+
+- Decision: Permission helper names should reflect runtime behavior rather than
+  hypothetical write actions.
+  Rationale: There is no frontend/backend contract for creating public skills as
+  a user action. The helper layer should cover current user-facing decisions such
+  as managing users, viewing audit logs, exporting audit logs, using public skill
+  catalog features, and using skill visibility controls.
+  Date/Author: 2026-05-05 / Codex
 
 ## Outcomes & Retrospective
 
-_Not yet started._
+Implemented so far:
+
+- Expanded runtime-config API coverage from 4 tests to 15 collected cases.
+- Added `frontend/src/lib/user-permissions.ts` and focused tests for user/capability
+  permission composition.
+- Wired AppShell and Dashboard navigation to the permission helper layer.
+- Added `docs/design-docs/capability-contract.md`.
+- Validation passed:
+  - `uv run pytest`
+  - `uv run ruff check .`
+  - `uv run mypy backend`
+  - `npm run lint`
+  - `npm test`
+  - `npm run build`
+  - `python scripts/validate_agents_docs.py --level ERROR`
 
 ## Context and Orientation
 
@@ -102,8 +134,9 @@ Add integration tests to `tests/test_runtime_config_api.py` that cover:
    `true` regardless of `skill_visibility`.
 2. **Dependency chains** — verify `audit_export` requires both `ENABLE_AUDIT_LOG`
    and `ENABLE_AUDIT_EXPORT`.
-3. **Default behavior** — verify all capabilities default to `false` when no
-   feature flags are enabled.
+3. **Default behavior** — verify feature capabilities default to `false` when no
+   feature flags are enabled while `no_rbac_mode` remains `true` because it is
+   derived from `NOT rbac`.
 4. **Boolean derivation correctness** — test each capability's derivation formula
    independently.
 
@@ -112,11 +145,14 @@ Add integration tests to `tests/test_runtime_config_api.py` that cover:
 Create `frontend/src/lib/user-permissions.ts` that:
 
 1. Accepts a `User` object and a `RuntimeCapabilities` object.
-2. Exposes helper functions like `canManageUsers(user, capabilities)`,
-   `canViewAudit(user, capabilities)`, `canCreatePublicSkills(user, capabilities)`.
+2. Exposes helper functions such as `isPlatformAdmin(user)`,
+   `canManageUsers(user, capabilities)`, `canViewAuditLogs(user, capabilities)`,
+   `canExportAuditLogs(user, capabilities)`, `canUsePublicSkillCatalog(user,
+   capabilities)`, and `canUseSkillVisibilityControls(user, capabilities)`.
 3. Separates workspace capability checks from user role/permission checks.
 4. Follows the same pattern as `frontend/src/lib/user-identity-display.ts` for
    consistency.
+5. Replaces inline navigation permission checks in app shell/dashboard code.
 
 ### Phase 3: Document Capability Contract Constraints
 
@@ -159,7 +195,7 @@ cd D:\Github\open-skillhub\frontend
 # (create frontend/src/__tests__/user-permissions.test.ts)
 
 # Validate
-npm.cmd test -- --run src/__tests__/user-permissions.test.tsx
+npm test -- src/__tests__/user-permissions.test.ts
 ```
 
 Expected output: new test file passes with coverage for all helper functions.
@@ -185,12 +221,17 @@ Validation and Acceptance:
 Validation flow:
 1. Run backend tests: `uv run pytest tests/test_runtime_config_api.py -v`
    - Expect 10+ tests passing (existing 4 + new edge case tests)
-2. Run frontend tests: `npm.cmd test -- --run src/__tests__/user-permissions.test.tsx`
+2. Run frontend tests: `npm test -- src/__tests__/user-permissions.test.ts`
    - Expect all permission helper tests passing
-3. Run full frontend test suite: `npm.cmd test -- --run`
+3. Run full backend gates: `uv run pytest`, `uv run ruff check .`, and
+   `uv run mypy backend`
+   - Expect no backend regressions
+4. Run full frontend gates: `npm run lint`, `npm test`, and `npm run build`
    - Expect no regressions in existing runtime-config tests
-4. Verify documentation: `python scripts/validate_agents_docs.py --level ERROR`
+5. Verify documentation: `python scripts/validate_agents_docs.py --level ERROR`
    - Expect no errors
+6. Verify patch hygiene: `git diff --check`
+   - Expect no whitespace errors
 
 Test verification:
 - New backend tests should cover capability derivation edge cases that the existing

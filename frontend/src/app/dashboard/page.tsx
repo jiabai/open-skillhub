@@ -12,16 +12,17 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { api } from "@/lib/api"
 import { useRuntimeConfig } from "@/hooks/use-runtime-config"
 import { getPrimaryNavigation } from "@/lib/navigation"
+import { canManageUsers, canViewAuditLogs } from "@/lib/user-permissions"
 import { formatMessage } from "@/i18n/format-message"
 import { useI18n } from "@/i18n/use-i18n"
-import type { DashboardOverview, SkillCachePolicyResponse } from "@/types"
+import type { DashboardOverview, SkillCachePolicyResponse, User } from "@/types"
 
 export default function DashboardPage() {
   const { config } = useRuntimeConfig()
   const { dictionary } = useI18n()
   const [overview, setOverview] = useState<DashboardOverview | null>(null)
   const [cachePolicy, setCachePolicy] = useState<SkillCachePolicyResponse | null>(null)
-  const [canManageUsers, setCanManageUsers] = useState(false)
+  const [currentUser, setCurrentUser] = useState<User | null>(null)
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading")
   const [error, setError] = useState<string | null>(null)
   const rbacEnabled = config.capabilities.rbac
@@ -40,7 +41,7 @@ export default function DashboardPage() {
         ])
         setOverview(overviewData)
         setCachePolicy(cachePolicyData)
-        setCanManageUsers(Boolean(currentUser?.is_superuser || currentUser?.role === "admin"))
+        setCurrentUser(currentUser)
         setStatus("ready")
       } catch (err) {
         setStatus("error")
@@ -55,11 +56,11 @@ export default function DashboardPage() {
     () =>
       getPrimaryNavigation({
         rbacEnabled,
-        canManageUsers,
-        enableAuditLog: config.capabilities.audit_log,
+        canManageUsers: canManageUsers(currentUser, config.capabilities),
+        enableAuditLog: canViewAuditLogs(currentUser, config.capabilities),
         labels: navigationLabels,
       }).filter((item) => ["/skills", "/public-skills", "/tokens", "/audit", "/admin/users"].includes(item.href)),
-    [rbacEnabled, canManageUsers, config.capabilities.audit_log, navigationLabels]
+    [rbacEnabled, currentUser, config.capabilities, navigationLabels]
   )
 
   if (!rbacEnabled) {

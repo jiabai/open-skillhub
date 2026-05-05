@@ -4,7 +4,7 @@
 
 | File | Focus |
 |------|-------|
-| `runtime-capabilities-enhancement-plan.md` | Expand capability tests, add permission helper, document contract constraints |
+| _None_ | _No active repo-wide execution plans_ |
 
 ## Working Agreement
 

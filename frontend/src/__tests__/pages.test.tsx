@@ -201,6 +201,19 @@ describe("console pages", () => {
         audit_log: true,
       },
     })
+    vi.mocked(api.getMe).mockResolvedValueOnce({
+      id: "admin-1",
+      email: "admin@example.com",
+      username: "admin",
+      is_active: true,
+      is_superuser: true,
+      enterprise_id: null,
+      team_id: null,
+      role: "admin",
+      status: "active",
+      created_at: "2026-04-08T00:00:00Z",
+      updated_at: "2026-04-08T00:00:00Z",
+    } as any)
     renderWithRuntimeConfig(<DashboardPage />)
     expect(await screen.findByRole("heading", { name: "概览" })).toBeInTheDocument()
     expect(await screen.findByText("团队 / 组织概览")).toBeInTheDocument()

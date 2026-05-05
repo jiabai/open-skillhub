@@ -26,6 +26,8 @@
 | `skills-api-boundary-plan.md` | Console skill routes are documented and regression-tested as JWT/RBAC-only, Client skill list/download/upload remain API-token-only, and frontend Client API download helpers now require explicit API tokens |
 | `backend-engineering-refactor-plan.md` | Batch A middleware infrastructure refactor completed: request logging and global rate limiting now use pure ASGI middleware, duplicate logging-layer 500 shaping was removed, and distributed rate-limit storage remains tracked debt |
 | `backend-engineering-refactor-tasks.md` | 4-task Batch A checklist completed with focused middleware tests and full backend/docs hard gates passing |
+| `runtime-capabilities-enhancement-plan.md` | Runtime capability follow-up completed with expanded backend derivation tests, frontend permission helper boundary, navigation wiring, and capability contract documentation |
+| `runtime-capabilities-enhancement-tasks.md` | Runtime capability enhancement checklist completed with backend/frontend/docs gates passing |
 
 ## Notes
 

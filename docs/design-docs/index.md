@@ -16,6 +16,7 @@ This directory stores durable design decisions, architecture notes, and review f
 | `public-skill-sync-cli.md` | Stable contract for the host-side public skill sync command |
 | `landing-page-light-mode.md` | Light-mode landing page visual design decisions and color mapping |
 | `content-hash-dedup.md` | Content hash computation, storage, and three-state sync model for skill distribution dedup |
+| `capability-contract.md` | Stable runtime capability contract rules and capability/permission boundary |
 
 ## How To Use This Directory
 

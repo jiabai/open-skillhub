@@ -1,6 +1,6 @@
 # Tech Debt Tracker
 
-Last updated: 2026-05-04
+Last updated: 2026-05-05
 
 ## High Priority
 
@@ -8,7 +8,6 @@ Last updated: 2026-05-04
 |------|----------------|--------|
 | Refresh token hardening | Current rotation behavior is weaker than strict single-use invalidation and reuse detection | `docs/design-docs/2026-04-12-code-review-findings.md` |
 | Large backend workflow files | Oversized modules increase coordination cost and make boundary drift more likely | `docs/exec-plans/active/2026-04-10-backend-consolidation-refactor-plan.md`, `docs/exec-plans/active/error-architecture-refactor-plan.md` |
-| Skills API boundary clarity | Mixed JWT and API-token semantics raise maintenance and client-integration risk | `docs/exec-plans/active/skills-api-boundary.md` |
 
 ## Medium Priority
 

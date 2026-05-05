@@ -23,6 +23,7 @@
 | `client-skills-upload-tasks.md` | 5-task execution checklist for Client API upload implementation; all tasks marked done with full backend validation passing |
 | `error-architecture-refactor-plan.md` | Backend verification errors now use canonical exceptions, auth/users routers share presenter-based payloads, tool errors share the same payload model, and backend/docs gates passed |
 | `enum-catalog-consolidation-plan.md` | Skill visibility moved to a shared authored catalog with synced backend/frontend runtime copies; role remains config-backed and skill_kind remains backend-derived |
+| `skills-api-boundary-plan.md` | Console skill routes are documented and regression-tested as JWT/RBAC-only, Client skill list/download/upload remain API-token-only, and frontend Client API download helpers now require explicit API tokens |
 
 ## Notes
 

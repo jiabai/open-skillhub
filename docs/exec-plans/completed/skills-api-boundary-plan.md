@@ -1,13 +1,17 @@
 # Skills API Boundary
 
-Updated: 2026-05-01
-Status: Draft
+Updated: 2026-05-05
+Status: Completed
 Purpose: define a stable boundary between Web console JWT APIs and programmatic API token APIs for skill-related endpoints.
 
 ## Progress
 
 - [x] (2026-04-24) Narrowed `GET /api/v1/client/skills` to user-owned private-space records and added regression coverage for the `limit=1` connection-check path.
 - [x] (2026-05-01) Classified `POST /api/v1/client/skills/upload` as an API-token-only Client API endpoint and linked it to the client skills upload spec, design note, and active implementation plan.
+- [x] (2026-05-05) Rechecked the implementation after the client upload merge. Console skill routes now use JWT/RBAC dependencies, and Client API list/download/upload routes use API-token dependencies.
+- [x] (2026-05-05) Add explicit route-family auth regression tests so future changes cannot accidentally make Console APIs accept API tokens or Client APIs accept JWT access tokens.
+- [x] (2026-05-05) Remove the stale frontend ambiguity where web-console API helpers call `/api/v1/client/skills/download` using browser JWT storage semantics.
+- [x] (2026-05-05) Archive this plan after implementation and validation.
 
 ## Design Goal
 
@@ -77,17 +81,20 @@ Future client-oriented endpoints should also live under `/api/v1/client/skills/.
 
 ## Current Inconsistencies
 
-The following existing endpoints are currently implemented as API-token-only but conceptually belong to the Console API because they are used by the web UI:
+No backend route-level mismatch remains after the 2026-05-05 recheck.
 
-- `GET /api/v1/skills`
-- `GET /api/v1/skills/{skill_uuid}`
-- `GET /api/v1/skills/{skill_uuid}/versions`
-- `GET /api/v1/skills/{skill_uuid}/versions/{version}`
-- `GET /api/v1/skills/{skill_uuid}/versions/{version}/install-instructions`
+The current cleanup item is in the frontend API client: `downloadSkill()` and
+`downloadSkillRaw()` live in the web-console API module but call
+`POST /api/v1/client/skills/download`, which is intentionally API-token-only.
+Because those helpers use the same browser JWT storage and refresh machinery as
+Console API calls, a future UI caller would get a confusing 401 and could blur
+the route-family boundary again.
 
-The following client endpoint is already implemented, but its list semantics need to stay tightly scoped to owned workspace records rather than the broader visible-skill catalog:
-
-- `GET /api/v1/client/skills`
+The intended fix is to make the helper names and parameters explicit:
+`downloadClientSkill()` and `downloadClientSkillRaw()` must require an API token
+argument and must not use browser JWT refresh behavior. If the web console later
+needs human-initiated downloads, that should be designed as a separate Console
+API flow instead of reusing the Client API path implicitly.
 
 ## Auth Rules
 
@@ -118,6 +125,8 @@ The following client endpoint is already implemented, but its list semantics nee
 - `skill.download`
   - High-sensitivity export/distribution capability
   - Keep in the Client API surface by default
+  - Browser-console code may wrap this route only when the caller explicitly
+    supplies an API token and the helper name makes the Client API boundary clear
 
 ## Linked Upload Contract
 
@@ -126,16 +135,16 @@ upload, versioning, and audit requirements:
 
 - Product spec: `docs/product-specs/2026-05-01-client-skills-upload.md`
 - Design note: `docs/design-docs/client-skills-upload-api.md`
-- ExecPlan: `docs/exec-plans/active/client-skills-upload-plan.md`
-- Task checklist: `docs/exec-plans/active/client-skills-upload-tasks.md`
+- ExecPlan: `docs/exec-plans/completed/client-skills-upload-plan.md`
+- Task checklist: `docs/exec-plans/completed/client-skills-upload-tasks.md`
 
 ## Migration Order
 
-1. Align existing console-used skill read endpoints with JWT auth.
-2. Introduce `/api/v1/client/skills/...` routes for token-based distribution workflows.
-3. Remove legacy `/api/v1/skills/download` and keep only `/api/v1/client/skills/download`.
-4. Update tests to reflect the final route split.
-5. Add documentation for callers so JWT and API token usage are not confused.
+1. Align existing console-used skill read endpoints with JWT auth. Done.
+2. Introduce `/api/v1/client/skills/...` routes for token-based distribution workflows. Done.
+3. Keep skill download under `/api/v1/client/skills/download` for API-token callers.
+4. Update tests to reflect the final route split. Done.
+5. Add documentation for callers so JWT and API token usage are not confused. Done.
 
 ## Decision Log
 
@@ -143,6 +152,17 @@ upload, versioning, and audit requirements:
   Rationale: the route family should communicate the auth model. Mixing JWT Session and API Token upload semantics under the same path would make permissions, audit source, and caller expectations harder to reason about.
   Date/Author: 2026-05-01 / Codex
 
+- Decision: Do not add a JWT Console API download route in this batch.
+  Rationale: existing desktop and automation downloads already use the API-token
+  Client API contract. A human console download flow has separate product and
+  permission questions and should not be inferred from stale frontend helpers.
+  Date/Author: 2026-05-05 / Codex
+
 ## Validation Notes
 
 - 2026-05-01: Documentation-only boundary update. `python scripts/validate_agents_docs.py --level ERROR` passed with 0 errors and 0 warnings.
+- 2026-05-05: Frontend red/green check: `npm test -- api-download.test.ts` first failed because `downloadClientSkill*` helpers did not exist, then passed after adding explicit API-token Client API helpers.
+- 2026-05-05: Backend focused boundary check: `uv run pytest tests/test_skills_api_boundary.py -v` passed with 2 tests.
+- 2026-05-05: Full backend check: `uv run pytest` passed with 642 tests.
+- 2026-05-05: Static/backend docs checks passed: `uv run ruff check .`, `uv run mypy backend`, and `python scripts/validate_agents_docs.py --level ERROR`.
+- 2026-05-05: Full frontend checks passed: `npm run lint`, `npm test` with 64 tests, and `npm run build`.

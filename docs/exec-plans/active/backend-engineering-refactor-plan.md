@@ -1,17 +1,17 @@
 # Backend Software Engineering Refactor Plan
 
-Updated: 2026-05-04
+Updated: 2026-05-05
 Status: Draft
 Purpose: Identify and prioritize software engineering design issues in the backend that are NOT covered by existing active execution plans, and propose a structured refactoring roadmap.
 
 ## Excluded Scope
 
-The following issues are already tracked in active execution plans and are NOT repeated here:
+The following issues are already tracked in separate execution plans or the tech debt tracker and are NOT repeated here:
 
-- Error architecture unification → `error-architecture-refactor-plan.md`
-- Enum catalog consolidation (role, visibility, skill_kind) → `enum-catalog-consolidation-plan.md`
+- Error architecture unification → `../completed/error-architecture-refactor-plan.md`
+- Enum catalog consolidation (role, visibility, skill_kind) → `../completed/enum-catalog-consolidation-plan.md`
 - Runtime capabilities enhancement → `runtime-capabilities-enhancement-plan.md`
-- Skills API boundary (JWT vs API-token) → `skills-api-boundary-plan.md`
+- Skills API boundary (JWT vs API-token) → `../completed/skills-api-boundary-plan.md`
 - Legacy `ValueError` shim in error mapper → already in tech-debt-tracker
 - `user_state.py` backward-compatible shim → already in tech-debt-tracker
 - `_list_cloned_source_ids_legacy_fallback()` → already in tech-debt-tracker

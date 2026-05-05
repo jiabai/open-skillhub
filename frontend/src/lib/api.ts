@@ -94,6 +94,13 @@ type TextResponse = {
   text: string
 }
 
+type ClientSkillDownloadRequest = {
+  apiToken: string
+  skill_uuid: string
+  version?: string
+  signal?: AbortSignal
+}
+
 const getErrorInfo = (payload: unknown, fallback: string): { detail: string; code?: string } => {
   if (payload && typeof payload === "object" && "detail" in payload) {
     const detail = (payload as { detail?: string | { detail?: string; code?: string }; code?: string }).detail
@@ -152,6 +159,28 @@ const fetchText = async (path: string, options: ApiRequestOptions = {}): Promise
   if (resolvedToken) {
     headers.set("Authorization", `Bearer ${resolvedToken}`)
   }
+  const response = await fetch(`${apiBaseUrl}${path}`, { ...requestOptions, headers, signal })
+  const text = await response.text().catch(() => "")
+  return { response, text }
+}
+
+const fetchClientJson = async (path: string, apiToken: string, options: RequestInit = {}): Promise<ApiResponse> => {
+  const { signal, ...requestOptions } = options
+  const headers = new Headers(requestOptions.headers)
+  headers.set("Content-Type", "application/json")
+  headers.set("Authorization", `Bearer ${apiToken}`)
+  const response = await fetch(`${apiBaseUrl}${path}`, { ...requestOptions, headers, signal })
+  if (response.status === 204) {
+    return { response, payload: {} }
+  }
+  const payload = await response.json().catch(() => ({}))
+  return { response, payload }
+}
+
+const fetchClientText = async (path: string, apiToken: string, options: RequestInit = {}): Promise<TextResponse> => {
+  const { signal, ...requestOptions } = options
+  const headers = new Headers(requestOptions.headers)
+  headers.set("Authorization", `Bearer ${apiToken}`)
   const response = await fetch(`${apiBaseUrl}${path}`, { ...requestOptions, headers, signal })
   const text = await response.text().catch(() => "")
   return { response, text }
@@ -255,6 +284,23 @@ async function apiFetchText(path: string, options: ApiRequestOptions = {}): Prom
         throw error
       }
     }
+  }
+  throw new ApiError(getDetailFromText(text, response.statusText), response.status)
+}
+
+async function clientApiFetch<T>(path: string, apiToken: string, options: RequestInit = {}): Promise<T> {
+  const { response, payload } = await fetchClientJson(path, apiToken, options)
+  if (response.ok) {
+    return payload as T
+  }
+  const error = getErrorInfo(payload, response.statusText)
+  throw new ApiError(error.detail, response.status, error.code)
+}
+
+async function clientApiFetchText(path: string, apiToken: string, options: RequestInit = {}): Promise<string> {
+  const { response, text } = await fetchClientText(path, apiToken, options)
+  if (response.ok) {
+    return text
   }
   throw new ApiError(getDetailFromText(text, response.statusText), response.status)
 }
@@ -459,17 +505,17 @@ export const api = {
     apiFetch<SkillInstallInstructions>(`/api/v1/skills/${skillUuid}/versions/${version}/install-instructions`),
   rollbackSkillVersion: (skillUuid: string, version: string) =>
     apiFetch<SkillVersion>(`/api/v1/skills/${skillUuid}/versions/${version}/rollback`, { method: "POST" }),
-  downloadSkill: (payload: { skill_uuid: string; version?: string; signal?: AbortSignal }) => {
-    const { signal, ...body } = payload
-    return apiFetch<SkillDownloadResponse>("/api/v1/client/skills/download", {
+  downloadClientSkill: (payload: ClientSkillDownloadRequest) => {
+    const { apiToken, signal, ...body } = payload
+    return clientApiFetch<SkillDownloadResponse>("/api/v1/client/skills/download", apiToken, {
       method: "POST",
       body: JSON.stringify(body),
       signal,
     })
   },
-  downloadSkillRaw: async (payload: { skill_uuid: string; version?: string; signal?: AbortSignal }) => {
-    const { signal, ...body } = payload
-    const text = await apiFetchText("/api/v1/client/skills/download", {
+  downloadClientSkillRaw: async (payload: ClientSkillDownloadRequest) => {
+    const { apiToken, signal, ...body } = payload
+    const text = await clientApiFetchText("/api/v1/client/skills/download", apiToken, {
       method: "POST",
       body: JSON.stringify(body),
       signal,

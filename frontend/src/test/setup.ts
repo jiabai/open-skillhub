@@ -50,7 +50,18 @@ vi.mock("@/lib/api", () => {
       updateSkill: vi.fn(async () => ({ id: "skill", name: "demo", description: "" })),
       referencePublicSkill: vi.fn(async () => ({ id: "skill", name: "demo", description: "" })),
       clonePublicSkill: vi.fn(async () => ({ id: "skill", name: "demo-copy", description: "" })),
-      downloadSkillRaw: vi.fn(async () => ({
+      downloadClientSkill: vi.fn(async () => ({
+        skill_uuid: "skill",
+        version: "1.0.0",
+        encrypted_code: "abc",
+        checksum: "sha256:123",
+        expires_at: "2026-04-08T00:00:00Z",
+        archive_size_bytes: 128,
+        encryption_enabled: false,
+        download_filename: "skill-skill-1.0.0.json",
+        decryption_hint: null,
+      })),
+      downloadClientSkillRaw: vi.fn(async () => ({
         rawText: '{"skill_uuid":"skill","version":"1.0.0"}',
         payload: {
           skill_uuid: "skill",

@@ -34,12 +34,21 @@ describe("download api", () => {
     }))
     vi.stubGlobal("fetch", fetchMock)
 
-    const { api } = await import("@/lib/api")
+    const { api, storeTokens } = await import("@/lib/api")
+    storeTokens({ access_token: "jwt-access-token", refresh_token: "refresh-token" })
     const controller = new AbortController()
-    await api.downloadSkill({ skill_uuid: "skill-1", version: "1.0.0", signal: controller.signal })
+    await api.downloadClientSkill({
+      apiToken: "client-api-token",
+      skill_uuid: "skill-1",
+      version: "1.0.0",
+      signal: controller.signal,
+    })
 
     expect(fetchMock).toHaveBeenCalledTimes(1)
-    const [, options] = fetchMock.mock.calls[0] as [string, RequestInit]
+    const [url, options] = fetchMock.mock.calls[0] as [string, RequestInit]
+    const headers = new Headers(options.headers)
+    expect(url).toContain("/api/v1/client/skills/download")
+    expect(headers.get("Authorization")).toBe("Bearer client-api-token")
     expect(options.signal).toBe(controller.signal)
     expect(options.body).toBe(JSON.stringify({ skill_uuid: "skill-1", version: "1.0.0" }))
   })
@@ -59,7 +68,11 @@ describe("download api", () => {
     vi.stubGlobal("fetch", fetchMock)
 
     const { api } = await import("@/lib/api")
-    const result = await api.downloadSkillRaw({ skill_uuid: "skill-1", version: "1.0.0" })
+    const result = await api.downloadClientSkillRaw({
+      apiToken: "client-api-token",
+      skill_uuid: "skill-1",
+      version: "1.0.0",
+    })
 
     expect(result.rawText).toBe(rawText)
     expect(result.payload.download_filename).toBe("skill-skill-1-1.0.0.json")
@@ -73,7 +86,7 @@ describe("download api", () => {
 
     const { api, ApiError } = await import("@/lib/api")
 
-    await expect(api.downloadSkill({ skill_uuid: "skill-1" })).rejects.toEqual(
+    await expect(api.downloadClientSkill({ apiToken: "client-api-token", skill_uuid: "skill-1" })).rejects.toEqual(
       expect.objectContaining({
         name: "ApiError",
         message: "Skill deactivated",

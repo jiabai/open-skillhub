@@ -5,7 +5,6 @@
 | File | Focus |
 |------|-------|
 | `runtime-capabilities-enhancement-plan.md` | Expand capability tests, add permission helper, document contract constraints |
-| `skills-api-boundary-plan.md` | Clarify JWT console APIs versus API-token client APIs |
 | `backend-engineering-refactor-plan.md` | Software engineering design issues: god-class, DI, audit coupling, rate limiter, commit semantics, etc. |
 
 ## Working Agreement

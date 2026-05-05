@@ -1,9 +1,8 @@
 import asyncio
 import time
 
-from fastapi import Request
-from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import JSONResponse
+from starlette.types import ASGIApp, Receive, Scope, Send
 
 from backend.config.settings import settings
 from backend.core.errors import error_payload
@@ -11,9 +10,9 @@ from backend.core.errors import error_payload
 _RATE_LIMIT_CLEANUP_INTERVAL_SECONDS = 60
 
 
-class RateLimitMiddleware(BaseHTTPMiddleware):
-    def __init__(self, app):
-        super().__init__(app)
+class RateLimitMiddleware:
+    def __init__(self, app: ASGIApp):
+        self.app = app
         self._requests: dict[str, list[float]] = {}
         self._lock = asyncio.Lock()
         self._last_cleanup = 0.0
@@ -38,15 +37,11 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
     def _current_limits() -> tuple[int, int]:
         return int(settings.RATE_LIMIT_REQUESTS), int(settings.RATE_LIMIT_WINDOW)
 
-    async def dispatch(self, request: Request, call_next):
-        if not settings.ENABLE_RATE_LIMIT:
-            return await call_next(request)
-
+    async def _is_rate_limited(self, client: str) -> bool:
         limit, window = self._current_limits()
         if limit <= 0 or window <= 0:
-            return await call_next(request)
+            return False
 
-        client = request.client.host if request.client else "unknown"
         now = time.monotonic()
         async with self._lock:
             self._cleanup_requests(now, window)
@@ -54,8 +49,26 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
             cutoff = now - window
             timestamps = [ts for ts in timestamps if ts >= cutoff]
             if len(timestamps) >= limit:
-                payload = error_payload("Rate limit exceeded", "RATE_LIMIT_EXCEEDED")
-                return JSONResponse(status_code=429, content=payload)
+                return True
             timestamps.append(now)
             self._requests[client] = timestamps
-        return await call_next(request)
+        return False
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+
+        if not settings.ENABLE_RATE_LIMIT:
+            await self.app(scope, receive, send)
+            return
+
+        client_address = scope.get("client")
+        client = str(client_address[0]) if client_address else "unknown"
+        if await self._is_rate_limited(client):
+            payload = error_payload("Rate limit exceeded", "RATE_LIMIT_EXCEEDED")
+            response = JSONResponse(status_code=429, content=payload)
+            await response(scope, receive, send)
+            return
+
+        await self.app(scope, receive, send)

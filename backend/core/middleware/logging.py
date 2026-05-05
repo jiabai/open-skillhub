@@ -3,10 +3,8 @@ from datetime import datetime, timedelta, timezone
 import sys
 from pathlib import Path
 
-from fastapi import Request
-from fastapi.responses import JSONResponse
 from loguru import logger
-from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 from backend.config.settings import settings
 from backend.db.session import get_async_session
@@ -108,21 +106,28 @@ def configure_loguru() -> None:
             pass
 
 
-class RequestLoggingMiddleware(BaseHTTPMiddleware):
-    async def dispatch(self, request: Request, call_next):
+class RequestLoggingMiddleware:
+    def __init__(self, app: ASGIApp):
+        self.app = app
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+
+        method = str(scope.get("method") or "")
+        path = str(scope.get("path") or "")
+        status_code = 500
+
+        async def send_wrapper(message: Message) -> None:
+            nonlocal status_code
+            if message["type"] == "http.response.start":
+                status_code = int(message["status"])
+            await send(message)
+
         try:
-            response = await call_next(request)
-        except Exception as exc:
-            detail = "Internal Server Error"
-            if settings.DEBUG:
-                detail = str(exc) or exc.__class__.__name__
-            response = JSONResponse(
-                status_code=500,
-                content={
-                    "detail": detail,
-                    "code": "INTERNAL_SERVER_ERROR",
-                    "timestamp": datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z"),
-                },
-            )
-        logger.info(f"{request.method} {request.url.path} {response.status_code}")
-        return response
+            await self.app(scope, receive, send_wrapper)
+        except Exception:
+            logger.info(f"{method} {path} 500")
+            raise
+        logger.info(f"{method} {path} {status_code}")

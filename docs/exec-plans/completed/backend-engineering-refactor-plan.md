@@ -1,8 +1,34 @@
 # Backend Software Engineering Refactor Plan
 
 Updated: 2026-05-05
-Status: Draft
+Status: Completed
 Purpose: Identify and prioritize software engineering design issues in the backend that are NOT covered by existing active execution plans, and propose a structured refactoring roadmap.
+
+## Current Execution Scope
+
+This execution plan started as a backend-wide design debt inventory. For this
+implementation batch it is narrowed to **Batch A: Security and Infrastructure**,
+covering:
+
+- Issue 3: rate-limit middleware infrastructure
+- Issue 4: request logging middleware exception handling
+- Issue 11: `BaseHTTPMiddleware` removal for logging and global rate limiting
+
+The bounded goal for this batch is to remove `BaseHTTPMiddleware` from the two
+current core middlewares and centralize unexpected exception response shaping in
+`backend/api/_exceptions.py`. Distributed rate-limit storage, Redis integration,
+and the other architecture issues remain follow-up work after this batch.
+
+Task checklist: `docs/exec-plans/completed/backend-engineering-refactor-tasks.md`
+
+## Progress
+
+- [x] (2026-05-05) Rechecked repository workflow, execution gates, backend guidance, architecture, design, and security docs.
+- [x] (2026-05-05) Verified current middleware code: only `RequestLoggingMiddleware` and `RateLimitMiddleware` still extend `BaseHTTPMiddleware`; `DeprecationMiddleware` is already pure ASGI.
+- [x] (2026-05-05) Scoped this execution to Batch A.1 so the plan can close with hard gates instead of attempting the full backend-wide roadmap in one change.
+- [x] (2026-05-05) Add regression coverage for middleware ASGI shape and centralized unexpected exception handling.
+- [x] (2026-05-05) Convert logging and rate-limit middleware to pure ASGI while preserving current request logging and rate-limit response behavior.
+- [x] (2026-05-05) Run backend and docs gates, then archive the completed plan and task checklist.
 
 ## Excluded Scope
 
@@ -115,10 +141,11 @@ Evidence:
 
 ### Proposed Direction
 
-- Abstract the rate limit store behind an interface (`RateLimitStore` protocol).
-- Provide two implementations: in-memory (for single-process dev) and Redis (for production).
-- Migrate from `BaseHTTPMiddleware` to pure ASGI middleware (following the pattern already established in `DeprecationMiddleware`).
-- Make the store backend configurable via `settings.RATE_LIMIT_BACKEND`.
+- For this batch: migrate from `BaseHTTPMiddleware` to pure ASGI middleware while
+  preserving current in-memory behavior and response shape.
+- Later batch: abstract the rate limit store behind an interface (`RateLimitStore`
+  protocol), add a production store such as Redis, and make the backend
+  configurable via a dedicated setting.
 
 ### Affected Files
 
@@ -383,7 +410,7 @@ Evidence:
 
 ### Problem
 
-Three middleware classes extend `BaseHTTPMiddleware`:
+Two middleware classes extend `BaseHTTPMiddleware`:
 
 - `RequestLoggingMiddleware` (`backend/core/middleware/logging.py`)
 - `RateLimitMiddleware` (`backend/core/middleware/rate_limit.py`)
@@ -469,6 +496,14 @@ Evidence:
 
 These are tightly coupled: the rate limiter and logging middleware both use `BaseHTTPMiddleware` and both need ASGI migration. Fixing them together avoids double rewrites.
 
+Current batch decision:
+
+- Convert both middleware classes to pure ASGI.
+- Remove duplicate 500-response construction from request logging.
+- Keep the existing in-memory rate-limit algorithm for now.
+- Track production-grade distributed rate-limit storage as follow-up work rather
+  than introducing an unconfigured Redis dependency in this infrastructure batch.
+
 ### Batch B: Architecture Simplification (Issues 1, 5, 6)
 
 SkillService decomposition, repository commit semantics, and DI container are interdependent. The DI container makes SkillService decomposition cleaner, and the Unit of Work pattern makes repository commit semantics consistent. Address them as a coordinated batch.
@@ -490,3 +525,25 @@ After each batch:
 3. `uv run mypy backend` — no new type errors.
 4. `python scripts/validate_agents_docs.py --level ERROR` — documentation stays consistent.
 5. Update `docs/exec-plans/tech-debt-tracker.md` with resolved items.
+
+## Decision Log
+
+- Decision: Do not add Redis/distributed rate-limit storage in this batch.
+  Rationale: the immediate safety issue is middleware shape and centralized
+  exception handling. A production store changes configuration, dependencies, and
+  deployment behavior, so it deserves a separate execution plan and acceptance
+  criteria.
+  Date/Author: 2026-05-05 / Codex
+
+## Validation Notes
+
+- 2026-05-05: Red checks first failed as expected:
+  `uv run pytest tests/test_middleware_architecture.py tests/test_api_auth.py::test_unhandled_exception_uses_error_format -q`
+  failed because both middleware classes still inherited `BaseHTTPMiddleware` and
+  the unhandled exception response exposed `boom`.
+- 2026-05-05: Focused middleware/auth checks passed:
+  `uv run pytest tests/test_app_startup.py tests/test_rate_limit_cleanup.py tests/test_request_metrics.py tests/test_api_auth.py tests/test_middleware_architecture.py -q`
+  passed with 26 tests.
+- 2026-05-05: Full backend gate passed: `uv run pytest` passed with 643 tests.
+- 2026-05-05: Static and docs gates passed: `uv run ruff check .`,
+  `uv run mypy backend`, and `python scripts/validate_agents_docs.py --level ERROR`.

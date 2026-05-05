@@ -300,17 +300,21 @@ async def test_health_ignores_db_failure(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_unhandled_exception_uses_error_format(app, client):
+async def test_unhandled_exception_uses_error_format(app):
     async def boom():
         raise RuntimeError("boom")
 
     app.add_api_route("/boom", boom, methods=["GET"])
-    response = await client.get("/boom")
+    transport = httpx.ASGITransport(app=app, raise_app_exceptions=False)
+    async with httpx.AsyncClient(transport=transport, base_url="http://test") as session:
+        response = await session.get("/boom")
     assert response.status_code == 500
     payload = response.json()
     assert "detail" in payload
     assert "code" in payload
     assert "timestamp" in payload
+    assert payload["detail"] == "Internal Server Error"
+    assert payload["code"] == "INTERNAL_SERVER_ERROR"
     assert payload["timestamp"].endswith("Z")
 
 

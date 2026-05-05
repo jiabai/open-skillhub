@@ -1,7 +1,6 @@
 from types import SimpleNamespace
 
 import pytest
-from starlette.responses import JSONResponse
 
 from backend.config.settings import settings
 from backend.core.middleware.rate_limit import RateLimitMiddleware
@@ -55,20 +54,15 @@ async def test_rate_limit_middleware_periodically_cleans_expired_clients(monkeyp
     clock = {"now": 0.0}
     monkeypatch.setattr(rate_limit_module.time, "monotonic", lambda: clock["now"])
     middleware = RateLimitMiddleware(lambda scope, receive, send: None)
-    request_a = SimpleNamespace(client=SimpleNamespace(host="client-a"))
-    request_b = SimpleNamespace(client=SimpleNamespace(host="client-b"))
-
-    async def call_next(_request):
-        return JSONResponse({"ok": True})
 
     try:
-        response_a = await middleware.dispatch(request_a, call_next)
-        assert response_a.status_code == 200
+        limited_a = await middleware._is_rate_limited("client-a")
+        assert limited_a is False
         assert "client-a" in middleware._requests
 
         clock["now"] = 20.0
-        response_b = await middleware.dispatch(request_b, call_next)
-        assert response_b.status_code == 200
+        limited_b = await middleware._is_rate_limited("client-b")
+        assert limited_b is False
         assert "client-a" not in middleware._requests
         assert "client-b" in middleware._requests
     finally:

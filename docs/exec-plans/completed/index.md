@@ -24,6 +24,8 @@
 | `error-architecture-refactor-plan.md` | Backend verification errors now use canonical exceptions, auth/users routers share presenter-based payloads, tool errors share the same payload model, and backend/docs gates passed |
 | `enum-catalog-consolidation-plan.md` | Skill visibility moved to a shared authored catalog with synced backend/frontend runtime copies; role remains config-backed and skill_kind remains backend-derived |
 | `skills-api-boundary-plan.md` | Console skill routes are documented and regression-tested as JWT/RBAC-only, Client skill list/download/upload remain API-token-only, and frontend Client API download helpers now require explicit API tokens |
+| `backend-engineering-refactor-plan.md` | Batch A middleware infrastructure refactor completed: request logging and global rate limiting now use pure ASGI middleware, duplicate logging-layer 500 shaping was removed, and distributed rate-limit storage remains tracked debt |
+| `backend-engineering-refactor-tasks.md` | 4-task Batch A checklist completed with focused middleware tests and full backend/docs hard gates passing |
 
 ## Notes
 

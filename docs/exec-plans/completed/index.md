@@ -21,6 +21,7 @@
 | `public-skill-import-cli-tasks.md` | 5-task checklist completed; all implementation and validation steps marked done with 12 passing tests |
 | `client-skills-upload-plan.md` | API-token-only Client API ZIP upload endpoint completed; new `POST /api/v1/client/skills/upload` supports skill creation and version append with full validation (mypy, 635 pytest, ruff, docs) passing |
 | `client-skills-upload-tasks.md` | 5-task execution checklist for Client API upload implementation; all tasks marked done with full backend validation passing |
+| `error-architecture-refactor-plan.md` | Backend verification errors now use canonical exceptions, auth/users routers share presenter-based payloads, tool errors share the same payload model, and backend/docs gates passed |
 
 ## Notes
 

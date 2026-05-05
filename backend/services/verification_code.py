@@ -12,6 +12,12 @@ from loguru import logger
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from backend.core.errors import (
+    CodeExpiredError,
+    CodeInvalidError,
+    ResendTooFrequentError,
+    TooManyAttemptsError,
+)
 from backend.db.session import get_async_session
 from backend.models.email_delivery_log import EmailDeliveryLog
 from backend.models.verification_code import VerificationCode
@@ -147,7 +153,7 @@ class VerificationCodeService:
         now = self._now()
         existing = await self._get_record(normalized, purpose)
         if existing and now < self._ensure_aware(existing.resend_available_at):
-            raise ValueError("RESEND_TOO_FREQUENT")
+            raise ResendTooFrequentError()
         record = CodeRecord(
             code=self._generate_code(),
             expires_at=now + timedelta(seconds=self._expires_in),
@@ -191,7 +197,7 @@ class VerificationCodeService:
         normalized = self._normalize(email)
         record = await self._get_record(normalized, purpose)
         if not record:
-            raise ValueError("CODE_INVALID")
+            raise CodeInvalidError()
         now = self._now()
         if now >= self._ensure_aware(record.expires_at):
             await self._session.execute(
@@ -201,13 +207,13 @@ class VerificationCodeService:
                 ),
             )
             await self._session.commit()
-            raise ValueError("CODE_EXPIRED")
+            raise CodeExpiredError()
         if record.attempts_left <= 0:
-            raise ValueError("TOO_MANY_ATTEMPTS")
+            raise TooManyAttemptsError()
         if not hmac.compare_digest(record.code_hash, self._hash_code(code)):
             record.attempts_left -= 1
             await self._session.commit()
-            raise ValueError("CODE_INVALID")
+            raise CodeInvalidError()
         await self._session.execute(
             delete(VerificationCode).where(
                 VerificationCode.email == normalized,

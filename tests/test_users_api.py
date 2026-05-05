@@ -136,7 +136,7 @@ class TestUsersAPIErrorHandling:
         assert response.status_code == 422
 
     @pytest.mark.asyncio
-    async def test_delete_me_invalid_code_keeps_raw_detail_shape(self, client):
+    async def test_delete_me_invalid_code_returns_structured_verification_error(self, client):
         token = await sso_login(
             client,
             email="delete-shape@example.com",
@@ -151,8 +151,8 @@ class TestUsersAPIErrorHandling:
             json={"code": "000000"},
             headers={"Authorization": f"Bearer {token}"},
         )
-        assert response.status_code == 400
+        assert response.status_code == 401
         payload = response.json()
-        assert payload["detail"] == "CODE_INVALID"
-        assert payload["code"] == "BAD_REQUEST"
+        assert payload["detail"] == "验证码错误"
+        assert payload["code"] == "CODE_INVALID"
         assert payload["timestamp"].endswith("Z")

@@ -167,12 +167,16 @@ docker compose cp ./local-skill/. api:/app/data/skills/__system__/demo-skill/
 
 因此 Linux 部署时，只需要保证后端环境变量正确，不需要再额外同步一套前端业务开关。
 
-### 7. 共享用户状态 catalog 采用“构建前同步”，不是运行时直接读取根目录 `shared/`
+### 7. 共享 catalog 采用“构建前同步”，不是运行时直接读取根目录 `shared/`
 
-`shared/user-statuses.json` 是唯一编辑源，但运行时实际消费的是各子项目内已提交的本地副本：
+`shared/` 下的文件是编辑源，但运行时实际消费的是各子项目内已提交的本地副本：
 
-- backend：`backend/domain/user-statuses.json`
-- frontend：`frontend/src/generated/user-statuses.json`
+- `shared/user-statuses.json`
+  - backend：`backend/domain/user-statuses.json`
+  - frontend：`frontend/src/generated/user-statuses.json`
+- `shared/skill-visibilities.json`
+  - backend：`backend/domain/skill-visibilities.json`
+  - frontend：`frontend/src/generated/skill-visibilities.json`
 
 在 Docker 构建、发布打包或 CI 校验前，请执行：
 
@@ -180,7 +184,7 @@ docker compose cp ./local-skill/. api:/app/data/skills/__system__/demo-skill/
 python scripts/sync_shared_catalogs.py --check
 ```
 
-如果你确实修改了 `shared/user-statuses.json`，请先重新生成本地副本：
+如果你确实修改了共享 catalog，请先重新生成本地副本：
 
 ```bash
 python scripts/sync_shared_catalogs.py --write
@@ -400,7 +404,7 @@ docker compose --env-file .env.preprod -f docker-compose.yml -f docker-compose.d
 
 纯源码变更在 `git pull` 后应该自动重载。
 
-如果你修改了 `shared/user-statuses.json`，请先在宿主机执行 `python scripts/sync_shared_catalogs.py --write`，把 `backend/domain/` 和 `frontend/src/generated/` 下的运行时副本刷新后，再做重建或热重载验证。
+如果你修改了 `shared/` 下的 catalog，请先在宿主机执行 `python scripts/sync_shared_catalogs.py --write`，把 `backend/domain/` 和 `frontend/src/generated/` 下的运行时副本刷新后，再做重建或热重载验证。
 
 当依赖文件变更时需要重建对应服务：
 
@@ -496,7 +500,7 @@ docker compose --env-file .env.preprod -f docker-compose.yml -f docker-compose.d
 - `uv.lock` 用一个源生成，构建时又用另一个源
   这样很容易导致构建卡住，或者依赖仍然去错误的包源下载。
 
-- 修改了 `shared/user-statuses.json`，却没有执行 `python scripts/sync_shared_catalogs.py --write`
+- 修改了 `shared/` 下的 catalog，却没有执行 `python scripts/sync_shared_catalogs.py --write`
   backend 和 frontend 构建读取的是各自已提交的本地副本，不同步就不会生效。
 
 - 误以为 README 已经覆盖了全部生产部署细节

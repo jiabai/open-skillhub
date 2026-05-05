@@ -167,13 +167,17 @@ The frontend reads:
 
 So Linux deployment only needs correct backend env values. There is no separate frontend business feature-flag layer to keep in sync.
 
-### 7. Shared user-status catalogs are synced before build, not loaded from root `shared/` at runtime
+### 7. Shared catalogs are synced before build, not loaded from root `shared/` at runtime
 
-`shared/user-statuses.json` is the authoring source, but backend and frontend each
-consume a committed local copy during runtime:
+Files under `shared/` are authoring sources, but backend and frontend each consume
+committed local copies during runtime:
 
-- backend: `backend/domain/user-statuses.json`
-- frontend: `frontend/src/generated/user-statuses.json`
+- `shared/user-statuses.json`
+  - backend: `backend/domain/user-statuses.json`
+  - frontend: `frontend/src/generated/user-statuses.json`
+- `shared/skill-visibilities.json`
+  - backend: `backend/domain/skill-visibilities.json`
+  - frontend: `frontend/src/generated/skill-visibilities.json`
 
 Before Docker builds, release packaging, or CI validation, run:
 
@@ -181,8 +185,7 @@ Before Docker builds, release packaging, or CI validation, run:
 python scripts/sync_shared_catalogs.py --check
 ```
 
-If you intentionally edited `shared/user-statuses.json`, regenerate the local
-copies first:
+If you intentionally edited a shared catalog, regenerate the local copies first:
 
 ```bash
 python scripts/sync_shared_catalogs.py --write
@@ -402,7 +405,7 @@ The dev overlay bind-mounts `backend/` into the migration container, so newly pu
 
 Source-only changes should reload automatically after `git pull`.
 
-If you edit `shared/user-statuses.json`, run `python scripts/sync_shared_catalogs.py --write` on the host first so the committed runtime-local copies under `backend/domain/` and `frontend/src/generated/` are refreshed before rebuilds or reload checks.
+If you edit a catalog under `shared/`, run `python scripts/sync_shared_catalogs.py --write` on the host first so the committed runtime-local copies under `backend/domain/` and `frontend/src/generated/` are refreshed before rebuilds or reload checks.
 
 Rebuild the affected service when dependency files change:
 
@@ -498,7 +501,7 @@ If you switch to PostgreSQL, update `DATABASE_URL` and add a `db` service to Com
 - Regenerating `uv.lock` against one index and building against another
   Builds may stall or fetch from the wrong package source.
 
-- Editing `shared/user-statuses.json` but skipping `python scripts/sync_shared_catalogs.py --write`
+- Editing a catalog under `shared/` but skipping `python scripts/sync_shared_catalogs.py --write`
   Backend and frontend builds use their committed local copies, so the new source catalog will not take effect until the synced runtime files are regenerated.
 
 - Assuming README already contains the full production guide

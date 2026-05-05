@@ -2,6 +2,7 @@
 // 参考文档：docs/frontend-design/01-api-types.md
 
 import type { UserStatus } from "@/lib/user-status"
+import type { SkillVisible, WritableSkillVisible } from "@/lib/skill-visibility"
 
 // ========== 基础类型 ==========
 
@@ -10,7 +11,7 @@ export type TokenPair = {
   refresh_token: string
 }
 
-export type SkillVisible = "private" | "team" | "enterprise" | "public"
+export type { SkillVisible, WritableSkillVisible }
 export type SkillKind = "regular" | "public" | "reference" | "clone"
 
 // ========== 核心数据模型 ==========
@@ -291,14 +292,14 @@ export type SkillCreateRequest = {
   name: string
   description?: string | null
   tags?: string[]
-  visible?: Exclude<SkillVisible, "public">
+  visible?: WritableSkillVisible
 }
 
 export type SkillUpdateRequest = {
   name?: string
   description?: string | null
   tags?: string[]
-  visible?: Exclude<SkillVisible, "public">
+  visible?: WritableSkillVisible
 }
 
 export type PublicSkillReferenceRequest = {
@@ -308,7 +309,7 @@ export type PublicSkillReferenceRequest = {
 
 export type PublicSkillCloneRequest = {
   name: string
-  visible?: Exclude<SkillVisible, "public">
+  visible?: WritableSkillVisible
 }
 
 export type TokenCreateRequest = {

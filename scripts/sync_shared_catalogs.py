@@ -1,8 +1,10 @@
-"""同步共享目录中的 user-statuses.json 到后端和前端生成目录。
+"""同步共享目录中的 catalog JSON 到后端和前端生成目录。
 
-此脚本用于确保 shared/user-statuses.json 的变更能够自动同步到：
+此脚本用于确保 shared/ 中的 catalog 变更能够自动同步到：
 - backend/domain/user-statuses.json
 - frontend/src/generated/user-statuses.json
+- backend/domain/skill-visibilities.json
+- frontend/src/generated/skill-visibilities.json
 
 用法：
   python scripts/sync_shared_catalogs.py --check   # 检查是否需要同步
@@ -22,6 +24,11 @@ USER_STATUS_SOURCE = REPO_ROOT / "shared" / "user-statuses.json"
 USER_STATUS_TARGETS = (
     REPO_ROOT / "backend" / "domain" / "user-statuses.json",
     REPO_ROOT / "frontend" / "src" / "generated" / "user-statuses.json",
+)
+SKILL_VISIBILITY_SOURCE = REPO_ROOT / "shared" / "skill-visibilities.json"
+SKILL_VISIBILITY_TARGETS = (
+    REPO_ROOT / "backend" / "domain" / "skill-visibilities.json",
+    REPO_ROOT / "frontend" / "src" / "generated" / "skill-visibilities.json",
 )
 
 
@@ -59,6 +66,45 @@ def _validate_user_status_catalog(catalog: object) -> dict[str, object]:
     }
 
 
+def _validate_skill_visibility_catalog(catalog: object) -> dict[str, object]:
+    if not isinstance(catalog, dict):
+        raise ValueError("Catalog must be a JSON object")
+
+    default = catalog.get("default")
+    values = catalog.get("values")
+    writable = catalog.get("writable")
+    labels = catalog.get("labels")
+
+    if not isinstance(default, str) or not default.strip():
+        raise ValueError("Catalog default must be a non-empty string")
+    if not isinstance(values, list) or not values or not all(isinstance(value, str) and value.strip() for value in values):
+        raise ValueError("Catalog values must be a non-empty list of strings")
+    if not isinstance(writable, list) or not writable or not all(isinstance(value, str) and value.strip() for value in writable):
+        raise ValueError("Catalog writable values must be a non-empty list of strings")
+    if not isinstance(labels, dict) or not all(isinstance(key, str) and isinstance(value, str) for key, value in labels.items()):
+        raise ValueError("Catalog labels must be an object of string keys and string values")
+
+    normalized_values = [value.strip() for value in values]
+    normalized_writable = [value.strip() for value in writable]
+    if len(set(normalized_values)) != len(normalized_values):
+        raise ValueError("Catalog values must not contain duplicates")
+    if len(set(normalized_writable)) != len(normalized_writable):
+        raise ValueError("Catalog writable values must not contain duplicates")
+    if not set(normalized_writable).issubset(set(normalized_values)):
+        raise ValueError("Catalog writable values must be a subset of values")
+    if default.strip() not in normalized_writable:
+        raise ValueError("Catalog default must be one of catalog writable values")
+    if set(labels) != set(normalized_values):
+        raise ValueError("Catalog labels must match catalog values exactly")
+
+    return {
+        "default": default.strip(),
+        "values": normalized_values,
+        "writable": normalized_writable,
+        "labels": {value: labels[value] for value in normalized_values},
+    }
+
+
 def _normalize_catalog_text(catalog: dict[str, object]) -> str:
     return json.dumps(catalog, ensure_ascii=False, indent=2) + "\n"
 
@@ -89,6 +135,31 @@ def sync_user_status_catalog(
     return drifted
 
 
+def sync_skill_visibility_catalog(
+    source_path: Path = SKILL_VISIBILITY_SOURCE,
+    target_paths: Sequence[Path] = SKILL_VISIBILITY_TARGETS,
+    *,
+    write: bool,
+) -> list[Path]:
+    catalog = _validate_skill_visibility_catalog(_load_json(source_path))
+    expected_text = _normalize_catalog_text(catalog)
+    drifted = _iter_drifted_targets(expected_text, target_paths)
+
+    if write:
+        for target in target_paths:
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_text(expected_text, encoding="utf-8")
+
+    return drifted
+
+
+def sync_all_catalogs(*, write: bool) -> list[Path]:
+    drifted: list[Path] = []
+    drifted.extend(sync_user_status_catalog(write=write))
+    drifted.extend(sync_skill_visibility_catalog(write=write))
+    return drifted
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Sync generated catalog copies from shared JSON sources.")
     mode = parser.add_mutually_exclusive_group(required=True)
@@ -96,11 +167,11 @@ def main(argv: Sequence[str] | None = None) -> int:
     mode.add_argument("--write", action="store_true", help="Rewrite generated catalog copies from shared sources.")
     args = parser.parse_args(argv)
 
-    drifted = sync_user_status_catalog(write=args.write)
+    drifted = sync_all_catalogs(write=args.write)
 
     if args.write:
-        print("Synced user status catalog:")
-        for target in USER_STATUS_TARGETS:
+        print("Synced shared catalogs:")
+        for target in (*USER_STATUS_TARGETS, *SKILL_VISIBILITY_TARGETS):
             print(f"  - {target.relative_to(REPO_ROOT)}")
         return 0
 

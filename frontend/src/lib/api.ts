@@ -2,7 +2,7 @@ import type {
   TokenPair,
   ConsoleSkill,
   PublicSkill,
-  SkillVisible,
+  WritableSkillVisible,
   Token,
   User,
   UserIdentityUpdate,
@@ -324,10 +324,10 @@ export const api = {
     return apiFetch<{ items: PublicSkill[]; total: number }>(`/api/v1/skills/public${queryString ? `?${queryString}` : ""}`)
   },
   getPublicSkill: (skillUuid: string) => apiFetch<PublicSkill>(`/api/v1/skills/public/${skillUuid}`),
-  createSkill: (payload: { name: string; description?: string | null; tags?: string[]; visible?: "private" | "team" | "enterprise" }) =>
+  createSkill: (payload: { name: string; description?: string | null; tags?: string[]; visible?: WritableSkillVisible }) =>
     apiFetch<ConsoleSkill>("/api/v1/skills", { method: "POST", body: JSON.stringify(payload) }),
   getSkill: (skillUuid: string) => apiFetch<ConsoleSkill>(`/api/v1/skills/${skillUuid}`),
-  updateSkill: (skillUuid: string, payload: { name?: string; description?: string | null; tags?: string[]; visible?: "private" | "team" | "enterprise" }) =>
+  updateSkill: (skillUuid: string, payload: { name?: string; description?: string | null; tags?: string[]; visible?: WritableSkillVisible }) =>
     apiFetch<ConsoleSkill>(`/api/v1/skills/${skillUuid}`, { method: "PUT", body: JSON.stringify(payload) }),
   referencePublicSkill: (skillUuid: string, payload: PublicSkillReferenceRequest) =>
     apiFetch<ConsoleSkill>(`/api/v1/skills/${skillUuid}/reference`, { method: "POST", body: JSON.stringify(payload) }),
@@ -391,7 +391,7 @@ export const api = {
 
     return (await response.json()) as { filename: string }
   },
-  uploadSkillZip: async (file: File, visibility?: SkillVisible, onProgress?: (progress: number) => void) => {
+  uploadSkillZip: async (file: File, visibility?: WritableSkillVisible, onProgress?: (progress: number) => void) => {
     const tokens = getStoredTokens()
     const formData = new FormData()
     formData.append("file", file)

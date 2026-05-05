@@ -6,6 +6,7 @@ from backend.config.settings import settings
 from backend.core.security.rbac import is_skill_visible
 from backend.core.utils.skill_archive import delete_archives_for_skill, rename_archives_for_skill
 from backend.core.utils.skill_storage import create_skill_dir, delete_skill_dir, get_user_skill_dir, validate_skill_name
+from backend.domain.skill_visibility import PUBLIC_SKILL_VISIBILITY, normalize_writable_skill_visibility
 from backend.models.skill import Skill
 from backend.models.user import User
 from backend.repositories.skill import SkillRepository
@@ -89,7 +90,7 @@ class SkillLifecycleCoordinator:
 
     @staticmethod
     def is_public_skill(skill: Skill) -> bool:
-        return (skill.visibility or "").strip().lower() == "public"
+        return (skill.visibility or "").strip().lower() == PUBLIC_SKILL_VISIBILITY
 
     @staticmethod
     def is_reference_skill(skill: Skill) -> bool:
@@ -151,9 +152,10 @@ class SkillLifecycleCoordinator:
         if await self.skill_repo.get_by_name(user.id, name):
             raise SkillError(SkillErrorCode.SKILL_ALREADY_EXISTS)
         tags = tags or []
-        visibility_value = (visibility or settings.DEFAULT_SKILL_VISIBILITY or "private").strip().lower()
-        if visibility_value not in {"private", "team", "enterprise"}:
-            raise SkillError(SkillErrorCode.INVALID_VISIBILITY)
+        try:
+            visibility_value = normalize_writable_skill_visibility(visibility, settings.DEFAULT_SKILL_VISIBILITY)
+        except ValueError as exc:
+            raise SkillError(SkillErrorCode.INVALID_VISIBILITY) from exc
         path = create_skill_dir(user.id, name)
         return await self.skill_repo.create(
             user_id=user.id,
@@ -176,10 +178,11 @@ class SkillLifecycleCoordinator:
                 raise SkillError(SkillErrorCode.REFERENCE_SKILL_READ_ONLY)
         visibility = fields.get("visibility")
         if visibility is not None:
-            normalized = str(visibility).strip().lower()
-            if normalized not in {"private", "team", "enterprise"}:
-                raise SkillError(SkillErrorCode.INVALID_VISIBILITY)
-            fields["visibility"] = normalized
+            try:
+                normalized = normalize_writable_skill_visibility(str(visibility), settings.DEFAULT_SKILL_VISIBILITY)
+            except ValueError as exc:
+                raise SkillError(SkillErrorCode.INVALID_VISIBILITY) from exc
+            fields["visibility"] = str(normalized)
         new_name = fields.get("name")
         if new_name is None:
             fields.pop("name", None)

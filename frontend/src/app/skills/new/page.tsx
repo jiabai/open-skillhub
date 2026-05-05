@@ -6,7 +6,12 @@ import { AlertCircle, CheckCircle2, FileArchive, Loader2, UploadCloud } from "lu
 
 import { api } from "@/lib/api"
 import { useRuntimeConfig } from "@/hooks/use-runtime-config"
-import type { SkillVisible } from "@/types"
+import {
+  DEFAULT_SKILL_VISIBILITY,
+  WRITABLE_SKILL_VISIBILITY_VALUES,
+  getSkillVisibilityLabel,
+  type WritableSkillVisible,
+} from "@/lib/skill-visibility"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
@@ -29,7 +34,7 @@ export default function NewSkillPage() {
   const [uploadState, setUploadState] = useState<UploadState>("idle")
   const [progress, setProgress] = useState(0)
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
-  const [visibility, setVisibility] = useState<SkillVisible>("private")
+  const [visibility, setVisibility] = useState<WritableSkillVisible>(DEFAULT_SKILL_VISIBILITY)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [createdSkill, setCreatedSkill] = useState<{
     id: string
@@ -285,14 +290,16 @@ export default function NewSkillPage() {
               {config.capabilities.skill_visibility ? (
                 <div className="flex flex-col gap-2">
                   <Label htmlFor="visibility">{newSkill.visibilityLabel}</Label>
-                  <Select value={visibility} onValueChange={(value) => setVisibility(value as SkillVisible)} disabled={uploadState === "uploading"}>
+                  <Select value={visibility} onValueChange={(value) => setVisibility(value as WritableSkillVisible)} disabled={uploadState === "uploading"}>
                     <SelectTrigger id="visibility">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="private">{newSkill.visibilityPrivate}</SelectItem>
-                      <SelectItem value="team">{newSkill.visibilityTeam}</SelectItem>
-                      <SelectItem value="enterprise">{newSkill.visibilityEnterprise}</SelectItem>
+                      {WRITABLE_SKILL_VISIBILITY_VALUES.map((value) => (
+                        <SelectItem key={value} value={value}>
+                          {getSkillVisibilityLabel(value, newSkill)}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                   <p className="text-xs text-muted-foreground">{newSkill.visibilityHelp}</p>

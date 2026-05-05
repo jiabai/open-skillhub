@@ -1,10 +1,8 @@
 from datetime import datetime
 from typing import Literal
 
+from backend.domain.skill_visibility import SkillVisibilityValue, WritableSkillVisibility
 from pydantic import AliasChoices, BaseModel, Field
-
-
-WritableSkillVisibility = Literal["private", "team", "enterprise"]
 
 
 class SkillCreate(BaseModel):
@@ -32,7 +30,7 @@ class SkillBaseResponse(BaseModel):
     name: str
     description: str
     tags: list[str]
-    visible: str = Field(alias="visibility", serialization_alias="visible")
+    visible: SkillVisibilityValue = Field(alias="visibility", serialization_alias="visible")
     source_skill_id: str | None = None
     pinned_version: str | None = None
     resolved_version: str | None = None
@@ -60,7 +58,7 @@ class PublicSkillResponse(BaseModel):
     name: str
     description: str
     tags: list[str]
-    visible: str = Field(alias="visibility", serialization_alias="visible")
+    visible: SkillVisibilityValue = Field(alias="visibility", serialization_alias="visible")
     pinned_version: str | None = None
     resolved_version: str | None = None
     skill_kind: Literal["public"] = "public"

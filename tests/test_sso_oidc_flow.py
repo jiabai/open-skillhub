@@ -22,7 +22,7 @@ async def test_sso_authorize_redirects_to_provider_with_pkce(client, async_sessi
     assert parsed.netloc == "sso.example.com"
     assert parsed.path == "/oauth2/authorize"
     assert params["response_type"] == ["code"]
-    assert params["client_id"] == ["skillhub-web"]
+    assert params["client_id"] == ["skilldrive-web"]
     assert params["redirect_uri"] == ["http://test/api/v1/auth/sso/callback"]
     assert params["code_challenge_method"] == ["S256"]
     assert params["scope"] == ["openid email profile"]

@@ -27,7 +27,7 @@ export const zhCNDictionary: AppDictionary = {
     tokenNameMaxLength: "令牌名称最长 100 字符",
   },
   home: {
-    title: "SkillHub 控制台",
+    title: "SkillDrive 控制台",
     description: "为你的私有 Skills 提供清晰、可追踪的管理体验。",
     openOverview: "进入概览",
     goToLogin: "前往登录",
@@ -109,7 +109,7 @@ export const zhCNDictionary: AppDictionary = {
   },
   appShell: {
     skipToMainContent: "跳到主要内容",
-    homeAriaLabel: "SkillHub 首页",
+    homeAriaLabel: "SkillDrive 首页",
     brandLabel: "8xf SkillDrive",
     governedConsole: "治理控制台",
     personalWorkspace: "个人工作区",

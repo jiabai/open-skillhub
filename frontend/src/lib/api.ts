@@ -34,7 +34,7 @@ import type {
 // 1. Using HttpOnly cookies (requires backend changes)
 // 2. Implementing Content Security Policy (CSP)
 // 3. Using short-lived tokens with refresh token rotation
-const storageKey = "skillhub.tokens"
+const storageKey = "skilldrive.tokens"
 
 export const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8001"
 

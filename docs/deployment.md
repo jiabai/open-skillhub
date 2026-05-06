@@ -85,7 +85,7 @@ The test-preprod overlay in [docker-compose.dev.yml](/D:/Github/skilldrive/docke
 
 This means, for the overlay:
 
-- SQLite lives at `./data/skillhub.db`
+- SQLite lives at `./data/skilldrive.db`
 - skill files live under `./data/skills`
 - API logs live at `./logs/api.log`
 - backend code reloads through `uvicorn --reload`
@@ -256,7 +256,7 @@ In the overlay, the browser will call the public frontend origin, and Next.js fo
 
 ### 4. Configure Nginx reverse proxy
 
-An example config is provided at [deploy/nginx/skillhub.conf](/D:/Github/skilldrive/deploy/nginx/skillhub.conf).
+An example config is provided at [deploy/nginx/skilldrive.conf](/D:/Github/skilldrive/deploy/nginx/skilldrive.conf).
 
 Core routing:
 
@@ -457,7 +457,7 @@ Current default compose setup uses SQLite persisted in a Docker named volume:
 
 The test-preprod overlay uses the repo-local bind mount:
 
-- `./data/skillhub.db`
+- `./data/skilldrive.db`
 
 ### PostgreSQL
 

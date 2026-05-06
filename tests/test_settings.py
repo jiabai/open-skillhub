@@ -8,7 +8,7 @@ from pydantic import ValidationError
 settings_path = Path(__file__).resolve().parents[1] / "backend" / "config" / "settings.py"
 os.environ.setdefault(
     "DATABASE_URL",
-    "postgresql+asyncpg://user:pass@localhost:5432/skillhub",
+    "postgresql+asyncpg://user:pass@localhost:5432/skilldrive",
 )
 os.environ.setdefault("SECRET_KEY", "a" * 32)
 os.environ.setdefault("DEBUG", "true")
@@ -23,7 +23,7 @@ Settings = settings_module.Settings
 
 def base_settings_kwargs():
     return {
-        "DATABASE_URL": "postgresql+asyncpg://user:pass@localhost:5432/skillhub",
+        "DATABASE_URL": "postgresql+asyncpg://user:pass@localhost:5432/skilldrive",
         "SECRET_KEY": "a" * 32,
         "DEBUG": True,
         "CORS_ORIGINS": ["http://localhost:3000"],
@@ -155,7 +155,7 @@ async def test_init_db_skips_create_all_for_non_sqlite(monkeypatch):
     from backend.db import session as db_session
 
     original_database_url = db_session.settings.DATABASE_URL
-    db_session.settings.DATABASE_URL = "postgresql+asyncpg://user:pass@localhost:5432/skillhub"
+    db_session.settings.DATABASE_URL = "postgresql+asyncpg://user:pass@localhost:5432/skilldrive"
 
     class BrokenBegin:
         async def __aenter__(self):

@@ -27,7 +27,7 @@ export const enUSDictionary: AppDictionary = {
     tokenNameMaxLength: "Token name must be 100 characters or fewer",
   },
   home: {
-    title: "SkillHub Console",
+    title: "SkillDrive Console",
     description: "A clear, traceable way to manage your private Skills.",
     openOverview: "Open Overview",
     goToLogin: "Go to Login",
@@ -109,7 +109,7 @@ export const enUSDictionary: AppDictionary = {
   },
   appShell: {
     skipToMainContent: "Skip to main content",
-    homeAriaLabel: "SkillHub home",
+    homeAriaLabel: "SkillDrive home",
     brandLabel: "8xf SkillDrive",
     governedConsole: "Governed console",
     personalWorkspace: "Personal workspace",

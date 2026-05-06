@@ -73,8 +73,8 @@ testing are validated on a macOS release machine.
 ## Application Metadata
 
 - Product name: `SkillDrive Desktop`
-- Builder appId: `com.openskillhub.skilldrive-desktop`
-- Runtime Windows AppUserModelID: `com.openskillhub.skilldrive-desktop`
+- Builder appId: `com.skilldrive.skilldrive-desktop`
+- Runtime Windows AppUserModelID: `com.skilldrive.skilldrive-desktop`
 - Package name: `skilldrive-desktop`
 - Version: from `package.json`
 - Description: `SkillDrive desktop sync client`

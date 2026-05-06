@@ -70,7 +70,7 @@ describe("AppShell auth guard", () => {
     pathnameMock = "/"
     replaceMock.mockClear()
     refreshMock.mockClear()
-    window.localStorage.removeItem("skillhub.tokens")
+    window.localStorage.removeItem("skilldrive.tokens")
 
     renderWithRuntimeConfig(<AppShell>public landing</AppShell>)
 
@@ -81,7 +81,7 @@ describe("AppShell auth guard", () => {
   it("redirects to login when not authenticated", async () => {
     replaceMock.mockClear()
     refreshMock.mockClear()
-    window.localStorage.removeItem("skillhub.tokens")
+    window.localStorage.removeItem("skilldrive.tokens")
     renderWithRuntimeConfig(<AppShell>content</AppShell>)
     await waitFor(() => {
       expect(replaceMock).toHaveBeenCalledWith("/login")
@@ -92,19 +92,19 @@ describe("AppShell auth guard", () => {
     replaceMock.mockClear()
     refreshMock.mockClear()
     vi.mocked(api.getMe).mockRejectedValueOnce(new Error("unauthorized"))
-    window.localStorage.setItem("skillhub.tokens", JSON.stringify({ access_token: "stale", refresh_token: "refresh" }))
+    window.localStorage.setItem("skilldrive.tokens", JSON.stringify({ access_token: "stale", refresh_token: "refresh" }))
 
     renderWithRuntimeConfig(<AppShell>content</AppShell>)
 
     await waitFor(() => {
       expect(replaceMock).toHaveBeenCalledWith("/login")
     })
-    expect(window.localStorage.getItem("skillhub.tokens")).toBeNull()
+    expect(window.localStorage.getItem("skilldrive.tokens")).toBeNull()
   })
 
   it("shows no-rbac navigation when logged in", async () => {
     __setRuntimeConfigForTests({ capabilities: { rbac: false, no_rbac_mode: true, audit_log: true } })
-    window.localStorage.setItem("skillhub.tokens", JSON.stringify({ access_token: "token", refresh_token: "refresh" }))
+    window.localStorage.setItem("skilldrive.tokens", JSON.stringify({ access_token: "token", refresh_token: "refresh" }))
 
     renderWithRuntimeConfig(<AppShell>content</AppShell>)
 
@@ -131,7 +131,7 @@ describe("AppShell auth guard", () => {
       created_at: "2026-04-08T00:00:00Z",
       updated_at: "2026-04-08T00:00:00Z",
     } as any)
-    window.localStorage.setItem("skillhub.tokens", JSON.stringify({ access_token: "token", refresh_token: "refresh" }))
+    window.localStorage.setItem("skilldrive.tokens", JSON.stringify({ access_token: "token", refresh_token: "refresh" }))
 
     renderWithRuntimeConfig(<AppShell>content</AppShell>)
 
@@ -145,14 +145,14 @@ describe("AppShell auth guard", () => {
   it("switches locale by writing the cookie and refreshing the route", async () => {
     refreshMock.mockClear()
     __setRuntimeConfigForTests({ capabilities: { rbac: false, no_rbac_mode: true, audit_log: true } })
-    window.localStorage.setItem("skillhub.tokens", JSON.stringify({ access_token: "token", refresh_token: "refresh" }))
-    document.cookie = "skillhub.locale=; Max-Age=0; Path=/"
+    window.localStorage.setItem("skilldrive.tokens", JSON.stringify({ access_token: "token", refresh_token: "refresh" }))
+    document.cookie = "skilldrive.locale=; Max-Age=0; Path=/"
 
     renderWithRuntimeConfig(<AppShell>content</AppShell>)
 
     fireEvent.click(await screen.findByRole("button", { name: "切换到 English" }))
 
-    expect(document.cookie).toContain("skillhub.locale=en-US")
+    expect(document.cookie).toContain("skilldrive.locale=en-US")
     expect(refreshMock).toHaveBeenCalledTimes(1)
   })
 
@@ -174,7 +174,7 @@ describe("AppShell auth guard", () => {
       updated_at: "2026-04-08T00:00:00Z",
     } as any)
     vi.mocked(api.logout).mockResolvedValueOnce(undefined)
-    window.localStorage.setItem("skillhub.tokens", JSON.stringify({ access_token: "token", refresh_token: "refresh" }))
+    window.localStorage.setItem("skilldrive.tokens", JSON.stringify({ access_token: "token", refresh_token: "refresh" }))
 
     renderWithRuntimeConfig(<AppShell>content</AppShell>)
 
@@ -186,6 +186,6 @@ describe("AppShell auth guard", () => {
       expect(api.logout).toHaveBeenCalledTimes(1)
       expect(replaceMock).toHaveBeenCalledWith("/login")
     })
-    expect(window.localStorage.getItem("skillhub.tokens")).toBeNull()
+    expect(window.localStorage.getItem("skilldrive.tokens")).toBeNull()
   })
 })

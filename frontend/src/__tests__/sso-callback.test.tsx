@@ -25,7 +25,7 @@ describe("sso callback page", () => {
       expect(replaceMock).toHaveBeenCalledWith("/dashboard")
     })
 
-    expect(window.localStorage.getItem("skillhub.tokens")).toBe(
+    expect(window.localStorage.getItem("skilldrive.tokens")).toBe(
       JSON.stringify({ access_token: "token-123", refresh_token: "refresh-456" })
     )
     expect(window.location.hash).toBe("")

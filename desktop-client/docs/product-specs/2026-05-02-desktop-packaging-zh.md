@@ -67,8 +67,8 @@ Windows 可分发安装包。操作者应该能够从当前 Electron 应用构�
 ## 应用元数据
 
 - 产品名：`SkillDrive Desktop`
-- Builder appId：`com.openskillhub.skilldrive-desktop`
-- 运行时 Windows AppUserModelID：`com.openskillhub.skilldrive-desktop`
+- Builder appId：`com.skilldrive.skilldrive-desktop`
+- 运行时 Windows AppUserModelID：`com.skilldrive.skilldrive-desktop`
 - 包名：`skilldrive-desktop`
 - 版本：来自 `package.json`
 - 描述：`SkillDrive desktop sync client`

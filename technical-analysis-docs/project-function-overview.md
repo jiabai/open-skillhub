@@ -252,4 +252,4 @@ Skill 不只是"一个文件夹"，而是带元数据、版本、状态和访问
 
 ## 7. 一句话总结
 
-SkillDrive 当前可以理解为一个面向 AI Agent 生态的私有 SkillHub 平台，提供用户认证、Skill 上传与版本管理、公共 Skill 复用（仅在 public skill capability 开启时）、权限治理和审计追踪，目标是把 Skills 从零散文件或仓库，提升为可管理、可复用、可分发的正式资产。当前产品边界已经明确：Web 控制台使用 JWT Access Token，客户端分发接口使用 API Token。
+SkillDrive 当前可以理解为一个面向 AI Agent 生态的私有 SkillDrive 平台，提供用户认证、Skill 上传与版本管理、公共 Skill 复用（仅在 public skill capability 开启时）、权限治理和审计追踪，目标是把 Skills 从零散文件或仓库，提升为可管理、可复用、可分发的正式资产。当前产品边界已经明确：Web 控制台使用 JWT Access Token，客户端分发接口使用 API Token。

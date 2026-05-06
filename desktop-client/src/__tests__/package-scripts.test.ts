@@ -46,9 +46,9 @@ describe("desktop package scripts", () => {
 
     expect(packageJson.description).toBe("SkillDrive desktop sync client")
     expect(packageJson.author?.name).toBe("SkillDrive contributors")
-    expect(packageJson.build?.appId).toBe("com.openskillhub.skilldrive-desktop")
+    expect(packageJson.build?.appId).toBe("com.skilldrive.skilldrive-desktop")
     expect(packageJson.build?.productName).toBe("SkillDrive Desktop")
-    expect(mainSource).toContain('const APP_USER_MODEL_ID = "com.openskillhub.skilldrive-desktop"')
+    expect(mainSource).toContain('const APP_USER_MODEL_ID = "com.skilldrive.skilldrive-desktop"')
   })
 
   it("includes the Windows tray icon in extraResources for packaged runtime", () => {

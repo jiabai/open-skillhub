@@ -85,7 +85,7 @@ API_INTERNAL_URL=http://api:8001
 
 在覆盖层模式下：
 
-- SQLite 数据库位于 `./data/skillhub.db`
+- SQLite 数据库位于 `./data/skilldrive.db`
 - skill 文件位于 `./data/skills`
 - API 日志位于 `./logs/api.log`
 - 后端代码会通过 `uvicorn --reload` 自动重载
@@ -255,7 +255,7 @@ python scripts/sync_shared_catalogs.py --check
 
 ### 4. 配置 Nginx 反向代理
 
-示例配置位于 [deploy/nginx/skillhub.conf](/D:/Github/skilldrive/deploy/nginx/skillhub.conf)。
+示例配置位于 [deploy/nginx/skilldrive.conf](/D:/Github/skilldrive/deploy/nginx/skilldrive.conf)。
 
 核心路由方式：
 
@@ -456,7 +456,7 @@ docker compose --env-file .env.preprod -f docker-compose.yml -f docker-compose.d
 
 测试预发覆盖层下，SQLite 文件位于仓库内 bind mount：
 
-- `./data/skillhub.db`
+- `./data/skilldrive.db`
 
 ### PostgreSQL
 

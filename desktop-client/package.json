@@ -23,7 +23,7 @@
     "dist:mac": "electron-builder --mac"
   },
   "build": {
-    "appId": "com.openskillhub.skilldrive-desktop",
+    "appId": "com.skilldrive.skilldrive-desktop",
     "productName": "SkillDrive Desktop",
     "directories": {
       "output": "dist"

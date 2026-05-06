@@ -25,7 +25,7 @@ generated artifact churn in source control.
 - Runtime data paths are owned by `src/core/storage/app-paths.ts`, not by the
   installer configuration.
 - The builder `appId` and runtime Windows AppUserModelID are both
-  `com.openskillhub.skilldrive-desktop`.
+  `com.skilldrive.skilldrive-desktop`.
 - `package.json` provides installer-visible package metadata:
   `description` is `SkillDrive desktop sync client`, and `author.name` is
   `SkillDrive contributors`.

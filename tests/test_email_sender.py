@@ -62,14 +62,14 @@ def test_verification_email_template_contains_brand_and_bilingual_text():
     from backend.services.email_sender import render_verification_email
 
     subject, text, html = render_verification_email(
-        brand="SkillHub",
+        brand="SkillDrive",
         code="123456",
         expires_in=300,
         resend_interval=60,
         purpose="login",
     )
-    assert "SkillHub" in subject
+    assert "SkillDrive" in subject
     assert "验证码" in text
     assert "verification code" in text.lower()
     assert "resend interval" in text.lower()
-    assert "SkillHub" in html
+    assert "SkillDrive" in html

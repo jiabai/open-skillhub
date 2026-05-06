@@ -1,6 +1,6 @@
 """Service runner for SkillDrive service.
 
-This module provides a context manager for starting and managing the skillhub
+This module provides a context manager for starting and managing the skilldrive
 service as a subprocess, with automatic cleanup on exit.
 """
 
@@ -12,10 +12,10 @@ from typing import List, Optional
 from loguru import logger
 
 
-class SkillHubServiceRunner:
-    """Context manager for running skillhub service as a subprocess.
+class SkillDriveServiceRunner:
+    """Context manager for running skilldrive service as a subprocess.
 
-    This class manages the lifecycle of a skillhub service process:
+    This class manages the lifecycle of a skilldrive service process:
     - Starts the service with specified arguments
     - Waits for the service to be ready
     - Provides cleanup on exit
@@ -23,13 +23,13 @@ class SkillHubServiceRunner:
     Example:
         ```python
         service_args = [
-            "skillhub",
+            "skilldrive",
             "config=default",
             "transport=http",
             "metadata.skill_dir=./skills",
         ]
 
-        with SkillHubServiceRunner(service_args, port=8001) as service:
+        with SkillDriveServiceRunner(service_args, port=8001) as service:
             # Service is ready, use it here
             print(f"Service is running on port {service.port}")
         # Service is automatically terminated on exit
@@ -133,7 +133,7 @@ class SkillHubServiceRunner:
             self.process = None
             self._is_ready = False
 
-    def __enter__(self) -> "SkillHubServiceRunner":
+    def __enter__(self) -> "SkillDriveServiceRunner":
         """Start the service and wait for it to be ready.
 
         Returns:
@@ -142,7 +142,7 @@ class SkillHubServiceRunner:
         Raises:
             RuntimeError: If service fails to start within timeout
         """
-        logger.info(f"Starting skillhub service with args: {self.service_args}")
+        logger.info(f"Starting skilldrive service with args: {self.service_args}")
 
         # Start service in background (non-blocking)
         try:

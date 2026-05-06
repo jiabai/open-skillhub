@@ -8,8 +8,8 @@
 ## 已完成事项
 
 - [x] 运行时依赖与启动 smoke test 已完成并通过
-- [x] 后端镜像已切换为 `skillhub` 非 root 用户且默认只运行 Uvicorn
-- [x] 生产 `docker-compose.yml` 已使用 `skillhub-data` named volume
+- [x] 后端镜像已切换为 `skilldrive` 非 root 用户且默认只运行 Uvicorn
+- [x] 生产 `docker-compose.yml` 已使用 `skilldrive-data` named volume
 - [x] 生产 `docker-compose.yml` 已移除默认 `user` 覆盖、文件日志挂载与 `LOG_FILE=/app/logs/...` 注入
 - [x] `/livez`、`/readyz`、`/health` 语义与测试覆盖已完成
 - [x] `README.md`、`README-zh.md`、`docs/deployment.md` 已与生产 Compose 基线对齐

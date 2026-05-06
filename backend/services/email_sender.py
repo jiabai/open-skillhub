@@ -87,7 +87,7 @@ class SmtpEmailSender:
         if not self._host or not self._from_address:
             raise ValueError("SMTP settings are not configured")
         subject, text, html = render_verification_email(
-            brand="SkillHub",
+            brand="SkillDrive",
             code=code,
             expires_in=expires_in,
             resend_interval=resend_interval,
@@ -145,7 +145,7 @@ class AliyunEmailSender:
         if not self._access_key_id or not self._access_key_secret or not self._account_name:
             raise ValueError("Aliyun DM settings are not configured")
         subject, _, html = render_verification_email(
-            brand="SkillHub",
+            brand="SkillDrive",
             code=code,
             expires_in=expires_in,
             resend_interval=resend_interval,

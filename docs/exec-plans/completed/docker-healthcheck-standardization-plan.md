@@ -15,9 +15,9 @@
 
 This work is no longer an active standardization effort. The intended production baseline is now both implemented and runtime-validated:
 
-- the backend image runs as the dedicated `skillhub` user
+- the backend image runs as the dedicated `skilldrive` user
 - schema migration remains a one-shot `migrate` service
-- production Compose uses the `skillhub-data` named volume
+- production Compose uses the `skilldrive-data` named volume
 - default logs go to stdout/stderr
 - container health checks target `/readyz`
 - `/health` remains a compatibility endpoint aligned with readiness semantics

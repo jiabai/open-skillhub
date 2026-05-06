@@ -3,7 +3,7 @@ export const supportedLocales = ["en-US", "zh-CN"] as const
 export type AppLocale = (typeof supportedLocales)[number]
 
 export const defaultLocale: AppLocale = "zh-CN"
-export const localeCookieName = "skillhub.locale"
+export const localeCookieName = "skilldrive.locale"
 
 export function isSupportedLocale(value: string): value is AppLocale {
   return (supportedLocales as readonly string[]).includes(value)

@@ -29,7 +29,7 @@ task checklist are reviewed.
 - [x] (2026-05-02) Resolved the frontend token mismatch by keeping `globals.css` theme variables in HSL values compatible with Tailwind semantic colors.
 - [x] (2026-05-02) Ran focused tests: `npm test -- --run src/__tests__/app-shell-auth.test.tsx` and `npm test -- --run src/__tests__/pages.test.tsx`; both passed.
 - [x] (2026-05-02) Ran `npm run lint`; passed with no warnings or errors.
-- [x] (2026-05-02) Ran `npm test`; first run exposed an existing metadata title drift, then passed after aligning dictionary metadata with `SkillHub`.
+- [x] (2026-05-02) Ran `npm test`; first run exposed an existing metadata title drift, then passed after aligning dictionary metadata with `SkillDrive`.
 - [x] (2026-05-02) Ran `npm run build`; passed.
 - [x] (2026-05-02) Started the frontend dev server on `http://127.0.0.1:3000/` and confirmed `/` returned HTTP 200.
 
@@ -50,7 +50,7 @@ task checklist are reviewed.
 - Observation: the earlier Landing design doc used generic task-management copy and unverified social proof.
   Evidence: it specified "Rated 4.9/5 by 2700+ customers" and "Trusted by Top-tier product companies" without a product source.
 
-- Observation: the frontend i18n test expected `SkillHub Console`, but the dictionaries still used `SkillDrive Console`.
+- Observation: the frontend i18n test expected `SkillDrive Console`, but the dictionaries still used `SkillDrive Console`.
   Evidence: the first full `npm test` run failed `src/__tests__/i18n-config.test.ts` on `metadata.title`.
 
 - Observation: component-rendered preview assets were sufficient for the primary visual.

@@ -63,7 +63,7 @@ import { createDecryptArtifactFromEnv } from "./encryption"
 
 const preloadPath = fileURLToPath(new URL("./preload.js", import.meta.url))
 const devWindowsIconPath = fileURLToPath(new URL("../resources/icons/icon.ico", import.meta.url))
-const APP_USER_MODEL_ID = "com.openskillhub.skilldrive-desktop"
+const APP_USER_MODEL_ID = "com.skilldrive.skilldrive-desktop"
 const TARGET_RENDERER_PHYSICAL_SIZE = {
   width: 1984,
   height: 1168

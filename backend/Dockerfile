@@ -32,16 +32,16 @@ RUN --mount=type=cache,target=/tmp/uv-cache,sharing=locked \
 
 FROM python-base AS runtime
 
-RUN addgroup --system skillhub \
-    && adduser --system --ingroup skillhub --home /app skillhub
+RUN addgroup --system skilldrive \
+    && adduser --system --ingroup skilldrive --home /app skilldrive
 
 COPY --from=builder /app/.venv /app/.venv
-COPY --from=builder --chown=skillhub:skillhub /app/backend /app/backend
+COPY --from=builder --chown=skilldrive:skilldrive /app/backend /app/backend
 
 RUN mkdir -p /app/data /tmp/uv-cache /tmp/.cache \
-    && chown -R skillhub:skillhub /app/data /tmp/uv-cache /tmp/.cache
+    && chown -R skilldrive:skilldrive /app/data /tmp/uv-cache /tmp/.cache
 
-USER skillhub
+USER skilldrive
 
 EXPOSE 8001
 

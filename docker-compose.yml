@@ -5,14 +5,14 @@ x-api-build: &api-build
     - UV_DEFAULT_INDEX=https://pypi.tuna.tsinghua.edu.cn/simple
 
 x-api-env: &api-env
-  DATABASE_URL: sqlite+aiosqlite:////app/data/skillhub.db
+  DATABASE_URL: sqlite+aiosqlite:////app/data/skilldrive.db
   HOME: /app/data
   SKILL_STORAGE_PATH: /app/data/skills
   TIMEZONE: "UTC+8"
   PYTHONPATH: /app
 
 x-api-volumes: &api-volumes
-  - skillhub-data:/app/data
+  - skilldrive-data:/app/data
 
 services:
   migrate:
@@ -79,4 +79,4 @@ services:
           memory: 192M
 
 volumes:
-  skillhub-data:
+  skilldrive-data:

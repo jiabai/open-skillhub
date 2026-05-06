@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/figure/skillhub-logo.png" alt="SkillDrive Logo" width="140" style="vertical-align: middle;">
+  <img src="docs/figure/skilldrive-logo.png" alt="SkillDrive Logo" width="140" style="vertical-align: middle;">
 </p>
 
 <h1 align="center">SkillDrive</h1>
@@ -342,7 +342,7 @@ Connect your client runtime to SkillDrive over REST:
 ```mermaid
 sequenceDiagram
     participant Client as 🤖 AI Client
-    participant API as ⚡ SkillHub API
+    participant API as ⚡ SkillDrive API
     participant DB as 💾 Database
 
     Client->>API: POST /auth/verification-code

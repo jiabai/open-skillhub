@@ -143,13 +143,13 @@ vi.mock("@/lib/api", () => {
       }))
     },
     storeTokens: vi.fn((tokens) => {
-      window.localStorage.setItem("skillhub.tokens", JSON.stringify(tokens))
+      window.localStorage.setItem("skilldrive.tokens", JSON.stringify(tokens))
     }),
     clearTokens: vi.fn(() => {
-      window.localStorage.removeItem("skillhub.tokens")
+      window.localStorage.removeItem("skilldrive.tokens")
     }),
     getStoredTokens: vi.fn(() => {
-      const raw = window.localStorage.getItem("skillhub.tokens")
+      const raw = window.localStorage.getItem("skilldrive.tokens")
       if (!raw) return null
       try {
         return JSON.parse(raw)

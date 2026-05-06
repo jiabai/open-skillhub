@@ -8,17 +8,17 @@
 --   \i backend/scripts/init-db.sql
 
 -- 创建数据库
-CREATE DATABASE skillhub;
+CREATE DATABASE skilldrive;
 
 -- 创建用户（请根据实际需求修改密码）
-CREATE USER skillhub WITH PASSWORD 'skillhub';
+CREATE USER skilldrive WITH PASSWORD 'skilldrive';
 
 -- 授权
-GRANT ALL PRIVILEGES ON DATABASE skillhub TO skillhub;
+GRANT ALL PRIVILEGES ON DATABASE skilldrive TO skilldrive;
 
--- 连接到 skillhub 数据库并设置权限
-\c skillhub
-GRANT ALL ON SCHEMA public TO skillhub;
+-- 连接到 skilldrive 数据库并设置权限
+\c skilldrive
+GRANT ALL ON SCHEMA public TO skilldrive;
 
 -- 提示信息
 -- 数据库初始化完成，请执行以下命令进行迁移：

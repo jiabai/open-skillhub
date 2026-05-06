@@ -51,5 +51,5 @@ Write-Host "API Base URL: $ApiUrl" -ForegroundColor Cyan
 Write-Host "Press Ctrl+C to stop." -ForegroundColor Yellow
 Write-Host ""
 
-$env:SKILLDRIVEB_API_BASE_URL = $ApiUrl
+$env:SKILLDRIVE_API_BASE_URL = $ApiUrl
 npm run start:electron

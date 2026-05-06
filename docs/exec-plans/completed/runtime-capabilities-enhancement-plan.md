@@ -169,7 +169,7 @@ Create `docs/design-docs/capability-contract.md` that explains:
 ### Step 1: Backend Test Expansion
 
 ```bash
-cd D:\Github\skilldrive
+cd D:\Github\open-skillhub
 
 # Read existing tests
 type tests\test_runtime_config_api.py
@@ -186,7 +186,7 @@ Expected output: all existing 4 tests pass, plus 6-8 new tests.
 ### Step 2: Frontend Permission Helper
 
 ```bash
-cd D:\Github\skilldrive\frontend
+cd D:\Github\open-skillhub\frontend
 
 # Create the permission helper module
 # (create frontend/src/lib/user-permissions.ts)
@@ -203,7 +203,7 @@ Expected output: new test file passes with coverage for all helper functions.
 ### Step 3: Capability Contract Documentation
 
 ```bash
-cd D:\Github\skilldrive
+cd D:\Github\open-skillhub
 
 # Create the design doc
 # (create docs/design-docs/capability-contract.md)

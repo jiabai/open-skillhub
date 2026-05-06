@@ -190,7 +190,7 @@ Out of scope for this batch:
 ### Inventory phase
 
 ```bash
-cd D:\Github\skilldrive
+cd D:\Github\open-skillhub
 Get-Content backend\core\security\rbac.py
 Get-Content backend\services\skill.py
 Get-Content frontend\src\types\index.ts

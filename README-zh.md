@@ -17,7 +17,7 @@
   <a href="https://pypi.org/project/skilldrive/"><img src="https://img.shields.io/pypi/v/skilldrive.svg?style=flat-square&logo=pypi&color=green" alt="PyPI 版本"></a>
   <a href="https://hub.docker.com/"><img src="https://img.shields.io/badge/docker-ready-blue?style=flat-square&logo=docker&logoColor=white" alt="Docker Ready"></a>
   <a href="./LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0-black?style=flat-square" alt="许可证"></a>
-  <a href="https://github.com/jiabai/skilldrive"><img src="https://img.shields.io/github/stars/jiabai/skilldrive?style=social" alt="GitHub Stars"></a>
+  <a href="https://github.com/jiabai/open-skillhub"><img src="https://img.shields.io/github/stars/jiabai/open-skillhub?style=social" alt="GitHub Stars"></a>
 </p>
 
 <p align="center">
@@ -106,7 +106,7 @@ SkillDrive 支持向所有主流 AI 编程 Agent 分发技能：
 默认 Compose 走的是生产型基线：SQLite 使用 named volume，日志输出到 stdout/stderr，不需要宿主机上的 `./data` 或 `./logs` 目录。
 
 ```bash
-git clone https://github.com/jiabai/skilldrive.git
+git clone https://github.com/jiabai/open-skillhub.git
 cd skilldrive
 cp backend/.env.example backend/.env
 # 编辑 backend/.env — 至少需要修改 SECRET_KEY 为 32 位以上的随机字符串
@@ -569,7 +569,7 @@ docker compose logs -f
 </p>
 
 <p align="center">
-  <a href="https://github.com/jiabai/skilldrive/stargazers">
-    <img src="https://img.shields.io/github/stars/jiabai/skilldrive?style=social" alt="Star on GitHub">
+  <a href="https://github.com/jiabai/open-skillhub/stargazers">
+    <img src="https://img.shields.io/github/stars/jiabai/open-skillhub?style=social" alt="Star on GitHub">
   </a>
 </p>

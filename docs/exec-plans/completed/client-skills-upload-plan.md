@@ -145,7 +145,7 @@ Update this plan's Progress, Surprises & Discoveries, Decision Log, and validati
 ### Step 1: Add failing Client API upload tests
 
 ```bash
-cd D:\Github\skilldrive
+cd D:\Github\open-skillhub
 uv run pytest tests/test_client_skills_api.py -v
 ```
 
@@ -154,7 +154,7 @@ Expected before implementation: new upload tests fail because `/api/v1/client/sk
 ### Step 2: Implement the endpoint
 
 ```bash
-cd D:\Github\skilldrive
+cd D:\Github\open-skillhub
 # edit backend/api/v1/client_skills.py
 uv run pytest tests/test_client_skills_api.py -v
 ```
@@ -164,7 +164,7 @@ Expected after implementation: all Client API tests pass.
 ### Step 3: Run focused upload regressions
 
 ```bash
-cd D:\Github\skilldrive
+cd D:\Github\open-skillhub
 uv run pytest tests/test_api_skills.py tests/test_client_skills_api.py -v
 ```
 
@@ -173,7 +173,7 @@ Expected: Console upload and Client API upload behavior both pass.
 ### Step 4: Run backend gates
 
 ```bash
-cd D:\Github\skilldrive
+cd D:\Github\open-skillhub
 uv run pytest
 uv run ruff check .
 uv run mypy backend

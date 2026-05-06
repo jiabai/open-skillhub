@@ -17,7 +17,7 @@
   <a href="https://pypi.org/project/skilldrive/"><img src="https://img.shields.io/pypi/v/skilldrive.svg?style=flat-square&logo=pypi&color=green" alt="PyPI Version"></a>
   <a href="https://hub.docker.com/"><img src="https://img.shields.io/badge/docker-ready-blue?style=flat-square&logo=docker&logoColor=white" alt="Docker Ready"></a>
   <a href="./LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0-black?style=flat-square" alt="License"></a>
-  <a href="https://github.com/jiabai/skilldrive"><img src="https://img.shields.io/github/stars/jiabai/skilldrive?style=social" alt="GitHub Stars"></a>
+  <a href="https://github.com/jiabai/open-skillhub"><img src="https://img.shields.io/github/stars/jiabai/open-skillhub?style=social" alt="GitHub Stars"></a>
 </p>
 
 <p align="center">
@@ -106,7 +106,7 @@ SkillDrive distributes skills to all major AI coding agents:
 The default Compose stack is production-like: it uses a named volume for SQLite, keeps logs on stdout/stderr, and does not require host `./data` or `./logs` directories.
 
 ```bash
-git clone https://github.com/jiabai/skilldrive.git
+git clone https://github.com/jiabai/open-skillhub.git
 cd skilldrive
 cp backend/.env.example backend/.env
 # Edit backend/.env — at minimum, change SECRET_KEY to a random 32+ char string
@@ -569,7 +569,7 @@ This project is licensed under **Apache License 2.0** — see [LICENSE](./LICENS
 </p>
 
 <p align="center">
-  <a href="https://github.com/jiabai/skilldrive/stargazers">
-    <img src="https://img.shields.io/github/stars/jiabai/skilldrive?style=social" alt="Star on GitHub">
+  <a href="https://github.com/jiabai/open-skillhub/stargazers">
+    <img src="https://img.shields.io/github/stars/jiabai/open-skillhub?style=social" alt="Star on GitHub">
   </a>
 </p>

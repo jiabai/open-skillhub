@@ -84,21 +84,21 @@ Implemented targeted import on the existing sync script, added focused test cove
 
 ### Step 1: Implement the CLI contract
 
-    cd D:\Github\skilldrive
+    cd D:\Github\open-skillhub
     # edit backend/scripts/sync_public_skills.py
 
 Expected result: the script can run as either a full sync or a targeted single-skill import.
 
 ### Step 2: Extend tests
 
-    cd D:\Github\skilldrive
+    cd D:\Github\open-skillhub
     uv run pytest tests/test_sync_public_skills.py -v
 
 Expected result: existing tests keep passing after the sync logic is refactored, and new cases cover the targeted mode.
 
 ### Step 3: Update docs
 
-    cd D:\Github\skilldrive
+    cd D:\Github\open-skillhub
     python scripts/validate_agents_docs.py --level ERROR
 
 Expected result: the new spec, plan, tasks, design note, and index entries are accepted by the repository validator.

@@ -1,4 +1,4 @@
-# Open SkillHub AGENTS.md
+# SkillDrive AGENTS.md
 
 ## Quick Entry
 

@@ -2,7 +2,7 @@
 
 ## Background
 
-Open SkillHub web sessions currently use JWT access tokens and JWT refresh
+SkillDrive web sessions currently use JWT access tokens and JWT refresh
 tokens. Refresh tokens are re-issued on `/api/v1/auth/refresh`, but the backend
 does not keep per-refresh-token state. That means an old refresh token remains
 usable until it expires, unless the user's global `jwt_token_version` changes.

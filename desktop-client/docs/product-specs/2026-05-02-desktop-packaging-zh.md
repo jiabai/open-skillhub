@@ -71,8 +71,8 @@ Windows 可分发安装包。操作者应该能够从当前 Electron 应用构�
 - 运行时 Windows AppUserModelID：`com.openskillhub.skilldrive-desktop`
 - 包名：`skilldrive-desktop`
 - 版本：来自 `package.json`
-- 描述：`Open SkillHub desktop sync client`
-- 作者元数据：`Open SkillHub contributors`
+- 描述：`SkillDrive desktop sync client`
+- 作者元数据：`SkillDrive contributors`
 - Windows 图标：`resources/icons/icon.ico`
 - macOS 图标：`resources/icons/icon.icns`，仅用于探索性构建
 

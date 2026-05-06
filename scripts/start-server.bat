@@ -1,5 +1,5 @@
 @echo off
-REM Open SkillHub 启动脚本 (Batch)
+REM SkillDrive 启动脚本 (Batch)
 REM 用法: scripts\start-server.bat [port] [--skip-config-check]
 
 setlocal enabledelayedexpansion
@@ -12,7 +12,7 @@ set SKIP_CONFIG_CHECK=0
 if "%2"=="--skip-config-check" set SKIP_CONFIG_CHECK=1
 
 echo ========================================
-echo   Open SkillHub Server Launcher
+echo   SkillDrive Server Launcher
 echo ========================================
 echo.
 

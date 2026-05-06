@@ -1,5 +1,5 @@
 @echo off
-REM Open SkillHub 前端启动脚本 (Batch)
+REM SkillDrive 前端启动脚本 (Batch)
 REM 用法: scripts\start-frontend.bat [port] [api_url]
 
 setlocal enabledelayedexpansion
@@ -12,7 +12,7 @@ set API_URL=%2
 if "%API_URL%"=="" set API_URL=http://localhost:8001
 
 echo ========================================
-echo   Open SkillHub Frontend Launcher
+echo   SkillDrive Frontend Launcher
 echo ========================================
 echo.
 

@@ -2,7 +2,7 @@
 
 ## 这份文档解决什么问题
 
-Open SkillHub 需要一个面向未登录用户的宣传导览页（Landing Page），用于说明产品定位、
+SkillDrive 需要一个面向未登录用户的宣传导览页（Landing Page），用于说明产品定位、
 建立可信的第一印象，并引导用户登录、注册或浏览公开 Skills。本文档定义浅色模式下的
 视觉和信息架构约定，供后续实现使用。
 
@@ -33,13 +33,13 @@ Open SkillHub 需要一个面向未登录用户的宣传导览页（Landing Page
 
 ## 产品定位与文案方向
 
-Landing Page 的首屏必须直接说明 Open SkillHub 是什么，而不是使用泛化的项目管理类文案。
+Landing Page 的首屏必须直接说明 SkillDrive 是什么，而不是使用泛化的项目管理类文案。
 
 推荐信息层级：
 
 | 元素 | 内容方向 |
 |------|----------|
-| H1 | `Open SkillHub` |
+| H1 | `SkillDrive` |
 | 副标题 | 面向 AI agent 团队的私有 Skill 注册表、版本管理和分发控制台 |
 | 信任徽章 | `Private skill registry for AI agents` 或 `Versioned skills, governed distribution` |
 | 主 CTA | 注册或开始使用，例如 `Create account` |
@@ -64,7 +64,7 @@ Landing Page 的首屏必须直接说明 Open SkillHub 是什么，而不是使�
 首屏讲一个具体故事：
 
 1. 团队把 agent 能力封装为 versioned Skills。
-2. Open SkillHub 记录私有与公开 Skills 的状态、版本和权限。
+2. SkillDrive 记录私有与公开 Skills 的状态、版本和权限。
 3. API Token、桌面同步或客户端分发从同一个受管控入口获取能力。
 
 用户看到的不是“我们很酷”，而是“这里能控制我的 agent 能力供应链”。
@@ -295,7 +295,7 @@ Landing Page 需要自己的公开导航，不复用认证后的 `AppShell` 顶�
 
 ```
 ┌─────────────────────────────────────────────┐
-│ Toolbar: Open SkillHub / Private Registry   │
+│ Toolbar: SkillDrive / Private Registry   │
 ├───────────────────────┬─────────────────────┤
 │ Registry Panel        │ Version Rail         │
 │ - review-checklist    │ v1.0 -> v1.1 -> v1.2 │

@@ -2,7 +2,7 @@
 
 ## Purpose
 
-This document captures stable design conventions for the main Open SkillHub codebase. It is intentionally shorter than a full architecture guide and more durable than task plans.
+This document captures stable design conventions for the main SkillDrive codebase. It is intentionally shorter than a full architecture guide and more durable than task plans.
 
 ## Documentation Design
 

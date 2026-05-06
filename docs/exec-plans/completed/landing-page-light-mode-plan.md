@@ -5,7 +5,7 @@ Decision Log, and Outcomes & Retrospective must be kept up to date as work proce
 
 ## Purpose / Big Picture
 
-Open SkillHub needs a public, unauthenticated Landing Page that explains the product
+SkillDrive needs a public, unauthenticated Landing Page that explains the product
 before users enter the authenticated Console. The visible result will be a light-mode
 public page for `/` with product-specific copy, verified CTAs, local or documented
 visual assets, and no false social proof.

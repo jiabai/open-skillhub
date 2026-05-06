@@ -1,4 +1,4 @@
-# Open SkillHub Desktop Client Launcher (PowerShell)
+# SkillDrive Desktop Client Launcher (PowerShell)
 # Usage: .\scripts\start-desktop-client.ps1
 
 param(
@@ -10,7 +10,7 @@ $ProjectRoot = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Pa
 $DesktopDir = Join-Path $ProjectRoot "desktop-client"
 
 Write-Host "========================================" -ForegroundColor Cyan
-Write-Host "  Open SkillHub Desktop Client Launcher" -ForegroundColor Cyan
+Write-Host "  SkillDrive Desktop Client Launcher" -ForegroundColor Cyan
 Write-Host "========================================" -ForegroundColor Cyan
 Write-Host ""
 

@@ -44,8 +44,8 @@ describe("desktop package scripts", () => {
     const packageJson = JSON.parse(readFileSync(packageJsonPath, "utf8")) as PackageJson
     const mainSource = readFileSync(join(process.cwd(), "electron", "main.ts"), "utf8")
 
-    expect(packageJson.description).toBe("Open SkillHub desktop sync client")
-    expect(packageJson.author?.name).toBe("Open SkillHub contributors")
+    expect(packageJson.description).toBe("SkillDrive desktop sync client")
+    expect(packageJson.author?.name).toBe("SkillDrive contributors")
     expect(packageJson.build?.appId).toBe("com.openskillhub.skilldrive-desktop")
     expect(packageJson.build?.productName).toBe("SkillDrive Desktop")
     expect(mainSource).toContain('const APP_USER_MODEL_ID = "com.openskillhub.skilldrive-desktop"')

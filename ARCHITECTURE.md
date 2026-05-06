@@ -1,6 +1,6 @@
 # ARCHITECTURE
 
-Open SkillHub is a private skill management and distribution platform for AI agents.
+SkillDrive is a private skill management and distribution platform for AI agents.
 
 ## Overview
 

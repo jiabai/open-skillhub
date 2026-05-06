@@ -1,9 +1,9 @@
 {
   "name": "skilldrive-desktop",
   "version": "0.1.0",
-  "description": "Open SkillHub desktop sync client",
+  "description": "SkillDrive desktop sync client",
   "author": {
-    "name": "Open SkillHub contributors"
+    "name": "SkillDrive contributors"
   },
   "private": true,
   "type": "module",

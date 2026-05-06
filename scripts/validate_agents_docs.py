@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""验证 Open SkillHub 项目文档入口点和任务跟踪器的完整性。
+"""验证 SkillDrive 项目文档入口点和任务跟踪器的完整性。
 
 此脚本用于检查项目文档结构是否符合规范，确保所有必需的文档文件存在、
 链接有效、任务跟踪器格式正确。
@@ -207,7 +207,7 @@ def main() -> int:
     if hasattr(sys.stderr, "reconfigure"):
         sys.stderr.reconfigure(errors="backslashreplace")
 
-    parser = argparse.ArgumentParser(description="Validate Open SkillHub documentation entry points")
+    parser = argparse.ArgumentParser(description="Validate SkillDrive documentation entry points")
     parser.add_argument("--project", type=Path, default=None, help="Project root (default: script parent)")
     parser.add_argument("--level", choices=["ERROR", "WARN", "INFO"], default="INFO")
     args = parser.parse_args()

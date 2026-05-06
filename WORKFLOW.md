@@ -2,7 +2,7 @@
 
 ## Purpose
 
-This document defines the mandatory execution workflow for Open SkillHub. It turns
+This document defines the mandatory execution workflow for SkillDrive. It turns
 the high-level workflow in `.superpowers/Workflow/WORKFLOW.md` into a
 repository-native operating rule that future tasks should follow by default.
 
@@ -26,7 +26,7 @@ right repository artifacts first, then implement after review.
 
 ## What Counts As the Constitution Here
 
-This repository already has stable governance documents. For Open SkillHub, the
+This repository already has stable governance documents. For SkillDrive, the
 "constitution" is the durable ruleset formed by:
 
 - `docs/design-docs/core-beliefs.md`

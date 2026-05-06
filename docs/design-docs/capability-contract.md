@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Runtime capabilities describe what this Open SkillHub deployment supports at the
+Runtime capabilities describe what this SkillDrive deployment supports at the
 workspace/system level. They are exposed by the backend through
 `GET /api/v1/runtime-config` and consumed by the frontend through
 `useRuntimeConfig()`.

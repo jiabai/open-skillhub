@@ -2,7 +2,7 @@
 
 ## Background
 
-Open SkillHub currently has two rate-limit paths:
+SkillDrive currently has two rate-limit paths:
 
 - global request limiting in `backend/core/middleware/rate_limit.py`
 - download limiting in `backend/api/v1/skills_support/download.py`

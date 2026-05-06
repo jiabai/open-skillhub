@@ -1,7 +1,7 @@
 # flake8: noqa: E402
 # pylint: disable=wrong-import-position
 
-"""Public package interface for the REST-focused Open SkillHub library."""
+"""Public package interface for the REST-focused SkillDrive library."""
 
 __all__: list[str] = []
 

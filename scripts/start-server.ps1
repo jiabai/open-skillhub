@@ -1,4 +1,4 @@
-# Open SkillHub 启动脚本 (PowerShell)
+# SkillDrive 启动脚本 (PowerShell)
 # 用法: .\scripts\start-server.ps1
 
 param(
@@ -76,7 +76,7 @@ function Test-EnvConfig {
 }
 
 Write-Host "========================================" -ForegroundColor Cyan
-Write-Host "  Open SkillHub Server Launcher" -ForegroundColor Cyan
+Write-Host "  SkillDrive Server Launcher" -ForegroundColor Cyan
 Write-Host "========================================" -ForegroundColor Cyan
 Write-Host ""
 

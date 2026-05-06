@@ -77,8 +77,8 @@ testing are validated on a macOS release machine.
 - Runtime Windows AppUserModelID: `com.openskillhub.skilldrive-desktop`
 - Package name: `skilldrive-desktop`
 - Version: from `package.json`
-- Description: `Open SkillHub desktop sync client`
-- Author metadata: `Open SkillHub contributors`
+- Description: `SkillDrive desktop sync client`
+- Author metadata: `SkillDrive contributors`
 - Windows icon: `resources/icons/icon.ico`
 - macOS icon: `resources/icons/icon.icns` for exploratory builds
 

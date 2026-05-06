@@ -1,4 +1,4 @@
-"""Service runner for Open SkillHub service.
+"""Service runner for SkillDrive service.
 
 This module provides a context manager for starting and managing the skillhub
 service as a subprocess, with automatic cleanup on exit.

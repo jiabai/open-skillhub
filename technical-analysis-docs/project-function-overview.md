@@ -1,8 +1,8 @@
-# Open SkillHub 项目功能说明
+# SkillDrive 项目功能说明
 
 ## 1. 项目是做什么的
 
-Open SkillHub 是一个面向 AI Agent 客户端的私有化 Skill 管理与分发平台。它解决的核心问题，不是"在线运行一个 AI Skill 市场"，而是把企业或个人自己的 Skills 集中管理起来，提供上传、版本化、权限控制和下载分发能力。
+SkillDrive 是一个面向 AI Agent 客户端的私有化 Skill 管理与分发平台。它解决的核心问题，不是"在线运行一个 AI Skill 市场"，而是把企业或个人自己的 Skills 集中管理起来，提供上传、版本化、权限控制和下载分发能力。
 
 从当前仓库实现看，它的产品定位可以概括为：
 
@@ -61,7 +61,7 @@ Skill 不只是"一个文件夹"，而是带元数据、版本、状态和访问
 - 版本差异与安装说明相关接口
 - 自动递增版本策略
 
-这说明 Open SkillHub 不只是"上传后覆盖"，而是一个真正有版本轨迹的 Skill 仓库。
+这说明 SkillDrive 不只是"上传后覆盖"，而是一个真正有版本轨迹的 Skill 仓库。
 
 ### 2.4 公共 Skill、引用与克隆（仅在 public skill capability 开启时）
 
@@ -252,4 +252,4 @@ Skill 不只是"一个文件夹"，而是带元数据、版本、状态和访问
 
 ## 7. 一句话总结
 
-Open SkillHub 当前可以理解为一个面向 AI Agent 生态的私有 SkillHub 平台，提供用户认证、Skill 上传与版本管理、公共 Skill 复用（仅在 public skill capability 开启时）、权限治理和审计追踪，目标是把 Skills 从零散文件或仓库，提升为可管理、可复用、可分发的正式资产。当前产品边界已经明确：Web 控制台使用 JWT Access Token，客户端分发接口使用 API Token。
+SkillDrive 当前可以理解为一个面向 AI Agent 生态的私有 SkillHub 平台，提供用户认证、Skill 上传与版本管理、公共 Skill 复用（仅在 public skill capability 开启时）、权限治理和审计追踪，目标是把 Skills 从零散文件或仓库，提升为可管理、可复用、可分发的正式资产。当前产品边界已经明确：Web 控制台使用 JWT Access Token，客户端分发接口使用 API Token。

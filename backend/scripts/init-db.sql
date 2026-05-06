@@ -1,4 +1,4 @@
--- Open SkillHub 数据库初始化脚本
+-- SkillDrive 数据库初始化脚本
 -- 仅用于手动部署，Docker Compose 部署无需此脚本
 --
 -- 使用方式：

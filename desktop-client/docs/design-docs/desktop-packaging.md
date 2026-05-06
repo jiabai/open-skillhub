@@ -27,8 +27,8 @@ generated artifact churn in source control.
 - The builder `appId` and runtime Windows AppUserModelID are both
   `com.openskillhub.skilldrive-desktop`.
 - `package.json` provides installer-visible package metadata:
-  `description` is `Open SkillHub desktop sync client`, and `author.name` is
-  `Open SkillHub contributors`.
+  `description` is `SkillDrive desktop sync client`, and `author.name` is
+  `SkillDrive contributors`.
 
 ## Design Decisions
 

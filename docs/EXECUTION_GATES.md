@@ -2,7 +2,7 @@
 
 ## Purpose
 
-This document defines the completion gates for Open SkillHub work. `WORKFLOW.md`
+This document defines the completion gates for SkillDrive work. `WORKFLOW.md`
 defines how work moves from idea to implementation; this file defines what must
 be true before a task can be called done.
 

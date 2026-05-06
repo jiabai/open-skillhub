@@ -1,4 +1,4 @@
-# Open SkillHub Frontend Launcher (PowerShell)
+# SkillDrive Frontend Launcher (PowerShell)
 # Usage: .\scripts\start-frontend.ps1
 
 param(
@@ -11,7 +11,7 @@ $ProjectRoot = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Pa
 $FrontendDir = Join-Path $ProjectRoot "frontend"
 
 Write-Host "========================================" -ForegroundColor Cyan
-Write-Host "  Open SkillHub Frontend Launcher" -ForegroundColor Cyan
+Write-Host "  SkillDrive Frontend Launcher" -ForegroundColor Cyan
 Write-Host "========================================" -ForegroundColor Cyan
 Write-Host ""
 

@@ -11,7 +11,7 @@
 
 ## API 边界
 
-Open SkillHub 的技能接口分为两类：
+SkillDrive 的技能接口分为两类：
 
 - Console API：`/api/v1/skills/...`，给 Web 管理后台使用，认证方式是 JWT Session。
 - Client API：`/api/v1/client/skills/...`，给桌面客户端、CLI、CI 和自动化集成使用，认证方式是 API Token。

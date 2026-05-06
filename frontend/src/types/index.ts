@@ -1,4 +1,4 @@
-// Open SkillHub Frontend Type Definitions
+// SkillDrive Frontend Type Definitions
 // 参考文档：docs/frontend-design/01-api-types.md
 
 import type { UserStatus } from "@/lib/user-status"

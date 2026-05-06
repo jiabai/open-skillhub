@@ -16,11 +16,15 @@ Last updated: 2026-05-06
   executable package for high-priority security debt.
 - Added executable documentation packages for every remaining tracker item,
   grouped by implementation boundary.
+- Added browser session token storage hardening after code review found
+  JavaScript-readable token persistence and SSO URL-fragment token exposure
+  outside the refresh-token hardening scope.
 
 ## High Priority
 
 | Topic | Current status | Why it matters | Source | Removal condition |
 |------|----------------|----------------|--------|-------------------|
+| Browser session token storage hardening | Planned | The web console stores access and refresh tokens in localStorage, and SSO redirects expose token pairs in the browser URL fragment; both make reusable bearer credentials easier to steal after XSS or client-side leakage | `docs/product-specs/2026-05-06-browser-session-token-storage.md`, `docs/design-docs/browser-session-token-storage.md`, `docs/exec-plans/active/browser-session-token-storage-plan.md`, `frontend/src/lib/api.ts`, `backend/api/v1/auth.py` | Web sessions keep refresh credentials in a non-JavaScript-readable browser boundary, access tokens are memory-only or otherwise non-durable, SSO callbacks do not carry token pairs in URLs, and tests cover login, refresh, logout, reload, and SSO flows |
 | Refresh token hardening | Planned | Current rotation behavior is weaker than strict single-use invalidation, token-family tracking, and reuse detection | `docs/product-specs/2026-05-06-refresh-token-hardening.md`, `docs/design-docs/refresh-token-hardening.md`, `docs/exec-plans/active/refresh-token-hardening-plan.md`, `docs/SECURITY.md` | Refresh tokens are statefully rotated, old tokens are invalidated after use, reuse is detected, and regression tests cover replay attempts |
 | Distributed rate-limit stores | Planned | `RateLimitMiddleware` and download rate limiting both use process-local memory, so multi-worker or multi-instance deployments can bypass limits | `docs/product-specs/2026-05-06-distributed-rate-limits.md`, `docs/design-docs/distributed-rate-limit-stores.md`, `docs/exec-plans/active/distributed-rate-limit-stores-plan.md` | Rate-limit state is behind a store abstraction with a production shared backend setting and tests for global and download limit behavior |
 | Repository transaction boundaries | Planned | Repository commit behavior is inconsistent across models, making multi-step service operations harder to reason about safely | `docs/design-docs/backend-service-boundaries.md`, `docs/exec-plans/active/backend-service-boundaries-plan.md` | Repository writes use a consistent Unit of Work or equivalent transaction boundary, and service tests cover multi-step rollback behavior |

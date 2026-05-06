@@ -17,6 +17,7 @@ This directory stores durable design decisions, architecture notes, and review f
 | `landing-page-light-mode.md` | Light-mode landing page visual design decisions and color mapping |
 | `content-hash-dedup.md` | Content hash computation, storage, and three-state sync model for skill distribution dedup |
 | `capability-contract.md` | Stable runtime capability contract rules and capability/permission boundary |
+| `browser-session-token-storage.md` | Browser session token storage and cookie refresh boundary design |
 | `refresh-token-hardening.md` | Stateful refresh-token rotation, token-family reuse detection, and revocation design |
 | `distributed-rate-limit-stores.md` | Shared rate-limit store boundary for global and download limits |
 | `backend-service-boundaries.md` | Repository transaction and SkillService boundary refactor design |

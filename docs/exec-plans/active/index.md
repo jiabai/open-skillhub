@@ -4,6 +4,7 @@
 
 | File | Focus |
 |------|-------|
+| `browser-session-token-storage-plan.md` | Remove durable browser token-pair storage and URL-fragment token exposure |
 | `refresh-token-hardening-plan.md` | Add stateful single-use refresh-token rotation and reuse detection |
 | `distributed-rate-limit-stores-plan.md` | Add shared store boundaries for global and download rate limits |
 | `backend-service-boundaries-plan.md` | Standardize repository transaction boundaries and narrow SkillService facade usage |

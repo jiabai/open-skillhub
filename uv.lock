@@ -849,7 +849,7 @@ wheels = [
 ]
 
 [[package]]
-name = "open-skillhub"
+name = "skilldrive"
 source = { editable = "." }
 dependencies = [
     { name = "aiosqlite" },

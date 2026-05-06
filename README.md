@@ -13,11 +13,11 @@
 </p>
 
 <p align="center">
-  <a href="https://pypi.org/project/open-skillhub/"><img src="https://img.shields.io/badge/python-3.13+-blue?style=flat-square&logo=python" alt="Python Version"></a>
-  <a href="https://pypi.org/project/open-skillhub/"><img src="https://img.shields.io/pypi/v/open-skillhub.svg?style=flat-square&logo=pypi&color=green" alt="PyPI Version"></a>
+  <a href="https://pypi.org/project/skilldrive/"><img src="https://img.shields.io/badge/python-3.13+-blue?style=flat-square&logo=python" alt="Python Version"></a>
+  <a href="https://pypi.org/project/skilldrive/"><img src="https://img.shields.io/pypi/v/skilldrive.svg?style=flat-square&logo=pypi&color=green" alt="PyPI Version"></a>
   <a href="https://hub.docker.com/"><img src="https://img.shields.io/badge/docker-ready-blue?style=flat-square&logo=docker&logoColor=white" alt="Docker Ready"></a>
   <a href="./LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0-black?style=flat-square" alt="License"></a>
-  <a href="https://github.com/jiabai/open-skillhub"><img src="https://img.shields.io/github/stars/jiabai/open-skillhub?style=social" alt="GitHub Stars"></a>
+  <a href="https://github.com/jiabai/skilldrive"><img src="https://img.shields.io/github/stars/jiabai/skilldrive?style=social" alt="GitHub Stars"></a>
 </p>
 
 <p align="center">
@@ -29,7 +29,7 @@
 ## 📑 Table of Contents
 
 - [✨ Overview](#-overview)
-- [🎯 Why SkillDrive](#-why-open-skillhub)
+- [🎯 Why SkillDrive](#-why-skilldrive)
 - [🤖 Supported Agents](#-supported-agents)
 - [🚀 Quick Start](#-quick-start)
   - [Docker Setup](#docker-setup-recommended)
@@ -106,8 +106,8 @@ SkillDrive distributes skills to all major AI coding agents:
 The default Compose stack is production-like: it uses a named volume for SQLite, keeps logs on stdout/stderr, and does not require host `./data` or `./logs` directories.
 
 ```bash
-git clone https://github.com/jiabai/open-skillhub.git
-cd open-skillhub
+git clone https://github.com/jiabai/skilldrive.git
+cd skilldrive
 cp backend/.env.example backend/.env
 # Edit backend/.env — at minimum, change SECRET_KEY to a random 32+ char string
 # Example: python -c "import secrets; print(secrets.token_urlsafe(32))"
@@ -315,7 +315,7 @@ All external traffic enters through Frontend (port 80), which proxies API reques
 ### Project Structure
 
 ```
-open-skillhub/
+skilldrive/
 ├── backend/           # FastAPI API server, services, models, migrations
 ├── frontend/          # Next.js web console (TypeScript + Tailwind)
 ├── desktop-client/    # Electron desktop sync client
@@ -569,7 +569,7 @@ This project is licensed under **Apache License 2.0** — see [LICENSE](./LICENS
 </p>
 
 <p align="center">
-  <a href="https://github.com/jiabai/open-skillhub/stargazers">
-    <img src="https://img.shields.io/github/stars/jiabai/open-skillhub?style=social" alt="Star on GitHub">
+  <a href="https://github.com/jiabai/skilldrive/stargazers">
+    <img src="https://img.shields.io/github/stars/jiabai/skilldrive?style=social" alt="Star on GitHub">
   </a>
 </p>

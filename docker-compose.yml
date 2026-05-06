@@ -25,7 +25,7 @@ services:
     restart: "no"
 
   api:
-    container_name: open-skillhub-api
+    container_name: skilldrive-api
     build: *api-build
     env_file:
       - backend/.env
@@ -57,7 +57,7 @@ services:
       start_period: 20s
 
   webui:
-    container_name: open-skillhub-webui
+    container_name: skilldrive-webui
     build:
       context: .
       dockerfile: frontend/Dockerfile

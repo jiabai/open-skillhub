@@ -1222,7 +1222,7 @@ GET /metrics
 
 ### 相关代码
 
-- 路由注册：[backend/api/router.py](/d:/Github/open-skillhub/backend/api/router.py)
-- 应用入口：[backend/api_app.py](/d:/Github/open-skillhub/backend/api_app.py)
-- 认证与权限：[backend/core/deps.py](/d:/Github/open-skillhub/backend/core/deps.py)
-- 数据模型：[backend/schemas/](/d:/Github/open-skillhub/backend/schemas/)
+- 路由注册：[backend/api/router.py](/d:/Github/skilldrive/backend/api/router.py)
+- 应用入口：[backend/api_app.py](/d:/Github/skilldrive/backend/api_app.py)
+- 认证与权限：[backend/core/deps.py](/d:/Github/skilldrive/backend/core/deps.py)
+- 数据模型：[backend/schemas/](/d:/Github/skilldrive/backend/schemas/)

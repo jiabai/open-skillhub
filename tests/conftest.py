@@ -12,7 +12,7 @@ import pytest
 # This must be at module level to run before pytest imports test modules
 ROOT = Path(__file__).resolve().parents[1]
 RUN_ID = uuid4().hex
-TMP_BASE = Path(tempfile.gettempdir()) / "open-skillhub-pytest"
+TMP_BASE = Path(tempfile.gettempdir()) / "skilldrive-pytest"
 TMP_ROOT = TMP_BASE / RUN_ID
 TMP_ROOT.mkdir(parents=True, exist_ok=True)
 TEST_DB_PATH = TMP_ROOT / "skillhub-test.db"

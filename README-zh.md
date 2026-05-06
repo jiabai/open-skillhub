@@ -13,11 +13,11 @@
 </p>
 
 <p align="center">
-  <a href="https://pypi.org/project/open-skillhub/"><img src="https://img.shields.io/badge/python-3.13+-blue?style=flat-square&logo=python" alt="Python 版本"></a>
-  <a href="https://pypi.org/project/open-skillhub/"><img src="https://img.shields.io/pypi/v/open-skillhub.svg?style=flat-square&logo=pypi&color=green" alt="PyPI 版本"></a>
+  <a href="https://pypi.org/project/skilldrive/"><img src="https://img.shields.io/badge/python-3.13+-blue?style=flat-square&logo=python" alt="Python 版本"></a>
+  <a href="https://pypi.org/project/skilldrive/"><img src="https://img.shields.io/pypi/v/skilldrive.svg?style=flat-square&logo=pypi&color=green" alt="PyPI 版本"></a>
   <a href="https://hub.docker.com/"><img src="https://img.shields.io/badge/docker-ready-blue?style=flat-square&logo=docker&logoColor=white" alt="Docker Ready"></a>
   <a href="./LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0-black?style=flat-square" alt="许可证"></a>
-  <a href="https://github.com/jiabai/open-skillhub"><img src="https://img.shields.io/github/stars/jiabai/open-skillhub?style=social" alt="GitHub Stars"></a>
+  <a href="https://github.com/jiabai/skilldrive"><img src="https://img.shields.io/github/stars/jiabai/skilldrive?style=social" alt="GitHub Stars"></a>
 </p>
 
 <p align="center">
@@ -29,7 +29,7 @@
 ## 📑 目录
 
 - [✨ 项目简介](#-项目简介)
-- [🎯 为什么选择 SkillDrive](#-为什么选择-open-skillhub)
+- [🎯 为什么选择 SkillDrive](#-为什么选择-skilldrive)
 - [🤖 支持的 Agent](#-支持的-agent)
 - [🚀 快速开始](#-快速开始)
   - [Docker 部署](#docker-部署推荐)
@@ -106,8 +106,8 @@ SkillDrive 支持向所有主流 AI 编程 Agent 分发技能：
 默认 Compose 走的是生产型基线：SQLite 使用 named volume，日志输出到 stdout/stderr，不需要宿主机上的 `./data` 或 `./logs` 目录。
 
 ```bash
-git clone https://github.com/jiabai/open-skillhub.git
-cd open-skillhub
+git clone https://github.com/jiabai/skilldrive.git
+cd skilldrive
 cp backend/.env.example backend/.env
 # 编辑 backend/.env — 至少需要修改 SECRET_KEY 为 32 位以上的随机字符串
 # 示例：python -c "import secrets; print(secrets.token_urlsafe(32))"
@@ -315,7 +315,7 @@ graph TB
 ### 项目结构
 
 ```
-open-skillhub/
+skilldrive/
 ├── backend/           # FastAPI API 服务、业务逻辑、模型、迁移
 ├── frontend/          # Next.js Web 控制台（TypeScript + Tailwind）
 ├── desktop-client/    # Electron 桌面同步客户端
@@ -569,7 +569,7 @@ docker compose logs -f
 </p>
 
 <p align="center">
-  <a href="https://github.com/jiabai/open-skillhub/stargazers">
-    <img src="https://img.shields.io/github/stars/jiabai/open-skillhub?style=social" alt="Star on GitHub">
+  <a href="https://github.com/jiabai/skilldrive/stargazers">
+    <img src="https://img.shields.io/github/stars/jiabai/skilldrive?style=social" alt="Star on GitHub">
   </a>
 </p>

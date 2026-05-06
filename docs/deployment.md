@@ -74,9 +74,9 @@ This is only used by the Next.js server-side rewrite inside the frontend contain
 
 ### 5. Default stack uses a named volume; the dev overlay uses host bind mounts
 
-The default compose file uses the Docker named volume from [docker-compose.yml](/D:/Github/open-skillhub/docker-compose.yml), so it does not require host `./data` or `./logs` directories.
+The default compose file uses the Docker named volume from [docker-compose.yml](/D:/Github/skilldrive/docker-compose.yml), so it does not require host `./data` or `./logs` directories.
 
-The test-preprod overlay in [docker-compose.dev.yml](/D:/Github/open-skillhub/docker-compose.dev.yml) bind-mounts these repo-local host paths instead:
+The test-preprod overlay in [docker-compose.dev.yml](/D:/Github/skilldrive/docker-compose.dev.yml) bind-mounts these repo-local host paths instead:
 
 - `./data` -> `/app/data`
 - `./logs` -> `/app/logs`
@@ -92,13 +92,13 @@ This means, for the overlay:
 - frontend code reloads through `next dev`
 - you can override the container user with `LOCAL_UID` and `LOCAL_GID` if the host user is not `1000:1000`
 
-The repository includes a template at [.env.preprod.example](/D:/Github/open-skillhub/.env.preprod.example) so you can copy it to a local `.env.preprod` file and run the overlay with `docker compose --env-file .env.preprod ...`.
+The repository includes a template at [.env.preprod.example](/D:/Github/skilldrive/.env.preprod.example) so you can copy it to a local `.env.preprod` file and run the overlay with `docker compose --env-file .env.preprod ...`.
 
 ### 5.1 Host-side public skill import for the test-preprod overlay
 
 When the test-preprod overlay is active, host-side skill files live under `./data/skills`, so you can import a public skill without entering the container.
 
-If you want the shortest operator checklist, see [Preprod Public Skill Import SOP](/D:/Github/open-skillhub/docs/references/public-skill-import-preprod-sop.md).
+If you want the shortest operator checklist, see [Preprod Public Skill Import SOP](/D:/Github/skilldrive/docs/references/public-skill-import-preprod-sop.md).
 
 Prepare the skill directory on the host:
 
@@ -142,7 +142,7 @@ uv run python backend/scripts/sync_public_skills.py --docker
 If the API service name is not the default `api`, specify it with `--docker-service`:
 
 ```bash
-uv run python backend/scripts/sync_public_skills.py --docker --docker-service open-skillhub-api demo-skill
+uv run python backend/scripts/sync_public_skills.py --docker --docker-service skilldrive-api demo-skill
 ```
 
 **Option 2: Manually exec into the container**
@@ -256,7 +256,7 @@ In the overlay, the browser will call the public frontend origin, and Next.js fo
 
 ### 4. Configure Nginx reverse proxy
 
-An example config is provided at [deploy/nginx/skillhub.conf](/D:/Github/open-skillhub/deploy/nginx/skillhub.conf).
+An example config is provided at [deploy/nginx/skillhub.conf](/D:/Github/skilldrive/deploy/nginx/skillhub.conf).
 
 Core routing:
 
@@ -363,7 +363,7 @@ Then verify:
 
 Use this mode only on a Linux test machine where source changes should reload without rebuilding containers.
 
-The overlay file [docker-compose.dev.yml](/D:/Github/open-skillhub/docker-compose.dev.yml) keeps the default [docker-compose.yml](/D:/Github/open-skillhub/docker-compose.yml) intact and switches the runtime behavior to:
+The overlay file [docker-compose.dev.yml](/D:/Github/skilldrive/docker-compose.dev.yml) keeps the default [docker-compose.yml](/D:/Github/skilldrive/docker-compose.yml) intact and switches the runtime behavior to:
 
 - backend source bind mount plus `uvicorn --reload`
 - frontend source bind mount plus `next dev`
@@ -379,7 +379,7 @@ NEXT_PUBLIC_API_BASE_URL=http://127.0.0.1:3000
 API_INTERNAL_URL=http://api:8001
 ```
 
-Copy [.env.preprod.example](/D:/Github/open-skillhub/.env.preprod.example) to `.env.preprod`, then override `NEXT_PUBLIC_API_BASE_URL` if your test machine uses a different public IP or domain.
+Copy [.env.preprod.example](/D:/Github/skilldrive/.env.preprod.example) to `.env.preprod`, then override `NEXT_PUBLIC_API_BASE_URL` if your test machine uses a different public IP or domain.
 
 ### 2. Start or refresh the hot-reload stack
 

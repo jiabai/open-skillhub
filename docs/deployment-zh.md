@@ -74,7 +74,7 @@ API_INTERNAL_URL=http://api:8001
 
 ### 5. 默认 Compose 使用 named volume，测试预发覆盖层使用宿主机 bind mount
 
-默认 compose 文件使用 [docker-compose.yml](/D:/Github/open-skillhub/docker-compose.yml) 里的 Docker named volume，因此不需要宿主机上的 `./data` 或 `./logs` 目录。
+默认 compose 文件使用 [docker-compose.yml](/D:/Github/skilldrive/docker-compose.yml) 里的 Docker named volume，因此不需要宿主机上的 `./data` 或 `./logs` 目录。
 
 测试预发覆盖层则会改成以下宿主机相对目录映射：
 
@@ -92,13 +92,13 @@ API_INTERNAL_URL=http://api:8001
 - 前端代码会通过 `next dev` 自动热更新
 - 如果宿主机用户不是 `1000:1000`，可以用 `LOCAL_UID` 和 `LOCAL_GID` 覆盖容器运行用户
 
-仓库里提供了一个模板文件 [.env.preprod.example](/D:/Github/open-skillhub/.env.preprod.example)。你可以先复制成本地 `.env.preprod`，再用 `docker compose --env-file .env.preprod ...` 启动测试预发覆盖层。
+仓库里提供了一个模板文件 [.env.preprod.example](/D:/Github/skilldrive/.env.preprod.example)。你可以先复制成本地 `.env.preprod`，再用 `docker compose --env-file .env.preprod ...` 启动测试预发覆盖层。
 
 ### 5.1 测试预发覆盖层下的宿主机公共 Skill 导入
 
 当测试预发覆盖层启用后，宿主机上的 skill 文件位于 `./data/skills`，因此可以不进入容器，直接在宿主机执行公共 Skill 导入。
 
-如果你只想照最短步骤操作，直接看 [预发导入公共 Skill SOP](/D:/Github/open-skillhub/docs/references/public-skill-import-preprod-sop.md)。
+如果你只想照最短步骤操作，直接看 [预发导入公共 Skill SOP](/D:/Github/skilldrive/docs/references/public-skill-import-preprod-sop.md)。
 
 先在宿主机准备 skill 目录：
 
@@ -142,7 +142,7 @@ uv run python backend/scripts/sync_public_skills.py --docker
 如果 API 服务名不是默认的 `api`，可以通过 `--docker-service` 指定：
 
 ```bash
-uv run python backend/scripts/sync_public_skills.py --docker --docker-service open-skillhub-api demo-skill
+uv run python backend/scripts/sync_public_skills.py --docker --docker-service skilldrive-api demo-skill
 ```
 
 **方式二：手动进入容器执行**
@@ -255,7 +255,7 @@ python scripts/sync_shared_catalogs.py --check
 
 ### 4. 配置 Nginx 反向代理
 
-示例配置位于 [deploy/nginx/skillhub.conf](/D:/Github/open-skillhub/deploy/nginx/skillhub.conf)。
+示例配置位于 [deploy/nginx/skillhub.conf](/D:/Github/skilldrive/deploy/nginx/skillhub.conf)。
 
 核心路由方式：
 
@@ -362,7 +362,7 @@ tail -n 50 ./logs/api.log
 
 此模式仅适用于 Linux 测试机，用于在修改源码后无需重建容器即可自动重载。
 
-覆盖文件 [docker-compose.dev.yml](/D:/Github/open-skillhub/docker-compose.dev.yml) 不会修改默认的 [docker-compose.yml](/D:/Github/open-skillhub/docker-compose.yml)，而是将运行行为切换为：
+覆盖文件 [docker-compose.dev.yml](/D:/Github/skilldrive/docker-compose.dev.yml) 不会修改默认的 [docker-compose.yml](/D:/Github/skilldrive/docker-compose.yml)，而是将运行行为切换为：
 
 - 后端源码 bind mount + `uvicorn --reload`
 - 前端源码 bind mount + `next dev`
@@ -378,7 +378,7 @@ NEXT_PUBLIC_API_BASE_URL=http://127.0.0.1:3000
 API_INTERNAL_URL=http://api:8001
 ```
 
-请先把 [.env.preprod.example](/D:/Github/open-skillhub/.env.preprod.example) 复制成 `.env.preprod`；如果你的测试机使用不同的公网 IP 或域名，再修改其中的 `NEXT_PUBLIC_API_BASE_URL`。
+请先把 [.env.preprod.example](/D:/Github/skilldrive/.env.preprod.example) 复制成 `.env.preprod`；如果你的测试机使用不同的公网 IP 或域名，再修改其中的 `NEXT_PUBLIC_API_BASE_URL`。
 
 ### 2. 启动或刷新热重载环境
 

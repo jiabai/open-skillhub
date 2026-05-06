@@ -129,8 +129,8 @@ Never commit these values.
 Use the release branch that contains the macOS implementation:
 
 ```bash
-git clone <repo-url> open-skillhub-macos-release
-cd open-skillhub-macos-release
+git clone <repo-url> skilldrive-macos-release
+cd skilldrive-macos-release
 git checkout <release-branch>
 cd desktop-client
 ```

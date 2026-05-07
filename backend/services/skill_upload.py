@@ -37,6 +37,31 @@ def _cleanup_temp_upload(path: Path) -> None:
         logger.warning(f"[UPLOAD CLEANUP] Failed to remove temp file: {path}")
 
 
+def _frontmatter_text(value: object) -> str:
+    return str(value or "").strip()
+
+
+def _resolve_create_skill_name(frontmatter: dict) -> str:
+    name = _frontmatter_text(frontmatter.get("name"))
+    slug = _frontmatter_text(frontmatter.get("slug"))
+    candidates = [candidate for candidate in (slug, name) if candidate]
+    first_error = ""
+
+    if not candidates:
+        raise SkillError(SkillErrorCode.SKILL_MD_NAME_MISSING)
+
+    for candidate in candidates:
+        valid, error = validate_skill_name(candidate)
+
+        if valid:
+            return candidate
+
+        if not first_error:
+            first_error = error
+
+    raise SkillError(SkillErrorCode.INVALID_SKILL_NAME, first_error)
+
+
 class SkillUploadCoordinator:
     def __init__(
         self,
@@ -192,13 +217,8 @@ class SkillUploadCoordinator:
             logger.debug(f"[UPLOAD_ZIP_CREATE] Total file size: {sum(info.file_size for info in entries)} bytes")
             logger.debug("[UPLOAD_ZIP_CREATE] Found SKILL.md")
             frontmatter = read_skill_frontmatter(archive)
-            name = str(frontmatter.get("name") or "").strip()
+            name = _resolve_create_skill_name(frontmatter)
             logger.debug(f"[UPLOAD_ZIP_CREATE] Parsed skill name: {name}")
-            if not name:
-                raise SkillError(SkillErrorCode.SKILL_MD_NAME_MISSING)
-            valid, error = validate_skill_name(name)
-            if not valid:
-                raise SkillError(SkillErrorCode.INVALID_SKILL_NAME, error)
             if await self.lifecycle.skill_repo.get_by_name(user.id, name):
                 raise SkillError(SkillErrorCode.SKILL_ALREADY_EXISTS, f"Skill '{name}' already exists")
             orphan_versions = list_archive_versions(user.id, name)

@@ -20,10 +20,11 @@ existing remote-update review and distribution workflow.
   agent skill targets using the existing agent catalog and detection snapshot.
 - Show the local skill name, local version when available, source agents,
   package root path, validation state, and server presence state.
-- Compare local skills against `GET /api/v1/client/skills` by SKILL name, not by
-  local directory path or remote skill ID.
-- Show an Upload action only for valid local skills whose SKILL name is missing
-  from the server response.
+- Compare local skills against `GET /api/v1/client/skills` by safe SKILL
+  identity (`slug` when present, otherwise `name`), not by local directory path
+  or remote skill ID.
+- Show an Upload action only for valid local skills whose safe SKILL identity is
+  missing from the server response.
 - Upload server-missing skills by packaging the local skill directory as a ZIP
   and sending it to `POST /api/v1/client/skills/upload` with API-token
   authentication.
@@ -61,10 +62,11 @@ The first implementation must cover all current catalog IDs:
 
 - Server state remains authoritative for server visibility and remote versions.
 - Local inventory is a read-only snapshot until an operator clicks Upload.
-- A local skill has no remote skill ID unless a server skill with the same SKILL
-  name exists.
+- A local skill has no remote skill ID unless a server skill with the same safe
+  SKILL identity exists.
 - Local directory names are not remote identity. The canonical comparison key is
-  the validated SKILL name from the root `SKILL.md`.
+  the validated safe identity from the root `SKILL.md`: `slug` when present,
+  otherwise `name`.
 - Existing server skills do not show upload controls in this v1, even if the
   local version differs.
 - Duplicate local copies are allowed in the inventory. Rows represent unique
@@ -73,8 +75,8 @@ The first implementation must cover all current catalog IDs:
 - Shared physical agent targets are deduped by normalized path before scanning,
   matching the existing detection and distribution rules.
 - Upload must fail closed when the package root is invalid, `SKILL.md` is
-  missing, the SKILL name is unsafe, the directory cannot be read, or the API
-  token lacks upload permission.
+  missing, the safe SKILL identity is unsafe, the directory cannot be read, or
+  the API token lacks upload permission.
 
 ## Local Skill Identity And Matching
 
@@ -87,11 +89,16 @@ target. The root is considered valid only when it contains a root-level
 The inventory may display invalid child directories, but invalid entries must
 be clearly marked and must not expose Upload.
 
-### Local Skill Name
+### Local Skill Identity
 
-The SKILL name is read from root `SKILL.md` frontmatter. It must pass the same
-safe-name expectations used by desktop filesystem operations and backend upload
-validation:
+The SKILL identity is read from root `SKILL.md` frontmatter. Use a valid `slug`
+when present; otherwise use a valid `name`. This supports skill packages that
+store a human-readable title in `name`, such as `Self-Improving Agent (With
+Self-Reflection)`, while keeping the server and filesystem identity as
+`self-improving`.
+
+The resolved identity must pass the same safe-name expectations used by desktop
+filesystem operations and backend upload validation:
 
 - non-empty after trimming
 - no `/` or `\`
@@ -100,19 +107,20 @@ validation:
 - no leading dot
 - within the backend skill-name length limit
 
-If `SKILL.md` lacks a usable name, the row is invalid and not uploadable.
+If `SKILL.md` lacks a usable `slug` and `name`, the row is invalid and not
+uploadable.
 
 ### Server Presence
 
 The main process fetches `GET /api/v1/client/skills` and builds a lookup by
-server skill `name`.
+server skill `name`, which is the same safe identity used during upload.
 
 Server presence states:
 
 | State | Meaning | Upload |
 |-------|---------|--------|
-| `existing` | A server skill has the same SKILL name | Hidden |
-| `missing` | No server skill has the same SKILL name | Visible when local package is valid |
+| `existing` | A server skill has the same safe SKILL identity | Hidden |
+| `missing` | No server skill has the same safe SKILL identity | Visible when local package is valid |
 | `unknown` | Server list failed or auth/config is unavailable | Hidden |
 | `invalid-local` | Local root cannot be uploaded safely | Hidden |
 
@@ -221,7 +229,7 @@ patterns:
 - Local Skills appears between Home and Updates.
 - The view lists local skill package roots from all detected/configured agent
   targets and groups shared physical targets by covered agents.
-- Valid local skills show server presence by SKILL name.
+- Valid local skills show server presence by safe SKILL identity.
 - Existing server skills do not show Upload.
 - Missing valid local skills show Upload.
 - Invalid local entries explain why Upload is unavailable.

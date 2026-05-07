@@ -16,7 +16,7 @@
 2. 仅支持上传 ZIP 格式的 SKILL 包，包内必须包含根路径 `SKILL.md`。
 3. 支持两种上传模式：
    - **追加已有 SKILL 版本**：传入 `skill_uuid`，把 ZIP 内容作为该 SKILL 的新版本。
-   - **创建新 SKILL**：不传 `skill_uuid`，从 ZIP 中的 `SKILL.md` frontmatter 解析名称并创建当前 API Token 所属用户拥有的 SKILL。
+   - **创建新 SKILL**：不传 `skill_uuid`，从 ZIP 中的 `SKILL.md` frontmatter 解析安全身份名并创建当前 API Token 所属用户拥有的 SKILL。解析规则为优先使用合法 `slug`，否则使用合法 `name`。
 4. 复用现有上传链路：`stream_upload_to_temp_file()`、`SkillService.upload_zip_from_path()`、`SkillService.upload_zip_create_skill_from_path()` 和统一错误映射。
 5. 上传成功后写入审计日志，追加版本记录 `skill.upload`，创建新 SKILL 记录 `skill.create`。
 6. 增加客户端接口回归测试，覆盖认证、权限、创建、追加版本、错误响应和审计日志。
@@ -28,7 +28,7 @@
 - 不改变 SKILL 数据模型、版本模型、归档格式或存储路径。
 - 不在本接口中实现 SKILL 编辑、删除、版本回滚或下载。
 - 不在本轮改动桌面客户端；桌面客户端调用可以在接口落地后单独计划。
-- 不让创建模式通过 `metadata` 覆盖 `SKILL.md` frontmatter；创建新 SKILL 时以 ZIP 内 `SKILL.md` 为准。
+- 不让创建模式通过 `metadata` 覆盖 `SKILL.md` frontmatter；创建新 SKILL 时以 ZIP 内 `SKILL.md` 的 `slug` / `name` 身份为准。
 
 ## 使用场景
 
@@ -116,8 +116,8 @@ POST /api/v1/client/skills/upload
 | `400` | `ZIP_EMPTY` | ZIP 包为空 |
 | `400` | `SKILL_MD_NOT_FOUND_IN_ZIP` | 创建新 SKILL 时 ZIP 根路径未找到 `SKILL.md` |
 | `400` | `SKILL_MD_NOT_FOUND` | 追加版本时 ZIP 根路径未找到 `SKILL.md` |
-| `400` | `SKILL_MD_NAME_MISSING` | 创建新 SKILL 时 `SKILL.md` frontmatter 缺少 `name` |
-| `400` | `INVALID_SKILL_NAME` | SKILL 名称不合法 |
+| `400` | `SKILL_MD_NAME_MISSING` | 创建新 SKILL 时 `SKILL.md` frontmatter 缺少可用的 `slug` 或 `name` |
+| `400` | `INVALID_SKILL_NAME` | SKILL `slug` / `name` 身份名不合法 |
 | `400` | `INVALID_VISIBILITY` | `visibility` 值不合法 |
 | `400` | `INVALID_METADATA` | `metadata` 不是 JSON object，或在创建模式传入 `metadata` |
 | `400` | `TOO_MANY_FILES` | ZIP 内文件数量超过限制 |
@@ -162,7 +162,7 @@ async def upload_client_skill(
 ### 服务层复用
 
 - 追加已有 SKILL 版本：调用 `service.upload_zip_from_path(current_user, skill_uuid, filename, temp_path, metadata_text=metadata)`。
-- 创建新 SKILL：调用 `service.upload_zip_create_skill_from_path(current_user, filename, temp_path, visibility)`。
+- 创建新 SKILL：调用 `service.upload_zip_create_skill_from_path(current_user, filename, temp_path, visibility)`。服务层优先使用合法 `slug` 作为服务端 SKILL `name`，否则回退到合法 `name`，以支持 `name` 作为展示标题的本地技能包。
 - 不为客户端上传新增一套解析、解压、归档或版本递增逻辑。
 
 ### 审计日志
@@ -187,7 +187,7 @@ async def upload_client_skill(
 - JWT Session 认证的请求返回 `401`，证明该接口仅接受 API Token。
 - 非 `.zip` 文件或坏 ZIP 返回 `400` 和 `INVALID_ZIP_FILE`。
 - ZIP 中缺少根路径 `SKILL.md` 时返回对应缺失错误码。
-- 创建新 SKILL 时缺少 `name` 返回 `400` 和 `SKILL_MD_NAME_MISSING`。
+- 创建新 SKILL 时缺少可用 `slug` 和 `name` 返回 `400` 和 `SKILL_MD_NAME_MISSING`。
 - 创建新 SKILL 时名称冲突返回 `409` 和 `SKILL_ALREADY_EXISTS`。
 - 追加 reference SKILL 版本返回 `409` 和 `REFERENCE_SKILL_READ_ONLY`。
 - 创建模式传入 `metadata` 返回 `400` 和 `INVALID_METADATA`。

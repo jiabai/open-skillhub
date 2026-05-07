@@ -135,6 +135,11 @@ Uploads a ZIP-packaged skill through the Client API. The desktop Local Skills
 Management v1 uses this route only to create server-missing skills from valid
 local package roots.
 
+Create mode resolves the server skill `name` from root `SKILL.md` frontmatter by
+using a valid `slug` when present, otherwise falling back to a valid `name`.
+This keeps display-title skills uploadable while preserving a safe server and
+filesystem identity.
+
 ### Request Model
 
 Source: `backend/api/v1/client_skills.py`

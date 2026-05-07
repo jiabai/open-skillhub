@@ -71,7 +71,8 @@ Boundary rules:
 - Renderer never receives file contents, ZIP bytes, token values, or arbitrary
   filesystem handles.
 - Upload IPC accepts a row key, not a renderer-provided path.
-- Server matching uses SKILL name, not remote ID.
+- Server matching uses the resolved safe SKILL identity (`slug` when present,
+  otherwise `name`), not remote ID.
 
 ## 5. Inventory Model
 
@@ -119,7 +120,8 @@ export interface LocalSkillUploadResult {
 ```
 
 `rowKey` should be deterministic and opaque to the renderer, for example a
-hash of normalized package root path plus the parsed SKILL name when available.
+hash of normalized package root path plus the parsed safe SKILL identity when
+available.
 It is not a persistent ID.
 
 ## 6. Local Scan Rules
@@ -134,10 +136,11 @@ Responsibilities:
 - For each target path, read direct child entries only.
 - Treat each child directory as one candidate package root.
 - Read root `SKILL.md` from the candidate.
-- Parse frontmatter fields needed by the UI: `name`, `version`, and
+- Parse frontmatter fields needed by the UI: `name`, `slug`, `version`, and
   `description` if already easy to expose.
-- Validate SKILL name with the same safe-name rules used by desktop adapters and
-  backend upload.
+- Resolve and validate safe SKILL identity with the same safe-name rules used by
+  desktop adapters and backend upload. Prefer `slug` when present, otherwise
+  fall back to `name`.
 - Return invalid rows with a clear validation state and no upload action.
 - Attach every covered agent ID from the unique target to rows found under that
   target.
@@ -155,13 +158,13 @@ Presence lookup:
 1. Fetch `GET /api/v1/client/skills`.
 2. Build a `Map<string, RemoteSkillSummary>` keyed by exact server skill name.
 3. For each valid local row, set:
-   - `existing` when a server skill with the same name exists
-   - `missing` when list succeeds and no same-name server skill exists
+   - `existing` when a server skill with the same resolved identity exists
+   - `missing` when list succeeds and no same-identity server skill exists
 4. For invalid local rows, set `invalid-local`.
 5. If server list fails, set valid local rows to `unknown`.
 
-Exact-name matching keeps desktop behavior aligned with backend duplicate-name
-rules. Case folding must not be introduced in the client unless the backend
+Exact identity matching keeps desktop behavior aligned with backend duplicate
+name rules. Case folding must not be introduced in the client unless the backend
 contract changes.
 
 ## 8. Upload Packaging
@@ -264,8 +267,9 @@ UI rules:
 - Main process revalidates path, SKILL metadata, and package contents before
   upload.
 - ZIP cleanup happens on success and failure.
-- Logs may include row key, SKILL name, source agent IDs, and normalized error
-  class; logs must not include file contents, token, or archive bytes.
+- Logs may include row key, resolved SKILL identity, source agent IDs, and
+  normalized error class; logs must not include file contents, token, or archive
+  bytes.
 - The feature must use `/api/v1/client/skills/upload`; it must not call
   `/api/v1/skills/upload`.
 
@@ -321,8 +325,8 @@ Unit tests:
 - scans direct child directories under unique agent targets
 - reports covered agents for shared physical targets
 - rejects missing root `SKILL.md`
-- rejects invalid SKILL names
-- marks server presence by exact SKILL name
+- rejects invalid SKILL identities
+- marks server presence by exact safe SKILL identity
 - hides upload for existing or unknown server state
 - creates ZIP with root `SKILL.md`
 - rejects path traversal and symlink escape during packaging
@@ -355,8 +359,8 @@ git diff --check
 
 ## 16. Resolved Spec Issues
 
-- Local rows use SKILL name and package root identity, not a misleading local
-  skill ID.
+- Local rows use resolved SKILL identity and package root identity, not a
+  misleading local skill ID.
 - Existing detection only finds agent targets; this design adds a separate local
   inventory service for child skill directories.
 - Upload endpoint is now concrete: `POST /api/v1/client/skills/upload`.

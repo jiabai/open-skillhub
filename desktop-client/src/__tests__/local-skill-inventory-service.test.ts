@@ -139,6 +139,42 @@ describe("createLocalSkillInventoryService", () => {
     })
   })
 
+  it("uses a valid slug as the server identity when the SKILL name is a display title", async () => {
+    const targetPath = createTempRoot()
+    const skillPath = writeSkill(
+      targetPath,
+      "self-improving",
+      "name: Self-Improving Agent (With Self-Reflection)\nslug: self-improving\nversion: 1.1.3"
+    )
+    const remoteSkills: RemoteSkillSummary[] = [
+      {
+        id: "remote-self-improving",
+        name: "self-improving",
+        version: "1.1.3",
+        contentHash: "hash-self-improving",
+        updatedAt: "2026-05-07T00:00:00.000Z"
+      }
+    ]
+
+    const snapshot = await createLocalSkillInventoryService().refresh({
+      detectionSnapshot: createDetectionSnapshot(targetPath),
+      remoteSkills,
+      serverLookupStatus: "ok",
+      serverLookupMessage: null
+    })
+
+    expect(snapshot.rows).toHaveLength(1)
+    expect(snapshot.rows[0]).toMatchObject({
+      name: "self-improving",
+      packageRootPath: skillPath,
+      localVersion: "1.1.3",
+      validationState: "valid",
+      serverState: "existing",
+      remoteSkillId: "remote-self-improving",
+      uploadable: false
+    })
+  })
+
   it("marks local directories without root SKILL.md as invalid and not uploadable", async () => {
     const targetPath = createTempRoot()
     const invalidPath = join(targetPath, "notes")

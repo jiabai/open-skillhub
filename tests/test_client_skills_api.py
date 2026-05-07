@@ -50,13 +50,23 @@ def _skill_zip_bytes(
     *,
     description: str = "desc",
     body: str = "body",
+    extra_frontmatter: dict[str, str] | None = None,
     extra_files: dict[str, bytes | str] | None = None,
 ) -> bytes:
     buffer = io.BytesIO()
+    frontmatter_lines = [
+        "---",
+        f"name: {name}",
+        f"description: {description}",
+        f"version: {version}",
+    ]
+    for key, value in (extra_frontmatter or {}).items():
+        frontmatter_lines.append(f"{key}: {value}")
+    frontmatter_lines.append("---")
     with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as archive:
         archive.writestr(
             "SKILL.md",
-            f"---\nname: {name}\ndescription: {description}\nversion: {version}\n---\n{body}",
+            f"{'\n'.join(frontmatter_lines)}\n{body}",
         )
         for path, content in (extra_files or {}).items():
             archive.writestr(path, content)
@@ -393,6 +403,39 @@ async def test_client_skill_upload_creates_new_skill_and_audit_event(client, asy
     assert upload_event.details["name"] == "client-created-skill"
     assert upload_event.details["version"] == "1.0.0"
     assert upload_event.details["client_api"] is True
+
+
+@pytest.mark.asyncio
+async def test_client_skill_upload_uses_slug_when_name_is_display_title(client, tmp_path, monkeypatch):
+    monkeypatch.setenv("SKILL_STORAGE_PATH", str(tmp_path))
+    monkeypatch.setattr(settings, "SKILL_STORAGE_PATH", str(tmp_path))
+    _, api_token = await _create_client_token(
+        client,
+        email="client-upload-slug@example.com",
+        username="clientuploadslug",
+        role="member",
+    )
+
+    response = await _post_client_skill_upload(
+        client,
+        api_token,
+        file_content=_skill_zip_bytes(
+            "Self-Improving Agent (With Self-Reflection)",
+            "1.1.3",
+            extra_frontmatter={"slug": "self-improving"},
+        ),
+    )
+
+    assert response.status_code == 201
+    payload = response.json()
+    assert payload["name"] == "self-improving"
+
+    listed = await client.get(
+        "/api/v1/client/skills",
+        headers={"Authorization": f"Bearer {api_token}"},
+    )
+    assert listed.status_code == 200
+    assert [item["name"] for item in listed.json()["items"]] == ["self-improving"]
 
 
 @pytest.mark.asyncio

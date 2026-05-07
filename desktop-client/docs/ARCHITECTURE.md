@@ -80,14 +80,15 @@ agent adapters -> local agent installations and skill directories
 - Agent detection merges validated `agent-paths.json` overrides with built-in
   catalog defaults before pre-check, reconcile, and distribution actions.
 - Distribution writes each unique physical target at most once, marks shared-path coverage, and skips writing when every target is already same-version.
-- Local Skills inventory is read-only. Uploads require an explicit row action,
+- Local Skills inventory is read-only. It resolves local package identity from
+  `slug` when present, otherwise `name`. Uploads require an explicit row action,
   revalidate the selected row in the main process, and only create server-missing
   skills through the Client API.
 - Theme preference is explicit runtime configuration. Missing or invalid theme
   values resolve to dark, and the renderer applies the current theme by toggling
   `.dark` on `document.documentElement`.
 - Agent adapters own per-agent filesystem conventions, package installation, metadata reads, and install verification.
-- Agent adapter install and metadata-read directory keys are SKILL names; `remoteSkillId` remains the API/state identity and does not determine the local install directory.
+- Agent adapter install and metadata-read directory keys are server skill names; `remoteSkillId` remains the API/state identity and does not determine the local install directory.
 - Shared type contracts live in `src/types/` instead of being redefined across layers.
 
 ## Layer Boundaries

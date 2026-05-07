@@ -33,6 +33,7 @@ export interface LocalSkillInventoryService {
 
 type ParsedSkillMetadata = {
   name: string | null
+  slug: string | null
   version: string | null
 }
 
@@ -69,6 +70,7 @@ function parseSkillFrontmatter(markdown: string): ParsedSkillMetadata {
   if (!normalized.startsWith("---\n")) {
     return {
       name: null,
+      slug: null,
       version: null
     }
   }
@@ -78,6 +80,7 @@ function parseSkillFrontmatter(markdown: string): ParsedSkillMetadata {
   if (endIndex < 0) {
     return {
       name: null,
+      slug: null,
       version: null
     }
   }
@@ -102,6 +105,7 @@ function parseSkillFrontmatter(markdown: string): ParsedSkillMetadata {
 
   return {
     name: fields.get("name") ?? null,
+    slug: fields.get("slug") ?? null,
     version: fields.get("version") ?? null
   }
 }
@@ -120,12 +124,38 @@ export function validateLocalSkillName(value: string | null): string {
     name.startsWith(".") ||
     name.includes("/") ||
     name.includes("\\") ||
-    name.includes("..")
+    name.includes("..") ||
+    !/^[a-zA-Z0-9_.-]+$/.test(name)
   ) {
     throw new Error(`Invalid SKILL name: ${name}`)
   }
 
   return name
+}
+
+function resolveLocalSkillIdentity(metadata: ParsedSkillMetadata): string {
+  const candidates = [metadata.slug, metadata.name]
+  let invalidNameError: Error | null = null
+
+  for (const candidate of candidates) {
+    if (candidate === null) {
+      continue
+    }
+
+    try {
+      return validateLocalSkillName(candidate)
+    } catch (error) {
+      if (invalidNameError === null && error instanceof Error) {
+        invalidNameError = error
+      }
+    }
+  }
+
+  if (invalidNameError !== null) {
+    throw invalidNameError
+  }
+
+  return validateLocalSkillName(null)
 }
 
 function createPathDedupeKey(pathValue: string, platform: NodeJS.Platform): string {
@@ -263,7 +293,7 @@ export function createLocalSkillInventoryService(
       const skillMarkdown = await readTextFile(join(args.candidate.packageRootPath, "SKILL.md"), "utf8")
       const metadata = parseSkillFrontmatter(String(skillMarkdown))
 
-      name = validateLocalSkillName(metadata.name)
+      name = resolveLocalSkillIdentity(metadata)
       localVersion = metadata.version
     } catch (error) {
       validationError = error

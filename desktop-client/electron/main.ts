@@ -8,6 +8,7 @@ import { fileURLToPath } from "node:url"
 import {
   app,
   BrowserWindow,
+  dialog,
   Menu,
   Notification,
   Tray,
@@ -16,6 +17,7 @@ import {
   screen,
   shell
 } from "electron"
+import type { OpenDialogOptions } from "electron"
 
 import { getAgentAdapter } from "@/adapters/agents/registry"
 import {
@@ -28,6 +30,8 @@ import { uploadLocalSkillPackage } from "@/core/local-skills/local-skill-client-
 import { createLocalSkillInventoryService } from "@/core/local-skills/local-skill-inventory-service"
 import { prepareLocalSkillUploadPackage } from "@/core/local-skills/local-skill-upload-package"
 import { createPreDistributionCheckService } from "@/core/pre-distribution-check/pre-distribution-check-service"
+import { createProjectSkillImportService } from "@/core/projects/project-skill-import-service"
+import { createProjectSkillScanService } from "@/core/projects/project-skill-scan-service"
 import {
   createRuntimeConfigManager,
   type DesktopRuntimeConfig,
@@ -36,6 +40,7 @@ import {
 import { testApiConnection } from "@/core/runtime/api-connection"
 import { ensureAppDirectories } from "@/core/storage/app-paths"
 import { createAgentPathsConfigStore } from "@/core/storage/agent-paths-config"
+import { createProjectConfigStore } from "@/core/storage/project-config"
 import { createSqliteStateStore } from "@/core/storage/state-db"
 import { createSyncPollingController, createSyncService } from "@/core/sync/sync-service"
 import type {
@@ -53,6 +58,15 @@ import type {
   LocalSkillUploadResult,
   PendingSyncUpdate,
   PreDistributionCheckSnapshot,
+  DirectorySelectionResult,
+  ProjectImportSkillPayload,
+  ProjectListSnapshot,
+  ProjectOpenFolderPayload,
+  ProjectScanPayload,
+  ProjectSkillFolderValidation,
+  ProjectSkillImportResult,
+  ProjectSkillScanSnapshot,
+  ProjectValidateSkillFolderPayload,
   RemoteSkillSummary,
   SkillDistributionTarget,
   SkillDistributionResult,
@@ -546,6 +560,7 @@ async function closeStateStore(): Promise<void> {
 async function createApplicationServices(): Promise<void> {
   const appPaths = ensureAppDirectories()
   const agentPathsConfigStore = createAgentPathsConfigStore(appPaths.agentPathsFilePath)
+  const projectConfigStore = createProjectConfigStore(appPaths.projectsFilePath)
   const runtimeConfigManager = createRuntimeConfigManager()
   const initialRuntimeState = await runtimeConfigManager.reload()
   const getRuntimeConfig = () => runtimeConfigManager.getState().config
@@ -582,6 +597,8 @@ async function createApplicationServices(): Promise<void> {
     createTempDirectory: async () => mkdtemp(join(tmpdir(), "skilldrive-package-"))
   })
   const localSkillInventoryService = createLocalSkillInventoryService()
+  const projectSkillScanService = createProjectSkillScanService()
+  const projectSkillImportService = createProjectSkillImportService()
   const distributionService = createDistributionService({
     packageService,
     stateStore,
@@ -736,6 +753,71 @@ async function createApplicationServices(): Promise<void> {
     }
   }
 
+  const selectDirectory = async (): Promise<DirectorySelectionResult> => {
+    const options: OpenDialogOptions = {
+      properties: ["openDirectory"]
+    }
+    const result = mainWindow
+      ? await dialog.showOpenDialog(mainWindow, options)
+      : await dialog.showOpenDialog(options)
+
+    if (result.canceled || result.filePaths.length === 0) {
+      return {
+        canceled: true,
+        path: null
+      }
+    }
+
+    return {
+      canceled: false,
+      path: result.filePaths[0]
+    }
+  }
+
+  const scanProjectSkillsById = async (
+    payload: ProjectScanPayload
+  ): Promise<ProjectSkillScanSnapshot> => {
+    const project = await projectConfigStore.getProject(payload.projectId)
+    const globalSnapshot = await refreshLocalSkillsSnapshot().catch((error: unknown) => {
+      console.warn("Failed to load global local skills while scanning project", error)
+      return null
+    })
+
+    return projectSkillScanService.scan({
+      project,
+      globalSnapshot
+    })
+  }
+
+  const openProjectFolder = async (payload: ProjectOpenFolderPayload): Promise<void> => {
+    const project = await projectConfigStore.getProject(payload.projectId)
+    const openError = await shell.openPath(project.path)
+
+    if (openError) {
+      throw new Error(`Failed to open project folder: ${openError}`)
+    }
+  }
+
+  const validateProjectSkillFolder = (
+    payload: ProjectValidateSkillFolderPayload
+  ): Promise<ProjectSkillFolderValidation> =>
+    projectSkillImportService.validateSkillFolder({
+      sourcePath: payload.sourcePath
+    })
+
+  const importProjectSkill = async (
+    payload: ProjectImportSkillPayload
+  ): Promise<ProjectSkillImportResult> => {
+    const project = await projectConfigStore.getProject(payload.projectId)
+
+    return projectSkillImportService.importSkill({
+      project,
+      sourcePath: payload.sourcePath,
+      targetAgentId: payload.targetAgentId,
+      overwrite: Boolean(payload.overwrite)
+    })
+  }
+
   registerDesktopClientIpc(ipcMain, {
     getConfiguration: () => toConfigurationState(runtimeConfigManager.getState()),
     saveConfiguration: async (payload: ConfigurationPayload): Promise<ConfigurationState> => {
@@ -800,6 +882,16 @@ async function createApplicationServices(): Promise<void> {
     },
     refreshLocalSkills: () => refreshLocalSkillsSnapshot(),
     uploadLocalSkill: (rowKey: string) => uploadLocalSkillByRowKey(rowKey),
+    listProjects: (): Promise<ProjectListSnapshot> => projectConfigStore.listProjects(),
+    addProject: (payload) => projectConfigStore.addProject(payload),
+    renameProject: (payload) => projectConfigStore.renameProject(payload),
+    removeProject: (payload) => projectConfigStore.removeProject(payload),
+    selectProjectFolder: () => selectDirectory(),
+    openProjectFolder,
+    scanProjectSkills: (payload: ProjectScanPayload) => scanProjectSkillsById(payload),
+    selectProjectSkillFolder: () => selectDirectory(),
+    validateProjectSkillFolder,
+    importProjectSkill,
     refreshPreDistributionCheck: async (): Promise<PreDistributionCheckSnapshot> => {
       const currentStateStore = stateStore
 

@@ -32,8 +32,9 @@ export const zhCNDictionary = {
     desktopClientLabel: "SkillDrive 桌面端",
     navigation: {
       home: "首页",
-      localSkills: "本地 SKILL",
-      updates: "更新"
+      localSkills: "全局",
+      updates: "更新",
+      projects: "项目"
     },
     bridgeStatus: {
       unavailable: "桌面桥接不可用",
@@ -99,14 +100,14 @@ export const zhCNDictionary = {
   updatesView: {
     eyebrow: "审核队列",
     title: "全部待审核更新",
+    inventoryTitle: "库存",
     summary: "在把技能分发到已配置的本地代理目标之前，先检查每个待审核更新。",
     refreshQueue: "刷新队列"
   },
   localSkillsView: {
-    eyebrow: "本地库存",
+    eyebrow: "",
     title: "本地 SKILL",
-    inventoryTitle: "库存",
-    summary: "查看本地 SKILL 包根目录，并且只在确认后上传服务端缺失的 SKILL。",
+    summary: "",
     refresh: "刷新本地 SKILL",
     refreshing: "刷新中...",
     loading: "正在加载本地 SKILL...",
@@ -127,6 +128,61 @@ export const zhCNDictionary = {
       unknown: "服务端未知",
       invalidLocal: "本地 SKILL 无效"
     }
+  },
+  projectsView: {
+    eyebrow: "",
+    title: "项目",
+    summary: "",
+    addProject: "添加项目",
+    addProjectTitle: "添加项目",
+    addProjectDescription: "选择一个本地项目目录，用来扫描项目级代理 SKILL。",
+    nameLabel: "项目名称",
+    pathLabel: "项目目录",
+    browse: "浏览",
+    saving: "保存中...",
+    empty: "还没有添加项目。",
+    noSnapshot: "尚未加载项目列表。",
+    projectsCount: (count: number) => `${count} 个项目`,
+    open: "打开",
+    rename: "重命名",
+    renameTitle: "重命名项目",
+    remove: "移除",
+    removeTitle: "移除项目",
+    removeDescription: (name: string) => `从列表中移除 ${name}。磁盘上的文件不会被删除。`,
+    confirmRemove: "移除项目",
+    cancel: "取消",
+    back: "返回",
+    openFolder: "打开目录",
+    refreshSkills: "刷新 SKILL",
+    scanning: "扫描中...",
+    addSkill: "添加 SKILL",
+    importTitle: "添加 SKILL 到项目",
+    importDescription: "校验一个本地 SKILL 目录，并复制到所选项目目标。",
+    sourceFolderLabel: "来源 SKILL 目录",
+    targetAgentLabel: "目标代理",
+    overwriteLabel: "覆盖已存在的目标 SKILL",
+    validate: "校验",
+    validating: "校验中...",
+    import: "导入",
+    importing: "导入中...",
+    noTargets: "没有可写的项目目标。",
+    loading: "正在加载项目...",
+    skillCount: (count: number) => `${count} 个 SKILL`,
+    targetCount: (count: number) => `${count} 个项目目标`,
+    sourceLabels: {
+      project: "项目",
+      global: "全局"
+    },
+    validationStateLabels: {
+      valid: "有效",
+      "missing-skill-md": "缺少 SKILL.md",
+      "invalid-skill-name": "名称无效",
+      unreadable: "不可读取",
+      "not-directory": "不是目录"
+    },
+    version: (value: string) => `版本 ${value}`,
+    sourceAgents: (value: string) => `代理 ${value}`,
+    path: (value: string) => `路径 ${value}`
   },
   settingsPanel: {
     title: "设置",
@@ -316,6 +372,18 @@ export const zhCNDictionary = {
     localSkillUploadFailedTitle: "本地 SKILL 上传失败",
     localSkillUploadFailedDetail: (name: string, message: string) =>
       `${name} 无法上传：${message}`,
+    projectAddedTitle: "项目已添加",
+    projectAddedDetail: (name: string) => `${name} 已准备好扫描项目 SKILL。`,
+    projectRenamedTitle: "项目已重命名",
+    projectRenamedDetail: (name: string) => `项目现在名为 ${name}。`,
+    projectRemovedTitle: "项目已移除",
+    projectRemovedDetail: (name: string) => `${name} 已从列表移除。文件没有被删除。`,
+    projectScanFailedTitle: "项目扫描失败",
+    projectScanFailedDetail: (name: string, message: string) => `${name} 无法扫描：${message}`,
+    projectSkillImportedTitle: "项目 SKILL 已导入",
+    projectSkillImportedDetail: (name: string, project: string) => `${name} 已导入到 ${project}。`,
+    projectSkillImportFailedTitle: "项目 SKILL 导入失败",
+    projectSkillImportFailedDetail: (name: string, message: string) => `${name} 无法导入：${message}`,
     themeUpdateFailedTitle: "主题更新失败",
     themeUpdateFailedDetail: (message: string) => message
   }

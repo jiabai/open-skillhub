@@ -10,6 +10,7 @@ export interface AppPaths {
   stateDir: string
   configFilePath: string
   agentPathsFilePath: string
+  projectsFilePath: string
   stateFilePath: string
   stateDbPath: string
 }
@@ -43,6 +44,7 @@ export function createAppPaths(options: AppPathsOptions = {}): AppPaths {
     stateDir: join(rootDir, "state"),
     configFilePath: join(rootDir, "config", "config.json"),
     agentPathsFilePath: join(rootDir, "config", "agent-paths.json"),
+    projectsFilePath: join(rootDir, "config", "projects.json"),
     stateFilePath: join(rootDir, "state", "state.json"),
     stateDbPath: join(rootDir, "state", "state.sqlite3")
   }

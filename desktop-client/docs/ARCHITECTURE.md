@@ -23,7 +23,7 @@ notarization, stapling, and macOS smoke testing are verified on macOS.
 - `src/app/`
   - `App.tsx`: root renderer composition and review-first state handling
 - `src/components/`
-  - desktop shell, Home and Updates views, Settings drawer, theme toggle, local UI primitives, and supporting review panels
+  - desktop shell, Home, Updates, Local Skills, and Projects views, Settings drawer, theme toggle, local UI primitives, and supporting review panels
 - `src/i18n/`
   - local locale dictionaries, provider, hook, formatting helpers, and language codes used by the renderer
 - `src/styles.css`
@@ -36,6 +36,9 @@ notarization, stapling, and macOS smoke testing are verified on macOS.
   - package preparation, owned artifact cleanup, install orchestration, and distribution result reporting
 - `src/core/local-skills/`
   - read-only local skill inventory, server presence comparison, safe upload ZIP packaging, and Client API upload helper
+- `src/core/projects/`
+  - project-relative agent target resolution, project skill metadata parsing,
+    on-demand project/global skill scan, and explicit project skill import
 - `src/core/detection/`
   - catalog-driven assistant detection, JSON target overrides, OpenClaw priority target selection, and shared physical target dedupe
 - `src/core/storage/`
@@ -65,6 +68,9 @@ distribution core -> package service + detection-derived agent targets + agent a
 
 local skills core -> detection-derived unique targets + backend Client API + cache-owned temporary ZIP staging
 
+project skills core -> persisted project records + catalog project targets +
+filesystem scan/import services
+
 agent adapters -> local agent installations and skill directories
 
 ## Architecture Invariants
@@ -84,6 +90,14 @@ agent adapters -> local agent installations and skill directories
   `slug` when present, otherwise `name`. Uploads require an explicit row action,
   revalidate the selected row in the main process, and only create server-missing
   skills through the Client API.
+- Projects inventory is on-demand and project-scoped. Project records persist in
+  `config/projects.json`; project skill scans are transient; project skill
+  import requires explicit source folder, writable project target, and overwrite
+  flag when replacing an existing skill.
+- Project skill targets are catalog metadata on `supportedAgentDefinitions`.
+  Global home-directory targets are not reused for project scanning or import.
+  Compatible project read paths can contribute rows but are not writable import
+  targets.
 - Theme preference is explicit runtime configuration. Missing or invalid theme
   values resolve to dark, and the renderer applies the current theme by toggling
   `.dark` on `document.documentElement`.
@@ -116,6 +130,9 @@ Dependencies should only point downward across those boundaries.
 - Locale and theme are persisted in `config/config.json` through `src/core/runtime/runtime-config-manager.ts` alongside the API Base URL
 - Agent skill path overrides are persisted in `config/agent-paths.json`; only
   validated `targetPath` overrides for built-in Agent IDs are used at runtime.
+- Project records are persisted in `config/projects.json` through
+  `src/core/storage/project-config.ts`; removing a project removes only that
+  JSON record and never deletes the project directory.
 - `electron/main.ts` also creates a runtime `cache/` directory below the app root
 - Runtime API token bootstrap is coordinated by `src/core/runtime/runtime-config-manager.ts`; it reads from the `keytar` secret store, with
   `SKILLDRIVE_API_TOKEN` as an explicit first-run seed and current-session
@@ -134,6 +151,9 @@ Dependencies should only point downward across those boundaries.
 - Local Skills upload ZIPs are staged in unique `cache/local-upload-*`
   directories and removed by the main process after the upload attempt succeeds
   or fails.
+- Project Skill Loading does not create cache artifacts. It validates and copies
+  source skill folders directly from the Electron main process into the selected
+  project target directory.
 - Agent detection snapshots are runtime state only. They are rebuilt on runtime
   config reload, manual rediscovery, pre-distribution checks, reconcile, and
   distribution, and are not persisted to SQLite or JSON config.
@@ -170,6 +190,10 @@ Dependencies should only point downward across those boundaries.
 - `src/core/local-skills/local-skill-upload-package.ts`
 - `src/core/local-skills/local-skill-client-api.ts`
 - `src/core/storage/config-store.ts`
+- `src/core/storage/project-config.ts`
+- `src/core/projects/project-agent-targets.ts`
+- `src/core/projects/project-skill-scan-service.ts`
+- `src/core/projects/project-skill-import-service.ts`
 - `src/core/runtime/runtime-config-manager.ts`
 - `src/core/storage/state-db.ts`
 - `src/adapters/agents/base.ts`

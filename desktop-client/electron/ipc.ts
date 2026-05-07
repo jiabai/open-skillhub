@@ -11,6 +11,18 @@ import type {
   LocalSkillUploadResult,
   LocalSkillsInventorySnapshot,
   PreDistributionCheckSnapshot,
+  DirectorySelectionResult,
+  ProjectAddPayload,
+  ProjectImportSkillPayload,
+  ProjectListSnapshot,
+  ProjectOpenFolderPayload,
+  ProjectRemovePayload,
+  ProjectRenamePayload,
+  ProjectScanPayload,
+  ProjectSkillFolderValidation,
+  ProjectSkillImportResult,
+  ProjectSkillScanSnapshot,
+  ProjectValidateSkillFolderPayload,
   SkillDistributionResult
 } from "@/types"
 
@@ -29,6 +41,16 @@ export const desktopClientIpcChannels = {
   refreshPreDistributionCheck: "pre-distribution-check:refresh",
   refreshLocalSkills: "local-skills:refresh",
   uploadLocalSkill: "local-skills:upload",
+  projectsList: "projects:list",
+  projectsAdd: "projects:add",
+  projectsRename: "projects:rename",
+  projectsRemove: "projects:remove",
+  projectsSelectFolder: "projects:select-folder",
+  projectsOpenFolder: "projects:open-folder",
+  projectsScanSkills: "projects:scan-skills",
+  projectsSelectSkillFolder: "projects:select-skill-folder",
+  projectsValidateSkillFolder: "projects:validate-skill-folder",
+  projectsImportSkill: "projects:import-skill",
   reconcileInstalledSkill: "distribution:reconcile-installed",
   distributePendingUpdate: "distribution:run"
 } as const
@@ -48,6 +70,18 @@ export interface DesktopClientBridge {
   refreshPreDistributionCheck(): Promise<PreDistributionCheckSnapshot>
   refreshLocalSkills(): Promise<LocalSkillsInventorySnapshot>
   uploadLocalSkill(rowKey: string): Promise<LocalSkillUploadResult>
+  listProjects(): Promise<ProjectListSnapshot>
+  addProject(payload: ProjectAddPayload): Promise<ProjectListSnapshot>
+  renameProject(payload: ProjectRenamePayload): Promise<ProjectListSnapshot>
+  removeProject(payload: ProjectRemovePayload): Promise<ProjectListSnapshot>
+  selectProjectFolder(): Promise<DirectorySelectionResult>
+  openProjectFolder(payload: ProjectOpenFolderPayload): Promise<void>
+  scanProjectSkills(payload: ProjectScanPayload): Promise<ProjectSkillScanSnapshot>
+  selectProjectSkillFolder(): Promise<DirectorySelectionResult>
+  validateProjectSkillFolder(
+    payload: ProjectValidateSkillFolderPayload
+  ): Promise<ProjectSkillFolderValidation>
+  importProjectSkill(payload: ProjectImportSkillPayload): Promise<ProjectSkillImportResult>
   reconcileInstalledSkill(pendingUpdateId: string): Promise<DesktopSyncState>
   distributePendingUpdate(pendingUpdateId: string): Promise<SkillDistributionResult>
 }
@@ -67,6 +101,18 @@ export interface DesktopClientIpcHandlers {
   refreshPreDistributionCheck(): Promise<PreDistributionCheckSnapshot>
   refreshLocalSkills(): Promise<LocalSkillsInventorySnapshot>
   uploadLocalSkill(rowKey: string): Promise<LocalSkillUploadResult>
+  listProjects(): Promise<ProjectListSnapshot>
+  addProject(payload: ProjectAddPayload): Promise<ProjectListSnapshot>
+  renameProject(payload: ProjectRenamePayload): Promise<ProjectListSnapshot>
+  removeProject(payload: ProjectRemovePayload): Promise<ProjectListSnapshot>
+  selectProjectFolder(): Promise<DirectorySelectionResult>
+  openProjectFolder(payload: ProjectOpenFolderPayload): Promise<void>
+  scanProjectSkills(payload: ProjectScanPayload): Promise<ProjectSkillScanSnapshot>
+  selectProjectSkillFolder(): Promise<DirectorySelectionResult>
+  validateProjectSkillFolder(
+    payload: ProjectValidateSkillFolderPayload
+  ): Promise<ProjectSkillFolderValidation>
+  importProjectSkill(payload: ProjectImportSkillPayload): Promise<ProjectSkillImportResult>
   reconcileInstalledSkill(pendingUpdateId: string): Promise<DesktopSyncState>
   distributePendingUpdate(pendingUpdateId: string): Promise<SkillDistributionResult>
 }
@@ -89,6 +135,16 @@ export function registerDesktopClientIpc(
   ipcMain.removeHandler(desktopClientIpcChannels.refreshPreDistributionCheck)
   ipcMain.removeHandler(desktopClientIpcChannels.refreshLocalSkills)
   ipcMain.removeHandler(desktopClientIpcChannels.uploadLocalSkill)
+  ipcMain.removeHandler(desktopClientIpcChannels.projectsList)
+  ipcMain.removeHandler(desktopClientIpcChannels.projectsAdd)
+  ipcMain.removeHandler(desktopClientIpcChannels.projectsRename)
+  ipcMain.removeHandler(desktopClientIpcChannels.projectsRemove)
+  ipcMain.removeHandler(desktopClientIpcChannels.projectsSelectFolder)
+  ipcMain.removeHandler(desktopClientIpcChannels.projectsOpenFolder)
+  ipcMain.removeHandler(desktopClientIpcChannels.projectsScanSkills)
+  ipcMain.removeHandler(desktopClientIpcChannels.projectsSelectSkillFolder)
+  ipcMain.removeHandler(desktopClientIpcChannels.projectsValidateSkillFolder)
+  ipcMain.removeHandler(desktopClientIpcChannels.projectsImportSkill)
   ipcMain.removeHandler(desktopClientIpcChannels.reconcileInstalledSkill)
   ipcMain.removeHandler(desktopClientIpcChannels.distributePendingUpdate)
 
@@ -127,6 +183,41 @@ export function registerDesktopClientIpc(
   )
   ipcMain.handle(desktopClientIpcChannels.uploadLocalSkill, async (_event, rowKey: string) =>
     handlers.uploadLocalSkill(rowKey)
+  )
+  ipcMain.handle(desktopClientIpcChannels.projectsList, async () => handlers.listProjects())
+  ipcMain.handle(desktopClientIpcChannels.projectsAdd, async (_event, payload: ProjectAddPayload) =>
+    handlers.addProject(payload)
+  )
+  ipcMain.handle(
+    desktopClientIpcChannels.projectsRename,
+    async (_event, payload: ProjectRenamePayload) => handlers.renameProject(payload)
+  )
+  ipcMain.handle(
+    desktopClientIpcChannels.projectsRemove,
+    async (_event, payload: ProjectRemovePayload) => handlers.removeProject(payload)
+  )
+  ipcMain.handle(desktopClientIpcChannels.projectsSelectFolder, async () =>
+    handlers.selectProjectFolder()
+  )
+  ipcMain.handle(
+    desktopClientIpcChannels.projectsOpenFolder,
+    async (_event, payload: ProjectOpenFolderPayload) => handlers.openProjectFolder(payload)
+  )
+  ipcMain.handle(
+    desktopClientIpcChannels.projectsScanSkills,
+    async (_event, payload: ProjectScanPayload) => handlers.scanProjectSkills(payload)
+  )
+  ipcMain.handle(desktopClientIpcChannels.projectsSelectSkillFolder, async () =>
+    handlers.selectProjectSkillFolder()
+  )
+  ipcMain.handle(
+    desktopClientIpcChannels.projectsValidateSkillFolder,
+    async (_event, payload: ProjectValidateSkillFolderPayload) =>
+      handlers.validateProjectSkillFolder(payload)
+  )
+  ipcMain.handle(
+    desktopClientIpcChannels.projectsImportSkill,
+    async (_event, payload: ProjectImportSkillPayload) => handlers.importProjectSkill(payload)
   )
   ipcMain.handle(
     desktopClientIpcChannels.reconcileInstalledSkill,

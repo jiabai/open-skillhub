@@ -113,12 +113,14 @@ body {
 }
 
 button,
-input {
+input,
+select {
   font: inherit;
 }
 
 button:focus-visible,
-input:focus-visible {
+input:focus-visible,
+select:focus-visible {
   outline: 2px solid var(--osh-focus-ring);
   outline-offset: 2px;
 }
@@ -709,6 +711,20 @@ input:focus-visible {
   padding: 0.72rem 0.8rem;
 }
 
+.project-path-picker {
+  display: grid;
+  gap: 0.5rem;
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.project-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  color: var(--osh-muted);
+  font-weight: 700;
+}
+
 .muted {
   color: var(--osh-muted);
 }
@@ -790,6 +806,10 @@ input:focus-visible {
 
   .page-intro__actions {
     justify-content: flex-start;
+  }
+
+  .project-path-picker {
+    grid-template-columns: 1fr;
   }
 
   .update-item__actions {

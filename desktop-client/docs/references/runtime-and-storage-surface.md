@@ -63,6 +63,16 @@ Defined in `electron/ipc.ts`:
 - `pre-distribution-check:refresh`
 - `distribution:reconcile-installed`
 - `distribution:run`
+- `projects:list`
+- `projects:add`
+- `projects:rename`
+- `projects:remove`
+- `projects:select-folder`
+- `projects:open-folder`
+- `projects:scan-skills`
+- `projects:select-skill-folder`
+- `projects:validate-skill-folder`
+- `projects:import-skill`
 
 Renderer bridge methods:
 
@@ -82,6 +92,16 @@ Renderer bridge methods:
 - `refreshPreDistributionCheck()`
 - `reconcileInstalledSkill(pendingUpdateId)`
 - `distributePendingUpdate(pendingUpdateId)`
+- `listProjects()`
+- `addProject(payload)`
+- `renameProject(payload)`
+- `removeProject(payload)`
+- `selectProjectFolder()`
+- `openProjectFolder(payload)`
+- `scanProjectSkills(payload)`
+- `selectProjectSkillFolder()`
+- `validateProjectSkillFolder(payload)`
+- `importProjectSkill(payload)`
 
 The agent detection channel returns a transient `AgentDetectionSnapshot` with
 all supported assistant statuses, installed IDs, and deduped unique write
@@ -106,6 +126,16 @@ The agent paths channels read, write, and reveal `config/agent-paths.json`.
 Read/save responses return sanitized entries only. Opening the directory creates
 an empty `{}` file first when the file does not exist.
 
+The project channels read and write `config/projects.json`, open native
+directory pickers, reveal project folders, scan project-level skills, validate
+source skill folders, and import source folders into catalog-defined project
+targets. Filesystem reads and writes stay in the Electron main process. Import
+resolves destination paths from persisted project state and catalog metadata,
+never from renderer-provided destination paths. Project detail scans merge
+global rows only from `~/.agents/skills`; other global agent skill directories
+remain available to Local Skills but are not shown as global project-detail
+rows.
+
 ## App Paths
 
 Computed in `src/core/storage/app-paths.ts`:
@@ -115,6 +145,7 @@ Computed in `src/core/storage/app-paths.ts`:
   config/
     config.json
     agent-paths.json
+    projects.json
   state/
     state.json
     state.sqlite3
@@ -137,6 +168,9 @@ Platform base directory rules:
 - `agent-paths.json` stores optional per-Agent `{ "targetPath": "..." }`
   overrides after sanitization; missing or invalid entries fall back to catalog
   defaults
+- `projects.json` stores user-added project records as
+  `{ id, name, path, addedAt, updatedAt }`; invalid JSON falls back to an empty
+  list, and duplicate names or normalized paths are rejected before write
 - API token persistence uses the `keytar` secret store through `src/core/storage/secret-store.ts`
 - `state.sqlite3` stores sync snapshot tables only
 - package downloads and decrypted plaintext artifacts are written to unique
@@ -146,6 +180,9 @@ Platform base directory rules:
 - local skill upload ZIPs are written to unique `cache/local-upload-*`
   directories by the Electron main process and removed after the upload attempt
   succeeds or fails
+- project skill import does not stage cache artifacts; it validates the source
+  folder and copies directly into the selected project target directory after
+  containment, conflict, symlink, file-count, and byte-size checks
 - `logs/` and `backups/` are not yet created by the current implementation
 
 ## Agent Runtime Surface
@@ -202,3 +239,31 @@ The standard targets are:
 Cline/Warp/Codex and Amp/Kimi shared physical targets are deduped before
 pre-check and distribution. Distribution writes a shared path once and reports
 every covered assistant in the result.
+
+Project-relative skill targets are catalog-driven through
+`supportedAgentDefinitions.projectTargets`. Current writable project target
+candidates are:
+
+- Claude Code: `.claude/skills`
+- Cursor: `.cursor/skills`
+- Windsurf: `.windsurf/skills`
+- GitHub Copilot: `.copilot/skills`
+- RooCode: `.roo/skills`
+- Cline: `.agents/skills`
+- Gemini CLI: `.gemini/skills`
+- Codex: `.agents/skills`
+- OpenCode: `.opencode/skills`
+- KiloCode: `.kilocode/skills`
+- Amp: `.config/agents/skills`
+- Kiro: `.kiro/skills`
+- Warp: `.agents/skills`
+- Trae: `.trae/skills`
+- Factory: `.factory/skills`
+- Kimi Code CLI: `.config/agents/skills`
+- Mistral Le Chat: `.vibe/skills`
+- Pi Coding Agent: `.pi/agent/skills`
+- Antigravity: `.gemini/antigravity/skills`
+
+Cursor and OpenCode also declare compatible project read paths for project skill
+scans. Compatible-read paths can contribute inventory rows but are not exposed
+as writable import targets.

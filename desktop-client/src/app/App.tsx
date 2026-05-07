@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState } from "react"
 import { AppShell, type AppView } from "@/components/app-shell"
 import { HomeView } from "@/components/home-view"
 import { LocalSkillsView } from "@/components/local-skills-view"
+import { ProjectsView } from "@/components/projects-view"
 import { SettingsDrawer } from "@/components/settings-drawer"
 import { UpdatesView } from "@/components/updates-view"
 import { Button, Dialog } from "@/components/ui-primitives"
@@ -20,10 +21,18 @@ import type {
   ConfigurationState,
   ConnectionTestResult,
   DesktopSyncState,
+  DirectorySelectionResult,
   LocalSkillInventoryRow,
   LocalSkillsInventorySnapshot,
   PendingSyncUpdate,
   PreDistributionCheckSnapshot,
+  ProjectAddPayload,
+  ProjectEntry,
+  ProjectImportSkillPayload,
+  ProjectListSnapshot,
+  ProjectRenamePayload,
+  ProjectSkillFolderValidation,
+  ProjectSkillScanSnapshot,
   SkillDistributionResult
 } from "@/types"
 
@@ -195,11 +204,20 @@ export function App() {
     useState<PreDistributionCheckSnapshot | null>(null)
   const [localSkillsSnapshot, setLocalSkillsSnapshot] =
     useState<LocalSkillsInventorySnapshot | null>(null)
+  const [projectsSnapshot, setProjectsSnapshot] = useState<ProjectListSnapshot | null>(null)
+  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null)
+  const [projectSkillScanSnapshot, setProjectSkillScanSnapshot] =
+    useState<ProjectSkillScanSnapshot | null>(null)
+  const [projectSkillValidation, setProjectSkillValidation] =
+    useState<ProjectSkillFolderValidation | null>(null)
   const [agentDetectionSnapshot, setAgentDetectionSnapshot] =
     useState<AgentDetectionSnapshot | null>(null)
   const [isPreDistributionChecking, setIsPreDistributionChecking] = useState(false)
   const [isAgentDetectionRefreshing, setIsAgentDetectionRefreshing] = useState(false)
   const [isLocalSkillsRefreshing, setIsLocalSkillsRefreshing] = useState(false)
+  const [isProjectsLoading, setIsProjectsLoading] = useState(false)
+  const [isProjectSkillScanning, setIsProjectSkillScanning] = useState(false)
+  const [isProjectActionBusy, setIsProjectActionBusy] = useState(false)
   const [preDistributionCheckClock, setPreDistributionCheckClock] = useState(() => Date.now())
   const [activity, setActivity] = useState<ActivityEntry[]>([
     createActivityEntry(
@@ -214,6 +232,7 @@ export function App() {
   const [pendingDistributionConfirmation, setPendingDistributionConfirmation] =
     useState<PendingSyncUpdate | null>(null)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const [projectErrorMessage, setProjectErrorMessage] = useState<string | null>(null)
   const [configState, setConfigState] = useState<ConfigurationState | null>(null)
   const [isConfiguring, setIsConfiguring] = useState(false)
   const [isSavingConfiguration, setIsSavingConfiguration] = useState(false)
@@ -371,6 +390,75 @@ export function App() {
       return null
     } finally {
       setIsLocalSkillsRefreshing(false)
+    }
+  }
+
+  const refreshProjectsState = async () => {
+    if (!bridgeAvailable) {
+      setProjectsSnapshot(null)
+      setIsProjectsLoading(false)
+      return null
+    }
+
+    setIsProjectsLoading(true)
+
+    try {
+      const snapshot = await desktopClient.listProjects()
+      setProjectsSnapshot(snapshot)
+      setProjectErrorMessage(null)
+      return snapshot
+    } catch (error: unknown) {
+      const message = getErrorMessage(error)
+      setProjectErrorMessage(message)
+      setActivity((current) =>
+        [
+          createActivityEntry(
+            dictionary.activity.refreshFailedTitle,
+            dictionary.activity.refreshFailedDetail(`Projects: ${message}`),
+            "warning"
+          ),
+          ...current
+        ].slice(0, 5)
+      )
+      return null
+    } finally {
+      setIsProjectsLoading(false)
+    }
+  }
+
+  const refreshProjectSkillScan = async (projectId: string) => {
+    if (!bridgeAvailable) {
+      setProjectSkillScanSnapshot(null)
+      setIsProjectSkillScanning(false)
+      return null
+    }
+
+    setIsProjectSkillScanning(true)
+
+    try {
+      const snapshot = await desktopClient.scanProjectSkills({ projectId })
+      setProjectSkillScanSnapshot(snapshot)
+      setProjectErrorMessage(null)
+      return snapshot
+    } catch (error: unknown) {
+      const message = getErrorMessage(error)
+      const projectName =
+        projectsSnapshot?.projects.find((project) => project.id === projectId)?.name ?? projectId
+
+      setProjectErrorMessage(message)
+      setActivity((current) =>
+        [
+          createActivityEntry(
+            dictionary.activity.projectScanFailedTitle,
+            dictionary.activity.projectScanFailedDetail(projectName, message),
+            "warning"
+          ),
+          ...current
+        ].slice(0, 5)
+      )
+      return null
+    } finally {
+      setIsProjectSkillScanning(false)
     }
   }
 
@@ -965,6 +1053,10 @@ export function App() {
     if (view === "local-skills" && configurationReady && localSkillsSnapshot === null) {
       void refreshLocalSkillsState()
     }
+
+    if (view === "projects" && projectsSnapshot === null) {
+      void refreshProjectsState()
+    }
   }
 
   const handleRefreshLocalSkills = async () => {
@@ -1012,6 +1104,230 @@ export function App() {
       await refreshLocalSkillsState()
     } finally {
       setBusyLocalSkillRowKey(null)
+    }
+  }
+
+  const handleAddProject = async (payload: ProjectAddPayload) => {
+    if (!bridgeAvailable) {
+      setProjectErrorMessage(createBridgeUnavailableMessage(selectedLocale, dictionary.projectsView.addProject))
+      return
+    }
+
+    setIsProjectActionBusy(true)
+
+    try {
+      const snapshot = await desktopClient.addProject(payload)
+      setProjectsSnapshot(snapshot)
+      setProjectErrorMessage(null)
+      const addedProject = snapshot.projects.at(-1)
+      setActivity((current) =>
+        [
+          createActivityEntry(
+            dictionary.activity.projectAddedTitle,
+            dictionary.activity.projectAddedDetail(addedProject?.name ?? payload.name),
+            "success"
+          ),
+          ...current
+        ].slice(0, 5)
+      )
+    } catch (error: unknown) {
+      const message = getErrorMessage(error)
+      setProjectErrorMessage(message)
+      throw error
+    } finally {
+      setIsProjectActionBusy(false)
+    }
+  }
+
+  const handleRenameProject = async (payload: ProjectRenamePayload) => {
+    if (!bridgeAvailable) {
+      return
+    }
+
+    setIsProjectActionBusy(true)
+
+    try {
+      const snapshot = await desktopClient.renameProject(payload)
+      setProjectsSnapshot(snapshot)
+      setProjectErrorMessage(null)
+      const renamedProject = snapshot.projects.find((project) => project.id === payload.projectId)
+
+      if (projectSkillScanSnapshot?.projectId === payload.projectId && renamedProject) {
+        setProjectSkillScanSnapshot({
+          ...projectSkillScanSnapshot,
+          project: renamedProject
+        })
+      }
+
+      setActivity((current) =>
+        [
+          createActivityEntry(
+            dictionary.activity.projectRenamedTitle,
+            dictionary.activity.projectRenamedDetail(renamedProject?.name ?? payload.name),
+            "success"
+          ),
+          ...current
+        ].slice(0, 5)
+      )
+    } catch (error: unknown) {
+      const message = getErrorMessage(error)
+      setProjectErrorMessage(message)
+      throw error
+    } finally {
+      setIsProjectActionBusy(false)
+    }
+  }
+
+  const handleRemoveProject = async (projectId: string) => {
+    if (!bridgeAvailable) {
+      return
+    }
+
+    const removedProject = projectsSnapshot?.projects.find((project) => project.id === projectId)
+    setIsProjectActionBusy(true)
+
+    try {
+      const snapshot = await desktopClient.removeProject({ projectId })
+      setProjectsSnapshot(snapshot)
+      setProjectErrorMessage(null)
+
+      if (selectedProjectId === projectId) {
+        setSelectedProjectId(null)
+        setProjectSkillScanSnapshot(null)
+      }
+
+      setActivity((current) =>
+        [
+          createActivityEntry(
+            dictionary.activity.projectRemovedTitle,
+            dictionary.activity.projectRemovedDetail(removedProject?.name ?? projectId),
+            "warning"
+          ),
+          ...current
+        ].slice(0, 5)
+      )
+    } catch (error: unknown) {
+      const message = getErrorMessage(error)
+      setProjectErrorMessage(message)
+      throw error
+    } finally {
+      setIsProjectActionBusy(false)
+    }
+  }
+
+  const handleSelectProject = async (project: ProjectEntry) => {
+    setSelectedProjectId(project.id)
+    setProjectSkillValidation(null)
+    await refreshProjectSkillScan(project.id)
+  }
+
+  const handleBackToProjectsList = () => {
+    setSelectedProjectId(null)
+    setProjectSkillScanSnapshot(null)
+    setProjectSkillValidation(null)
+  }
+
+  const handleOpenProjectFolder = async (projectId: string) => {
+    if (!bridgeAvailable) {
+      return
+    }
+
+    setIsProjectActionBusy(true)
+
+    try {
+      await desktopClient.openProjectFolder({ projectId })
+      setProjectErrorMessage(null)
+    } catch (error: unknown) {
+      const message = getErrorMessage(error)
+      setProjectErrorMessage(message)
+    } finally {
+      setIsProjectActionBusy(false)
+    }
+  }
+
+  const handleSelectProjectFolder = async (): Promise<DirectorySelectionResult> => {
+    if (!bridgeAvailable) {
+      setProjectErrorMessage(
+        createBridgeUnavailableMessage(selectedLocale, dictionary.projectsView.browse)
+      )
+      return { canceled: true, path: null }
+    }
+
+    return desktopClient.selectProjectFolder()
+  }
+
+  const handleSelectProjectSkillFolder = async (): Promise<DirectorySelectionResult> => {
+    if (!bridgeAvailable) {
+      setProjectErrorMessage(
+        createBridgeUnavailableMessage(selectedLocale, dictionary.projectsView.browse)
+      )
+      return { canceled: true, path: null }
+    }
+
+    return desktopClient.selectProjectSkillFolder()
+  }
+
+  const handleValidateProjectSkillFolder = async (sourcePath: string) => {
+    if (!bridgeAvailable) {
+      return
+    }
+
+    setIsProjectActionBusy(true)
+
+    try {
+      const result = await desktopClient.validateProjectSkillFolder({ sourcePath })
+      setProjectSkillValidation(result)
+      setProjectErrorMessage(result.valid ? null : result.validationMessage)
+    } catch (error: unknown) {
+      const message = getErrorMessage(error)
+      setProjectErrorMessage(message)
+    } finally {
+      setIsProjectActionBusy(false)
+    }
+  }
+
+  const handleImportProjectSkill = async (payload: ProjectImportSkillPayload) => {
+    if (!bridgeAvailable) {
+      return
+    }
+
+    const projectName =
+      projectsSnapshot?.projects.find((project) => project.id === payload.projectId)?.name ??
+      payload.projectId
+    const skillName = projectSkillValidation?.identity ?? payload.sourcePath
+    setIsProjectActionBusy(true)
+
+    try {
+      const result = await desktopClient.importProjectSkill(payload)
+      setProjectSkillValidation(null)
+      setProjectErrorMessage(null)
+      await refreshProjectSkillScan(payload.projectId)
+      setActivity((current) =>
+        [
+          createActivityEntry(
+            dictionary.activity.projectSkillImportedTitle,
+            dictionary.activity.projectSkillImportedDetail(result.identity, projectName),
+            "success"
+          ),
+          ...current
+        ].slice(0, 5)
+      )
+    } catch (error: unknown) {
+      const message = getErrorMessage(error)
+      setProjectErrorMessage(message)
+      setActivity((current) =>
+        [
+          createActivityEntry(
+            dictionary.activity.projectSkillImportFailedTitle,
+            dictionary.activity.projectSkillImportFailedDetail(skillName, message),
+            "warning"
+          ),
+          ...current
+        ].slice(0, 5)
+      )
+      throw error
+    } finally {
+      setIsProjectActionBusy(false)
     }
   }
 
@@ -1074,6 +1390,29 @@ export function App() {
             uploadingRowKey={busyLocalSkillRowKey}
             onRefresh={handleRefreshLocalSkills}
             onUpload={handleUploadLocalSkill}
+          />
+        ) : activeView === "projects" ? (
+          <ProjectsView
+            snapshot={projectsSnapshot}
+            scanSnapshot={projectSkillScanSnapshot}
+            selectedProjectId={selectedProjectId}
+            bridgeAvailable={bridgeAvailable}
+            isLoading={isProjectsLoading}
+            isScanning={isProjectSkillScanning}
+            busy={isProjectActionBusy}
+            validation={projectSkillValidation}
+            errorMessage={projectErrorMessage}
+            onAddProject={handleAddProject}
+            onRenameProject={handleRenameProject}
+            onRemoveProject={handleRemoveProject}
+            onSelectProject={handleSelectProject}
+            onBackToList={handleBackToProjectsList}
+            onOpenProjectFolder={handleOpenProjectFolder}
+            onRefreshProjectSkills={refreshProjectSkillScan}
+            onSelectProjectFolder={handleSelectProjectFolder}
+            onSelectProjectSkillFolder={handleSelectProjectSkillFolder}
+            onValidateSkillFolder={handleValidateProjectSkillFolder}
+            onImportSkill={handleImportProjectSkill}
           />
         ) : (
           <UpdatesView

@@ -33,6 +33,7 @@ export interface AppDictionary {
       home: string
       localSkills: string
       updates: string
+      projects: string
     }
     bridgeStatus: {
       unavailable: string
@@ -126,6 +127,61 @@ export interface AppDictionary {
       unknown: string
       invalidLocal: string
     }
+  }
+  projectsView: {
+    eyebrow: string
+    title: string
+    summary: string
+    addProject: string
+    addProjectTitle: string
+    addProjectDescription: string
+    nameLabel: string
+    pathLabel: string
+    browse: string
+    saving: string
+    empty: string
+    noSnapshot: string
+    projectsCount: (count: number) => string
+    open: string
+    rename: string
+    renameTitle: string
+    remove: string
+    removeTitle: string
+    removeDescription: (name: string) => string
+    confirmRemove: string
+    cancel: string
+    back: string
+    openFolder: string
+    refreshSkills: string
+    scanning: string
+    addSkill: string
+    importTitle: string
+    importDescription: string
+    sourceFolderLabel: string
+    targetAgentLabel: string
+    overwriteLabel: string
+    validate: string
+    validating: string
+    import: string
+    importing: string
+    noTargets: string
+    loading: string
+    skillCount: (count: number) => string
+    targetCount: (count: number) => string
+    sourceLabels: {
+      project: string
+      global: string
+    }
+    validationStateLabels: {
+      valid: string
+      "missing-skill-md": string
+      "invalid-skill-name": string
+      unreadable: string
+      "not-directory": string
+    }
+    version: (value: string) => string
+    sourceAgents: (value: string) => string
+    path: (value: string) => string
   }
   settingsPanel: {
     title: string
@@ -307,6 +363,18 @@ export interface AppDictionary {
     localSkillUploadedDetail: (name: string) => string
     localSkillUploadFailedTitle: string
     localSkillUploadFailedDetail: (name: string, message: string) => string
+    projectAddedTitle: string
+    projectAddedDetail: (name: string) => string
+    projectRenamedTitle: string
+    projectRenamedDetail: (name: string) => string
+    projectRemovedTitle: string
+    projectRemovedDetail: (name: string) => string
+    projectScanFailedTitle: string
+    projectScanFailedDetail: (name: string, message: string) => string
+    projectSkillImportedTitle: string
+    projectSkillImportedDetail: (name: string, project: string) => string
+    projectSkillImportFailedTitle: string
+    projectSkillImportFailedDetail: (name: string, message: string) => string
     themeUpdateFailedTitle: string
     themeUpdateFailedDetail: (message: string) => string
   }

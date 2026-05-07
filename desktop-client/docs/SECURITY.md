@@ -29,6 +29,11 @@
 - Local skill upload IPC accepts only a row key. The main process must resolve
   that row from a fresh local inventory snapshot instead of trusting a renderer
   path.
+- Project skill IPC keeps native folder selection, project record writes, skill
+  scan, skill validation, folder copy, overwrite, and folder reveal in the main
+  process. The renderer sends project IDs, source paths selected by explicit
+  user action, target agent IDs, and overwrite flags; it never sends destination
+  paths or file contents.
 
 ## Package Validation
 
@@ -38,6 +43,10 @@
 - Local skill upload packaging must revalidate the selected package root in the
   main process, require a root `SKILL.md`, reject path traversal and symlink
   escape, and clean temporary ZIP artifacts after success or failure.
+- Project skill import revalidates the source folder in the main process,
+  requires root `SKILL.md`, resolves safe identity from `slug` before `name`,
+  rejects symlinks, non-regular entries, path escapes, excessive file count, and
+  excessive total bytes, and copies only into the selected project target.
 
 ## Path Safety
 
@@ -50,6 +59,17 @@
   detection or distribution can use them.
 - Compatible read paths are explanatory metadata only. They must not become write targets unless the agent catalog also declares them as owned targets.
 - Shared physical target dedupe must happen on normalized paths before distribution so one user-controlled directory is written at most once per approved skill.
+- Project records require normalized absolute directories and reject duplicate
+  names and duplicate normalized paths before persistence.
+- Project target definitions must be project-relative catalog metadata.
+  Absolute project target definitions and `..` escapes fail closed.
+- Project import destinations are resolved from the persisted project record and
+  catalog target metadata. Existing target skill directories are rejected unless
+  the IPC payload has explicit `overwrite: true`, and overwrite removes only the
+  resolved target skill directory after containment checks.
+- Removing a project from the Projects view deletes only the
+  `config/projects.json` record. It must not delete project files or skill
+  directories.
 
 ## Network and API Contracts
 

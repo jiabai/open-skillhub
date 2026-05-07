@@ -18,5 +18,6 @@
 - `2026-05-04-agent-path-configuration-zh.md` - Agent 路径 JSON 配置、环境变量移除与 UI 入口产品规格（中文版）
 - `2026-05-04-upload-button-label-simplification.md` - Upload button label simplification: remove skill name from the Local Skills upload button (English)
 - `2026-05-04-upload-button-label-simplification-zh.md` - 上传按钮标签简化：移除本地 SKILL 上传按钮中的 SKILL 名称（中文版）
+- `2026-05-07-project-skill-loading.md` - Project Skill Loading product spec for project records, project-level skill scans, and explicit project import (Chinese)
 
 Canonical rule: work from the local product spec first.

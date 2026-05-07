@@ -12,6 +12,7 @@
 
 ## Done
 
+- [x] Project Skill Loading implementation (2026-05-07) ✅ Projects navigation, `config/projects.json`, project target catalog metadata, project skill scan/import services, typed IPC/preload/client bridge, renderer UI, i18n, tests, and docs are implemented; `npm test`, `npm run build`, `python scripts/validate_agents_docs.py --level ERROR`, and `git diff --check` pass. See `docs/exec-plans/completed/2026-05-07-project-skill-loading.md`
 - [x] Agent path JSON configuration and environment variable removal (2026-05-04) ✅ `agent-paths.json` storage, validation, detection merge, typed IPC, Settings entry point, and Agent path environment-variable removal are implemented; `npm test`, `npm run build`, `npm run typecheck:electron`, `python scripts/validate_agents_docs.py --level ERROR`, and `git diff --check` pass. See `docs/exec-plans/completed/2026-05-04-agent-path-configuration.md`
 - [x] Upload button label simplification (2026-05-04) ✅ Upload button in Local Skills view now shows only "Upload"/"上传" without the skill name; `npm test`, `npm run build`, `python scripts/validate_agents_docs.py --level ERROR`, and `git diff --check` pass. See `docs/exec-plans/completed/2026-05-04-upload-button-label-simplification.md`
 - [x] Desktop dark mode implementation (2026-05-02) ✅ Runtime theme persistence, `saveTheme` IPC, renderer icon toggle, and dark CSS tokens are implemented; `npm test`, `npm run build`, `python scripts/validate_agents_docs.py --level ERROR`, and `git diff --check` pass. See `docs/exec-plans/completed/2026-05-02-desktop-dark-mode.md`

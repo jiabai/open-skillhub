@@ -11,5 +11,6 @@
 - `desktop-dark-mode.md` - 桌面端暗黑模式、主题持久化和 frontend 视觉对齐的技术设计
 - `desktop-packaging.md` - Windows installer packaging boundary and validation design
 - `macos-release-packaging.md` - macOS release packaging, signing, notarization, and validation design
+- `project-skill-loading.md` - Project records, project-level skill scans, and explicit project import technical design
 
 This local `design-docs/` directory is the canonical home for durable design guidance.

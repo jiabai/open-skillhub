@@ -152,6 +152,111 @@ export interface LocalSkillUploadResult {
   refreshedSnapshot: LocalSkillsInventorySnapshot
 }
 
+export interface ProjectEntry {
+  id: string
+  name: string
+  path: string
+  addedAt: string
+  updatedAt: string
+}
+
+export interface ProjectListSnapshot {
+  checkedAt: string
+  projects: ProjectEntry[]
+}
+
+export interface ProjectAgentTarget {
+  targetId: string
+  targetPath: string
+  relativePath: string
+  primaryAgentId: AgentId
+  coveredAgentIds: AgentId[]
+  writableAgentIds: AgentId[]
+  displayNames: string[]
+  sharedPathKey: string | null
+  writable: boolean
+}
+
+export type ProjectSkillSource = "project" | "global"
+
+export interface ProjectSkillRow {
+  rowKey: string
+  identity: string | null
+  version: string | null
+  description: string | null
+  source: ProjectSkillSource
+  agentIds: AgentId[]
+  sourceDisplayNames: string[]
+  skillPath: string
+  relativePath: string | null
+  validationState: LocalSkillValidationState
+  validationMessage: string | null
+}
+
+export interface ProjectSkillScanSnapshot {
+  projectId: string
+  checkedAt: string
+  project: ProjectEntry
+  targets: ProjectAgentTarget[]
+  rows: ProjectSkillRow[]
+  errors: string[]
+}
+
+export interface ProjectSkillFolderValidation {
+  valid: boolean
+  identity: string | null
+  version: string | null
+  description: string | null
+  sourcePath: string
+  validationState: LocalSkillValidationState
+  validationMessage: string | null
+}
+
+export interface ProjectSkillImportResult {
+  projectId: string
+  identity: string
+  targetPath: string
+  overwritten: boolean
+}
+
+export interface ProjectAddPayload {
+  name: string
+  path: string
+}
+
+export interface ProjectRenamePayload {
+  projectId: string
+  name: string
+}
+
+export interface ProjectRemovePayload {
+  projectId: string
+}
+
+export interface ProjectScanPayload {
+  projectId: string
+}
+
+export interface ProjectOpenFolderPayload {
+  projectId: string
+}
+
+export interface ProjectValidateSkillFolderPayload {
+  sourcePath: string
+}
+
+export interface ProjectImportSkillPayload {
+  projectId: string
+  sourcePath: string
+  targetAgentId: AgentId
+  overwrite: boolean
+}
+
+export interface DirectorySelectionResult {
+  canceled: boolean
+  path: string | null
+}
+
 export interface LocalDistributedSkillRecord {
   remoteSkillId: string
   name: string

@@ -5,7 +5,7 @@ import { Badge, Button } from "@/components/ui-primitives"
 import { useI18n } from "@/i18n/use-i18n"
 import type { AppTheme } from "@/types"
 
-export type AppView = "home" | "local-skills" | "updates"
+export type AppView = "home" | "local-skills" | "updates" | "projects"
 
 type AppShellProps = {
   activeView: AppView
@@ -88,6 +88,13 @@ export function AppShell({
                 {dictionary.appShell.navigation.home}
               </Button>
               <Button
+                variant={activeView === "updates" ? "nav-active" : "ghost"}
+                size="sm"
+                onClick={() => onNavigate("updates")}
+              >
+                {dictionary.appShell.navigation.updates}
+              </Button>
+              <Button
                 variant={activeView === "local-skills" ? "nav-active" : "ghost"}
                 size="sm"
                 onClick={() => onNavigate("local-skills")}
@@ -95,11 +102,11 @@ export function AppShell({
                 {dictionary.appShell.navigation.localSkills}
               </Button>
               <Button
-                variant={activeView === "updates" ? "nav-active" : "ghost"}
+                variant={activeView === "projects" ? "nav-active" : "ghost"}
                 size="sm"
-                onClick={() => onNavigate("updates")}
+                onClick={() => onNavigate("projects")}
               >
-                {dictionary.appShell.navigation.updates}
+                {dictionary.appShell.navigation.projects}
               </Button>
             </nav>
             <span className="badge">{bridgeStatus}</span>

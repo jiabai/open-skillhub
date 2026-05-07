@@ -89,7 +89,7 @@ export function LocalSkillsView({
 
       <Card aria-labelledby="local-skills-heading">
         <CardHeader>
-          <CardTitle id="local-skills-list-heading">{copy.inventoryTitle}</CardTitle>
+          <CardTitle id="local-skills-list-heading">{dictionary.updatesView.inventoryTitle}</CardTitle>
           <CardDescription>
             {snapshot ? `${snapshot.rows.length} local skill${snapshot.rows.length === 1 ? "" : "s"}` : copy.noSnapshot}
           </CardDescription>

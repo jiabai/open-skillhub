@@ -19,6 +19,16 @@ type MockDesktopClientBridge = {
   refreshPreDistributionCheck: ReturnType<typeof vi.fn>
   refreshLocalSkills: ReturnType<typeof vi.fn>
   uploadLocalSkill: ReturnType<typeof vi.fn>
+  listProjects: ReturnType<typeof vi.fn>
+  addProject: ReturnType<typeof vi.fn>
+  renameProject: ReturnType<typeof vi.fn>
+  removeProject: ReturnType<typeof vi.fn>
+  selectProjectFolder: ReturnType<typeof vi.fn>
+  openProjectFolder: ReturnType<typeof vi.fn>
+  scanProjectSkills: ReturnType<typeof vi.fn>
+  selectProjectSkillFolder: ReturnType<typeof vi.fn>
+  validateProjectSkillFolder: ReturnType<typeof vi.fn>
+  importProjectSkill: ReturnType<typeof vi.fn>
   reconcileInstalledSkill: ReturnType<typeof vi.fn>
   distributePendingUpdate: ReturnType<typeof vi.fn>
 }
@@ -38,6 +48,16 @@ const mockDesktopClient = {
   refreshPreDistributionCheck: vi.fn(),
   refreshLocalSkills: vi.fn(),
   uploadLocalSkill: vi.fn(),
+  listProjects: vi.fn(),
+  addProject: vi.fn(),
+  renameProject: vi.fn(),
+  removeProject: vi.fn(),
+  selectProjectFolder: vi.fn(),
+  openProjectFolder: vi.fn(),
+  scanProjectSkills: vi.fn(),
+  selectProjectSkillFolder: vi.fn(),
+  validateProjectSkillFolder: vi.fn(),
+  importProjectSkill: vi.fn(),
   reconcileInstalledSkill: vi.fn(),
   distributePendingUpdate: vi.fn()
 } satisfies MockDesktopClientBridge
@@ -137,6 +157,67 @@ const defaultLocalSkillsSnapshot = {
   serverLookupMessage: null
 }
 
+const defaultProjectsSnapshot = {
+  checkedAt: "2026-05-07T00:00:00.000Z",
+  projects: [
+    {
+      id: "project-1",
+      name: "Example Project",
+      path: "D:\\Projects\\Example",
+      addedAt: "2026-05-07T00:00:00.000Z",
+      updatedAt: "2026-05-07T00:00:00.000Z"
+    }
+  ]
+}
+
+const defaultProjectScanSnapshot = {
+  projectId: "project-1",
+  checkedAt: "2026-05-07T00:01:00.000Z",
+  project: defaultProjectsSnapshot.projects[0],
+  targets: [
+    {
+      targetId: "target-claude",
+      targetPath: "D:\\Projects\\Example\\.claude\\skills",
+      relativePath: ".claude\\skills",
+      primaryAgentId: "claude-code" as const,
+      coveredAgentIds: ["claude-code" as const],
+      writableAgentIds: ["claude-code" as const],
+      displayNames: ["Claude Code"],
+      sharedPathKey: null,
+      writable: true
+    }
+  ],
+  rows: [
+    {
+      rowKey: "project-row",
+      identity: "project-skill",
+      version: "1.0.0",
+      description: "Project skill",
+      source: "project" as const,
+      agentIds: ["claude-code" as const],
+      sourceDisplayNames: ["Claude Code"],
+      skillPath: "D:\\Projects\\Example\\.claude\\skills\\project-skill",
+      relativePath: ".claude\\skills\\project-skill",
+      validationState: "valid" as const,
+      validationMessage: null
+    },
+    {
+      rowKey: "global-row",
+      identity: "global-only",
+      version: "0.1.0",
+      description: null,
+      source: "global" as const,
+      agentIds: ["codex" as const],
+      sourceDisplayNames: ["Codex"],
+      skillPath: "C:\\Users\\test\\.agents\\skills\\global-only",
+      relativePath: null,
+      validationState: "valid" as const,
+      validationMessage: null
+    }
+  ],
+  errors: []
+}
+
 beforeEach(() => {
   Object.defineProperty(window.navigator, "language", {
     configurable: true,
@@ -177,6 +258,38 @@ beforeEach(() => {
     version: "0.1.0",
     refreshedSnapshot: defaultLocalSkillsSnapshot
   })
+  mockDesktopClient.listProjects.mockResolvedValue(defaultProjectsSnapshot)
+  mockDesktopClient.addProject.mockResolvedValue(defaultProjectsSnapshot)
+  mockDesktopClient.renameProject.mockResolvedValue(defaultProjectsSnapshot)
+  mockDesktopClient.removeProject.mockResolvedValue({
+    checkedAt: "2026-05-07T00:00:00.000Z",
+    projects: []
+  })
+  mockDesktopClient.selectProjectFolder.mockResolvedValue({
+    canceled: false,
+    path: "D:\\Projects\\Example"
+  })
+  mockDesktopClient.openProjectFolder.mockResolvedValue(undefined)
+  mockDesktopClient.scanProjectSkills.mockResolvedValue(defaultProjectScanSnapshot)
+  mockDesktopClient.selectProjectSkillFolder.mockResolvedValue({
+    canceled: false,
+    path: "C:\\Users\\test\\.agents\\skills\\project-skill"
+  })
+  mockDesktopClient.validateProjectSkillFolder.mockResolvedValue({
+    valid: true,
+    identity: "project-skill",
+    version: "1.0.0",
+    description: "Project skill",
+    sourcePath: "C:\\Users\\test\\.agents\\skills\\project-skill",
+    validationState: "valid",
+    validationMessage: null
+  })
+  mockDesktopClient.importProjectSkill.mockResolvedValue({
+    projectId: "project-1",
+    identity: "project-skill",
+    targetPath: "D:\\Projects\\Example\\.claude\\skills\\project-skill",
+    overwritten: false
+  })
   mockDesktopClient.refreshAgentDetection.mockResolvedValue(defaultAgentDetection)
   mockDesktopClient.reconcileInstalledSkill.mockResolvedValue({
     localRecords: [],
@@ -215,6 +328,16 @@ describe("App", () => {
     expect(window.desktopClient?.refreshPreDistributionCheck).toBeTypeOf("function")
     expect(window.desktopClient?.refreshLocalSkills).toBeTypeOf("function")
     expect(window.desktopClient?.uploadLocalSkill).toBeTypeOf("function")
+    expect(window.desktopClient?.listProjects).toBeTypeOf("function")
+    expect(window.desktopClient?.addProject).toBeTypeOf("function")
+    expect(window.desktopClient?.renameProject).toBeTypeOf("function")
+    expect(window.desktopClient?.removeProject).toBeTypeOf("function")
+    expect(window.desktopClient?.selectProjectFolder).toBeTypeOf("function")
+    expect(window.desktopClient?.openProjectFolder).toBeTypeOf("function")
+    expect(window.desktopClient?.scanProjectSkills).toBeTypeOf("function")
+    expect(window.desktopClient?.selectProjectSkillFolder).toBeTypeOf("function")
+    expect(window.desktopClient?.validateProjectSkillFolder).toBeTypeOf("function")
+    expect(window.desktopClient?.importProjectSkill).toBeTypeOf("function")
     expect(window.desktopClient?.reconcileInstalledSkill).toBeTypeOf("function")
     expect(window.desktopClient?.distributePendingUpdate).toBeTypeOf("function")
   })
@@ -314,6 +437,38 @@ describe("App", () => {
       version: "0.1.0",
       refreshedSnapshot: defaultLocalSkillsSnapshot
     })
+    mockDesktopClient.listProjects.mockResolvedValue(defaultProjectsSnapshot)
+    mockDesktopClient.addProject.mockResolvedValue(defaultProjectsSnapshot)
+    mockDesktopClient.renameProject.mockResolvedValue(defaultProjectsSnapshot)
+    mockDesktopClient.removeProject.mockResolvedValue({
+      checkedAt: "2026-05-07T00:00:00.000Z",
+      projects: []
+    })
+    mockDesktopClient.selectProjectFolder.mockResolvedValue({
+      canceled: false,
+      path: "D:\\Projects\\Example"
+    })
+    mockDesktopClient.openProjectFolder.mockResolvedValue(undefined)
+    mockDesktopClient.scanProjectSkills.mockResolvedValue(defaultProjectScanSnapshot)
+    mockDesktopClient.selectProjectSkillFolder.mockResolvedValue({
+      canceled: false,
+      path: "C:\\Users\\test\\.agents\\skills\\project-skill"
+    })
+    mockDesktopClient.validateProjectSkillFolder.mockResolvedValue({
+      valid: true,
+      identity: "project-skill",
+      version: "1.0.0",
+      description: "Project skill",
+      sourcePath: "C:\\Users\\test\\.agents\\skills\\project-skill",
+      validationState: "valid",
+      validationMessage: null
+    })
+    mockDesktopClient.importProjectSkill.mockResolvedValue({
+      projectId: "project-1",
+      identity: "project-skill",
+      targetPath: "D:\\Projects\\Example\\.claude\\skills\\project-skill",
+      overwritten: false
+    })
     mockDesktopClient.reconcileInstalledSkill.mockResolvedValue({
       localRecords: [],
       pendingUpdates: [],
@@ -403,6 +558,63 @@ describe("App", () => {
       version: "0.1.0",
       refreshedSnapshot: defaultLocalSkillsSnapshot
     })
+    await expect(desktopClient.listProjects()).resolves.toEqual(defaultProjectsSnapshot)
+    await expect(
+      desktopClient.addProject({
+        name: "Example Project",
+        path: "D:\\Projects\\Example"
+      })
+    ).resolves.toEqual(defaultProjectsSnapshot)
+    await expect(
+      desktopClient.renameProject({
+        projectId: "project-1",
+        name: "Example Project"
+      })
+    ).resolves.toEqual(defaultProjectsSnapshot)
+    await expect(desktopClient.removeProject({ projectId: "project-1" })).resolves.toEqual({
+      checkedAt: "2026-05-07T00:00:00.000Z",
+      projects: []
+    })
+    await expect(desktopClient.selectProjectFolder()).resolves.toEqual({
+      canceled: false,
+      path: "D:\\Projects\\Example"
+    })
+    await expect(
+      desktopClient.openProjectFolder({ projectId: "project-1" })
+    ).resolves.toBeUndefined()
+    await expect(
+      desktopClient.scanProjectSkills({ projectId: "project-1" })
+    ).resolves.toEqual(defaultProjectScanSnapshot)
+    await expect(desktopClient.selectProjectSkillFolder()).resolves.toEqual({
+      canceled: false,
+      path: "C:\\Users\\test\\.agents\\skills\\project-skill"
+    })
+    await expect(
+      desktopClient.validateProjectSkillFolder({
+        sourcePath: "C:\\Users\\test\\.agents\\skills\\project-skill"
+      })
+    ).resolves.toEqual({
+      valid: true,
+      identity: "project-skill",
+      version: "1.0.0",
+      description: "Project skill",
+      sourcePath: "C:\\Users\\test\\.agents\\skills\\project-skill",
+      validationState: "valid",
+      validationMessage: null
+    })
+    await expect(
+      desktopClient.importProjectSkill({
+        projectId: "project-1",
+        sourcePath: "C:\\Users\\test\\.agents\\skills\\project-skill",
+        targetAgentId: "claude-code",
+        overwrite: false
+      })
+    ).resolves.toEqual({
+      projectId: "project-1",
+      identity: "project-skill",
+      targetPath: "D:\\Projects\\Example\\.claude\\skills\\project-skill",
+      overwritten: false
+    })
     await expect(desktopClient.reconcileInstalledSkill("skill-a")).resolves.toEqual({
       localRecords: [],
       pendingUpdates: [],
@@ -444,6 +656,29 @@ describe("App", () => {
     expect(mockDesktopClient.refreshPreDistributionCheck).toHaveBeenCalledTimes(1)
     expect(mockDesktopClient.refreshLocalSkills).toHaveBeenCalledTimes(1)
     expect(mockDesktopClient.uploadLocalSkill).toHaveBeenCalledWith("row-local-only")
+    expect(mockDesktopClient.listProjects).toHaveBeenCalledTimes(1)
+    expect(mockDesktopClient.addProject).toHaveBeenCalledWith({
+      name: "Example Project",
+      path: "D:\\Projects\\Example"
+    })
+    expect(mockDesktopClient.renameProject).toHaveBeenCalledWith({
+      projectId: "project-1",
+      name: "Example Project"
+    })
+    expect(mockDesktopClient.removeProject).toHaveBeenCalledWith({ projectId: "project-1" })
+    expect(mockDesktopClient.selectProjectFolder).toHaveBeenCalledTimes(1)
+    expect(mockDesktopClient.openProjectFolder).toHaveBeenCalledWith({ projectId: "project-1" })
+    expect(mockDesktopClient.scanProjectSkills).toHaveBeenCalledWith({ projectId: "project-1" })
+    expect(mockDesktopClient.selectProjectSkillFolder).toHaveBeenCalledTimes(1)
+    expect(mockDesktopClient.validateProjectSkillFolder).toHaveBeenCalledWith({
+      sourcePath: "C:\\Users\\test\\.agents\\skills\\project-skill"
+    })
+    expect(mockDesktopClient.importProjectSkill).toHaveBeenCalledWith({
+      projectId: "project-1",
+      sourcePath: "C:\\Users\\test\\.agents\\skills\\project-skill",
+      targetAgentId: "claude-code",
+      overwrite: false
+    })
     expect(mockDesktopClient.reconcileInstalledSkill).toHaveBeenCalledWith("skill-a")
     expect(mockDesktopClient.distributePendingUpdate).toHaveBeenCalledWith("skill-a")
   })
@@ -671,7 +906,8 @@ describe("App", () => {
     expect(within(navigation).getAllByRole("button").map((button) => button.textContent)).toEqual([
       "Home",
       "Local Skills",
-      "Updates"
+      "Updates",
+      "Projects"
     ])
 
     fireEvent.click(within(navigation).getByRole("button", { name: "Local Skills" }))
@@ -737,6 +973,91 @@ describe("App", () => {
       expect(mockDesktopClient.uploadLocalSkill).toHaveBeenCalledWith("row-local-only")
       expect(mockDesktopClient.refreshLocalSkills).toHaveBeenCalledTimes(2)
       expect(screen.getByText(/uploaded-skill/)).toBeInTheDocument()
+    })
+  })
+
+  it("shows Projects after Updates and renders the empty project state", async () => {
+    mockDesktopClient.listProjects.mockResolvedValueOnce({
+      checkedAt: "2026-05-07T00:00:00.000Z",
+      projects: []
+    })
+
+    render(<App />)
+
+    const navigation = screen.getByRole("navigation", { name: "SkillDrive Desktop" })
+
+    await waitFor(() => {
+      expect(within(navigation).getByRole("button", { name: "Projects" })).toBeInTheDocument()
+    })
+
+    expect(within(navigation).getAllByRole("button").map((button) => button.textContent)).toEqual([
+      "Home",
+      "Local Skills",
+      "Updates",
+      "Projects"
+    ])
+
+    fireEvent.click(within(navigation).getByRole("button", { name: "Projects" }))
+
+    await waitFor(() => {
+      expect(mockDesktopClient.listProjects).toHaveBeenCalledTimes(1)
+      expect(screen.getByRole("heading", { name: "Projects" })).toBeInTheDocument()
+      expect(screen.getByText("No projects have been added yet.")).toBeInTheDocument()
+    })
+  })
+
+  it("opens a project detail view and imports a validated project skill", async () => {
+    render(<App />)
+
+    const navigation = screen.getByRole("navigation", { name: "SkillDrive Desktop" })
+
+    await waitFor(() => {
+      expect(within(navigation).getByRole("button", { name: "Projects" })).toBeInTheDocument()
+    })
+
+    fireEvent.click(within(navigation).getByRole("button", { name: "Projects" }))
+
+    await waitFor(() => {
+      expect(screen.getByText("Example Project")).toBeInTheDocument()
+    })
+
+    fireEvent.click(screen.getByRole("button", { name: "Open" }))
+
+    await waitFor(() => {
+      expect(mockDesktopClient.scanProjectSkills).toHaveBeenCalledWith({ projectId: "project-1" })
+      expect(screen.getByRole("heading", { name: "Example Project" })).toBeInTheDocument()
+      expect(screen.getByText("project-skill")).toBeInTheDocument()
+      expect(screen.getByText("global-only")).toBeInTheDocument()
+      expect(screen.getByText("Project")).toBeInTheDocument()
+      expect(screen.getByText("Global")).toBeInTheDocument()
+    })
+
+    fireEvent.click(screen.getByRole("button", { name: "Add Skill" }))
+
+    await waitFor(() => {
+      expect(screen.getByRole("dialog", { name: "Add skill to project" })).toBeInTheDocument()
+    })
+
+    fireEvent.click(screen.getByRole("button", { name: "Browse" }))
+
+    await waitFor(() => {
+      expect(mockDesktopClient.selectProjectSkillFolder).toHaveBeenCalledTimes(1)
+      expect(mockDesktopClient.validateProjectSkillFolder).toHaveBeenCalledWith({
+        sourcePath: "C:\\Users\\test\\.agents\\skills\\project-skill"
+      })
+      expect(screen.getAllByText("project-skill").length).toBeGreaterThan(0)
+    })
+
+    fireEvent.click(screen.getByRole("button", { name: "Import" }))
+
+    await waitFor(() => {
+      expect(mockDesktopClient.importProjectSkill).toHaveBeenCalledWith({
+        projectId: "project-1",
+        sourcePath: "C:\\Users\\test\\.agents\\skills\\project-skill",
+        targetAgentId: "claude-code",
+        overwrite: false
+      })
+      expect(mockDesktopClient.scanProjectSkills).toHaveBeenCalledTimes(2)
     })
   })
 

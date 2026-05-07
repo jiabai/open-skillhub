@@ -25,6 +25,23 @@ const desktopClientBridge: DesktopClientBridge = {
   refreshLocalSkills: () => ipcRenderer.invoke(desktopClientIpcChannels.refreshLocalSkills),
   uploadLocalSkill: (rowKey: string) =>
     ipcRenderer.invoke(desktopClientIpcChannels.uploadLocalSkill, rowKey),
+  listProjects: () => ipcRenderer.invoke(desktopClientIpcChannels.projectsList),
+  addProject: (payload) => ipcRenderer.invoke(desktopClientIpcChannels.projectsAdd, payload),
+  renameProject: (payload) =>
+    ipcRenderer.invoke(desktopClientIpcChannels.projectsRename, payload),
+  removeProject: (payload) =>
+    ipcRenderer.invoke(desktopClientIpcChannels.projectsRemove, payload),
+  selectProjectFolder: () => ipcRenderer.invoke(desktopClientIpcChannels.projectsSelectFolder),
+  openProjectFolder: (payload) =>
+    ipcRenderer.invoke(desktopClientIpcChannels.projectsOpenFolder, payload),
+  scanProjectSkills: (payload) =>
+    ipcRenderer.invoke(desktopClientIpcChannels.projectsScanSkills, payload),
+  selectProjectSkillFolder: () =>
+    ipcRenderer.invoke(desktopClientIpcChannels.projectsSelectSkillFolder),
+  validateProjectSkillFolder: (payload) =>
+    ipcRenderer.invoke(desktopClientIpcChannels.projectsValidateSkillFolder, payload),
+  importProjectSkill: (payload) =>
+    ipcRenderer.invoke(desktopClientIpcChannels.projectsImportSkill, payload),
   reconcileInstalledSkill: (pendingUpdateId: string) =>
     ipcRenderer.invoke(desktopClientIpcChannels.reconcileInstalledSkill, pendingUpdateId),
   distributePendingUpdate: (pendingUpdateId: string) =>

@@ -10,6 +10,18 @@ import type {
   LocalSkillUploadResult,
   LocalSkillsInventorySnapshot,
   PreDistributionCheckSnapshot,
+  DirectorySelectionResult,
+  ProjectAddPayload,
+  ProjectImportSkillPayload,
+  ProjectListSnapshot,
+  ProjectOpenFolderPayload,
+  ProjectRemovePayload,
+  ProjectRenamePayload,
+  ProjectScanPayload,
+  ProjectSkillFolderValidation,
+  ProjectSkillImportResult,
+  ProjectSkillScanSnapshot,
+  ProjectValidateSkillFolderPayload,
   SkillDistributionResult
 } from "@/types"
 
@@ -28,6 +40,18 @@ export interface DesktopClientBridge {
   refreshPreDistributionCheck(): Promise<PreDistributionCheckSnapshot>
   refreshLocalSkills(): Promise<LocalSkillsInventorySnapshot>
   uploadLocalSkill(rowKey: string): Promise<LocalSkillUploadResult>
+  listProjects(): Promise<ProjectListSnapshot>
+  addProject(payload: ProjectAddPayload): Promise<ProjectListSnapshot>
+  renameProject(payload: ProjectRenamePayload): Promise<ProjectListSnapshot>
+  removeProject(payload: ProjectRemovePayload): Promise<ProjectListSnapshot>
+  selectProjectFolder(): Promise<DirectorySelectionResult>
+  openProjectFolder(payload: ProjectOpenFolderPayload): Promise<void>
+  scanProjectSkills(payload: ProjectScanPayload): Promise<ProjectSkillScanSnapshot>
+  selectProjectSkillFolder(): Promise<DirectorySelectionResult>
+  validateProjectSkillFolder(
+    payload: ProjectValidateSkillFolderPayload
+  ): Promise<ProjectSkillFolderValidation>
+  importProjectSkill(payload: ProjectImportSkillPayload): Promise<ProjectSkillImportResult>
   reconcileInstalledSkill(pendingUpdateId: string): Promise<DesktopSyncState>
   distributePendingUpdate(pendingUpdateId: string): Promise<SkillDistributionResult>
 }
@@ -190,6 +214,110 @@ function invokeUploadLocalSkill(rowKey: string): Promise<LocalSkillUploadResult>
   return bridge.uploadLocalSkill(rowKey)
 }
 
+function invokeListProjects(): Promise<ProjectListSnapshot> {
+  const bridge = getDesktopClientBridge()
+
+  if (!bridge) {
+    throw new Error("Desktop client bridge is unavailable")
+  }
+
+  return bridge.listProjects()
+}
+
+function invokeAddProject(payload: ProjectAddPayload): Promise<ProjectListSnapshot> {
+  const bridge = getDesktopClientBridge()
+
+  if (!bridge) {
+    throw new Error("Desktop client bridge is unavailable")
+  }
+
+  return bridge.addProject(payload)
+}
+
+function invokeRenameProject(payload: ProjectRenamePayload): Promise<ProjectListSnapshot> {
+  const bridge = getDesktopClientBridge()
+
+  if (!bridge) {
+    throw new Error("Desktop client bridge is unavailable")
+  }
+
+  return bridge.renameProject(payload)
+}
+
+function invokeRemoveProject(payload: ProjectRemovePayload): Promise<ProjectListSnapshot> {
+  const bridge = getDesktopClientBridge()
+
+  if (!bridge) {
+    throw new Error("Desktop client bridge is unavailable")
+  }
+
+  return bridge.removeProject(payload)
+}
+
+function invokeSelectProjectFolder(): Promise<DirectorySelectionResult> {
+  const bridge = getDesktopClientBridge()
+
+  if (!bridge) {
+    throw new Error("Desktop client bridge is unavailable")
+  }
+
+  return bridge.selectProjectFolder()
+}
+
+function invokeOpenProjectFolder(payload: ProjectOpenFolderPayload): Promise<void> {
+  const bridge = getDesktopClientBridge()
+
+  if (!bridge) {
+    throw new Error("Desktop client bridge is unavailable")
+  }
+
+  return bridge.openProjectFolder(payload)
+}
+
+function invokeScanProjectSkills(payload: ProjectScanPayload): Promise<ProjectSkillScanSnapshot> {
+  const bridge = getDesktopClientBridge()
+
+  if (!bridge) {
+    throw new Error("Desktop client bridge is unavailable")
+  }
+
+  return bridge.scanProjectSkills(payload)
+}
+
+function invokeSelectProjectSkillFolder(): Promise<DirectorySelectionResult> {
+  const bridge = getDesktopClientBridge()
+
+  if (!bridge) {
+    throw new Error("Desktop client bridge is unavailable")
+  }
+
+  return bridge.selectProjectSkillFolder()
+}
+
+function invokeValidateProjectSkillFolder(
+  payload: ProjectValidateSkillFolderPayload
+): Promise<ProjectSkillFolderValidation> {
+  const bridge = getDesktopClientBridge()
+
+  if (!bridge) {
+    throw new Error("Desktop client bridge is unavailable")
+  }
+
+  return bridge.validateProjectSkillFolder(payload)
+}
+
+function invokeImportProjectSkill(
+  payload: ProjectImportSkillPayload
+): Promise<ProjectSkillImportResult> {
+  const bridge = getDesktopClientBridge()
+
+  if (!bridge) {
+    throw new Error("Desktop client bridge is unavailable")
+  }
+
+  return bridge.importProjectSkill(payload)
+}
+
 function invokeReconcileInstalledSkill(pendingUpdateId: string): Promise<DesktopSyncState> {
   const bridge = getDesktopClientBridge()
 
@@ -228,6 +356,16 @@ export const desktopClient = {
   refreshPreDistributionCheck: invokeRefreshPreDistributionCheck,
   refreshLocalSkills: invokeRefreshLocalSkills,
   uploadLocalSkill: invokeUploadLocalSkill,
+  listProjects: invokeListProjects,
+  addProject: invokeAddProject,
+  renameProject: invokeRenameProject,
+  removeProject: invokeRemoveProject,
+  selectProjectFolder: invokeSelectProjectFolder,
+  openProjectFolder: invokeOpenProjectFolder,
+  scanProjectSkills: invokeScanProjectSkills,
+  selectProjectSkillFolder: invokeSelectProjectSkillFolder,
+  validateProjectSkillFolder: invokeValidateProjectSkillFolder,
+  importProjectSkill: invokeImportProjectSkill,
   reconcileInstalledSkill: invokeReconcileInstalledSkill,
   distributePendingUpdate: invokeDistributePendingUpdate
 } as const

@@ -85,7 +85,7 @@ export function PageIntro({ eyebrow, title, summary, actions }: PageIntroProps) 
       <div className="page-intro__content">
         {eyebrow ? <span className="page-intro__eyebrow">{eyebrow}</span> : null}
         <h1 className="page-intro__title">{title}</h1>
-        <p className="page-intro__summary">{summary}</p>
+        {summary ? <p className="page-intro__summary">{summary}</p> : null}
       </div>
       {actions ? <div className="page-intro__actions">{actions}</div> : null}
     </div>

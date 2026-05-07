@@ -8,12 +8,21 @@ export interface AgentTargetDefinition {
   sharedPathKey?: string
 }
 
+export type AgentProjectTargetRole = "primary" | "compatible-read"
+
+export interface AgentProjectTargetDefinition {
+  path: string
+  role: AgentProjectTargetRole
+  sharedPathKey?: string
+}
+
 export interface AgentPathDefinition {
   id: AgentId
   displayName: string
   detectionDirs: string[]
   defaultTargets: AgentTargetDefinition[]
   compatibleReadPaths?: string[]
+  projectTargets?: AgentProjectTargetDefinition[]
   pathResolution: "all-owned" | "priority"
 }
 
@@ -24,6 +33,7 @@ export const supportedAgentDefinitions: AgentPathDefinition[] = [
     detectionDirs: ["~/.claude"],
     defaultTargets: [{ path: "~/.claude/skills", role: "primary" }],
     compatibleReadPaths: ["~/.claude/plugins/marketplaces/*/skills"],
+    projectTargets: [{ path: ".claude/skills", role: "primary" }],
     pathResolution: "all-owned"
   },
   {
@@ -32,6 +42,11 @@ export const supportedAgentDefinitions: AgentPathDefinition[] = [
     detectionDirs: ["~/.cursor"],
     defaultTargets: [{ path: "~/.cursor/skills", role: "primary" }],
     compatibleReadPaths: ["~/.claude/skills", "~/.codex/skills"],
+    projectTargets: [
+      { path: ".cursor/skills", role: "primary" },
+      { path: ".claude/skills", role: "compatible-read" },
+      { path: ".codex/skills", role: "compatible-read" }
+    ],
     pathResolution: "all-owned"
   },
   {
@@ -39,6 +54,7 @@ export const supportedAgentDefinitions: AgentPathDefinition[] = [
     displayName: "Windsurf",
     detectionDirs: ["~/.codeium/windsurf"],
     defaultTargets: [{ path: "~/.codeium/windsurf/skills", role: "primary" }],
+    projectTargets: [{ path: ".windsurf/skills", role: "primary" }],
     pathResolution: "all-owned"
   },
   {
@@ -46,6 +62,7 @@ export const supportedAgentDefinitions: AgentPathDefinition[] = [
     displayName: "GitHub Copilot",
     detectionDirs: ["~/.copilot"],
     defaultTargets: [{ path: "~/.copilot/skills", role: "primary" }],
+    projectTargets: [{ path: ".copilot/skills", role: "primary" }],
     pathResolution: "all-owned"
   },
   {
@@ -53,6 +70,7 @@ export const supportedAgentDefinitions: AgentPathDefinition[] = [
     displayName: "RooCode",
     detectionDirs: ["~/.roo"],
     defaultTargets: [{ path: "~/.roo/skills", role: "primary" }],
+    projectTargets: [{ path: ".roo/skills", role: "primary" }],
     pathResolution: "all-owned"
   },
   {
@@ -62,6 +80,9 @@ export const supportedAgentDefinitions: AgentPathDefinition[] = [
     defaultTargets: [
       { path: "~/.agents/skills", role: "primary", sharedPathKey: "agents-universal" }
     ],
+    projectTargets: [
+      { path: ".agents/skills", role: "primary", sharedPathKey: "agents-universal" }
+    ],
     pathResolution: "all-owned"
   },
   {
@@ -69,6 +90,7 @@ export const supportedAgentDefinitions: AgentPathDefinition[] = [
     displayName: "Gemini CLI",
     detectionDirs: ["~/.gemini"],
     defaultTargets: [{ path: "~/.gemini/skills", role: "primary" }],
+    projectTargets: [{ path: ".gemini/skills", role: "primary" }],
     pathResolution: "all-owned"
   },
   {
@@ -79,6 +101,9 @@ export const supportedAgentDefinitions: AgentPathDefinition[] = [
       { path: "~/.agents/skills", role: "primary", sharedPathKey: "agents-universal" }
     ],
     compatibleReadPaths: ["~/.codex/skills", "/etc/codex/skills"],
+    projectTargets: [
+      { path: ".agents/skills", role: "primary", sharedPathKey: "agents-universal" }
+    ],
     pathResolution: "all-owned"
   },
   {
@@ -87,6 +112,11 @@ export const supportedAgentDefinitions: AgentPathDefinition[] = [
     detectionDirs: ["~/.config/opencode"],
     defaultTargets: [{ path: "~/.config/opencode/skills", role: "primary" }],
     compatibleReadPaths: ["~/.claude/skills", "~/.agents/skills"],
+    projectTargets: [
+      { path: ".opencode/skills", role: "primary" },
+      { path: ".claude/skills", role: "compatible-read" },
+      { path: ".agents/skills", role: "compatible-read", sharedPathKey: "agents-universal" }
+    ],
     pathResolution: "all-owned"
   },
   {
@@ -94,6 +124,7 @@ export const supportedAgentDefinitions: AgentPathDefinition[] = [
     displayName: "KiloCode",
     detectionDirs: ["~/.kilocode"],
     defaultTargets: [{ path: "~/.kilocode/skills", role: "primary" }],
+    projectTargets: [{ path: ".kilocode/skills", role: "primary" }],
     pathResolution: "all-owned"
   },
   {
@@ -103,6 +134,9 @@ export const supportedAgentDefinitions: AgentPathDefinition[] = [
     defaultTargets: [
       { path: "~/.config/agents/skills", role: "primary", sharedPathKey: "config-agents" }
     ],
+    projectTargets: [
+      { path: ".config/agents/skills", role: "primary", sharedPathKey: "config-agents" }
+    ],
     pathResolution: "all-owned"
   },
   {
@@ -110,6 +144,7 @@ export const supportedAgentDefinitions: AgentPathDefinition[] = [
     displayName: "Kiro",
     detectionDirs: ["~/.kiro"],
     defaultTargets: [{ path: "~/.kiro/skills", role: "primary" }],
+    projectTargets: [{ path: ".kiro/skills", role: "primary" }],
     pathResolution: "all-owned"
   },
   {
@@ -119,6 +154,9 @@ export const supportedAgentDefinitions: AgentPathDefinition[] = [
     defaultTargets: [
       { path: "~/.agents/skills", role: "primary", sharedPathKey: "agents-universal" }
     ],
+    projectTargets: [
+      { path: ".agents/skills", role: "primary", sharedPathKey: "agents-universal" }
+    ],
     pathResolution: "all-owned"
   },
   {
@@ -126,6 +164,7 @@ export const supportedAgentDefinitions: AgentPathDefinition[] = [
     displayName: "Trae",
     detectionDirs: ["~/.trae"],
     defaultTargets: [{ path: "~/.trae/skills", role: "primary" }],
+    projectTargets: [{ path: ".trae/skills", role: "primary" }],
     pathResolution: "all-owned"
   },
   {
@@ -133,6 +172,7 @@ export const supportedAgentDefinitions: AgentPathDefinition[] = [
     displayName: "Factory",
     detectionDirs: ["~/.factory"],
     defaultTargets: [{ path: "~/.factory/skills", role: "primary" }],
+    projectTargets: [{ path: ".factory/skills", role: "primary" }],
     pathResolution: "all-owned"
   },
   {
@@ -142,6 +182,9 @@ export const supportedAgentDefinitions: AgentPathDefinition[] = [
     defaultTargets: [
       { path: "~/.config/agents/skills", role: "primary", sharedPathKey: "config-agents" }
     ],
+    projectTargets: [
+      { path: ".config/agents/skills", role: "primary", sharedPathKey: "config-agents" }
+    ],
     pathResolution: "all-owned"
   },
   {
@@ -149,6 +192,7 @@ export const supportedAgentDefinitions: AgentPathDefinition[] = [
     displayName: "Mistral Le Chat",
     detectionDirs: ["~/.vibe"],
     defaultTargets: [{ path: "~/.vibe/skills", role: "primary" }],
+    projectTargets: [{ path: ".vibe/skills", role: "primary" }],
     pathResolution: "all-owned"
   },
   {
@@ -156,6 +200,7 @@ export const supportedAgentDefinitions: AgentPathDefinition[] = [
     displayName: "Pi Coding Agent",
     detectionDirs: ["~/.pi/agent"],
     defaultTargets: [{ path: "~/.pi/agent/skills", role: "primary" }],
+    projectTargets: [{ path: ".pi/agent/skills", role: "primary" }],
     pathResolution: "all-owned"
   },
   {
@@ -163,6 +208,7 @@ export const supportedAgentDefinitions: AgentPathDefinition[] = [
     displayName: "Antigravity",
     detectionDirs: ["~/.gemini/antigravity"],
     defaultTargets: [{ path: "~/.gemini/antigravity/skills", role: "primary" }],
+    projectTargets: [{ path: ".gemini/antigravity/skills", role: "primary" }],
     pathResolution: "all-owned"
   },
   {

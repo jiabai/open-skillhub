@@ -33,7 +33,8 @@ export const enUSDictionary = {
     navigation: {
       home: "Home",
       localSkills: "Local Skills",
-      updates: "Updates"
+      updates: "Updates",
+      projects: "Projects"
     },
     bridgeStatus: {
       unavailable: "Desktop bridge unavailable",
@@ -101,14 +102,14 @@ export const enUSDictionary = {
   updatesView: {
     eyebrow: "Review queue",
     title: "All pending updates",
+    inventoryTitle: "Inventory",
     summary: "Inspect every pending skill update before distributing it to configured local agent targets.",
     refreshQueue: "Refresh queue"
   },
   localSkillsView: {
-    eyebrow: "Local inventory",
+    eyebrow: "",
     title: "Local Skills",
-    inventoryTitle: "Inventory",
-    summary: "Review local skill package roots and upload server-missing skills only after approval.",
+    summary: "",
     refresh: "Refresh local skills",
     refreshing: "Refreshing...",
     loading: "Loading local skills...",
@@ -129,6 +130,62 @@ export const enUSDictionary = {
       unknown: "Server unknown",
       invalidLocal: "Invalid local skill"
     }
+  },
+  projectsView: {
+    eyebrow: "",
+    title: "Projects",
+    summary: "",
+    addProject: "Add Project",
+    addProjectTitle: "Add project",
+    addProjectDescription: "Choose a local project folder to scan for project-level agent skills.",
+    nameLabel: "Project name",
+    pathLabel: "Project folder",
+    browse: "Browse",
+    saving: "Saving...",
+    empty: "No projects have been added yet.",
+    noSnapshot: "Projects have not been loaded yet.",
+    projectsCount: (count: number) => `${count} project${count === 1 ? "" : "s"}`,
+    open: "Open",
+    rename: "Rename",
+    renameTitle: "Rename project",
+    remove: "Remove",
+    removeTitle: "Remove project",
+    removeDescription: (name: string) =>
+      `Remove ${name} from this list. Files on disk will not be deleted.`,
+    confirmRemove: "Remove project",
+    cancel: "Cancel",
+    back: "Back",
+    openFolder: "Open Folder",
+    refreshSkills: "Refresh Skills",
+    scanning: "Scanning...",
+    addSkill: "Add Skill",
+    importTitle: "Add skill to project",
+    importDescription: "Validate a local skill folder and copy it into the selected project target.",
+    sourceFolderLabel: "Source skill folder",
+    targetAgentLabel: "Target agent",
+    overwriteLabel: "Overwrite existing target skill",
+    validate: "Validate",
+    validating: "Validating...",
+    import: "Import",
+    importing: "Importing...",
+    noTargets: "No writable project targets are available.",
+    loading: "Loading projects...",
+    skillCount: (count: number) => `${count} skill${count === 1 ? "" : "s"}`,
+    targetCount: (count: number) => `${count} project target${count === 1 ? "" : "s"}`,
+    sourceLabels: {
+      project: "Project",
+      global: "Global"
+    },
+    validationStateLabels: {
+      valid: "Valid",
+      "missing-skill-md": "Missing SKILL.md",
+      "invalid-skill-name": "Invalid name",
+      unreadable: "Unreadable",
+      "not-directory": "Not a directory"
+    },
+    version: (value: string) => `Version ${value}`,
+    sourceAgents: (value: string) => `Agents ${value}`,
+    path: (value: string) => `Path ${value}`
   },
   settingsPanel: {
     title: "Settings",
@@ -321,6 +378,18 @@ export const enUSDictionary = {
     localSkillUploadFailedTitle: "Local skill upload failed",
     localSkillUploadFailedDetail: (name: string, message: string) =>
       `${name} could not be uploaded: ${message}`,
+    projectAddedTitle: "Project added",
+    projectAddedDetail: (name: string) => `${name} is ready for project skill scanning.`,
+    projectRenamedTitle: "Project renamed",
+    projectRenamedDetail: (name: string) => `Project is now named ${name}.`,
+    projectRemovedTitle: "Project removed",
+    projectRemovedDetail: (name: string) => `${name} was removed from the list. Files were not deleted.`,
+    projectScanFailedTitle: "Project scan failed",
+    projectScanFailedDetail: (name: string, message: string) => `${name} could not be scanned: ${message}`,
+    projectSkillImportedTitle: "Project skill imported",
+    projectSkillImportedDetail: (name: string, project: string) => `${name} was imported into ${project}.`,
+    projectSkillImportFailedTitle: "Project skill import failed",
+    projectSkillImportFailedDetail: (name: string, message: string) => `${name} could not be imported: ${message}`,
     themeUpdateFailedTitle: "Theme update failed",
     themeUpdateFailedDetail: (message: string) => message
   }

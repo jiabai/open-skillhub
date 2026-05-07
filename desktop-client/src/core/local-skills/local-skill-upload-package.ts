@@ -117,6 +117,10 @@ async function collectZipEntries(args: {
     }
 
     if (entry.isDirectory()) {
+      if (entry.name === "__pycache__" || entry.name === ".git" || entry.name === "node_modules") {
+        continue
+      }
+
       collected.push(
         ...(await collectZipEntries({
           ...args,

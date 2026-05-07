@@ -1,0 +1,330 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "SkillDrive Client Skills API",
+    "description": "客户端技能接口 — 面向程序化客户端（CLI、CI、自动化脚本等），使用 API Token 认证。",
+    "version": "1.0.0",
+    "contact": {
+      "name": "SkillDrive"
+    }
+  },
+  "servers": [
+    {
+      "url": "http://localhost:8001",
+      "description": "本地开发环境"
+    }
+  ],
+  "security": [
+    {
+      "ApiTokenAuth": []
+    }
+  ],
+  "paths": {
+    "/api/v1/client/skills": {
+      "get": {
+        "tags": ["Client Skills"],
+        "summary": "列出可下载的技能",
+        "description": "返回当前 API Token 有权访问的技能列表，包含是否可下载标识和最新版本信息。仅返回用户自有空间内的技能（不含未被引用/克隆的公共 catalog 条目）。",
+        "operationId": "listClientSkills",
+        "parameters": [
+          {
+            "name": "skip",
+            "in": "query",
+            "description": "分页偏移量",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 0,
+              "minimum": 0
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "每页返回数量",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 100,
+              "minimum": 1,
+              "maximum": 100
+            }
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "description": "搜索关键词（按技能名称、描述、标签匹配）",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "security": [
+          {
+            "ApiTokenAuth": ["skill.read"]
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "技能列表",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClientSkillListResponse"
+                },
+                "example": {
+                  "items": [
+                    {
+                      "id": "550e8400-e29b-41d4-a716-446655440000",
+                      "name": "my-skill",
+                      "description": "A useful skill",
+                      "tags": ["tag1"],
+                      "visible": "private",
+                      "source_skill_id": null,
+                      "pinned_version": null,
+                      "resolved_version": "1.2.0",
+                      "skill_kind": "regular",
+                      "is_reference_read_only": false,
+                      "current_version": "1.2.0",
+                      "is_active": true,
+                      "is_downloadable": true,
+                      "content_hash": "sha256:abc123def456...",
+                      "latest_version": {
+                        "id": "version-uuid",
+                        "version": "1.2.0",
+                        "description": "Latest release with improvements",
+                        "dependencies": [],
+                        "dependency_spec": {},
+                        "content_hash": "sha256:abc123def456...",
+                        "metadata": {},
+                        "created_at": "2026-04-01T00:00:00Z"
+                      },
+                      "created_at": "2026-04-01T00:00:00Z",
+                      "updated_at": "2026-04-01T00:00:00Z"
+                    }
+                  ],
+                  "total": 5
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "未认证或认证方式错误（需要使用 API Token 而非 JWT）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "权限不足（API Token 缺少 skill.read 权限）",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "ApiTokenAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "description": "API Token 认证。通过 POST /api/v1/tokens 创建 Token，在请求头中传入 Authorization: Bearer <api-token>"
+      }
+    },
+    "schemas": {
+      "ClientSkillListResponse": {
+        "type": "object",
+        "required": ["items", "total"],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ClientSkillSummaryResponse"
+            }
+          },
+          "total": {
+            "type": "integer",
+            "description": "符合条件的技能总数"
+          }
+        }
+      },
+      "ClientSkillSummaryResponse": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "description",
+          "tags",
+          "visible",
+          "skill_kind",
+          "is_reference_read_only",
+          "is_active",
+          "is_downloadable",
+          "created_at",
+          "updated_at"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "技能唯一标识"
+          },
+          "name": {
+            "type": "string",
+            "description": "技能名称"
+          },
+          "description": {
+            "type": "string",
+            "description": "技能描述"
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "标签列表"
+          },
+          "visible": {
+            "type": "string",
+            "enum": ["private", "team", "enterprise", "public"],
+            "description": "可见性范围"
+          },
+          "source_skill_id": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true,
+            "description": "来源技能 ID（reference/clone 类型时指向源技能）"
+          },
+          "pinned_version": {
+            "type": "string",
+            "nullable": true,
+            "description": "锁定版本号"
+          },
+          "resolved_version": {
+            "type": "string",
+            "nullable": true,
+            "description": "解析后的实际版本号"
+          },
+          "skill_kind": {
+            "type": "string",
+            "enum": ["regular", "public", "reference", "clone"],
+            "description": "技能类型：regular=普通技能, public=公共技能, reference=引用技能, clone=克隆技能"
+          },
+          "is_reference_read_only": {
+            "type": "boolean",
+            "description": "是否为只读引用技能"
+          },
+          "current_version": {
+            "type": "string",
+            "nullable": true,
+            "description": "当前版本号"
+          },
+          "is_active": {
+            "type": "boolean",
+            "description": "是否启用"
+          },
+          "is_downloadable": {
+            "type": "boolean",
+            "description": "是否可下载"
+          },
+          "content_hash": {
+            "type": "string",
+            "nullable": true,
+            "description": "技能内容哈希值（sha256 格式）"
+          },
+          "latest_version": {
+            "nullable": true,
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SkillVersionResponse"
+              }
+            ],
+            "description": "最新版本信息"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "创建时间"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "更新时间"
+          }
+        }
+      },
+      "SkillVersionResponse": {
+        "type": "object",
+        "required": ["id", "version", "description", "dependencies", "content_hash", "metadata", "created_at"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "版本唯一标识"
+          },
+          "version": {
+            "type": "string",
+            "description": "版本号（语义化版本）"
+          },
+          "description": {
+            "type": "string",
+            "description": "版本描述"
+          },
+          "dependencies": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "依赖列表"
+          },
+          "dependency_spec": {
+            "type": "object",
+            "nullable": true,
+            "description": "依赖规范（如 pip/poetry 等包管理器配置）"
+          },
+          "content_hash": {
+            "type": "string",
+            "description": "版本内容哈希值（sha256 格式）"
+          },
+          "metadata": {
+            "type": "object",
+            "description": "版本元数据"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "版本创建时间"
+          }
+        }
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "properties": {
+          "detail": {
+            "type": "string",
+            "description": "错误描述"
+          },
+          "code": {
+            "type": "string",
+            "description": "错误码"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time",
+            "description": "错误发生时间"
+          }
+        }
+      }
+    }
+  }
+}

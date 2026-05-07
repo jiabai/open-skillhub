@@ -457,8 +457,21 @@ GET /skills/public?q=search
 
 浏览平台公开的共享技能，可引用或克隆到自己的工作室。
 
-**权限：** `skill.list`  
+**权限：** `skill.list`
 **响应：** `PublicSkillListResponse`
+
+---
+
+### 获取公共技能详情
+
+```http
+GET /skills/public/{skill_uuid}
+```
+
+查看某个公共技能的完整信息，包括当前版本、可见性等。
+
+**权限：** `skill.read`
+**响应：** `PublicSkillResponse`
 
 ---
 
@@ -800,14 +813,30 @@ GET /client/skills?q=search
     {
       "id": "uuid",
       "name": "my-skill",
+      "description": "A useful skill",
+      "tags": ["tag1"],
+      "visible": "private",
+      "source_skill_id": null,
+      "pinned_version": null,
+      "resolved_version": "1.2.0",
+      "skill_kind": "regular",
+      "is_reference_read_only": false,
+      "current_version": "1.2.0",
+      "is_active": true,
       "is_downloadable": true,
+      "content_hash": "sha256:abc123...",
       "latest_version": {
+        "id": "version-uuid",
         "version": "1.2.0",
         "description": "Latest",
         "dependencies": [],
+        "dependency_spec": {},
+        "content_hash": "sha256:abc123...",
         "metadata": {},
         "created_at": "2026-04-01T00:00:00Z"
-      }
+      },
+      "created_at": "2026-04-01T00:00:00Z",
+      "updated_at": "2026-04-01T00:00:00Z"
     }
   ],
   "total": 5
@@ -854,6 +883,27 @@ POST /client/skills/download
 ```
 
 > `encrypted_code` 是加密后的技能包内容，客户端需根据 `encryption_enabled` 判断是否解密。
+
+---
+
+### 上传技能（客户端）
+
+```http
+POST /client/skills/upload
+Content-Type: multipart/form-data
+```
+
+客户端通过此接口上传 ZIP 包创建或更新技能，与 Web 控制台的上传接口行为一致。
+
+**表单字段：**
+
+- `file`（必填）— ZIP 包
+- `skill_uuid`（可选）— 目标技能 ID，不传则创建新技能
+- `visibility`（可选）— 新建技能时的可见性，默认 `private`
+- `metadata`（可选）— JSON 字符串，附加元数据（仅在 `skill_uuid` 存在时有效）
+
+**权限：** API Token + `skill.upload`
+**响应：** `201 Created`
 
 ---
 
@@ -1222,7 +1272,7 @@ GET /metrics
 
 ### 相关代码
 
-- 路由注册：[backend/api/router.py](/d:/Github/skilldrive/backend/api/router.py)
-- 应用入口：[backend/api_app.py](/d:/Github/skilldrive/backend/api_app.py)
-- 认证与权限：[backend/core/deps.py](/d:/Github/skilldrive/backend/core/deps.py)
-- 数据模型：[backend/schemas/](/d:/Github/skilldrive/backend/schemas/)
+- 路由注册：[backend/api/router.py](/d:/Github/open-skillhub/backend/api/router.py)
+- 应用入口：[backend/api_app.py](/d:/Github/open-skillhub/backend/api_app.py)
+- 认证与权限：[backend/core/deps.py](/d:/Github/open-skillhub/backend/core/deps.py)
+- 数据模型：[backend/schemas/](/d:/Github/open-skillhub/backend/schemas/)

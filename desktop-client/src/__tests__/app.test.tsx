@@ -905,8 +905,8 @@ describe("App", () => {
 
     expect(within(navigation).getAllByRole("button").map((button) => button.textContent)).toEqual([
       "Home",
-      "Local Skills",
       "Updates",
+      "Local Skills",
       "Projects"
     ])
 
@@ -992,8 +992,8 @@ describe("App", () => {
 
     expect(within(navigation).getAllByRole("button").map((button) => button.textContent)).toEqual([
       "Home",
-      "Local Skills",
       "Updates",
+      "Local Skills",
       "Projects"
     ])
 

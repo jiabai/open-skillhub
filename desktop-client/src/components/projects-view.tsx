@@ -20,7 +20,7 @@ import type {
   ProjectListSnapshot,
   ProjectRenamePayload,
   ProjectSkillFolderValidation,
-  ProjectSkillImportPayload,
+  ProjectImportSkillPayload,
   ProjectSkillRow,
   ProjectSkillScanSnapshot
 } from "@/types"
@@ -41,11 +41,11 @@ type ProjectsViewProps = {
   onSelectProject: (project: ProjectEntry) => Promise<void>
   onBackToList: () => void
   onOpenProjectFolder: (projectId: string) => Promise<void>
-  onRefreshProjectSkills: (projectId: string) => Promise<void>
+  onRefreshProjectSkills: (projectId: string) => Promise<ProjectSkillScanSnapshot | null>
   onSelectProjectFolder: () => Promise<DirectorySelectionResult>
   onSelectProjectSkillFolder: () => Promise<DirectorySelectionResult>
   onValidateSkillFolder: (sourcePath: string) => Promise<void>
-  onImportSkill: (payload: ProjectSkillImportPayload) => Promise<void>
+  onImportSkill: (payload: ProjectImportSkillPayload) => Promise<void>
 }
 
 type DialogProject = ProjectEntry | null

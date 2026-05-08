@@ -101,7 +101,6 @@ export interface AppDictionary {
     title: string
     inventoryTitle: string
     summary: string
-    refreshQueue: string
   }
   localSkillsView: {
     eyebrow: string

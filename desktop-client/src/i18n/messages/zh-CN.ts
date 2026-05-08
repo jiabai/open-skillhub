@@ -101,8 +101,7 @@ export const zhCNDictionary = {
     eyebrow: "审核队列",
     title: "全部待审核更新",
     inventoryTitle: "库存",
-    summary: "在把技能分发到已配置的本地代理目标之前，先检查每个待审核更新。",
-    refreshQueue: "刷新队列"
+    summary: "在把技能分发到已配置的本地代理目标之前，先检查每个待审核更新。"
   },
   localSkillsView: {
     eyebrow: "",

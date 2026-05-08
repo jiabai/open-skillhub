@@ -78,7 +78,7 @@ agent adapters -> local agent installations and skill directories
 - Renderer code never reads Node or Electron privileged APIs directly.
 - Polling, notifications, filesystem writes, token access, and local state persistence stay in the Electron main process.
 - The Electron main process owns the single-instance lock; repeat launches focus the existing window instead of creating another runtime.
-- The Windows shell behaves as a notification-area utility: fixed-size BrowserWindow, no native menu bar, taskbar and Alt+Tab visibility, and tray click toggling.
+- The Windows shell behaves as a notification-area utility: resizable and maximizable BrowserWindow, no native menu bar, taskbar and Alt+Tab visibility, and tray click toggling.
 - Window and tray icons prefer the Windows-native `resources/icons/icon.ico` on Windows, with the build-time embedded SVG from `resources/icons/icon.svg` kept as the fallback path.
 - Sync code only compares remote and local state; it does not mutate agent skill directories.
 - Pre-distribution checks are read-only and transient; results are returned through IPC for review context and are not persisted.

@@ -103,8 +103,7 @@ export const enUSDictionary = {
     eyebrow: "Review queue",
     title: "All pending updates",
     inventoryTitle: "Inventory",
-    summary: "Inspect every pending skill update before distributing it to configured local agent targets.",
-    refreshQueue: "Refresh queue"
+    summary: "Inspect every pending skill update before distributing it to configured local agent targets."
   },
   localSkillsView: {
     eyebrow: "",

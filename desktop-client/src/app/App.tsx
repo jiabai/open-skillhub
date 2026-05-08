@@ -1424,7 +1424,6 @@ export function App() {
             onDistribute={requestDistributionConfirmation}
             onReconcileInstalled={handleReconcileInstalled}
             onRefreshPreDistributionCheck={handleRefreshPreDistributionCheck}
-            onRefresh={handleRefresh}
           />
         )}
 

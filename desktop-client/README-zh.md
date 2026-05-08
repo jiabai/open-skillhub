@@ -44,6 +44,27 @@ Electron 主进程在本地开发时读取以下环境变量：
 
 窗口关闭后，系统托盘保持驻留，以便后台刷新继续进行。
 
+## 打包
+
+Windows 安装包打包通过 `electron-builder` 配置。v1 发布目标是 Windows 安装包路径；macOS 构建配置可能存在用于探索性构建，但在非 Windows 包提取和冒烟测试实现之前，macOS 运行时分发不能作为发布声明。
+
+```bash
+cd desktop-client
+npm install
+npm run build
+npm run dist:win
+```
+
+Windows 发布产物写入 `dist/` 目录，包括 `.exe` NSIS 安装程序和 `win-unpacked/` 用于冒烟测试。`dist/` 是生成的本地输出，不应提交。
+
+其他已配置的打包脚本：
+
+- `npm run pack` - 构建当前平台的解压输出
+- `npm run dist` - 构建当前平台的安装包输出
+- `npm run dist:mac` - macOS 打包命令；发布使用需要 macOS 操作手册、Developer ID 签名、公证、装订、Gatekeeper 和冒烟验证
+
+macOS 发布准备位于 `docs/product-specs/2026-05-03-macos-release-packaging.md`，操作手册位于 `docs/references/macos-release-runbook.md`（[中文版](docs/references/macos-release-runbook-zh.md)）。
+
 ## 当前功能范围
 
 - 轮询后端以获取可审核的技能更新

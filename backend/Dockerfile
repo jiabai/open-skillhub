@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1.7
 
-FROM python:3.11-slim AS python-base
+FROM python:3.14-slim AS python-base
 
 WORKDIR /app
 
@@ -37,6 +37,13 @@ RUN addgroup --system skilldrive \
 
 COPY --from=builder /app/.venv /app/.venv
 COPY --from=builder --chown=skilldrive:skilldrive /app/backend /app/backend
+
+RUN rm -f /app/.venv/bin/python && \
+    ln -s /usr/local/bin/python3.14 /app/.venv/bin/python && \
+    rm -f /app/.venv/bin/python3 && \
+    ln -s /usr/local/bin/python3.14 /app/.venv/bin/python3 && \
+    rm -f /app/.venv/bin/python3.14 && \
+    ln -s /usr/local/bin/python3.14 /app/.venv/bin/python3.14
 
 RUN mkdir -p /app/data /tmp/uv-cache /tmp/.cache \
     && chown -R skilldrive:skilldrive /app/data /tmp/uv-cache /tmp/.cache

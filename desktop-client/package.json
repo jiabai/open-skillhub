@@ -1,6 +1,6 @@
 {
   "name": "skilldrive-desktop",
-  "version": "0.1.0",
+  "version": "0.1.2",
   "description": "SkillDrive desktop sync client",
   "author": {
     "name": "SkillDrive contributors"
@@ -20,7 +20,8 @@
     "pack": "electron-builder --dir",
     "dist": "electron-builder",
     "dist:win": "electron-builder --win",
-    "dist:mac": "electron-builder --mac"
+    "dist:mac": "electron-builder --mac",
+    "clean": "rimraf dist dist-electron"
   },
   "build": {
     "appId": "com.skilldrive.skilldrive-desktop",
@@ -98,6 +99,7 @@
     "electron-builder": "^26.8.1",
     "jsdom": "^25.0.1",
     "png2icons": "^2.0.1",
+    "rimraf": "^6.1.3",
     "sharp": "^0.34.5",
     "typescript": "^5.6.3",
     "vite": "^5.4.10",

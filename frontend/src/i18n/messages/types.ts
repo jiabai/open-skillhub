@@ -218,6 +218,9 @@ export type AppDictionary = {
       createTokenTitle: string
       createTokenDescription: string
       createTokenAction: string
+      desktopClientTitle: string
+      desktopClientDescription: string
+      desktopClientAction: string
       snapshotTitle: string
       snapshotSummary: string
       mySkills: string
@@ -348,6 +351,9 @@ export type AppDictionary = {
     connectStepOne: string
     connectStepTwo: string
     connectStepThree: string
+    desktopDownloadTitle: string
+    desktopDownloadDescription: string
+    downloadWindowsDesktop: string
     tokenListTitle: string
     tokenListDescription: string
     loading: string

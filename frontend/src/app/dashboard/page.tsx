@@ -13,6 +13,7 @@ import { api } from "@/lib/api"
 import { useRuntimeConfig } from "@/hooks/use-runtime-config"
 import { getPrimaryNavigation } from "@/lib/navigation"
 import { canManageUsers, canViewAuditLogs } from "@/lib/user-permissions"
+import { WINDOWS_DESKTOP_RELEASE_URL } from "@/lib/desktop-client"
 import { formatMessage } from "@/i18n/format-message"
 import { useI18n } from "@/i18n/use-i18n"
 import type { DashboardOverview, SkillCachePolicyResponse, User } from "@/types"
@@ -85,7 +86,7 @@ export default function DashboardPage() {
             <h2 className="text-xl font-semibold">{noRbacCopy.startHereTitle}</h2>
             <p className="text-sm text-muted-foreground">{noRbacCopy.startHereSummary}</p>
           </div>
-          <div className="grid gap-4 md:grid-cols-3">
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
             <NextStepCard
               title={noRbacCopy.browsePublicSkillsTitle}
               description={noRbacCopy.browsePublicSkillsDescription}
@@ -103,6 +104,13 @@ export default function DashboardPage() {
               description={noRbacCopy.createTokenDescription}
               href="/tokens"
               actionLabel={noRbacCopy.createTokenAction}
+            />
+            <NextStepCard
+              title={noRbacCopy.desktopClientTitle}
+              description={noRbacCopy.desktopClientDescription}
+              href={WINDOWS_DESKTOP_RELEASE_URL}
+              actionLabel={noRbacCopy.desktopClientAction}
+              external
             />
           </div>
         </section>

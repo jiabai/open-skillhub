@@ -10,6 +10,14 @@ smoke-testing a publishable SkillDrive Desktop macOS DMG on a macOS machine.
 Do not treat this as proof that macOS is already release-ready. The first gate
 below must be satisfied before running the release commands.
 
+## Related Documentation
+
+- Product spec: `docs/product-specs/2026-05-03-macos-release-packaging.md`
+- Technical design: `docs/design-docs/macos-release-packaging.md`
+- Active ExecPlan: `docs/exec-plans/active/2026-05-03-macos-release-packaging.md`
+- Task checklist: `docs/exec-plans/active/2026-05-03-macos-release-packaging-tasks.md`
+- Package configuration: `package.json` (build.mac, build.dmg sections)
+
 ## Release Readiness Gate
 
 Stop before release packaging unless all of these are true:
@@ -174,6 +182,25 @@ Expected:
 - TypeScript/Electron build completes.
 - `dist/` and `dist-electron/` are generated outputs only.
 
+## Clean Build Output
+
+Remove previous build artifacts before packaging:
+
+```bash
+npm run clean
+```
+
+Expected:
+
+- `dist/` and `dist-electron/` are removed.
+- No source files are affected.
+
+If the `clean` script fails, remove manually:
+
+```bash
+rm -rf dist dist-electron
+```
+
 ## Build Signed macOS Artifacts
 
 Confirm signing identity:
@@ -196,6 +223,35 @@ Expected artifacts:
 
 If electron-builder says it used an ad-hoc identity, stop. A public release must
 use Developer ID signing.
+
+## Troubleshooting Build Failures
+
+If `npm run dist:mac` fails:
+
+1. Check signing identity availability:
+   ```bash
+   security find-identity -v -p codesigning
+   ```
+
+2. Verify entitlements syntax:
+   ```bash
+   plutil -lint build/entitlements.mac.plist
+   plutil -lint build/entitlements.mac.inherit.plist
+   ```
+
+3. If electron-builder reports entitlements errors, validate XML:
+   ```bash
+   xmllint --noout build/entitlements.mac.plist
+   ```
+
+4. Check for stale build artifacts:
+   ```bash
+   npm run clean
+   npm run build
+   npm run dist:mac
+   ```
+
+5. Record the exact error output and attach to the active ExecPlan.
 
 ## Verify Code Signing
 
@@ -331,9 +387,11 @@ macOS release validation:
 - Xcode: <xcodebuild -version>
 - Node/npm: <versions>
 - Branch/commit: <sha>
+- npm run clean: <passed/failed>
 - npm test: <passed/failed, count>
 - npm run build: <passed/failed>
 - npm run dist:mac: <passed/failed>
+- Build duration: <minutes>
 - DMG: <filename, size>
 - ZIP: <filename, size>
 - codesign verify: <passed/failed>

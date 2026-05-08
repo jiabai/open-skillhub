@@ -1378,7 +1378,6 @@ export function App() {
             onDistribute={requestDistributionConfirmation}
             onReconcileInstalled={handleReconcileInstalled}
             onOpenSettings={() => setSettingsOpen(true)}
-            onRefresh={handleRefresh}
             onViewUpdates={() => setActiveView("updates")}
           />
         ) : activeView === "local-skills" ? (

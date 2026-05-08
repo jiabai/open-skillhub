@@ -23,7 +23,6 @@ type HomeViewProps = {
   onDistribute: (pendingUpdate: PendingSyncUpdate) => void
   onReconcileInstalled: (pendingUpdate: PendingSyncUpdate) => void
   onOpenSettings: () => void
-  onRefresh: () => void
   onViewUpdates: () => void
 }
 
@@ -47,7 +46,6 @@ export function HomeView({
   onDistribute,
   onReconcileInstalled,
   onOpenSettings,
-  onRefresh,
   onViewUpdates
 }: HomeViewProps) {
   const { dictionary } = useI18n()
@@ -60,16 +58,6 @@ export function HomeView({
         eyebrow={dictionary.homeView.eyebrow}
         title={dictionary.homeView.title}
         summary={dictionary.homeView.summary}
-        actions={
-          <>
-            <Button variant="secondary" disabled={!configurationReady || isLoading} onClick={onRefresh}>
-              {isLoading ? dictionary.common.refreshing : dictionary.homeView.refreshState}
-            </Button>
-            <Button variant="outline" onClick={onOpenSettings}>
-              {dictionary.homeView.settings}
-            </Button>
-          </>
-        }
       />
 
       {!bridgeAvailable ? (

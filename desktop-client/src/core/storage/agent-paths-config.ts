@@ -157,13 +157,13 @@ export function resolveAgentPathConfigTarget(args: {
 const INITIAL_AGENT_PATHS_TEMPLATE: JsonRecord = {
   _comment:
     "Each key is an agent ID. Set targetPath to override the default skill directory. " +
-    "Remove an entry to use the built-in default. " +
+    "Add an entry only when you want to explicitly configure that agent. " +
+    'Examples: "claude-code": { "targetPath": "~/.claude/skills" }, ' +
+    '"cursor": { "targetPath": "~/.cursor/skills" }, ' +
+    '"gemini-cli": { "targetPath": "~/.gemini/skills" }. ' +
     "Valid agent IDs: claude-code, cursor, windsurf, copilot, roocode, cline, " +
     "gemini-cli, codex, opencode, kilocode, amp, kiro, warp, trae, factory, " +
-    "kimi, mistral, pi, antigravity, openclaw",
-  "claude-code": { targetPath: "~/.claude/skills" },
-  cursor: { targetPath: "~/.cursor/skills" },
-  "gemini-cli": { targetPath: "~/.gemini/skills" }
+    "kimi, mistral, pi, antigravity, openclaw"
 }
 
 async function chmodUserOnly(filePath: string, platform: NodeJS.Platform): Promise<void> {

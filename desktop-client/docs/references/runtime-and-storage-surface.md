@@ -124,7 +124,8 @@ document root; theme changes do not touch secrets or sync state.
 
 The agent paths channels read, write, and reveal `config/agent-paths.json`.
 Read/save responses return sanitized entries only. Opening the directory creates
-an empty `{}` file first when the file does not exist.
+a sample file first when the file does not exist. Generated sample target paths
+live only inside `_comment`, so they do not mark agents as configured.
 
 The project channels read and write `config/projects.json`, open native
 directory pickers, reveal project folders, scan project-level skills, validate

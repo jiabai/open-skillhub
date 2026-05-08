@@ -300,6 +300,25 @@ describe("storage foundation", () => {
     })
   })
 
+  it("creates agent path config with sample targets only in the comment", async () => {
+    const rootDir = createTempRoot()
+    const paths = ensureAppDirectories({ baseDir: rootDir })
+    const store = createAgentPathsConfigStore(paths.agentPathsFilePath, {
+      homeDir: () => "C:\\Users\\Ada",
+      platform: "win32"
+    })
+
+    await expect(store.ensureFile()).resolves.toEqual({})
+
+    const raw = JSON.parse(readFileSync(paths.agentPathsFilePath, "utf8")) as Record<string, unknown>
+
+    expect(raw._comment).toEqual(expect.stringContaining('"cursor": { "targetPath": "~/.cursor/skills" }'))
+    expect(raw).not.toHaveProperty("claude-code")
+    expect(raw).not.toHaveProperty("cursor")
+    expect(raw).not.toHaveProperty("gemini-cli")
+    expect(await store.read()).toEqual({})
+  })
+
   it("defaults the desktop theme to dark", async () => {
     const rootDir = createTempRoot()
     const manager = createRuntimeConfigManager({

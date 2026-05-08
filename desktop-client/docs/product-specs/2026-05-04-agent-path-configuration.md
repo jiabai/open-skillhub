@@ -131,8 +131,10 @@ in the system file manager. This allows users to manually edit the JSON file.
 - On click, invoke an IPC channel that calls `shell.showItemInFolder()` or
   equivalent to open the config directory in Explorer (Windows), Finder (macOS),
   or the default file manager (Linux).
-- If the `agent-paths.json` file does not exist, create it with an empty object
-  `{}` before opening the directory so the user sees the file immediately.
+- If the `agent-paths.json` file does not exist, create it before opening the
+  directory so the user sees the file immediately. The initial file may include
+  sample `targetPath` entries inside `_comment`, but it must not include active
+  agent entries until the user explicitly adds them.
 - The main process should reveal `agent-paths.json` when supported and fall
   back to opening `appPaths.configDir` if the platform cannot reveal a file.
 
@@ -199,7 +201,8 @@ used by detection.
 ## Acceptance Criteria
 
 - `agent-paths.json` is created in `appPaths.configDir` when the user opens
-  the config directory or saves a configuration.
+  the config directory or saves a configuration; generated sample paths are
+  comment-only and do not mark agents as configured.
 - User-configured paths override built-in defaults for agent detection and
   skill distribution.
 - Missing or empty `agent-paths.json` falls back to built-in defaults with no

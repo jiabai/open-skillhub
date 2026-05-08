@@ -101,7 +101,7 @@ JSON 文件中的无效条目将被静默忽略，改用内置默认值。
 ### 按钮行为
 
 - 点击时调用 IPC 通道，使用 `shell.showItemInFolder()` 或等效方法在资源管理器（Windows）、Finder（macOS）或默认文件管理器（Linux）中打开配置目录。
-- 如果 `agent-paths.json` 文件不存在，先创建一个空对象 `{}`，再打开目录，以便用户立即看到该文件。
+- 如果 `agent-paths.json` 文件不存在，先创建该文件，再打开目录，以便用户立即看到该文件。初始文件可以在 `_comment` 中包含 `targetPath` 示例，但在用户显式添加前不得包含生效的 Agent 条目。
 - 主进程应优先定位并展示 `agent-paths.json`，若平台不支持展示文件，则回退为打开 `appPaths.configDir`。
 
 ### 编辑后刷新
@@ -154,7 +154,7 @@ openAgentPathsConfigDir(): Promise<void>
 
 ## 验收标准
 
-- 当用户打开配置目录或保存配置时，`agent-paths.json` 在 `appPaths.configDir` 中被创建。
+- 当用户打开配置目录或保存配置时，`agent-paths.json` 在 `appPaths.configDir` 中被创建；自动生成的示例路径仅作为注释展示，不会将 Agent 标记为已配置。
 - 用户配置的路径覆盖 Agent 检测和技能分发的内置默认值。
 - 缺失或为空的 `agent-paths.json` 回退到内置默认值，不产生错误。
 - 所有 `SKILLDRIVE_*_SKILLS_PATH` 环境变量代码已移除。

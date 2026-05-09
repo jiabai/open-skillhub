@@ -153,6 +153,14 @@ export interface LocalSkillUploadResult {
   refreshedSnapshot: LocalSkillsInventorySnapshot
 }
 
+export interface LocalSkillDeletePayload {
+  rowKey: string
+}
+
+export interface LocalSkillOpenFolderPayload {
+  rowKey: string
+}
+
 export interface ProjectEntry {
   id: string
   name: string

@@ -116,6 +116,9 @@ export const enUSDictionary = {
     empty: "No local skill package roots were found.",
     upload: "Upload",
     uploading: "Uploading...",
+    delete: "Delete",
+    deleting: "Deleting...",
+    openFolder: "Open Folder",
     sourceAgents: (value: string) => `Sources ${value}`,
     localVersion: (value: string) => `Local ${value}`,
     localPath: (value: string) => `Path ${value}`,
@@ -377,6 +380,14 @@ export const enUSDictionary = {
     localSkillUploadFailedTitle: "Local skill upload failed",
     localSkillUploadFailedDetail: (name: string, message: string) =>
       `${name} could not be uploaded: ${message}`,
+    localSkillDeletedTitle: "Local skill deleted",
+    localSkillDeletedDetail: (name: string) => `${name} was deleted from disk.`,
+    localSkillDeleteFailedTitle: "Local skill deletion failed",
+    localSkillDeleteFailedDetail: (name: string, message: string) =>
+      `${name} could not be deleted: ${message}`,
+    openFolderFailedTitle: "Open folder failed",
+    openFolderFailedDetail: (name: string, message: string) =>
+      `Could not open folder for ${name}: ${message}`,
     projectAddedTitle: "Project added",
     projectAddedDetail: (name: string) => `${name} is ready for project skill scanning.`,
     projectRenamedTitle: "Project renamed",

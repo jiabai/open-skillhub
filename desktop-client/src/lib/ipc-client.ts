@@ -22,7 +22,9 @@ import type {
   ProjectSkillImportResult,
   ProjectSkillScanSnapshot,
   ProjectValidateSkillFolderPayload,
-  SkillDistributionResult
+  SkillDistributionResult,
+  LocalSkillDeletePayload,
+  LocalSkillOpenFolderPayload
 } from "@/types"
 
 export interface DesktopClientBridge {
@@ -40,6 +42,8 @@ export interface DesktopClientBridge {
   refreshPreDistributionCheck(): Promise<PreDistributionCheckSnapshot>
   refreshLocalSkills(): Promise<LocalSkillsInventorySnapshot>
   uploadLocalSkill(rowKey: string): Promise<LocalSkillUploadResult>
+  deleteLocalSkill(payload: LocalSkillDeletePayload): Promise<LocalSkillsInventorySnapshot>
+  openLocalSkillFolder(payload: LocalSkillOpenFolderPayload): Promise<void>
   listProjects(): Promise<ProjectListSnapshot>
   addProject(payload: ProjectAddPayload): Promise<ProjectListSnapshot>
   renameProject(payload: ProjectRenamePayload): Promise<ProjectListSnapshot>
@@ -214,6 +218,26 @@ function invokeUploadLocalSkill(rowKey: string): Promise<LocalSkillUploadResult>
   return bridge.uploadLocalSkill(rowKey)
 }
 
+function invokeDeleteLocalSkill(payload: LocalSkillDeletePayload): Promise<LocalSkillsInventorySnapshot> {
+  const bridge = getDesktopClientBridge()
+
+  if (!bridge) {
+    throw new Error("Desktop client bridge is unavailable")
+  }
+
+  return bridge.deleteLocalSkill(payload)
+}
+
+function invokeOpenLocalSkillFolder(payload: LocalSkillOpenFolderPayload): Promise<void> {
+  const bridge = getDesktopClientBridge()
+
+  if (!bridge) {
+    throw new Error("Desktop client bridge is unavailable")
+  }
+
+  return bridge.openLocalSkillFolder(payload)
+}
+
 function invokeListProjects(): Promise<ProjectListSnapshot> {
   const bridge = getDesktopClientBridge()
 
@@ -356,6 +380,8 @@ export const desktopClient = {
   refreshPreDistributionCheck: invokeRefreshPreDistributionCheck,
   refreshLocalSkills: invokeRefreshLocalSkills,
   uploadLocalSkill: invokeUploadLocalSkill,
+  deleteLocalSkill: invokeDeleteLocalSkill,
+  openLocalSkillFolder: invokeOpenLocalSkillFolder,
   listProjects: invokeListProjects,
   addProject: invokeAddProject,
   renameProject: invokeRenameProject,

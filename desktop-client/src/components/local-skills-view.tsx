@@ -8,8 +8,11 @@ type LocalSkillsViewProps = {
   configurationReady: boolean
   isRefreshing: boolean
   uploadingRowKey: string | null
+  deletingRowKey: string | null
   onRefresh: () => void
   onUpload: (row: LocalSkillInventoryRow) => void
+  onDelete: (row: LocalSkillInventoryRow) => void
+  onOpenFolder: (row: LocalSkillInventoryRow) => void
 }
 
 function displayName(row: LocalSkillInventoryRow): string {
@@ -48,8 +51,11 @@ export function LocalSkillsView({
   configurationReady,
   isRefreshing,
   uploadingRowKey,
+  deletingRowKey,
   onRefresh,
-  onUpload
+  onUpload,
+  onDelete,
+  onOpenFolder
 }: LocalSkillsViewProps) {
   const { dictionary } = useI18n()
   const copy = dictionary.localSkillsView
@@ -104,9 +110,23 @@ export function LocalSkillsView({
               {snapshot.rows.map((row) => {
                 const name = displayName(row)
                 const isUploading = uploadingRowKey === row.rowKey
+                const isDeleting = deletingRowKey === row.rowKey
 
                 return (
-                  <article className="update-item" key={row.rowKey}>
+                  <article
+                    className="update-item"
+                    key={row.rowKey}
+                    role="button"
+                    tabIndex={0}
+                    style={{ cursor: "pointer" }}
+                    onClick={() => onOpenFolder(row)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault()
+                        onOpenFolder(row)
+                      }
+                    }}
+                  >
                     <div className="update-item__header">
                       <div>
                         <h3>{name}</h3>
@@ -116,11 +136,21 @@ export function LocalSkillsView({
                         <Badge tone={badgeTone(row)}>
                           {serverStateLabel(row, copy.serverStateLabels)}
                         </Badge>
-                        {row.uploadable ? (
-                          <Button size="sm" disabled={isUploading} onClick={() => onUpload(row)}>
-                            {isUploading ? copy.uploading : copy.upload}
+                        <span style={{ display: "flex", gap: "0.45rem" }}>
+                          {row.uploadable ? (
+                            <Button size="sm" disabled={isUploading || isDeleting} onClick={(e) => { e.stopPropagation(); onUpload(row) }}>
+                              {isUploading ? copy.uploading : copy.upload}
+                            </Button>
+                          ) : null}
+                          <Button
+                            size="sm"
+                            variant="secondary"
+                            disabled={isUploading || isDeleting}
+                            onClick={(e) => { e.stopPropagation(); onDelete(row) }}
+                          >
+                            {isDeleting ? copy.deleting : copy.delete}
                           </Button>
-                        ) : null}
+                        </span>
                       </div>
                     </div>
                     <div className="update-item__meta">

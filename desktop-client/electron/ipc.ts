@@ -23,7 +23,9 @@ import type {
   ProjectSkillImportResult,
   ProjectSkillScanSnapshot,
   ProjectValidateSkillFolderPayload,
-  SkillDistributionResult
+  SkillDistributionResult,
+  LocalSkillDeletePayload,
+  LocalSkillOpenFolderPayload
 } from "@/types"
 
 export const desktopClientIpcChannels = {
@@ -41,6 +43,8 @@ export const desktopClientIpcChannels = {
   refreshPreDistributionCheck: "pre-distribution-check:refresh",
   refreshLocalSkills: "local-skills:refresh",
   uploadLocalSkill: "local-skills:upload",
+  deleteLocalSkill: "local-skills:delete",
+  openLocalSkillFolder: "local-skills:open-folder",
   projectsList: "projects:list",
   projectsAdd: "projects:add",
   projectsRename: "projects:rename",
@@ -70,6 +74,8 @@ export interface DesktopClientBridge {
   refreshPreDistributionCheck(): Promise<PreDistributionCheckSnapshot>
   refreshLocalSkills(): Promise<LocalSkillsInventorySnapshot>
   uploadLocalSkill(rowKey: string): Promise<LocalSkillUploadResult>
+  deleteLocalSkill(payload: LocalSkillDeletePayload): Promise<LocalSkillsInventorySnapshot>
+  openLocalSkillFolder(payload: LocalSkillOpenFolderPayload): Promise<void>
   listProjects(): Promise<ProjectListSnapshot>
   addProject(payload: ProjectAddPayload): Promise<ProjectListSnapshot>
   renameProject(payload: ProjectRenamePayload): Promise<ProjectListSnapshot>
@@ -101,6 +107,8 @@ export interface DesktopClientIpcHandlers {
   refreshPreDistributionCheck(): Promise<PreDistributionCheckSnapshot>
   refreshLocalSkills(): Promise<LocalSkillsInventorySnapshot>
   uploadLocalSkill(rowKey: string): Promise<LocalSkillUploadResult>
+  deleteLocalSkill(payload: LocalSkillDeletePayload): Promise<LocalSkillsInventorySnapshot>
+  openLocalSkillFolder(payload: LocalSkillOpenFolderPayload): Promise<void>
   listProjects(): Promise<ProjectListSnapshot>
   addProject(payload: ProjectAddPayload): Promise<ProjectListSnapshot>
   renameProject(payload: ProjectRenamePayload): Promise<ProjectListSnapshot>
@@ -135,6 +143,8 @@ export function registerDesktopClientIpc(
   ipcMain.removeHandler(desktopClientIpcChannels.refreshPreDistributionCheck)
   ipcMain.removeHandler(desktopClientIpcChannels.refreshLocalSkills)
   ipcMain.removeHandler(desktopClientIpcChannels.uploadLocalSkill)
+  ipcMain.removeHandler(desktopClientIpcChannels.deleteLocalSkill)
+  ipcMain.removeHandler(desktopClientIpcChannels.openLocalSkillFolder)
   ipcMain.removeHandler(desktopClientIpcChannels.projectsList)
   ipcMain.removeHandler(desktopClientIpcChannels.projectsAdd)
   ipcMain.removeHandler(desktopClientIpcChannels.projectsRename)
@@ -183,6 +193,12 @@ export function registerDesktopClientIpc(
   )
   ipcMain.handle(desktopClientIpcChannels.uploadLocalSkill, async (_event, rowKey: string) =>
     handlers.uploadLocalSkill(rowKey)
+  )
+  ipcMain.handle(desktopClientIpcChannels.deleteLocalSkill, async (_event, payload: LocalSkillDeletePayload) =>
+    handlers.deleteLocalSkill(payload)
+  )
+  ipcMain.handle(desktopClientIpcChannels.openLocalSkillFolder, async (_event, payload: LocalSkillOpenFolderPayload) =>
+    handlers.openLocalSkillFolder(payload)
   )
   ipcMain.handle(desktopClientIpcChannels.projectsList, async () => handlers.listProjects())
   ipcMain.handle(desktopClientIpcChannels.projectsAdd, async (_event, payload: ProjectAddPayload) =>

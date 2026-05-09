@@ -56,6 +56,8 @@ import type {
   LocalSkillServerLookupStatus,
   LocalSkillsInventorySnapshot,
   LocalSkillUploadResult,
+  LocalSkillDeletePayload,
+  LocalSkillOpenFolderPayload,
   PendingSyncUpdate,
   PreDistributionCheckSnapshot,
   DirectorySelectionResult,
@@ -739,6 +741,46 @@ async function createApplicationServices(): Promise<void> {
     }
   }
 
+  const deleteLocalSkillByRowKey = async (payload: LocalSkillDeletePayload): Promise<LocalSkillsInventorySnapshot> => {
+    const normalizedRowKey = String(payload.rowKey ?? "").trim()
+
+    if (!normalizedRowKey) {
+      throw new Error("rowKey cannot be empty")
+    }
+
+    const snapshot = await refreshLocalSkillsSnapshot()
+    const row = snapshot.rows.find((item) => item.rowKey === normalizedRowKey)
+
+    if (!row) {
+      throw new Error(`Unknown local skill row: ${normalizedRowKey}`)
+    }
+
+    await rm(row.packageRootPath, { recursive: true, force: true })
+
+    return refreshLocalSkillsSnapshot()
+  }
+
+  const openLocalSkillFolder = async (payload: LocalSkillOpenFolderPayload): Promise<void> => {
+    const normalizedRowKey = String(payload.rowKey ?? "").trim()
+
+    if (!normalizedRowKey) {
+      throw new Error("rowKey cannot be empty")
+    }
+
+    const snapshot = await refreshLocalSkillsSnapshot()
+    const row = snapshot.rows.find((item) => item.rowKey === normalizedRowKey)
+
+    if (!row) {
+      throw new Error(`Unknown local skill row: ${normalizedRowKey}`)
+    }
+
+    const openError = await shell.openPath(row.packageRootPath)
+
+    if (openError) {
+      throw new Error(`Failed to open local skill folder: ${openError}`)
+    }
+  }
+
   const openAgentPathsConfigDir = async (): Promise<void> => {
     await agentPathsConfigStore.ensureFile()
 
@@ -882,6 +924,8 @@ async function createApplicationServices(): Promise<void> {
     },
     refreshLocalSkills: () => refreshLocalSkillsSnapshot(),
     uploadLocalSkill: (rowKey: string) => uploadLocalSkillByRowKey(rowKey),
+    deleteLocalSkill: (payload: LocalSkillDeletePayload) => deleteLocalSkillByRowKey(payload),
+    openLocalSkillFolder: (payload: LocalSkillOpenFolderPayload) => openLocalSkillFolder(payload),
     listProjects: (): Promise<ProjectListSnapshot> => projectConfigStore.listProjects(),
     addProject: (payload) => projectConfigStore.addProject(payload),
     renameProject: (payload) => projectConfigStore.renameProject(payload),

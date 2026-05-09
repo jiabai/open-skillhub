@@ -229,6 +229,7 @@ export function App() {
   const [isLoading, setIsLoading] = useState(true)
   const [busyUpdateId, setBusyUpdateId] = useState<string | null>(null)
   const [busyLocalSkillRowKey, setBusyLocalSkillRowKey] = useState<string | null>(null)
+  const [busyLocalSkillDeleteRowKey, setBusyLocalSkillDeleteRowKey] = useState<string | null>(null)
   const [pendingDistributionConfirmation, setPendingDistributionConfirmation] =
     useState<PendingSyncUpdate | null>(null)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
@@ -1107,6 +1108,66 @@ export function App() {
     }
   }
 
+  const handleDeleteLocalSkill = async (row: LocalSkillInventoryRow) => {
+    if (!bridgeAvailable) {
+      return
+    }
+
+    setBusyLocalSkillDeleteRowKey(row.rowKey)
+
+    try {
+      const refreshedSnapshot = await desktopClient.deleteLocalSkill({ rowKey: row.rowKey })
+      setLocalSkillsSnapshot(refreshedSnapshot)
+      setActivity((current) =>
+        [
+          createActivityEntry(
+            dictionary.activity.localSkillDeletedTitle,
+            dictionary.activity.localSkillDeletedDetail(row.name ?? row.packageRootPath),
+            "warning"
+          ),
+          ...current
+        ].slice(0, 5)
+      )
+    } catch (error: unknown) {
+      const message = getErrorMessage(error)
+      setActivity((current) =>
+        [
+          createActivityEntry(
+            dictionary.activity.localSkillDeleteFailedTitle,
+            dictionary.activity.localSkillDeleteFailedDetail(row.name ?? row.packageRootPath, message),
+            "warning"
+          ),
+          ...current
+        ].slice(0, 5)
+      )
+      await refreshLocalSkillsState()
+    } finally {
+      setBusyLocalSkillDeleteRowKey(null)
+    }
+  }
+
+  const handleOpenLocalSkillFolder = async (row: LocalSkillInventoryRow) => {
+    if (!bridgeAvailable) {
+      return
+    }
+
+    try {
+      await desktopClient.openLocalSkillFolder({ rowKey: row.rowKey })
+    } catch (error: unknown) {
+      const message = getErrorMessage(error)
+      setActivity((current) =>
+        [
+          createActivityEntry(
+            dictionary.activity.openFolderFailedTitle,
+            dictionary.activity.openFolderFailedDetail(row.name ?? row.packageRootPath, message),
+            "warning"
+          ),
+          ...current
+        ].slice(0, 5)
+      )
+    }
+  }
+
   const handleAddProject = async (payload: ProjectAddPayload) => {
     if (!bridgeAvailable) {
       setProjectErrorMessage(createBridgeUnavailableMessage(selectedLocale, dictionary.projectsView.addProject))
@@ -1387,8 +1448,11 @@ export function App() {
             configurationReady={configurationReady}
             isRefreshing={isLocalSkillsRefreshing}
             uploadingRowKey={busyLocalSkillRowKey}
+            deletingRowKey={busyLocalSkillDeleteRowKey}
             onRefresh={handleRefreshLocalSkills}
             onUpload={handleUploadLocalSkill}
+            onDelete={handleDeleteLocalSkill}
+            onOpenFolder={handleOpenLocalSkillFolder}
           />
         ) : activeView === "projects" ? (
           <ProjectsView

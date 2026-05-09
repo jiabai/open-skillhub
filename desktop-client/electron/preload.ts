@@ -25,6 +25,10 @@ const desktopClientBridge: DesktopClientBridge = {
   refreshLocalSkills: () => ipcRenderer.invoke(desktopClientIpcChannels.refreshLocalSkills),
   uploadLocalSkill: (rowKey: string) =>
     ipcRenderer.invoke(desktopClientIpcChannels.uploadLocalSkill, rowKey),
+  deleteLocalSkill: (payload) =>
+    ipcRenderer.invoke(desktopClientIpcChannels.deleteLocalSkill, payload),
+  openLocalSkillFolder: (payload) =>
+    ipcRenderer.invoke(desktopClientIpcChannels.openLocalSkillFolder, payload),
   listProjects: () => ipcRenderer.invoke(desktopClientIpcChannels.projectsList),
   addProject: (payload) => ipcRenderer.invoke(desktopClientIpcChannels.projectsAdd, payload),
   renameProject: (payload) =>

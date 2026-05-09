@@ -113,6 +113,9 @@ export interface AppDictionary {
     empty: string
     upload: string
     uploading: string
+    delete: string
+    deleting: string
+    openFolder: string
     sourceAgents: (value: string) => string
     localVersion: (value: string) => string
     localPath: (value: string) => string
@@ -362,6 +365,12 @@ export interface AppDictionary {
     localSkillUploadedDetail: (name: string) => string
     localSkillUploadFailedTitle: string
     localSkillUploadFailedDetail: (name: string, message: string) => string
+    localSkillDeletedTitle: string
+    localSkillDeletedDetail: (name: string) => string
+    localSkillDeleteFailedTitle: string
+    localSkillDeleteFailedDetail: (name: string, message: string) => string
+    openFolderFailedTitle: string
+    openFolderFailedDetail: (name: string, message: string) => string
     projectAddedTitle: string
     projectAddedDetail: (name: string) => string
     projectRenamedTitle: string

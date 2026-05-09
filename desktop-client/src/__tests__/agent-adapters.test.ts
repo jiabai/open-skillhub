@@ -103,7 +103,8 @@ describe("agent adapters", () => {
       "mistral",
       "pi",
       "antigravity",
-      "openclaw"
+      "openclaw",
+      "codebuddy"
     ]
 
     expect(supportedAgentDefinitions.map((definition) => definition.id)).toEqual(expectedAgentIds)

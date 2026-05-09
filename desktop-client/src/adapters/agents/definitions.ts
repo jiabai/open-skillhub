@@ -221,6 +221,14 @@ export const supportedAgentDefinitions: AgentPathDefinition[] = [
       { path: "~/.moltbot/skills", role: "primary" }
     ],
     pathResolution: "priority"
+  },
+  {
+    id: "codebuddy",
+    displayName: "CodeBuddy",
+    detectionDirs: ["~/.codebuddy"],
+    defaultTargets: [{ path: "~/.codebuddy/skills", role: "primary" }],
+    projectTargets: [{ path: ".codebuddy/skills", role: "primary" }],
+    pathResolution: "all-owned"
   }
 ]
 

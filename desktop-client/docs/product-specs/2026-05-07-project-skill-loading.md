@@ -212,8 +212,6 @@ Rules:
 - Agents without project target metadata are not shown as import targets.
 - Current unsupported IDs such as `zed`, `augmentcode`, and `jetbrains-ai`
   remain out of scope until they are promoted to supported `AgentId` values.
-- Do not document or implement `codebuddy` as supported until it exists in
-  `AgentId` and `supportedAgentDefinitions`.
 - Shared project paths, such as `.agents/skills`, must be deduped by normalized
   physical path before scanning.
 - Compatible read paths may contribute project scan results but must not become

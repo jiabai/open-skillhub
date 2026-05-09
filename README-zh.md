@@ -81,11 +81,26 @@ SkillDrive 支持向所有主流 AI 编程 Agent 分发技能：
 | Agent | 技能路径 | 桌面客户端 |
 |-------|---------|-----------|
 | **Claude Code** | `~/.claude/skills` | ✅ |
-| **Codex** | `~/.codex/skills` | ✅ |
+| **Codex** | `~/.agents/skills` | ✅ |
 | **Gemini CLI** | `~/.gemini/skills` | ✅ |
-| **Cursor** | Agent 目录 | ✅ |
-| **Windsurf** | Agent 目录 | ✅ |
-| **GitHub Copilot** | Agent 目录 | ✅ |
+| **Cursor** | `~/.cursor/skills` | ✅ |
+| **Windsurf** | `~/.codeium/windsurf/skills` | ✅ |
+| **GitHub Copilot** | `~/.copilot/skills` | ✅ |
+| **RooCode** | `~/.roo/skills` | ✅ |
+| **Cline** | `~/.agents/skills` | ✅ |
+| **OpenCode** | `~/.config/opencode/skills` | ✅ |
+| **KiloCode** | `~/.kilocode/skills` | ✅ |
+| **Amp** | `~/.config/agents/skills` | ✅ |
+| **Kiro** | `~/.kiro/skills` | ✅ |
+| **Warp** | `~/.agents/skills` | ✅ |
+| **Trae** | `~/.trae/skills` | ✅ |
+| **Factory** | `~/.factory/skills` | ✅ |
+| **Kimi Code CLI** | `~/.config/agents/skills` | ✅ |
+| **Mistral Le Chat** | `~/.vibe/skills` | ✅ |
+| **Pi Coding Agent** | `~/.pi/agent/skills` | ✅ |
+| **Antigravity** | `~/.gemini/antigravity/skills` | ✅ |
+| **OpenClaw** | `~/.openclaw/skills` | ✅ |
+| **CodeBuddy** | `~/.codebuddy/skills` | ✅ |
 
 > 💡 桌面客户端可自动检测已安装的 Agent，并以「先审核、后分发」的工作流管理技能分发。
 

@@ -81,11 +81,26 @@ SkillDrive distributes skills to all major AI coding agents:
 | Agent | Skill Path | Desktop Client |
 |-------|-----------|----------------|
 | **Claude Code** | `~/.claude/skills` | ✅ |
-| **Codex** | `~/.codex/skills` | ✅ |
+| **Codex** | `~/.agents/skills` | ✅ |
 | **Gemini CLI** | `~/.gemini/skills` | ✅ |
-| **Cursor** | Agent directory | ✅ |
-| **Windsurf** | Agent directory | ✅ |
-| **GitHub Copilot** | Agent directory | ✅ |
+| **Cursor** | `~/.cursor/skills` | ✅ |
+| **Windsurf** | `~/.codeium/windsurf/skills` | ✅ |
+| **GitHub Copilot** | `~/.copilot/skills` | ✅ |
+| **RooCode** | `~/.roo/skills` | ✅ |
+| **Cline** | `~/.agents/skills` | ✅ |
+| **OpenCode** | `~/.config/opencode/skills` | ✅ |
+| **KiloCode** | `~/.kilocode/skills` | ✅ |
+| **Amp** | `~/.config/agents/skills` | ✅ |
+| **Kiro** | `~/.kiro/skills` | ✅ |
+| **Warp** | `~/.agents/skills` | ✅ |
+| **Trae** | `~/.trae/skills` | ✅ |
+| **Factory** | `~/.factory/skills` | ✅ |
+| **Kimi Code CLI** | `~/.config/agents/skills` | ✅ |
+| **Mistral Le Chat** | `~/.vibe/skills` | ✅ |
+| **Pi Coding Agent** | `~/.pi/agent/skills` | ✅ |
+| **Antigravity** | `~/.gemini/antigravity/skills` | ✅ |
+| **OpenClaw** | `~/.openclaw/skills` | ✅ |
+| **CodeBuddy** | `~/.codebuddy/skills` | ✅ |
 
 > � The desktop client auto-detects installed agents and manages skill distribution with a review-first workflow.
 

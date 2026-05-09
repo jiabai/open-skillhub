@@ -25,6 +25,7 @@ export type AgentId =
   | "pi"
   | "antigravity"
   | "openclaw"
+  | "codebuddy"
 
 export type AgentInstallSource = "auto-detected" | "missing"
 

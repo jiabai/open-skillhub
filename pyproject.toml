@@ -7,8 +7,7 @@ name = "skilldrive"
 dynamic = ["version"]
 description = "A private Skills management SaaS for distributing skills to client-side runtimes."
 authors = [
-    { name = "jinli.yl", email = "jinli.yl@alibaba-inc.com" },
-    { name = "caozouying.czy", email = "caozouying.czy@alibaba-inc.com" },
+    { name = "jiabai", email = "ghostposix@gmail.com" },
 ]
 license = {file = "LICENSE"}
 readme = "README.md"

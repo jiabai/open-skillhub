@@ -2,9 +2,7 @@
 
 ## Purpose
 
-This document defines the mandatory execution workflow for SkillDrive. It turns
-the high-level workflow in `.superpowers/Workflow/WORKFLOW.md` into a
-repository-native operating rule that future tasks should follow by default.
+This document defines the mandatory execution workflow for SkillDrive.
 
 The goal is simple: code should serve reviewed specifications, and non-trivial work
 should move through explicit review gates instead of jumping straight into
@@ -30,7 +28,7 @@ This repository already has stable governance documents. For SkillDrive, the
 "constitution" is the durable ruleset formed by:
 
 - `docs/design-docs/core-beliefs.md`
-- `ARCHITECTURE.md`
+- `docs/ARCHITECTURE.md`
 - `docs/DESIGN.md`
 - `docs/SECURITY.md`
 - the relevant local `AGENTS.md` file for the area being changed
@@ -76,8 +74,7 @@ Review gate:
 ### Stage 3: Plan How To Build
 
 After the spec is acceptable, create an execution plan in
-`docs/exec-plans/active/` using the ExecPlan structure defined in
-`.superpowers/Conventions/PLANS-UNIVERSAL.md`.
+`docs/exec-plans/active/`.
 
 Recommended filename:
 

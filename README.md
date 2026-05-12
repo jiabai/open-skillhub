@@ -513,7 +513,7 @@ Each user's directory is fully isolated — users can only access their own skil
 
 | Resource | Description |
 |----------|-------------|
-| [Architecture Map](ARCHITECTURE.md) | Repository code map, boundaries, and key files |
+| [Architecture Map](docs/ARCHITECTURE.md) | Repository code map, boundaries, and key files |
 | [Design Guide](docs/DESIGN.md) | Stable design rules for backend, frontend, and docs |
 | [Security Guide](docs/SECURITY.md) | Auth, secrets, isolation, and security follow-ups |
 | [Deployment Guide](docs/deployment.md) | Production setup instructions |

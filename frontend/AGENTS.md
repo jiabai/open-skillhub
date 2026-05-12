@@ -5,7 +5,7 @@ Use this file when you are changing the Next.js web console. Read the root `../A
 ## Quick Entry
 
 - Root workflow: `../WORKFLOW.md`
-- Root architecture map: `../ARCHITECTURE.md`
+- Root architecture map: `../docs/ARCHITECTURE.md`
 - Design guidance: `../docs/DESIGN.md`
 - Product specs: `../docs/product-specs/index.md`
 - Active plans: `../docs/exec-plans/active/index.md`

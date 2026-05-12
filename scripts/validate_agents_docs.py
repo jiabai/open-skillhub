@@ -6,19 +6,24 @@
 
 验证内容：
 1. 必需路径检查
-   - 验证 AGENTS.md、ARCHITECTURE.md、WORKFLOW.md、docs/EXECUTION_GATES.md 等核心文档是否存在
+   - 验证 AGENTS.md、docs/ARCHITECTURE.md、WORKFLOW.md、docs/EXECUTION_GATES.md 等核心文档是否存在
    - 验证各子项目（backend/frontend/desktop-client）的 AGENTS.md 是否存在
    - 验证 docs/ 目录下的设计文档、产品规格、执行计划索引是否存在
 
-2. 文档链接检查
+2. 约束机制检查
+   - 验证根 AGENTS.md 是否包含「约束机制」章节
+   - 验证模式（agents-only / linter+agents）和配置是否合法
+   - 验证 linter+agents 模式下配置文件是否存在
+
+3. 文档链接检查
    - 检查所有入口文件中的反引号代码块路径引用（`path/to/file.md`）
    - 验证引用的文档文件是否真实存在，防止死链
 
-3. 执行计划索引检查
+4. 执行计划索引检查
    - 验证 docs/exec-plans/active/index.md 和 completed/index.md 中的引用
    - 确保索引中列出的执行计划文件都存在
 
-4. 桌面客户端任务跟踪器检查
+5. 桌面客户端任务跟踪器检查
    - 验证 desktop-client/task-tracker.md 是否存在
    - 检查是否包含标准区段：In Progress、Todo、Done
    - 检查是否使用 checkbox 格式（- [ ] 或 - [x]）
@@ -85,7 +90,7 @@ TASK_VALIDATION_MARKER = "✅"
 
 ROOT_REQUIRED_PATHS = [
     Path("AGENTS.md"),
-    Path("ARCHITECTURE.md"),
+    Path("docs/ARCHITECTURE.md"),
     Path("WORKFLOW.md"),
     Path("docs/EXECUTION_GATES.md"),
     Path("docs/DESIGN.md"),
@@ -109,6 +114,11 @@ ENTRYPOINT_FILES = [
 ]
 
 TASK_TRACKER_REQUIRED_HEADINGS = ["In Progress", "Todo", "Done"]
+
+CONSTRAINT_SECTION = "约束机制"
+CONSTRAINT_MODE_PATTERN = re.compile(r"模式[：:]\s*`([^`]+)`")
+CONSTRAINT_CONFIG_PATTERN = re.compile(r"配置[：:]\s*`([^`]+)`")
+VALID_CONSTRAINT_MODES = {"agents-only", "linter+agents"}
 
 
 def validate_required_paths(root: Path) -> list[ValidationResult]:
@@ -181,9 +191,84 @@ def validate_desktop_task_tracker(path: Path) -> list[ValidationResult]:
     return results
 
 
+def validate_constraint_mechanism(root: Path) -> list[ValidationResult]:
+    results: list[ValidationResult] = []
+    agents_md = root / "AGENTS.md"
+
+    if not agents_md.exists():
+        return results
+
+    content = agents_md.read_text(encoding="utf-8")
+    lines = content.splitlines()
+
+    in_section = False
+    section_lines: list[str] = []
+    for line in lines:
+        stripped = line.strip()
+        if stripped == f"## {CONSTRAINT_SECTION}":
+            in_section = True
+            continue
+        if in_section and stripped.startswith("## "):
+            break
+        if in_section:
+            section_lines.append(line)
+
+    if not section_lines:
+        results.append(ValidationResult(
+            agents_md, Severity.ERROR,
+            "缺少'约束机制'章节",
+        ))
+        return results
+
+    mode: str | None = None
+    config: str | None = None
+    for line in section_lines:
+        if mode is None:
+            match = CONSTRAINT_MODE_PATTERN.search(line)
+            if match:
+                mode = match.group(1)
+        if config is None:
+            match = CONSTRAINT_CONFIG_PATTERN.search(line)
+            if match:
+                config = match.group(1)
+
+    if mode is None:
+        results.append(ValidationResult(agents_md, Severity.ERROR, "缺少'约束机制.模式'声明"))
+    elif mode not in VALID_CONSTRAINT_MODES:
+        results.append(ValidationResult(
+            agents_md, Severity.ERROR,
+            f"'约束机制.模式' 非法: {mode}（必须是 agents-only 或 linter+agents）",
+        ))
+
+    if config is None:
+        results.append(ValidationResult(agents_md, Severity.ERROR, "缺少'约束机制.配置'声明"))
+    elif mode == "agents-only":
+        if config != "N/A":
+            results.append(ValidationResult(
+                agents_md, Severity.ERROR,
+                "'约束机制.配置' 在 agents-only 模式下必须为 `N/A`",
+            ))
+    elif mode == "linter+agents":
+        if config == "N/A":
+            results.append(ValidationResult(
+                agents_md, Severity.ERROR,
+                "'约束机制.配置' 在 linter+agents 模式下必须为真实配置文件路径",
+            ))
+        else:
+            resolved = (agents_md.parent / config).resolve()
+            if not resolved.exists():
+                results.append(ValidationResult(
+                    resolved, Severity.ERROR,
+                    f"约束配置文件不存在（在 '约束机制.配置' 中声明）: {config}",
+                ))
+
+    return results
+
+
 def validate_project(root: Path) -> list[ValidationResult]:
     results: list[ValidationResult] = []
     results.extend(validate_required_paths(root))
+    results.extend(validate_constraint_mechanism(root))
 
     for rel_path in ENTRYPOINT_FILES:
         results.extend(validate_backtick_links(root / rel_path))

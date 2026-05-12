@@ -513,7 +513,7 @@ sequenceDiagram
 
 | 资源 | 说明 |
 |------|------|
-| [架构地图](ARCHITECTURE.md) | 仓库代码地图、层级边界与关键文件 |
+| [架构地图](docs/ARCHITECTURE.md) | 仓库代码地图、层级边界与关键文件 |
 | [设计规范](docs/DESIGN.md) | 后端、前端与文档的稳定设计约束 |
 | [安全规范](docs/SECURITY.md) | 认证、密钥、隔离边界与安全待办 |
 | [部署指南](docs/deployment-zh.md) | 生产环境部署教程 |

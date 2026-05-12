@@ -2,7 +2,7 @@
 
 ## Quick Entry
 
-- Architecture map: `ARCHITECTURE.md`
+- Architecture map: `docs/ARCHITECTURE.md`
 - Mandatory workflow: `WORKFLOW.md`
 - Execution gates: `docs/EXECUTION_GATES.md`
 - Repository validator: `scripts/validate_agents_docs.py`
@@ -94,10 +94,15 @@ docker compose logs -f
 docker compose down
 ```
 
+## 约束机制
+
+- 模式：`linter+agents`
+- 配置：`pyproject.toml`
+
 ## When to Read More
 
 - For backend boundaries, auth, or data model changes: `backend/AGENTS.md`
 - For frontend routing, i18n, or UI work: `frontend/AGENTS.md`
 - For deployment behavior: `docs/deployment.md` or `docs/deployment-zh.md`
-- For architectural orientation: `ARCHITECTURE.md`
+- For architectural orientation: `docs/ARCHITECTURE.md`
 - For open design questions or debt: `docs/design-docs/` and `docs/exec-plans/`

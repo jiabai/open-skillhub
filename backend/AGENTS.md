@@ -5,7 +5,7 @@ Use this file when you are changing the FastAPI backend. Read the root `../AGENT
 ## Quick Entry
 
 - Root workflow: `../WORKFLOW.md`
-- Root architecture map: `../ARCHITECTURE.md`
+- Root architecture map: `../docs/ARCHITECTURE.md`
 - Security guidance: `../docs/SECURITY.md`
 - Active plans: `../docs/exec-plans/active/index.md`
 - Tech debt tracker: `../docs/exec-plans/tech-debt-tracker.md`

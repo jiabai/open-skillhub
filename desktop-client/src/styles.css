@@ -480,14 +480,15 @@ select:focus-visible {
 
 .update-item__header {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
   gap: 1rem;
 }
 
 .update-item__actions {
-  display: grid;
-  justify-items: end;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
   gap: 0.45rem;
 }
 
@@ -813,7 +814,7 @@ select:focus-visible {
   }
 
   .update-item__actions {
-    justify-items: start;
+    justify-content: flex-start;
   }
 
   .precheck-action-warning {
@@ -821,9 +822,4 @@ select:focus-visible {
   }
 }
 
-@media (min-width: 1200px) {
-  .home-layout {
-    grid-template-columns: minmax(0, 1.35fr) minmax(30rem, 0.95fr);
-    align-items: start;
-  }
-}
+

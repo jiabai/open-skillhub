@@ -1,3 +1,4 @@
+import { useMemo } from "react"
 import { Badge, Button, Card, CardContent, CardDescription, CardHeader, CardTitle, PageIntro } from "@/components/ui-primitives"
 import { useI18n } from "@/i18n/use-i18n"
 import type { LocalSkillInventoryRow, LocalSkillsInventorySnapshot } from "@/types"
@@ -60,6 +61,17 @@ export function LocalSkillsView({
   const { dictionary } = useI18n()
   const copy = dictionary.localSkillsView
 
+  const sortedRows = useMemo(() => {
+    if (!snapshot) return []
+    return [...snapshot.rows].sort((a, b) => {
+      const nameA = displayName(a).toLowerCase()
+      const nameB = displayName(b).toLowerCase()
+      if (nameA < nameB) return -1
+      if (nameA > nameB) return 1
+      return 0
+    })
+  }, [snapshot])
+
   return (
     <section className="page-stack" aria-labelledby="local-skills-heading">
       <PageIntro
@@ -107,7 +119,7 @@ export function LocalSkillsView({
 
           {snapshot && snapshot.rows.length > 0 ? (
             <div className="stack-list">
-              {snapshot.rows.map((row) => {
+              {sortedRows.map((row) => {
                 const name = displayName(row)
                 const isUploading = uploadingRowKey === row.rowKey
                 const isDeleting = deletingRowKey === row.rowKey

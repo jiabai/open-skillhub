@@ -110,6 +110,17 @@ export function ProjectsView({
     )
   }, [scanSnapshot?.targets])
 
+  const sortedProjects = useMemo(() => {
+    if (!snapshot) return []
+    return [...snapshot.projects].sort((a, b) => {
+      const nameA = a.name.toLowerCase()
+      const nameB = b.name.toLowerCase()
+      if (nameA < nameB) return -1
+      if (nameA > nameB) return 1
+      return 0
+    })
+  }, [snapshot])
+
   useEffect(() => {
     if (writableTargetOptions.length > 0 && !targetAgentId) {
       setTargetAgentId(writableTargetOptions[0].agentId)
@@ -414,8 +425,21 @@ export function ProjectsView({
           ) : null}
           {snapshot && snapshot.projects.length > 0 ? (
             <div className="stack-list">
-              {snapshot.projects.map((project) => (
-                <article className="update-item" key={project.id}>
+              {sortedProjects.map((project) => (
+                <article
+                  className="update-item"
+                  key={project.id}
+                  role="button"
+                  tabIndex={0}
+                  style={{ cursor: "pointer" }}
+                  onClick={() => onSelectProject(project)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault()
+                      onSelectProject(project)
+                    }
+                  }}
+                >
                   <div className="update-item__header">
                     <div>
                       <h3>{project.name}</h3>
@@ -428,7 +452,8 @@ export function ProjectsView({
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => {
+                        onClick={(e) => {
+                          e.stopPropagation()
                           setRenameProject(project)
                           setRenameName(project.name)
                         }}
@@ -438,7 +463,10 @@ export function ProjectsView({
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => setRemoveProject(project)}
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          setRemoveProject(project)
+                        }}
                       >
                         {copy.remove}
                       </Button>

@@ -38,7 +38,12 @@
     "files": [
       "dist/**/*",
       "dist-electron/**/*",
-      "package.json"
+      "package.json",
+      "!dist/mac/**/*",
+      "!dist/*.zip",
+      "!dist/*.blockmap",
+      "!dist/builder-debug.yml",
+      "!dist/builder-effective-config.yaml"
     ],
     "win": {
       "target": [
@@ -58,11 +63,10 @@
       ],
       "icon": "resources/icons/icon.icns",
       "category": "public.app-category.productivity",
+      "identity": null,
       "hardenedRuntime": true,
-      "forceCodeSigning": true,
-      "notarize": true,
-      "entitlements": "build/entitlements.mac.plist",
-      "entitlementsInherit": "build/entitlements.mac.inherit.plist"
+      "forceCodeSigning": false,
+      "notarize": false
     },
     "dmg": {
       "contents": [

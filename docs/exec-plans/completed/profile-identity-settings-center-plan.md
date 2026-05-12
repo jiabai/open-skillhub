@@ -136,7 +136,7 @@ identity-first behavior is covered by assertions.
 
 Work from the repository root:
 
-    cd D:\Github\open-skillhub
+    cd D:\Github\skilldrive
 
 Create and register the plan:
 

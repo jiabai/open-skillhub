@@ -165,7 +165,7 @@ Validate the completed implementation:
 ### Step 1: Validate docs-only phase
 
 ```bash
-cd D:\Github\open-skillhub
+cd D:\Github\skilldrive
 python scripts/validate_agents_docs.py --level ERROR
 ```
 
@@ -176,7 +176,7 @@ Expected: 0 errors. Any warnings should be reviewed and either fixed or recorded
 Before code changes, identify the existing frontend test pattern for route-level behavior:
 
 ```bash
-cd D:\Github\open-skillhub\frontend
+cd D:\Github\skilldrive\frontend
 npm test -- --run
 ```
 
@@ -207,11 +207,11 @@ Use the corrected design doc as the source of truth for copy, layout, token, mot
 ### Step 5: Run frontend and docs gates
 
 ```bash
-cd D:\Github\open-skillhub\frontend
+cd D:\Github\skilldrive\frontend
 npm run lint
 npm test
 npm run build
-cd D:\Github\open-skillhub
+cd D:\Github\skilldrive
 python scripts/validate_agents_docs.py --level ERROR
 ```
 

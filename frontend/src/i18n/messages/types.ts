@@ -354,6 +354,9 @@ export type AppDictionary = {
     desktopDownloadTitle: string
     desktopDownloadDescription: string
     downloadWindowsDesktop: string
+    desktopDownloadTitleMacOS: string
+    desktopDownloadDescriptionMacOS: string
+    downloadMacOSDesktop: string
     tokenListTitle: string
     tokenListDescription: string
     loading: string

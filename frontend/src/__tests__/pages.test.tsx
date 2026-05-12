@@ -486,6 +486,10 @@ describe("console pages", () => {
       "href",
       "https://github.com/jiabai/skilldrive/releases/tag/v0.1.3"
     )
+    expect(screen.getByRole("link", { name: /下载 macOS 桌面端 v0\.1\.3/ })).toHaveAttribute(
+      "href",
+      "https://github.com/jiabai/skilldrive/releases/tag/v0.1.3"
+    )
   })
 
   it("copies a newly created token even when navigator clipboard is unavailable", async () => {

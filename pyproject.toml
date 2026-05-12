@@ -83,9 +83,9 @@ backend = [
 version = {attr = "backend.__version__"}
 
 [project.urls]
-Homepage = "https://github.com/jiabai/open-skillhub"
-Documentation = "https://github.com/jiabai/open-skillhub/README.md"
-Repository = "https://github.com/jiabai/open-skillhub"
+Homepage = "https://github.com/jiabai/skilldrive"
+Documentation = "https://github.com/jiabai/skilldrive/README.md"
+Repository = "https://github.com/jiabai/skilldrive"
 
 [tool.pytest.ini_options]
 addopts = "-p no:cacheprovider"

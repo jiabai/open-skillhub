@@ -137,7 +137,7 @@ Broader enum follow-up work continues in a separate active plan.
 ### Sync after editing the authoring source
 
 ```bash
-cd D:\Github\open-skillhub
+cd D:\Github\skilldrive
 python scripts/sync_shared_catalogs.py --write
 ```
 
@@ -149,7 +149,7 @@ Expected result: the script rewrites:
 ### Verify generated copies before build or release
 
 ```bash
-cd D:\Github\open-skillhub
+cd D:\Github\skilldrive
 python scripts/sync_shared_catalogs.py --check
 ```
 
@@ -158,8 +158,8 @@ Expected result: `Shared catalogs are in sync.`
 ### Focused backend validation
 
 ```bash
-cd D:\Github\open-skillhub
-$env:UV_CACHE_DIR='D:\Github\open-skillhub\.uv-cache'; uv run pytest tests/test_sync_shared_catalogs.py -q
+cd D:\Github\skilldrive
+$env:UV_CACHE_DIR='D:\Github\skilldrive\.uv-cache'; uv run pytest tests/test_sync_shared_catalogs.py -q
 ```
 
 Expected result: the backend/shared consistency checks pass.
@@ -167,7 +167,7 @@ Expected result: the backend/shared consistency checks pass.
 ### Focused frontend validation
 
 ```bash
-cd D:\Github\open-skillhub\frontend
+cd D:\Github\skilldrive\frontend
 npm.cmd test -- --run src/__tests__/user-status.test.ts
 ```
 
@@ -180,7 +180,7 @@ Validation flow:
 1. Run `python scripts/sync_shared_catalogs.py --check`
    - Expect success in a synced repository.
 2. Run backend validation:
-   - `$env:UV_CACHE_DIR='D:\Github\open-skillhub\.uv-cache'; uv run pytest tests/test_sync_shared_catalogs.py -q`
+   - `$env:UV_CACHE_DIR='D:\Github\skilldrive\.uv-cache'; uv run pytest tests/test_sync_shared_catalogs.py -q`
    - Expect the shared/backend catalog comparison and sync-script behavior tests to pass.
 3. Run frontend validation:
    - `npm.cmd test -- --run src/__tests__/user-status.test.ts`

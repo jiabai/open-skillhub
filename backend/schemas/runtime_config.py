@@ -13,6 +13,7 @@ class RuntimeCapabilities(BaseModel):
     audit_export: bool
     rbac: bool
     no_rbac_mode: bool
+    desktop_release_url: str
 
 
 class RuntimeConfigResponse(BaseModel):

@@ -40,6 +40,7 @@ describe("runtime config", () => {
             audit_export: true,
             rbac: true,
             no_rbac_mode: false,
+            desktop_release_url: "https://github.com/jiabai/skilldrive/releases",
           },
         }),
       }))

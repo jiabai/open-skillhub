@@ -20,6 +20,7 @@ class RuntimeConfigService:
             audit_export=audit_log and bool(settings.ENABLE_AUDIT_EXPORT),
             rbac=rbac,
             no_rbac_mode=not rbac,
+            desktop_release_url=settings.DESKTOP_RELEASE_URL,
         )
 
     @classmethod

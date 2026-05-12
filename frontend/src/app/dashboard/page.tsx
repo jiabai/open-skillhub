@@ -13,7 +13,6 @@ import { api } from "@/lib/api"
 import { useRuntimeConfig } from "@/hooks/use-runtime-config"
 import { getPrimaryNavigation } from "@/lib/navigation"
 import { canManageUsers, canViewAuditLogs } from "@/lib/user-permissions"
-import { WINDOWS_DESKTOP_RELEASE_URL } from "@/lib/desktop-client"
 import { formatMessage } from "@/i18n/format-message"
 import { useI18n } from "@/i18n/use-i18n"
 import type { DashboardOverview, SkillCachePolicyResponse, User } from "@/types"
@@ -108,7 +107,7 @@ export default function DashboardPage() {
             <NextStepCard
               title={noRbacCopy.desktopClientTitle}
               description={noRbacCopy.desktopClientDescription}
-              href={WINDOWS_DESKTOP_RELEASE_URL}
+              href={config.capabilities.desktop_release_url}
               actionLabel={noRbacCopy.desktopClientAction}
               external
             />

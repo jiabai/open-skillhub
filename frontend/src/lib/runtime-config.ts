@@ -12,6 +12,7 @@ export type RuntimeCapabilities = {
   audit_export: boolean
   rbac: boolean
   no_rbac_mode: boolean
+  desktop_release_url: string
 }
 
 export type RuntimeConfig = {
@@ -34,6 +35,7 @@ export const defaultRuntimeCapabilities: RuntimeCapabilities = {
   audit_export: false,
   rbac: false,
   no_rbac_mode: true,
+  desktop_release_url: "",
 }
 
 export const defaultRuntimeConfig: RuntimeConfig = {

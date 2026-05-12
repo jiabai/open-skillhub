@@ -15,7 +15,6 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { copyTextToClipboard } from "@/lib/clipboard"
 import { api } from "@/lib/api"
-import { WINDOWS_DESKTOP_RELEASE_URL, MACOS_DESKTOP_RELEASE_URL } from "@/lib/desktop-client"
 import { useRuntimeConfig } from "@/hooks/use-runtime-config"
 import { createTokenNameRules, useField } from "@/hooks/use-form-validation"
 import type { Token } from "@/types"
@@ -183,7 +182,7 @@ export default function TokensPage() {
                   </div>
                 </div>
                 <Button asChild variant="outline" size="sm" className="mt-4">
-                  <a href={WINDOWS_DESKTOP_RELEASE_URL} target="_blank" rel="noopener noreferrer">
+                  <a href={config.capabilities.desktop_release_url} target="_blank" rel="noopener noreferrer">
                     <Download className="h-4 w-4" aria-hidden="true" />
                     {copy.downloadWindowsDesktop}
                   </a>
@@ -200,7 +199,7 @@ export default function TokensPage() {
                   </div>
                 </div>
                 <Button asChild variant="outline" size="sm" className="mt-4">
-                  <a href={MACOS_DESKTOP_RELEASE_URL} target="_blank" rel="noopener noreferrer">
+                  <a href={config.capabilities.desktop_release_url} target="_blank" rel="noopener noreferrer">
                     <Download className="h-4 w-4" aria-hidden="true" />
                     {copy.downloadMacOSDesktop}
                   </a>

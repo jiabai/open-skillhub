@@ -27,7 +27,7 @@
     "dist:linux-cli": "npm run build:cli",
     "dist:win": "electron-builder --win",
     "dist:mac": "electron-builder --mac",
-    "clean": "rimraf dist dist-electron"
+    "clean": "rimraf dist dist-electron dist-cli"
   },
   "build": {
     "appId": "com.skilldrive.skilldrive-desktop",

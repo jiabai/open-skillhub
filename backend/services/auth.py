@@ -2,6 +2,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 import hashlib
 import secrets
+import uuid
 
 import jwt
 
@@ -9,6 +10,7 @@ from backend.config.settings import settings
 from backend.domain.user_status import is_user_active, normalize_user_status, user_status_is_active
 from backend.core.security.jwt_utils import create_access_token, create_refresh_token, decode_token
 from backend.models.user import User
+from backend.repositories.refresh_token import REFRESH_TOKEN_STATUS_ACTIVE, RefreshTokenRepository
 from backend.repositories.user import UserRepository
 from backend.services.sso_replay_guard import SSOReplayGuardService
 
@@ -17,6 +19,10 @@ from backend.services.sso_replay_guard import SSOReplayGuardService
 class TokenPair:
     access_token: str
     refresh_token: str
+
+
+class RefreshTokenReuseDetected(ValueError):
+    pass
 
 
 class _NoopSSOReplayGuard:
@@ -32,9 +38,11 @@ class AuthService:
         self,
         user_repo: UserRepository,
         sso_replay_guard: SSOReplayGuardService | None = None,
+        refresh_token_repo: RefreshTokenRepository | None = None,
     ):
         self.user_repo = user_repo
         self.sso_replay_guard = sso_replay_guard or _NoopSSOReplayGuard()
+        self.refresh_token_repo = refresh_token_repo
 
     @staticmethod
     def _get_token_version(user: User) -> int:
@@ -127,7 +135,7 @@ class AuthService:
         else:
             user = await self.user_repo.update(user, **identity)
         self._assert_user_enabled(user, fallback_status=status, fallback_is_active=user_status_is_active(status))
-        return self.issue_token(user)
+        return await self.issue_token_pair(user)
 
     async def login_sso(self, id_token: str, nonce: str | None = None) -> TokenPair:
         payload = jwt.decode(
@@ -162,18 +170,104 @@ class AuthService:
     async def login_sso_claims(self, payload: dict, *, replay_key: str, expires_at: datetime) -> TokenPair:
         return await self._login_sso_payload(payload, replay_key=replay_key, expires_at=expires_at)
 
-    def issue_token(self, user: User) -> TokenPair:
+    @staticmethod
+    def _expires_at_from_payload(payload: dict) -> datetime:
+        raw_exp = payload.get("exp")
+        if raw_exp is None:
+            raise ValueError("Invalid token")
+        if isinstance(raw_exp, datetime):
+            expires_at = raw_exp
+        else:
+            expires_at = datetime.fromtimestamp(int(raw_exp), tz=timezone.utc)
+        if expires_at.tzinfo is None:
+            expires_at = expires_at.replace(tzinfo=timezone.utc)
+        return expires_at
+
+    @staticmethod
+    def _is_expired(value: datetime) -> bool:
+        expires_at = value if value.tzinfo else value.replace(tzinfo=timezone.utc)
+        return expires_at <= datetime.now(timezone.utc)
+
+    def _build_token_pair(self, user: User, *, family_id: str | None = None) -> tuple[TokenPair, str, str, datetime]:
         token_version = self._get_token_version(user)
-        return TokenPair(
-            access_token=create_access_token(
-                subject=str(user.id),
-                token_version=token_version,
-            ),
-            refresh_token=create_refresh_token(
-                subject=str(user.id),
-                token_version=token_version,
-            ),
+        family_id = family_id or str(uuid.uuid4())
+        jti = str(uuid.uuid4())
+        refresh_token = create_refresh_token(
+            subject=str(user.id),
+            token_version=token_version,
+            jti=jti,
+            family_id=family_id,
         )
+        payload = decode_token(refresh_token)
+        return (
+            TokenPair(
+                access_token=create_access_token(
+                    subject=str(user.id),
+                    token_version=token_version,
+                ),
+                refresh_token=refresh_token,
+            ),
+            jti,
+            family_id,
+            self._expires_at_from_payload(payload),
+        )
+
+    def issue_token(self, user: User) -> TokenPair:
+        token_pair, _, _, _ = self._build_token_pair(user)
+        return token_pair
+
+    async def issue_token_pair(self, user: User, *, family_id: str | None = None, commit: bool = True) -> TokenPair:
+        token_pair, jti, family_id, expires_at = self._build_token_pair(user, family_id=family_id)
+        if self.refresh_token_repo:
+            await self.refresh_token_repo.create_session(
+                user_id=str(user.id),
+                family_id=family_id,
+                jti=jti,
+                token_hash=self.refresh_token_repo.hash_token(token_pair.refresh_token),
+                expires_at=expires_at,
+            )
+            if commit:
+                await self.refresh_token_repo.session.commit()
+        return token_pair
+
+    async def _compromise_refresh_family(self, user: User, family_id: str) -> None:
+        if not self.refresh_token_repo:
+            return
+        await self.refresh_token_repo.revoke_family(user_id=str(user.id), family_id=family_id)
+        user.jwt_token_version = self._get_token_version(user) + 1
+        await self.refresh_token_repo.session.flush()
+        await self.refresh_token_repo.session.commit()
+
+    async def _rotate_persisted_refresh_token(
+        self,
+        user: User,
+        *,
+        raw_refresh_token: str,
+        family_id: str,
+        jti: str,
+    ) -> TokenPair:
+        if not self.refresh_token_repo:
+            return self.issue_token(user)
+        token_hash = self.refresh_token_repo.hash_token(raw_refresh_token)
+        token = await self.refresh_token_repo.get_by_token_hash(token_hash)
+        if not token or token.user_id != str(user.id) or token.family_id != family_id or token.jti != jti:
+            raise ValueError("Token revoked")
+        if token.status != REFRESH_TOKEN_STATUS_ACTIVE:
+            await self._compromise_refresh_family(user, family_id)
+            raise RefreshTokenReuseDetected("Refresh token reuse detected")
+        if self._is_expired(token.expires_at):
+            raise ValueError("Token expired")
+        token_pair, replacement_jti, _, expires_at = self._build_token_pair(user, family_id=family_id)
+        await self.refresh_token_repo.mark_used(token, replaced_by_jti=replacement_jti)
+        await self.refresh_token_repo.create_session(
+            user_id=str(user.id),
+            family_id=family_id,
+            jti=replacement_jti,
+            token_hash=self.refresh_token_repo.hash_token(token_pair.refresh_token),
+            expires_at=expires_at,
+        )
+        await self.refresh_token_repo.session.commit()
+        return token_pair
 
     async def login_ldap(self, username: str, password: str) -> TokenPair:
         import importlib
@@ -241,7 +335,7 @@ class AuthService:
         else:
             user = await self.user_repo.update(user, **identity)
         self._assert_user_enabled(user, fallback_status=status, fallback_is_active=user_status_is_active(status))
-        return self.issue_token(user)
+        return await self.issue_token_pair(user)
 
     async def refresh_token(self, refresh_token: str) -> TokenPair:
         payload = decode_token(refresh_token)
@@ -250,10 +344,21 @@ class AuthService:
         subject = payload.get("sub")
         if not subject:
             raise ValueError("Invalid token")
+        jti = str(payload.get("jti") or "").strip()
+        family_id = str(payload.get("family_id") or "").strip()
+        if self.refresh_token_repo and (not jti or not family_id):
+            raise ValueError("Invalid token")
         user = await self.user_repo.get_by_id(subject)
         if not user:
             raise ValueError("User not found")
         self._assert_user_enabled(user)
         if payload.get("ver", 0) != self._get_token_version(user):
             raise ValueError("Token revoked")
-        return self.issue_token(user)
+        if not self.refresh_token_repo:
+            return self.issue_token(user)
+        return await self._rotate_persisted_refresh_token(
+            user,
+            raw_refresh_token=refresh_token,
+            family_id=family_id,
+            jti=jti,
+        )

@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta, timezone
+import uuid
 
 import jwt as pyjwt
 
@@ -10,9 +11,12 @@ def _create_token(
     token_type: str,
     expires_delta: timedelta,
     token_version: int = 0,
+    extra_claims: dict | None = None,
 ) -> str:
     expire = datetime.now(timezone.utc) + expires_delta
     payload = {"sub": subject, "type": token_type, "exp": expire, "ver": token_version}
+    if extra_claims:
+        payload.update(extra_claims)
     return pyjwt.encode(payload, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
 
 
@@ -25,12 +29,22 @@ def create_access_token(subject: str, token_version: int = 0) -> str:
     )
 
 
-def create_refresh_token(subject: str, token_version: int = 0) -> str:
+def create_refresh_token(
+    subject: str,
+    token_version: int = 0,
+    *,
+    jti: str | None = None,
+    family_id: str | None = None,
+) -> str:
     return _create_token(
         subject=subject,
         token_type="refresh",
         expires_delta=timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS),
         token_version=token_version,
+        extra_claims={
+            "jti": jti or str(uuid.uuid4()),
+            "family_id": family_id or str(uuid.uuid4()),
+        },
     )
 
 

@@ -21,3 +21,4 @@ class User(UUIDPrimaryKeyMixin, TimestampMixin, Base):
 
     tokens = relationship("APIToken", back_populates="user", cascade="all, delete-orphan")
     skills = relationship("Skill", back_populates="user", cascade="all, delete-orphan")
+    refresh_token_sessions = relationship("RefreshTokenSession", back_populates="user", cascade="all, delete-orphan")

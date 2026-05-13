@@ -2,7 +2,7 @@
 
 ## Status
 
-Proposed for implementation.
+Implemented on 2026-05-13.
 
 ## Problem
 

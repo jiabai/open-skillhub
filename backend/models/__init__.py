@@ -3,6 +3,7 @@ from backend.models.base import Base
 from backend.models.email_delivery_log import EmailDeliveryLog
 from backend.models.enterprise import Enterprise
 from backend.models.request_metric import RequestMetric
+from backend.models.refresh_token import RefreshTokenSession
 from backend.models.skill import Skill
 from backend.models.sso_auth_request import SSOAuthRequest
 from backend.models.skill_version import SkillVersion
@@ -26,6 +27,7 @@ __all__ = [
     "SSOReplayToken",
     "APIToken",
     "RequestMetric",
+    "RefreshTokenSession",
     "VerificationCode",
     "EmailDeliveryLog",
 ]

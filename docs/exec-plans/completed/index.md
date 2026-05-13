@@ -28,6 +28,8 @@
 | `backend-engineering-refactor-tasks.md` | 4-task Batch A checklist completed with focused middleware tests and full backend/docs hard gates passing |
 | `runtime-capabilities-enhancement-plan.md` | Runtime capability follow-up completed with expanded backend derivation tests, frontend permission helper boundary, navigation wiring, and capability contract documentation |
 | `runtime-capabilities-enhancement-tasks.md` | Runtime capability enhancement checklist completed with backend/frontend/docs gates passing |
+| `refresh-token-hardening-plan.md` | Stateful single-use refresh-token rotation implemented with persisted token families, reuse detection, user-wide JWT revocation on compromise, logout session revocation, and backend/docs gates passing |
+| `refresh-token-hardening-tasks.md` | Refresh-token hardening checklist completed with focused rotation tests, full backend pytest, ruff, mypy, Alembic upgrade, and docs validation passing |
 
 ## Notes
 

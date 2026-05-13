@@ -9,6 +9,7 @@ from backend.core.middleware.auth import get_current_active_user
 from backend.core.security.jwt_utils import decode_token
 from backend.db.session import get_async_session
 from backend.repositories.audit_log import AuditLogRepository
+from backend.repositories.refresh_token import RefreshTokenRepository
 from backend.repositories.user import UserRepository
 from backend.schemas.auth import LDAPLoginRequest
 from backend.schemas.response import TokenPair
@@ -16,7 +17,7 @@ from backend.schemas.token import TokenRefresh
 from backend.schemas.user import UserLoginCode, UserRegisterCode
 from backend.schemas.verification import VerificationCodeRequest, VerificationCodeResponse
 from backend.services.audit import AuditService
-from backend.services.auth import AuthService
+from backend.services.auth import AuthService, RefreshTokenReuseDetected
 from backend.services.sso_oidc import SSOOIDCService
 from backend.services.sso_replay_guard import SSOReplayGuardService
 from backend.services.verification_code import get_verification_service
@@ -82,7 +83,7 @@ async def register(payload: UserRegisterCode, session=Depends(get_async_session)
     if not settings.ENABLE_PUBLIC_SIGNUP:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Signup disabled")
     verification_service = get_verification_service(session)
-    service = AuthService(UserRepository(session))
+    service = AuthService(UserRepository(session), refresh_token_repo=RefreshTokenRepository(session))
     try:
         await verification_service.verify_code(payload.email, "register", payload.code)
         user = await service.register(
@@ -103,7 +104,7 @@ async def register(payload: UserRegisterCode, session=Depends(get_async_session)
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail=detail,
         ) from exc
-    token_pair = service.issue_token(user)
+    token_pair = await service.issue_token_pair(user)
     if settings.ENABLE_AUDIT_LOG:
         audit_service = AuditService(AuditLogRepository(session))
         await audit_service.create_event(actor_id=user.id, action="auth.register", target=user.id)
@@ -115,7 +116,7 @@ async def login(payload: UserLoginCode, session=Depends(get_async_session)):
     if not settings.ENABLE_EMAIL_OTP_LOGIN:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Email OTP disabled")
     verification_service = get_verification_service(session)
-    service = AuthService(UserRepository(session))
+    service = AuthService(UserRepository(session), refresh_token_repo=RefreshTokenRepository(session))
     try:
         await verification_service.verify_code(payload.email, "login", payload.code)
         user = await service.user_repo.get_by_email(payload.email)
@@ -161,7 +162,7 @@ async def login(payload: UserLoginCode, session=Depends(get_async_session)):
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail=detail,
         ) from exc
-    token_pair = service.issue_token(user)
+    token_pair = await service.issue_token_pair(user)
     if settings.ENABLE_AUDIT_LOG:
         audit_service = AuditService(AuditLogRepository(session))
         await audit_service.create_event(actor_id=user.id, action="auth.login", target=user.id)
@@ -170,7 +171,7 @@ async def login(payload: UserLoginCode, session=Depends(get_async_session)):
 
 @router.post("/refresh", response_model=TokenPair)
 async def refresh(payload: TokenRefresh, session=Depends(get_async_session)):
-    service = AuthService(UserRepository(session))
+    service = AuthService(UserRepository(session), refresh_token_repo=RefreshTokenRepository(session))
     target = "unknown"
     try:
         target = str(decode_token(payload.refresh_token).get("sub") or "") or "unknown"
@@ -178,6 +179,17 @@ async def refresh(payload: TokenRefresh, session=Depends(get_async_session)):
         target = "unknown"
     try:
         token_pair = await service.refresh_token(payload.refresh_token)
+    except RefreshTokenReuseDetected as exc:
+        if settings.ENABLE_AUDIT_LOG:
+            audit_service = AuditService(AuditLogRepository(session))
+            await audit_service.create_event(
+                actor_id=target,
+                action="auth.refresh.reuse_detected",
+                target=target,
+                result="failed",
+                metadata={"detail": str(exc)},
+            )
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token revoked") from exc
     except ValueError as exc:
         if settings.ENABLE_AUDIT_LOG:
             audit_service = AuditService(AuditLogRepository(session))
@@ -248,7 +260,11 @@ async def sso_callback(
         replay_guard.verify_auth_request_nonce(auth_request, token_nonce)
         expires_at = oidc_service.validate_nonce_and_timestamps(payload, expected_nonce=token_nonce)
         replay_key = str(payload.get("jti") or "").strip() or token_payload.get("access_token") or id_token
-        auth_service = AuthService(UserRepository(session), replay_guard)
+        auth_service = AuthService(
+            UserRepository(session),
+            replay_guard,
+            refresh_token_repo=RefreshTokenRepository(session),
+        )
         token_pair = await auth_service.login_sso_claims(
             payload,
             replay_key=str(replay_key),
@@ -279,7 +295,7 @@ async def sso_callback(
 async def ldap_login(payload: LDAPLoginRequest, session=Depends(get_async_session)):
     if not settings.ENABLE_LDAP:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="LDAP disabled")
-    service = AuthService(UserRepository(session))
+    service = AuthService(UserRepository(session), refresh_token_repo=RefreshTokenRepository(session))
     try:
         token_pair = await service.login_ldap(payload.username, payload.password)
     except Exception as exc:
@@ -300,11 +316,9 @@ async def logout(
     """
     Logout current user and revoke all previously issued JWTs for that user.
     """
-    user_repo = UserRepository(session)
-    await user_repo.update(
-        current_user,
-        jwt_token_version=current_user.jwt_token_version + 1,
-    )
+    current_user.jwt_token_version = current_user.jwt_token_version + 1
+    await RefreshTokenRepository(session).revoke_user_sessions(str(current_user.id))
+    await session.commit()
     if settings.ENABLE_AUDIT_LOG:
         audit_service = AuditService(AuditLogRepository(session))
         await audit_service.create_event(

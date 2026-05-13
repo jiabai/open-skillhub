@@ -8,6 +8,9 @@ This document captures the stable security model for the backend and web console
 
 - Web users authenticate through email OTP, SSO, or LDAP.
 - Web sessions use JWT access and refresh tokens.
+- Web refresh tokens are persisted as single-use token-family sessions. Raw
+  refresh tokens are not stored; reuse detection revokes the affected family and
+  invalidates the user's current JWT version.
 - Programmatic clients use API tokens for client-scoped skill metadata, upload, and download endpoints.
 - Per-user skill isolation is enforced through auth context plus filesystem or database ownership checks.
 
@@ -31,5 +34,8 @@ This document captures the stable security model for the backend and web console
 
 ## Known Security Follow-Ups
 
-- Refresh token rotation strength remains a tracked improvement item in `docs/exec-plans/tech-debt-tracker.md`.
+- Browser session token storage remains a tracked improvement item in
+  `docs/exec-plans/tech-debt-tracker.md`; the web console still needs a
+  non-JavaScript-readable refresh boundary and SSO callbacks without token URL
+  fragments.
 - Security-sensitive design changes should add or update backend tests before merge.

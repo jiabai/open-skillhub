@@ -97,4 +97,4 @@ tokens cannot silently keep extending a session.
 - `docs/SECURITY.md`
 - `docs/design-docs/2026-04-12-code-review-findings.md`
 - `docs/design-docs/refresh-token-hardening.md`
-- `docs/exec-plans/active/refresh-token-hardening-plan.md`
+- `docs/exec-plans/completed/refresh-token-hardening-plan.md`

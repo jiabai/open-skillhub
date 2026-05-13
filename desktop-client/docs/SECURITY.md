@@ -59,6 +59,10 @@
   detection or distribution can use them.
 - Compatible read paths are explanatory metadata only. They must not become write targets unless the agent catalog also declares them as owned targets.
 - Shared physical target dedupe must happen on normalized paths before distribution so one user-controlled directory is written at most once per approved skill.
+- Categorized skill targets must validate category path segments before joins.
+  Category names reject empty values, path separators, `.`, `..`, leading dot
+  names, and traversal fragments. Metadata reads fail closed when the same skill
+  name exists in multiple categories under one target.
 - Project records require normalized absolute directories and reject duplicate
   names and duplicate normalized paths before persistence.
 - Project target definitions must be project-relative catalog metadata.

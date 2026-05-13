@@ -1,4 +1,4 @@
-import type { AgentId } from "@/types"
+import type { AgentId, AgentSkillLayout } from "@/types"
 
 export type AgentTargetRole = "primary" | "owned-secondary"
 
@@ -6,6 +6,7 @@ export interface AgentTargetDefinition {
   path: string
   role: AgentTargetRole
   sharedPathKey?: string
+  skillLayout?: AgentSkillLayout
 }
 
 export type AgentProjectTargetRole = "primary" | "compatible-read"
@@ -14,6 +15,7 @@ export interface AgentProjectTargetDefinition {
   path: string
   role: AgentProjectTargetRole
   sharedPathKey?: string
+  skillLayout?: AgentSkillLayout
 }
 
 export interface AgentPathDefinition {
@@ -236,6 +238,24 @@ export const supportedAgentDefinitions: AgentPathDefinition[] = [
     detectionDirs: ["~/.workbuddy"],
     defaultTargets: [{ path: "~/.workbuddy/skills", role: "primary" }],
     projectTargets: [{ path: ".workbuddy/skills", role: "primary" }],
+    pathResolution: "all-owned"
+  },
+  {
+    id: "hermes",
+    displayName: "Hermes Agent",
+    detectionDirs: ["~/.hermes"],
+    defaultTargets: [
+      {
+        path: "~/.hermes/skills",
+        role: "primary",
+        skillLayout: {
+          mode: "categorized",
+          categoryDepth: 1,
+          defaultCategory: "general",
+          categorySource: "agent-default"
+        }
+      }
+    ],
     pathResolution: "all-owned"
   }
 ]

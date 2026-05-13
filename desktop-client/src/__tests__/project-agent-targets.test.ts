@@ -86,6 +86,41 @@ describe("project agent targets", () => {
     ])
   })
 
+  it("carries categorized project target layout metadata", () => {
+    const definitions: AgentPathDefinition[] = [
+      {
+        ...definition("claude-code"),
+        projectTargets: [
+          {
+            path: ".hermes/skills",
+            role: "primary",
+            skillLayout: {
+              mode: "categorized",
+              categoryDepth: 1,
+              defaultCategory: "general",
+              categorySource: "agent-default"
+            }
+          }
+        ]
+      }
+    ]
+
+    const targets = resolveProjectAgentTargets(project, {
+      definitions,
+      platform: "win32"
+    })
+
+    expect(targets[0]).toMatchObject({
+      targetPath: join(project.path, ".hermes", "skills"),
+      skillLayout: {
+        mode: "categorized",
+        categoryDepth: 1,
+        defaultCategory: "general",
+        categorySource: "agent-default"
+      }
+    })
+  })
+
   it("rejects catalog project targets that escape the project root", () => {
     const definitions: AgentPathDefinition[] = [
       {

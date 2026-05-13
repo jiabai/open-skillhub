@@ -81,7 +81,7 @@ const emptySyncState = {
 
 const defaultAgentDetection = {
   checkedAt: "2026-04-28T00:00:00.000Z",
-  supportedAgentCount: 22,
+  supportedAgentCount: 23,
   installedAgentIds: ["codex", "claude-code"],
   agentStatuses: [
     {

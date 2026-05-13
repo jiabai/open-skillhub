@@ -442,7 +442,8 @@ function getPreDistributionCheckTargets(config: DesktopRuntimeConfig) {
       coveredAdapters,
       target,
       installContext: {
-        skillsPath: target.targetPath
+        skillsPath: target.targetPath,
+        ...(target.skillLayout ? { skillLayout: target.skillLayout } : {})
       }
     }
   })

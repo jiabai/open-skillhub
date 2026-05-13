@@ -155,6 +155,44 @@ describe("project skill import service", () => {
     ).rejects.toThrow(/No writable project target/i)
   })
 
+  it("imports into categorized project target default category", async () => {
+    const project = createProject()
+    const sourceRoot = mkdtempSync(join(tmpdir(), "skilldrive-source-"))
+    tempRoots.push(sourceRoot)
+    createSkill(sourceRoot, "demo-skill")
+    const categorizedDefinitions: AgentPathDefinition[] = [
+      {
+        ...definitions[0],
+        projectTargets: [
+          {
+            path: ".hermes/skills",
+            role: "primary",
+            skillLayout: {
+              mode: "categorized",
+              categoryDepth: 1,
+              defaultCategory: "general",
+              categorySource: "agent-default"
+            }
+          }
+        ]
+      }
+    ]
+    const service = createProjectSkillImportService({
+      definitions: categorizedDefinitions
+    })
+
+    const result = await service.importSkill({
+      project,
+      sourcePath: sourceRoot,
+      targetAgentId: "claude-code",
+      overwrite: false
+    })
+    const destination = join(project.path, ".hermes", "skills", "general", "demo-skill")
+
+    expect(result.targetPath).toBe(destination)
+    expect(readFileSync(join(destination, "scripts", "run.txt"), "utf8")).toBe("ok")
+  })
+
   it("rejects missing SKILL.md and excessive file count", async () => {
     const sourceRoot = mkdtempSync(join(tmpdir(), "skilldrive-source-"))
     tempRoots.push(sourceRoot)

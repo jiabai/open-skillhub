@@ -105,7 +105,8 @@ describe("agent adapters", () => {
       "antigravity",
       "openclaw",
       "codebuddy",
-      "workbuddy"
+      "workbuddy",
+      "hermes"
     ]
 
     expect(supportedAgentDefinitions.map((definition) => definition.id)).toEqual(expectedAgentIds)
@@ -157,6 +158,89 @@ describe("agent adapters", () => {
         (["manifest.json", JSON.stringify({ version: "1.0.0" })])
       ])
     })
+  })
+
+  it("installs and reads categorized skills through target layout metadata", async () => {
+    const skillsPath = createTempRoot()
+    const { extractedPath } = createExtractedSkillDirectory()
+    const payload = {
+      skillId: "f4919f10-e7fc-40df-ae6f-fe7bfe050ac5",
+      name: "Categorized Skill",
+      version: "1.0.0",
+      extractedPath
+    }
+    const skillLayout = {
+      mode: "categorized" as const,
+      categoryDepth: 1 as const,
+      defaultCategory: "general",
+      categorySource: "agent-default" as const
+    }
+
+    const installed = await getAgentAdapter("hermes").installSkill(payload, {
+      skillsPath,
+      skillLayout
+    })
+    const expectedSkillDir = join(skillsPath, "general", "Categorized Skill")
+
+    expect(installed.skillDir).toBe(expectedSkillDir)
+    expect(readFileSync(join(expectedSkillDir, "README.md"), "utf8")).toBe("# Sample Skill")
+    await expect(
+      getAgentAdapter("hermes").readInstalledSkillMetadata("Categorized Skill", {
+        skillsPath,
+        skillLayout
+      })
+    ).resolves.toMatchObject({
+      exists: true,
+      skillDir: expectedSkillDir,
+      version: "1.0.0",
+      versionSource: "nested-manifest-json"
+    })
+  })
+
+  it("reports categorized missing skills under the deterministic default category", async () => {
+    const skillsPath = createTempRoot()
+    const skillLayout = {
+      mode: "categorized" as const,
+      categoryDepth: 1 as const,
+      defaultCategory: "general",
+      categorySource: "agent-default" as const
+    }
+
+    await expect(
+      getAgentAdapter("hermes").readInstalledSkillMetadata("Missing Skill", {
+        skillsPath,
+        skillLayout
+      })
+    ).resolves.toEqual({
+      exists: false,
+      skillDir: join(skillsPath, "general", "Missing Skill"),
+      version: null,
+      versionSource: null,
+      contentHash: null
+    })
+  })
+
+  it("fails closed when categorized metadata reads find duplicate skill names", async () => {
+    const skillsPath = createTempRoot()
+    const skillLayout = {
+      mode: "categorized" as const,
+      categoryDepth: 1 as const,
+      defaultCategory: "general",
+      categorySource: "agent-default" as const
+    }
+
+    for (const category of ["general", "tools"]) {
+      const skillDir = join(skillsPath, category, "Duplicate Skill")
+      mkdirSync(skillDir, { recursive: true })
+      writeFileSync(join(skillDir, "SKILL.md"), "---\nversion: 1.0.0\n---\n# Duplicate")
+    }
+
+    await expect(
+      getAgentAdapter("hermes").readInstalledSkillMetadata("Duplicate Skill", {
+        skillsPath,
+        skillLayout
+      })
+    ).rejects.toThrow(/multiple categorized skill directories/i)
   })
 
   it("falls back to root and nested manifest metadata", async () => {

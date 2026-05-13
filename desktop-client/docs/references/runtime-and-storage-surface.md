@@ -210,10 +210,13 @@ Supported agent IDs:
 - `pi`
 - `antigravity`
 - `openclaw`
+- `codebuddy`
+- `workbuddy`
+- `hermes`
 
 Default owned write targets are catalog-driven in
 `src/adapters/agents/definitions.ts`, not hardcoded in `electron/main.ts`.
-The standard targets are:
+The standard targets are flat unless otherwise noted:
 
 - Claude Code: `~/.claude/skills`
 - Cursor: `~/.cursor/skills`
@@ -236,10 +239,21 @@ The standard targets are:
 - Antigravity: `~/.gemini/antigravity/skills`
 - OpenClaw: first existing target from `~/.openclaw/skills`,
   `~/.clawdbot/skills`, `~/.moltbot/skills`
+- CodeBuddy: `~/.codebuddy/skills`
+- WorkBuddy: `~/.workbuddy/skills`
+- Hermes Agent: categorized target `~/.hermes/skills/<category>/<skill>`,
+  with SkillDrive-managed distribution using `general` as the deterministic
+  default category
 
 Cline/Warp/Codex and Amp/Kimi shared physical targets are deduped before
 pre-check and distribution. Distribution writes a shared path once and reports
 every covered assistant in the result.
+
+Agent target layout metadata is carried through detection snapshots and project
+target resolution. Missing layout means flat `skills/<skill-name>` behavior.
+Categorized targets are scanned one category level deep, and pre-distribution
+metadata reads fail closed when the same skill name appears in multiple
+categories.
 
 Project-relative skill targets are catalog-driven through
 `supportedAgentDefinitions.projectTargets`. Current writable project target

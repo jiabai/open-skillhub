@@ -27,8 +27,19 @@ export type AgentId =
   | "openclaw"
   | "codebuddy"
   | "workbuddy"
+  | "hermes"
 
 export type AgentInstallSource = "auto-detected" | "missing"
+
+export type AgentSkillLayout =
+  | { mode: "flat" }
+  | {
+      mode: "categorized"
+      categoryDepth: 1
+      defaultCategory: string
+      categorySource: "agent-default" | "skill-frontmatter"
+      allowRootSkills?: boolean
+    }
 
 export interface AgentPathConfigEntry {
   targetPath: string
@@ -54,6 +65,7 @@ export interface AgentSkillTarget {
   coveredAgentIds: AgentId[]
   sharedPathKey: string | null
   source: AgentInstallSource
+  skillLayout?: AgentSkillLayout
 }
 
 export interface AgentDetectionSnapshot {
@@ -185,6 +197,7 @@ export interface ProjectAgentTarget {
   displayNames: string[]
   sharedPathKey: string | null
   writable: boolean
+  skillLayout?: AgentSkillLayout
 }
 
 export type ProjectSkillSource = "project" | "global"

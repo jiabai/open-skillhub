@@ -6,6 +6,10 @@ import {
   type AgentPathDefinition,
   type AgentProjectTargetDefinition
 } from "@/adapters/agents/definitions"
+import {
+  normalizeSkillLayout,
+  skillLayoutsEqual
+} from "@/adapters/agents/skill-layout"
 import type { ProjectAgentTarget, ProjectEntry } from "@/types"
 
 export interface ProjectAgentTargetOptions {
@@ -73,8 +77,13 @@ export function resolveProjectAgentTargets(
       const dedupeKey = createDedupeKey(resolved.targetPath, platform)
       const existing = targetsByPath.get(dedupeKey)
       const writable = projectTarget.role === "primary"
+      const skillLayout = normalizeSkillLayout(projectTarget.skillLayout)
 
       if (existing) {
+        if (!skillLayoutsEqual(existing.skillLayout, skillLayout)) {
+          throw new Error(`Project target has incompatible skill layouts: ${projectTarget.path}`)
+        }
+
         if (!existing.coveredAgentIds.includes(definition.id)) {
           existing.coveredAgentIds.push(definition.id)
           existing.displayNames.push(definition.displayName)
@@ -105,7 +114,8 @@ export function resolveProjectAgentTargets(
         writableAgentIds: writable ? [definition.id] : [],
         displayNames: [definition.displayName],
         sharedPathKey: projectTarget.sharedPathKey ?? null,
-        writable
+        writable,
+        skillLayout
       })
     }
   }

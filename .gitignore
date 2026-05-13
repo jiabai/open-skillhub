@@ -91,3 +91,4 @@ htmlcov/
 *.swo
 *~
 .superpowers/
+token.txt

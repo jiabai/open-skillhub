@@ -2,23 +2,23 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Make SkillDrive Desktop produce a publishable macOS DMG after a future macOS-machine validation pass.
+**Goal:** Keep SkillDrive Desktop's macOS packaging path available for exploratory unsigned builds now, while preserving a documented future route to a publishable DMG if paid Developer ID signing is approved later.
 
-**Architecture:** Keep packaging as an `electron-builder` wrapper around the existing Vite renderer and Electron main/preload outputs. The Windows-only package extraction path has been replaced with a safe cross-platform ZIP extraction helper, and macOS signing/notarization configuration now points at explicit entitlements. Before macOS can be released, validate Developer ID signing, Apple notarization, stapling, Gatekeeper, and app behavior on macOS.
+**Architecture:** Keep packaging as an `electron-builder` wrapper around the existing Vite renderer and Electron main/preload outputs. The Windows-only package extraction path has been replaced with a safe cross-platform ZIP extraction helper. The current macOS `build.mac` config intentionally keeps `identity: null`, `forceCodeSigning: false`, and `notarize: false` because paid Apple signing and notarization are deferred. Before macOS can be publicly released, update the release config, validate Developer ID signing, Apple notarization, stapling, Gatekeeper, and app behavior on macOS.
 
-**Tech Stack:** Electron, Vite, TypeScript, electron-builder, Developer ID signing, Apple notarytool/stapler, Vitest, repository documentation gates.
+**Tech Stack:** Electron, Vite, TypeScript, electron-builder, future Developer ID signing, future Apple notarytool/stapler, Vitest, repository documentation gates.
 
 ---
 
 ## Scope
 
 - Prepare macOS release packaging product specs in English and Chinese.
-- Add technical design for macOS release packaging, signing, notarization, and
-  runtime blockers.
+- Add technical design for macOS exploratory packaging, future signing and
+  notarization, and runtime blockers.
 - Add a macOS release operation runbook that can be executed later on a macOS
   build machine.
-- Track implementation tasks for cross-platform extraction, entitlements,
-  electron-builder config, and macOS validation.
+- Track implementation tasks for cross-platform extraction, future entitlements,
+  current electron-builder config, and macOS validation.
 - Update indexes, architecture, security, references, and task tracker.
 
 ## Non-Goals
@@ -36,8 +36,8 @@
   docs, current package configuration, electron-builder local schema, and Apple
   Developer ID/notarization documentation.
 - [x] 2026-05-03: Confirmed macOS was blocked by Windows-only archive
-  extraction and remains blocked by lack of macOS signing/notarization release
-  validation.
+  extraction and that public release remains blocked by macOS validation plus
+  deferred signing/notarization.
 - [x] 2026-05-03: Added English and Chinese macOS release product specs.
 - [x] 2026-05-03: Added macOS release packaging technical design.
 - [x] 2026-05-03: Added macOS release runbook for the future macOS build
@@ -51,22 +51,29 @@
 - [x] 2026-05-03: Confirmed checksum, expiration, and cleanup ownership stay in
   the existing download/package-service flow.
 - [x] 2026-05-03: Added RED tests for macOS release signing configuration and
-  minimal entitlements, then added `build/entitlements.mac.plist`,
-  `build/entitlements.mac.inherit.plist`, and explicit macOS
-  `hardenedRuntime`, `forceCodeSigning`, `notarize`, `entitlements`, and
-  `entitlementsInherit` configuration in `package.json`.
-- [ ] Future macOS validation: signed DMG, notarization, stapling, Gatekeeper,
-  and manual smoke test.
+  minimal entitlements, then added future-ready `build/entitlements.mac.plist`
+  and `build/entitlements.mac.inherit.plist`.
+- [x] 2026-05-13: Reconfirmed the owner does not plan to purchase Apple
+  Developer signing/notarization initially, so `package.json` remains the source
+  of truth with `identity: null`, `forceCodeSigning: false`, and
+  `notarize: false`; updated tests and docs to guard that deferred posture.
+- [ ] Future macOS validation: unsigned exploratory `npm run dist:mac` and
+  manual smoke test on macOS.
+- [ ] Future public release validation, if paid signing resumes: signed DMG,
+  notarization, stapling, Gatekeeper, and manual smoke test.
 
 ## Decisions
 
 - The macOS DMG is not releaseable until runtime distribution is smoke-tested
   on macOS.
+- Initial macOS packaging intentionally uses the current unsigned
+  `package.json` `build.mac` config to avoid Developer ID and notarization
+  costs.
 - Apple signing and notarization secrets must remain operator environment or
   keychain inputs, never committed files.
-- Developer ID distribution outside the Mac App Store is the intended macOS
-  release path.
-- Use `notarytool`, not `altool`, for notarization.
+- Developer ID distribution outside the Mac App Store is the future public
+  release path, not the initial packaging requirement.
+- Use `notarytool`, not `altool`, if notarization is resumed.
 - Keep the runbook executable from a clean macOS checkout without chat history.
 
 ## File Map
@@ -78,7 +85,7 @@ Created:
 | `docs/product-specs/2026-05-03-macos-release-packaging.md` | English macOS release product spec |
 | `docs/product-specs/2026-05-03-macos-release-packaging-zh.md` | Chinese macOS release product spec |
 | `docs/design-docs/macos-release-packaging.md` | Technical design for macOS release packaging |
-| `docs/references/macos-release-runbook.md` | macOS operator build/sign/notarize/smoke runbook |
+| `docs/references/macos-release-runbook.md` | Future macOS operator build/sign/notarize/smoke runbook |
 | `docs/exec-plans/active/2026-05-03-macos-release-packaging.md` | Active macOS release packaging plan |
 | `docs/exec-plans/active/2026-05-03-macos-release-packaging-tasks.md` | Task checklist for docs, future implementation, and future validation |
 
@@ -91,7 +98,7 @@ Modified:
 | `docs/references/index.md` | Add macOS release runbook |
 | `docs/exec-plans/active/index.md` | Add macOS release plan and checklist |
 | `docs/ARCHITECTURE.md` | Record macOS release blocker and runbook |
-| `docs/SECURITY.md` | Record Apple signing/notarization secret handling |
+| `docs/SECURITY.md` | Record current absence of Apple signing secrets and future signing/notarization secret handling |
 | `docs/references/runtime-and-storage-surface.md` | Clarify macOS packaging command and release boundary |
 | `README.md` | Point operators at the macOS release runbook |
 | `task-tracker.md` | Track macOS release documentation and future validation |
@@ -100,7 +107,7 @@ Implemented release configuration files:
 
 | File | Change |
 |------|--------|
-| `package.json` | Added explicit macOS entitlements/signing/notarization config |
+| `package.json` | Keeps explicit unsigned initial macOS config with signing/notarization disabled |
 | `.gitignore` | Allowed the committed desktop entitlements files under `desktop-client/build/` |
 | `build/entitlements.mac.plist` | Added app entitlements |
 | `build/entitlements.mac.inherit.plist` | Added inherited Electron helper entitlements |
@@ -115,7 +122,7 @@ Implemented files:
 | `src/core/distribution/archive-extraction.ts` | Added safe cross-platform ZIP extraction helper |
 | `src/__tests__/archive-extraction.test.ts` | Covered valid extraction, traversal rejection, symlink rejection, and absolute destination enforcement |
 | `src/__tests__/electron-shell.test.ts` | Guarded against reintroducing PowerShell extraction |
-| `src/__tests__/package-scripts.test.ts` | Guarded macOS release signing config and minimal entitlements |
+| `src/__tests__/package-scripts.test.ts` | Guards current deferred signing config and future entitlements without secrets |
 
 ## Implementation Tasks
 
@@ -138,7 +145,16 @@ npm test
 npm run build
 ```
 
-Future macOS release phase:
+Future initial macOS exploratory phase:
+
+```bash
+cd desktop-client
+npm test
+npm run build
+npm run dist:mac
+```
+
+Future public macOS release phase, if paid signing resumes:
 
 ```bash
 cd desktop-client
@@ -164,8 +180,8 @@ Manual smoke testing is defined in `../../references/macos-release-runbook.md`.
 - `npm test -- src/__tests__/electron-shell.test.ts` - RED before
   implementation because `electron/main.ts` did not call `extractZipArchive`;
   passed after implementation with 3 tests.
-- `npm test` - passed after macOS release signing configuration with 19 test
-  files and 106 tests.
+- `npm test` - passed after the earlier macOS packaging configuration update
+  with 19 test files and 106 tests.
 - `npm run build` - first attempt failed while Vite tried to remove
   `dist/win-unpacked` because a previous packaged `SkillDrive Desktop.exe`
   process was still running from that generated directory. After stopping those
@@ -181,13 +197,29 @@ Manual smoke testing is defined in `../../references/macos-release-runbook.md`.
 - `npm test -- src/__tests__/package-scripts.test.ts` - RED before macOS
   signing config because `hardenedRuntime` was undefined and entitlements files
   were missing; passed after implementation with 4 tests.
-- `npm run build` - passed after macOS release signing configuration.
-- `npm run dist:win` - passed after macOS release signing configuration,
-  preserving Windows installer generation.
+- `npm run build` - passed after the earlier macOS packaging configuration
+  update.
+- `npm run dist:win` - passed after the earlier macOS packaging configuration
+  update, preserving Windows installer generation.
+- `npm test -- --run src/__tests__/package-scripts.test.ts` - failed on
+  2026-05-13 because the test still expected paid release signing
+  (`forceCodeSigning: true`) while `package.json` intentionally uses
+  `forceCodeSigning: false` and `notarize: false`; updated the test to match
+  the owner-approved initial macOS packaging posture.
+- `npm test -- --run src/__tests__/package-scripts.test.ts` - passed on
+  2026-05-13 after updating the package-script test, with 1 test file and
+  5 tests passing.
+- `python scripts\validate_agents_docs.py --level ERROR` - passed on
+  2026-05-13 after deferred signing documentation updates with 0 errors and
+  0 warnings.
+- `git diff --check` - passed on 2026-05-13 after deferred signing
+  documentation updates; Git reported expected Windows LF-to-CRLF working-copy
+  warnings only.
 
 ## Outcome
 
-Pending. Cross-platform archive extraction and macOS release signing
-configuration are implemented and Windows-validated. This plan remains active
-until macOS notarization, stapling, Gatekeeper, and manual smoke validation are
-complete or the release path is superseded.
+Pending. Cross-platform archive extraction is implemented and Windows-validated.
+The initial macOS package configuration is intentionally unsigned and
+not notarized. This plan remains active until macOS exploratory packaging and
+manual smoke validation are complete, or until a future paid release path is
+approved and validated.

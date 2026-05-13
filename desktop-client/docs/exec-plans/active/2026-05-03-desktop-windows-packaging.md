@@ -173,7 +173,7 @@ Manual smoke test after installer generation:
 - `npm run build` - passed after implementation, including Electron
   typecheck, renderer build, main build, and preload build.
 - `npm run dist:win` - passed after adding the runtime ZIP extraction
-  dependency and again after adding macOS release signing configuration; it
+  dependency and again after the macOS packaging configuration update; it
   generated Windows artifacts:
   `dist/SkillDrive Desktop Setup 0.1.0.exe`,
   `dist/SkillDrive Desktop 0.1.0.exe`, and `dist/win-unpacked/`.

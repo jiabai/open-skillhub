@@ -88,6 +88,8 @@
 
 ## Release Signing Secrets
 
+- The initial macOS `build.mac` configuration does not require Apple signing or
+  notarization secrets because Developer ID release signing is deferred.
 - Apple Developer ID certificates, `.p12` exports, `.p8` API keys,
   app-specific passwords, keychain profiles, and notarization logs containing
   team metadata must not be committed.

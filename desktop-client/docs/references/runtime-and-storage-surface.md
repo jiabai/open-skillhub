@@ -16,15 +16,15 @@ entry.
 - `npm run pack` (unpacked output for the current platform)
 - `npm run dist` (installer output for the current platform)
 - `npm run dist:win` (Windows release packaging path)
-- `npm run dist:mac` (macOS packaging command; release use requires the
-  macOS release runbook gates)
+- `npm run dist:mac` (exploratory macOS packaging command using the current
+  unsigned `build.mac` configuration)
 
 Packaging uses `electron-builder` configuration in `package.json` and writes
 generated artifacts under `desktop-client/dist/`. The current release scope is
 Windows installer validation. macOS packaging is tracked separately in
-`macos-release-runbook.md` and is not a release claim until the app is
-Developer ID-signed and notarized, the DMG is stapled, and macOS runtime smoke
-tests are recorded.
+`macos-release-runbook.md`; the initial macOS configuration intentionally keeps
+Developer ID signing and notarization disabled until the paid release path is
+approved, configured, and validated on macOS.
 
 ## Environment Variables Read By The Runtime
 

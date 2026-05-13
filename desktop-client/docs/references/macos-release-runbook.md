@@ -1,14 +1,17 @@
 # macOS Release Runbook
 
-Status: operator runbook prepared on Windows; execute on macOS with release signing credentials
+Status: future public-release runbook prepared on Windows; current macOS packaging is unsigned until paid Developer ID signing is approved
 
 ## Purpose
 
-This runbook is the handoff for building, signing, notarizing, stapling, and
-smoke-testing a publishable SkillDrive Desktop macOS DMG on a macOS machine.
+This runbook is the handoff for a future paid public-release path that builds,
+signs, notarizes, staples, and smoke-tests a publishable SkillDrive Desktop
+macOS DMG on a macOS machine.
 
-Do not treat this as proof that macOS is already release-ready. The first gate
-below must be satisfied before running the release commands.
+Do not treat this as proof that macOS is already release-ready. The current
+`package.json` macOS config intentionally has `identity: null`,
+`forceCodeSigning: false`, and `notarize: false`. The first gate below must be
+satisfied before running the release commands.
 
 ## Related Documentation
 
@@ -26,10 +29,12 @@ Stop before release packaging unless all of these are true:
   extraction tests.
 - `electron/main.ts` uses `extractZipArchive()` instead of Windows PowerShell
   for package extraction.
+- The paid Developer ID signing and notarization path is approved.
 - macOS entitlements files are committed and do not contain secrets.
-- `package.json` macOS release config points at those entitlements, enables
-  Hardened Runtime, requires code signing, and enables electron-builder
-  notarization.
+- `package.json` macOS release config has been updated from the initial
+  unsigned settings to point at those entitlements, require code signing, and
+  enable electron-builder notarization.
+- Hardened Runtime remains enabled.
 - The macOS machine has Xcode command line tools and current `notarytool`.
 - The release operator has a Developer ID Application certificate and Apple
   notarization credentials available outside the repository.
@@ -202,6 +207,9 @@ rm -rf dist dist-electron
 ```
 
 ## Build Signed macOS Artifacts
+
+This section applies only after `package.json` is updated from the initial
+unsigned `build.mac` config to the future paid release config.
 
 Confirm signing identity:
 

@@ -16,6 +16,7 @@ type PackageJson = {
       forceCodeSigning?: boolean
       hardenedRuntime?: boolean
       icon?: string
+      identity?: string | null
       notarize?: boolean
       target?: string[]
     }
@@ -60,7 +61,7 @@ describe("desktop package scripts", () => {
     ])
   })
 
-  it("configures macOS release signing and notarization inputs explicitly", () => {
+  it("keeps macOS packaging exploratory while signing and notarization are deferred", () => {
     const packageJsonPath = join(process.cwd(), "package.json")
     const packageJson = JSON.parse(readFileSync(packageJsonPath, "utf8")) as PackageJson
 
@@ -68,16 +69,15 @@ describe("desktop package scripts", () => {
     expect(packageJson.build?.mac?.target).toEqual(["dmg", "zip"])
     expect(packageJson.build?.mac?.icon).toBe("resources/icons/icon.icns")
     expect(packageJson.build?.mac?.category).toBe("public.app-category.productivity")
+    expect(packageJson.build?.mac?.identity).toBeNull()
     expect(packageJson.build?.mac?.hardenedRuntime).toBe(true)
-    expect(packageJson.build?.mac?.forceCodeSigning).toBe(true)
-    expect(packageJson.build?.mac?.notarize).toBe(true)
-    expect(packageJson.build?.mac?.entitlements).toBe("build/entitlements.mac.plist")
-    expect(packageJson.build?.mac?.entitlementsInherit).toBe(
-      "build/entitlements.mac.inherit.plist"
-    )
+    expect(packageJson.build?.mac?.forceCodeSigning).toBe(false)
+    expect(packageJson.build?.mac?.notarize).toBe(false)
+    expect(packageJson.build?.mac?.entitlements).toBeUndefined()
+    expect(packageJson.build?.mac?.entitlementsInherit).toBeUndefined()
   })
 
-  it("commits minimal macOS hardened runtime entitlements without release secrets", () => {
+  it("keeps future macOS hardened runtime entitlements free of release secrets", () => {
     const appEntitlementsPath = join(process.cwd(), "build", "entitlements.mac.plist")
     const inheritEntitlementsPath = join(
       process.cwd(),

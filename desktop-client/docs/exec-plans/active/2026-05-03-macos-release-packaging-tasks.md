@@ -30,13 +30,29 @@ Status: active
 - [x] Implement safe cross-platform extraction without shelling out to
   PowerShell.
 - [x] Preserve checksum, expiration, and cleanup ownership behavior.
-- [x] Add explicit macOS entitlements files.
-- [x] Add macOS signing/notarization config to `package.json`.
+- [x] Add future macOS entitlements files without release secrets.
+- [x] Keep initial macOS `package.json` config explicit about deferred signing
+  and notarization (`identity: null`, `forceCodeSigning: false`,
+  `notarize: false`).
+- [x] Update package-script tests to guard the owner-approved initial unsigned
+  macOS packaging posture.
 - [x] Run `npm test`.
 - [x] Run `npm run build`.
 
-## Future macOS Release Gate
+## Future Initial macOS Validation Gate
 
+- [ ] Run `npm install` on macOS.
+- [ ] Run `npm test` on macOS.
+- [ ] Run `npm run build` on macOS.
+- [ ] Run `npm run dist:mac` on macOS with the current unsigned config.
+- [ ] Execute the manual smoke test in `docs/references/macos-release-runbook.md`.
+- [ ] Record exploratory macOS validation evidence in the active ExecPlan.
+
+## Future Public macOS Release Gate
+
+- [ ] Approve the paid Developer ID signing and notarization path.
+- [ ] Update `package.json` to require signing, notarization, and explicit
+  entitlements.
 - [ ] Prepare macOS machine with Xcode, Developer ID Application certificate,
   and notarization credentials outside the repo.
 - [ ] Run `npm install`.

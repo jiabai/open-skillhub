@@ -102,12 +102,14 @@ export function ProjectsView({
   const writableTargetOptions = useMemo(() => {
     const targets = scanSnapshot?.targets ?? []
 
-    return targets.flatMap((target) =>
-      target.writableAgentIds.map((agentId) => ({
-        agentId,
-        label: `${target.displayNames[target.coveredAgentIds.indexOf(agentId)] ?? agentId} (${target.relativePath})`
-      }))
-    )
+    return targets
+      .flatMap((target) =>
+        target.writableAgentIds.map((agentId) => ({
+          agentId,
+          label: `${target.displayNames[target.coveredAgentIds.indexOf(agentId)] ?? agentId} (${target.relativePath})`
+        }))
+      )
+      .sort((a, b) => a.label.localeCompare(b.label))
   }, [scanSnapshot?.targets])
 
   const sortedProjects = useMemo(() => {

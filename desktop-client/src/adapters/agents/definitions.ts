@@ -229,6 +229,14 @@ export const supportedAgentDefinitions: AgentPathDefinition[] = [
     defaultTargets: [{ path: "~/.codebuddy/skills", role: "primary" }],
     projectTargets: [{ path: ".codebuddy/skills", role: "primary" }],
     pathResolution: "all-owned"
+  },
+  {
+    id: "workbuddy",
+    displayName: "WorkBuddy",
+    detectionDirs: ["~/.workbuddy"],
+    defaultTargets: [{ path: "~/.workbuddy/skills", role: "primary" }],
+    projectTargets: [{ path: ".workbuddy/skills", role: "primary" }],
+    pathResolution: "all-owned"
   }
 ]
 

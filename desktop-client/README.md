@@ -72,9 +72,9 @@ Additional configured packaging scripts:
 
 - `npm run pack` - build unpacked output for the current platform
 - `npm run dist` - build installer output for the current platform
-- `npm run dist:mac` - macOS packaging command; release use requires the
-  macOS runbook, Developer ID signing, notarization, stapling, Gatekeeper, and
-  smoke validation
+- `npm run dist:mac` - exploratory macOS packaging command using the current
+  unsigned `build.mac` configuration; public release use remains deferred until
+  a paid Developer ID signing and notarization path is approved and validated
 
 macOS release preparation lives in
 `docs/product-specs/2026-05-03-macos-release-packaging.md` and the operator

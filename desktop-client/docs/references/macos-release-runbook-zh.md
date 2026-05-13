@@ -1,12 +1,14 @@
 # macOS 发布操作手册
 
-状态：本手册在 Windows 上编写；需在 macOS 机器上使用发布签名凭据执行
+状态：未来公开发布手册，在 Windows 上编写；当前 macOS 打包保持未签名，直到付费 Developer ID 签名获批
 
 ## 目的
 
-本手册用于在 macOS 机器上构建、签名、公证、装订和冒烟测试可发布的 SkillDrive Desktop macOS DMG。
+本手册用于未来付费公开发布路径：在 macOS 机器上构建、签名、公证、装订和冒烟测试可发布的 SkillDrive Desktop macOS DMG。
 
-请勿将此手册视为 macOS 已具备发布条件的证明。执行发布命令前，必须先满足下方的首个门禁要求。
+请勿将此手册视为 macOS 已具备发布条件的证明。当前 `package.json`
+macOS 配置有意保持 `identity: null`、`forceCodeSigning: false` 和
+`notarize: false`。执行发布命令前，必须先满足下方的首个门禁要求。
 
 ## 相关文档
 
@@ -22,8 +24,11 @@
 
 - 当前 macOS 发布执行计划记录了跨平台归档提取测试通过。
 - `electron/main.ts` 使用 `extractZipArchive()` 而非 Windows PowerShell 进行包提取。
+- 付费 Developer ID 签名和公证路径已获批。
 - macOS 权限文件已提交且不包含密钥。
-- `package.json` macOS 发布配置指向这些权限文件，启用 Hardened Runtime，要求代码签名，并启用 electron-builder 公证。
+- `package.json` macOS 发布配置已从初期未签名设置更新为指向这些权限文件、
+  要求代码签名，并启用 electron-builder 公证。
+- Hardened Runtime 仍保持启用。
 - macOS 机器已安装 Xcode 命令行工具和最新版本的 `notarytool`。
 - 发布操作者拥有 Developer ID Application 证书和 Apple 公证凭据（存储在仓库之外）。
 
@@ -191,6 +196,8 @@ rm -rf dist dist-electron
 ```
 
 ## 构建已签名的 macOS 产物
+
+本节仅适用于 `package.json` 已从初期未签名 `build.mac` 配置更新为未来付费发布配置之后。
 
 确认签名身份：
 

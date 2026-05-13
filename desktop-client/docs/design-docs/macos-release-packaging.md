@@ -1,18 +1,21 @@
 # macOS Release Packaging Technical Design
 
-Status: active design; Windows-side release configuration implemented, macOS release validation pending
+Status: active design; cross-platform extraction implemented, initial unsigned macOS packaging retained, paid release signing deferred
 
 ## Goal
 
-Define the technical route from exploratory macOS builder output to a
-publishable SkillDrive Desktop DMG. The design separates work that can be done
-on Windows now from work that must happen on a macOS build machine later.
+Define the technical route from exploratory macOS builder output to a future
+publishable SkillDrive Desktop DMG. The design separates the initial unsigned
+macOS packaging path from the paid Developer ID signing and notarization work
+that may happen on a macOS build machine later.
 
 ## Source Requirements
 
-- Apple Developer ID signing is required for direct distribution outside the Mac
-  App Store.
-- Apple notarization should be part of the direct distribution release path.
+- Apple Developer ID signing is required for a public direct distribution path
+  outside the Mac App Store, but that paid path is deferred for the initial
+  macOS packaging phase.
+- Apple notarization should be part of any future public direct distribution
+  release path.
 - Apple no longer accepts notarization uploads through `altool`; use
   `notarytool` through current Xcode tooling.
 - electron-builder can sign macOS apps when a valid identity is available and
@@ -26,8 +29,8 @@ on Windows now from work that must happen on a macOS build machine later.
 1. The current machine is Windows, so the final signed DMG, notarization,
    stapling, Gatekeeper checks, and macOS runtime smoke test cannot be
    completed here.
-2. The macOS release operator still needs a Developer ID Application identity
-   and notarization credentials outside the repository.
+2. The project owner is intentionally deferring the paid Developer ID
+   Application identity and notarization credential path for the initial phase.
 
 Resolved in the Windows implementation passes:
 
@@ -35,9 +38,10 @@ Resolved in the Windows implementation passes:
   skill package extraction.
 - `src/__tests__/archive-extraction.test.ts` covers safe ZIP extraction,
   traversal rejection, symlink rejection, and absolute extraction destinations.
-- `package.json` points macOS builds at explicit entitlements, enables Hardened
-  Runtime, requires code signing, and leaves electron-builder notarization
-  enabled for credentialed release builds.
+- `package.json` configures macOS `dmg` and `zip` targets, keeps Hardened
+  Runtime enabled, and intentionally leaves `identity: null`,
+  `forceCodeSigning: false`, and `notarize: false` for the initial unsigned
+  packaging phase.
 - `build/entitlements.mac.plist` and `build/entitlements.mac.inherit.plist`
   contain only Electron hardened runtime code-signing entitlements.
 
@@ -60,27 +64,28 @@ require macOS. macOS runtime smoke testing remains required before release.
 
 ### macOS Builder Configuration
 
-`package.json` macOS config makes release intent explicit:
+`package.json` macOS config makes the initial deferral explicit:
 
 - `target`: keep `dmg` and `zip`.
 - `icon`: keep `resources/icons/icon.icns`.
+- `identity`: `null`.
 - `hardenedRuntime`: `true`.
-- `entitlements`: `build/entitlements.mac.plist`.
-- `entitlementsInherit`: `build/entitlements.mac.inherit.plist`.
-- `hardenedRuntime`: `true`.
-- `forceCodeSigning`: `true`.
-- `notarize`: `true`; notarization runs when the operator supplies one of the
-  supported Apple credential sets.
+- `forceCodeSigning`: `false`.
+- `notarize`: `false`.
+- `entitlements` and `entitlementsInherit`: omitted until the paid signed
+  release path is approved.
 
-The concrete entitlement set is intentionally minimal: JIT, unsigned executable
-memory, and library validation relaxation for Electron/native module runtime.
-It does not enable App Sandbox, file, network, or device permissions. Additions
-require a failing macOS smoke test or signing failure as evidence.
+The committed future entitlement set is intentionally minimal: JIT, unsigned
+executable memory, and library validation relaxation for Electron/native module
+runtime. It does not enable App Sandbox, file, network, or device permissions.
+Additions require a failing macOS smoke test or signing failure as evidence.
 
 ### Credential Handling
 
-Do not commit Apple credentials. The release operator must configure one of the
-electron-builder supported notarization credential paths on the macOS machine:
+The initial unsigned packaging path does not require Apple credentials. If the
+paid public release path is resumed later, do not commit Apple credentials. The
+release operator must configure one of the electron-builder supported
+notarization credential paths on the macOS machine:
 
 - App Store Connect API key triplet:
   `APPLE_API_KEY`, `APPLE_API_KEY_ID`, `APPLE_API_ISSUER`.
@@ -98,12 +103,12 @@ repository content.
 
 | File | Responsibility |
 |------|----------------|
-| `package.json` | Implemented: explicit macOS release signing/notarization config |
+| `package.json` | Implemented: explicit unsigned initial macOS packaging config with signing/notarization disabled |
 | `electron/main.ts` | Implemented: call cross-platform extraction helper |
 | `src/core/distribution/archive-extraction.ts` | Implemented: own safe ZIP extraction rules |
 | `src/__tests__/archive-extraction.test.ts` | Implemented: cover safe extraction and unsafe archive rejection |
-| `build/entitlements.mac.plist` | Implemented: app entitlements for Developer ID macOS build |
-| `build/entitlements.mac.inherit.plist` | Implemented: inherited entitlements for Electron helpers/frameworks |
+| `build/entitlements.mac.plist` | Implemented: future app entitlements for Developer ID macOS build |
+| `build/entitlements.mac.inherit.plist` | Implemented: future inherited entitlements for Electron helpers/frameworks |
 | `docs/references/macos-release-runbook.md` | Operator release checklist and command transcript |
 
 ## Windows-Side Documentation Deliverables
@@ -119,7 +124,7 @@ Completed in this documentation phase:
 
 ## macOS Validation Gates
 
-On a macOS build machine:
+For the initial unsigned packaging path on a macOS build machine:
 
 ```bash
 cd desktop-client
@@ -129,7 +134,9 @@ npm run build
 npm run dist:mac
 ```
 
-Then verify signing, notarization, stapling, and Gatekeeper:
+For a future public release after the paid Developer ID path is approved and
+`package.json` is updated to require signing and notarization, verify signing,
+notarization, stapling, and Gatekeeper:
 
 ```bash
 codesign --verify --deep --strict --verbose=2 "dist/mac*/SkillDrive Desktop.app"

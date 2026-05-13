@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useState } from "react"
 import { Copy, Download, KeyRound, Laptop, Loader2, Trash2 } from "lucide-react"
 
 import { NextStepCard } from "@/components/app/next-step-card"
@@ -27,12 +27,7 @@ export default function TokensPage() {
   const { success, error: showError } = useToast()
   const { dictionary } = useI18n()
   const { tokens: copy, validation } = dictionary
-  const desktopVersion = useMemo(() => {
-    const url = config.capabilities.desktop_release_url
-    if (!url) return ""
-    const match = url.match(/\/tag\/(v[\d.]+)$/)
-    return match ? match[1] : ""
-  }, [config.capabilities.desktop_release_url])
+  const desktopVersion = config.capabilities.desktop_release_version
   const [tokens, setTokens] = useState<Token[]>([])
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading")
   const [error, setError] = useState<string | null>(null)

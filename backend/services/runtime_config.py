@@ -21,6 +21,7 @@ class RuntimeConfigService:
             rbac=rbac,
             no_rbac_mode=not rbac,
             desktop_release_url=settings.DESKTOP_RELEASE_URL,
+            desktop_release_version=settings.DESKTOP_RELEASE_VERSION,
         )
 
     @classmethod

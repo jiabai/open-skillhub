@@ -41,6 +41,7 @@ describe("runtime config", () => {
             rbac: true,
             no_rbac_mode: false,
             desktop_release_url: "https://github.com/jiabai/skilldrive/releases",
+            desktop_release_version: "v0.1.4",
           },
         }),
       }))

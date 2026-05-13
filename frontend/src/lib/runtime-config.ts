@@ -13,6 +13,7 @@ export type RuntimeCapabilities = {
   rbac: boolean
   no_rbac_mode: boolean
   desktop_release_url: string
+  desktop_release_version: string
 }
 
 export type RuntimeConfig = {
@@ -36,6 +37,7 @@ export const defaultRuntimeCapabilities: RuntimeCapabilities = {
   rbac: false,
   no_rbac_mode: true,
   desktop_release_url: "",
+  desktop_release_version: "",
 }
 
 export const defaultRuntimeConfig: RuntimeConfig = {

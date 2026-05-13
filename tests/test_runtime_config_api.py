@@ -51,6 +51,7 @@ async def test_runtime_config_api_reflects_derived_capabilities(client, monkeypa
             "rbac": True,
             "no_rbac_mode": False,
             "desktop_release_url": settings.DESKTOP_RELEASE_URL,
+            "desktop_release_version": settings.DESKTOP_RELEASE_VERSION,
         }
     }
 
@@ -117,6 +118,7 @@ async def test_runtime_config_api_keeps_no_rbac_mode_when_feature_flags_disabled
         "rbac": False,
         "no_rbac_mode": True,
         "desktop_release_url": settings.DESKTOP_RELEASE_URL,
+        "desktop_release_version": settings.DESKTOP_RELEASE_VERSION,
     }
 
 

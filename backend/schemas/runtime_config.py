@@ -14,6 +14,7 @@ class RuntimeCapabilities(BaseModel):
     rbac: bool
     no_rbac_mode: bool
     desktop_release_url: str
+    desktop_release_version: str
 
 
 class RuntimeConfigResponse(BaseModel):

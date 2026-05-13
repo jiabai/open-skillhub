@@ -152,6 +152,7 @@ class Settings(BaseSettings):
     ENABLE_DEPRECATION_NOTIFIER_ON_STARTUP: bool = False
 
     DESKTOP_RELEASE_URL: str = "https://github.com/jiabai/skilldrive/releases"
+    DESKTOP_RELEASE_VERSION: str = ""
 
     DEPRECATED_ENDPOINTS: dict = {}
     DEPRECATED_VERSIONS: set = set()

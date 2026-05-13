@@ -99,7 +99,8 @@ describe("console pages", () => {
         audit_export: true,
         rbac: false,
         no_rbac_mode: true,
-        desktop_release_url: "https://github.com/jiabai/skilldrive/releases/tag/v0.1.4",
+        desktop_release_url: "https://github.com/jiabai/skilldrive/releases",
+        desktop_release_version: "v0.1.4",
       },
     })
   })
@@ -193,7 +194,7 @@ describe("console pages", () => {
     expect(await screen.findByText("下载桌面端")).toBeInTheDocument()
     expect(screen.getByRole("link", { name: /打开下载页/ })).toHaveAttribute(
       "href",
-      "https://github.com/jiabai/skilldrive/releases/tag/v0.1.4"
+      "https://github.com/jiabai/skilldrive/releases"
     )
     expect(await screen.findByText("我的工作区概览")).toBeInTheDocument()
     expect(await screen.findByText("开始前要知道")).toBeInTheDocument()
@@ -485,11 +486,11 @@ describe("console pages", () => {
     expect(screen.getByRole("heading", { name: "连接客户端" })).toBeInTheDocument()
     expect(screen.getByRole("link", { name: /下载 Windows 桌面端 v0\.1\.4/ })).toHaveAttribute(
       "href",
-      "https://github.com/jiabai/skilldrive/releases/tag/v0.1.4"
+      "https://github.com/jiabai/skilldrive/releases"
     )
     expect(screen.getByRole("link", { name: /下载 macOS 桌面端 v0\.1\.4/ })).toHaveAttribute(
       "href",
-      "https://github.com/jiabai/skilldrive/releases/tag/v0.1.4"
+      "https://github.com/jiabai/skilldrive/releases"
     )
   })
 

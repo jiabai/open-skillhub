@@ -14,6 +14,10 @@ exploratory path. Package extraction is cross-platform, but the initial macOS
 `build.mac` configuration intentionally keeps Developer ID signing and
 notarization disabled until a paid release path is approved and validated on
 macOS.
+The Linux CLI is a separate Node ESM runtime built from the same package. It
+shares core agent, target, layout, package, and write services, but it does not
+share Electron IPC, desktop config, desktop project records, or desktop sync
+state.
 
 ## Code Map
 
@@ -27,6 +31,10 @@ macOS.
   - desktop shell, Home, Updates, Local Skills, and Projects views, Settings drawer, theme toggle, local UI primitives, and supporting review panels
 - `src/i18n/`
   - local locale dictionaries, provider, hook, formatting helpers, and language codes used by the renderer
+- `src/cli/`
+  - Linux command entry, command handlers, XDG config/state/cache resolution,
+    local package preparation, target planning, server sync orchestration, and
+    CLI output rendering
 - `src/styles.css`
   - desktop renderer light/dark design tokens and shared component classes
 - `src/core/sync/`
@@ -34,7 +42,8 @@ macOS.
 - `src/core/pre-distribution-check/`
   - read-only target-directory metadata checks, strict version comparison, transient snapshots, and stale-check fingerprints
 - `src/core/distribution/`
-  - package preparation, owned artifact cleanup, install orchestration, and distribution result reporting
+  - package preparation, owned artifact cleanup, shared adapter write engine,
+    desktop state reconciliation, and distribution result reporting
 - `src/core/local-skills/`
   - read-only local skill inventory, server presence comparison, safe upload ZIP packaging, and Client API upload helper
 - `src/core/projects/`
@@ -66,6 +75,9 @@ runtime config -> agent detection service -> agent catalog + filesystem install 
 pre-distribution check core -> state store + detection-derived agent targets + configured agent adapters
 
 distribution core -> package service + detection-derived agent targets + agent adapters + state store
+
+Linux CLI -> CLI services + detection/project target resolution + shared
+distribution write engine + CLI XDG sync state
 
 local skills core -> detection-derived unique targets + backend Client API + cache-owned temporary ZIP staging
 
@@ -107,6 +119,9 @@ agent adapters -> local agent installations and skill directories
   `skills/<skill-name>`; categorized targets such as Hermes Agent use
   `skills/<category>/<skill-name>` through the shared layout resolver.
 - Agent adapter install and metadata-read directory keys are server skill names; `remoteSkillId` remains the API/state identity and does not determine the local install directory.
+- The Linux CLI has its own runtime state. Local `install` never updates remote
+  sync state; server-backed `sync` updates CLI scoped sync records after
+  successful writes.
 - Shared type contracts live in `src/types/` instead of being redefined across layers.
 
 ## Layer Boundaries
@@ -148,6 +163,10 @@ Dependencies should only point downward across those boundaries.
 - Saving or clearing API configuration reloads the in-memory runtime config so sync, package download, and distribution paths use the latest URL and token without an app restart
 - `logs/` and `backups/` belong to the target design language but are not yet created by the current implementation
 - State persistence currently stores sync snapshot data, not full per-run distribution history
+- CLI sync state is stored separately from desktop state under the Linux XDG
+  `skilldrive-cli` state directory. CLI records are scoped by global/project
+  scope, target key, agent ID, and remote skill ID so global and project syncs
+  do not overwrite each other.
 - Runtime package downloads are staged in unique directories under `cache/`.
   Staging directories are temporary package artifacts and are removed through
   the package-service cleanup ownership contract after distribution succeeds or
@@ -165,7 +184,7 @@ Dependencies should only point downward across those boundaries.
 ## Packaging Surface
 
 - `package.json` contains the `electron-builder` configuration and packaging
-  scripts.
+  scripts, plus the `skilldrive-agent` CLI `bin` entry and CLI build scripts.
 - Windows packaging uses the `nsis` and `portable` targets with
   `resources/icons/icon.ico`.
 - macOS `dmg` and `zip` targets are configured with `resources/icons/icon.icns`,
@@ -179,6 +198,8 @@ Dependencies should only point downward across those boundaries.
   `docs/references/macos-release-runbook.md`.
 - Installer artifacts are generated under `desktop-client/dist/` and are not
   repository source files.
+- CLI build artifacts are generated under `desktop-client/dist-cli/` and are
+  not repository source files.
 
 ## Key Files
 
@@ -191,7 +212,9 @@ Dependencies should only point downward across those boundaries.
 - `src/core/sync/sync-service.ts`
 - `src/core/detection/agent-detection-service.ts`
 - `src/core/distribution/distribution-service.ts`
+- `src/core/distribution/distribution-write-service.ts`
 - `src/core/distribution/package-service.ts`
+- `src/cli/main.ts`
 - `src/core/local-skills/local-skill-inventory-service.ts`
 - `src/core/local-skills/local-skill-upload-package.ts`
 - `src/core/local-skills/local-skill-client-api.ts`

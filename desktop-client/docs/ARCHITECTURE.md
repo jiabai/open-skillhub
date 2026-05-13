@@ -47,7 +47,7 @@ macOS.
 - `src/core/runtime/`
   - reloadable runtime configuration assembled from JSON config, secret store, environment bootstrap, cache, and agent detection snapshots
 - `src/adapters/agents/`
-  - 20 catalog-backed filesystem adapters, per-agent package validation, install, metadata read, and verification
+  - catalog-backed filesystem adapters, per-agent package validation, layout-aware install, metadata read, and verification
 - `src/lib/ipc-client.ts`
   - renderer wrapper around the preload-exposed bridge
 - `src/types/`
@@ -103,6 +103,9 @@ agent adapters -> local agent installations and skill directories
   values resolve to dark, and the renderer applies the current theme by toggling
   `.dark` on `document.documentElement`.
 - Agent adapters own per-agent filesystem conventions, package installation, metadata reads, and install verification.
+- Agent skill target layout is catalog metadata. Missing layout means flat
+  `skills/<skill-name>`; categorized targets such as Hermes Agent use
+  `skills/<category>/<skill-name>` through the shared layout resolver.
 - Agent adapter install and metadata-read directory keys are server skill names; `remoteSkillId` remains the API/state identity and does not determine the local install directory.
 - Shared type contracts live in `src/types/` instead of being redefined across layers.
 

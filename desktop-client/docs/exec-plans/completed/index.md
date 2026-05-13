@@ -4,6 +4,8 @@
 
 | File | Outcome |
 |------|---------|
+| [2026-05-13-hermes-categorized-skill-layout.md](2026-05-13-hermes-categorized-skill-layout.md) | Hermes Agent now uses target-level categorized skill layout metadata, with layout-aware detection, metadata reads, Local Skills inventory, distribution writes, and project scan/import support |
+| [2026-05-13-hermes-categorized-skill-layout-tasks.md](2026-05-13-hermes-categorized-skill-layout-tasks.md) | Completed TDD task checklist for Hermes categorized skill layout support |
 | [2026-05-07-project-skill-loading.md](2026-05-07-project-skill-loading.md) | Desktop-client Projects view now persists project records in `config/projects.json`, scans project/global skill rows, imports validated skill folders into catalog-defined project targets through typed IPC, and documents the new storage/security/runtime surface |
 | [2026-05-07-project-skill-loading-tasks.md](2026-05-07-project-skill-loading-tasks.md) | Completed task checklist for the Project Skill Loading implementation |
 | [2026-05-02-desktop-dark-mode.md](2026-05-02-desktop-dark-mode.md) | Desktop-client dark mode now defaults to dark, persists explicit light/dark theme config, exposes `saveTheme` through IPC, renders a one-click icon toggle, and uses frontend-aligned dark CSS tokens |

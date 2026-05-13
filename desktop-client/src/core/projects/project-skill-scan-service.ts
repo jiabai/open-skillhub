@@ -4,6 +4,7 @@ import { homedir } from "node:os"
 import { basename, join, posix, win32 } from "node:path"
 
 import { type AgentPathDefinition } from "@/adapters/agents/definitions"
+import { enumerateSkillDirectories } from "@/adapters/agents/skill-layout"
 import { resolveProjectAgentTargets } from "@/core/projects/project-agent-targets"
 import {
   createProjectSkillValidationMessage,
@@ -239,10 +240,14 @@ export function createProjectSkillScanService(
       const seenProjectPaths = new Set<string>()
 
       for (const target of targets) {
-        let entries: DirectoryEntry[]
+        let skillPaths: string[]
 
         try {
-          entries = await readDirectory(target.targetPath, { withFileTypes: true })
+          skillPaths = await enumerateSkillDirectories(
+            target.targetPath,
+            target.skillLayout,
+            readDirectory
+          )
         } catch (error) {
           if (
             typeof error === "object" &&
@@ -261,12 +266,7 @@ export function createProjectSkillScanService(
           continue
         }
 
-        for (const entry of entries.sort((left, right) => left.name.localeCompare(right.name))) {
-          if (!entry.isDirectory()) {
-            continue
-          }
-
-          const skillPath = pathModule.normalize(pathModule.join(target.targetPath, entry.name))
+        for (const skillPath of skillPaths.sort((left, right) => left.localeCompare(right))) {
           const pathKey = createDedupeKey(skillPath, platform)
 
           if (seenProjectPaths.has(pathKey)) {

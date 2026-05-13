@@ -2,6 +2,7 @@ import { createHash } from "node:crypto"
 import { readFile, readdir } from "node:fs/promises"
 import { basename, join, normalize, posix, win32 } from "node:path"
 
+import { enumerateSkillDirectories } from "@/adapters/agents/skill-layout"
 import type {
   AgentDetectionSnapshot,
   AgentId,
@@ -247,20 +248,19 @@ export function createLocalSkillInventoryService(
     const seen = new Set<string>()
 
     for (const target of snapshot.uniqueTargets) {
-      let entries: DirectoryEntry[]
+      let packageRootPaths: string[]
 
       try {
-        entries = await readDirectory(target.targetPath, { withFileTypes: true })
+        packageRootPaths = await enumerateSkillDirectories(
+          target.targetPath,
+          target.skillLayout,
+          readDirectory
+        )
       } catch {
         continue
       }
 
-      for (const entry of entries) {
-        if (!entry.isDirectory()) {
-          continue
-        }
-
-        const packageRootPath = normalize(join(target.targetPath, entry.name))
+      for (const packageRootPath of packageRootPaths) {
         const dedupeKey = createPathDedupeKey(packageRootPath, platform)
 
         if (seen.has(dedupeKey)) {

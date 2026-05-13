@@ -2,7 +2,13 @@ import { createHash } from "node:crypto"
 import { mkdir, readdir, stat, copyFile, readFile } from "node:fs/promises"
 import { isAbsolute, join, normalize, relative } from "node:path"
 
+import {
+  createSafeSkillDirectoryName,
+  findInstalledSkillDirectory,
+  resolveSkillInstallPath
+} from "@/adapters/agents/skill-layout"
 import type {
+  AgentSkillLayout,
   AgentId,
   InstalledSkillMetadataV1,
   InstalledSkillVersionSource
@@ -17,6 +23,7 @@ export interface ExtractedSkillPayloadV1 {
 
 export interface AgentInstallContextV1 {
   skillsPath: string
+  skillLayout?: AgentSkillLayout
 }
 
 export interface InstalledSkillV1 {
@@ -35,22 +42,6 @@ export interface AgentAdapterV1 {
 export interface AgentAdapterDefinition {
   id: AgentId
   displayName: string
-}
-
-export function createSafeSkillDirectoryName(skillDirectoryNameValue: string): string {
-  const skillDirectoryName = skillDirectoryNameValue.trim()
-
-  if (
-    !skillDirectoryName ||
-    skillDirectoryName === "." ||
-    skillDirectoryName === ".." ||
-    skillDirectoryName.includes("/") ||
-    skillDirectoryName.includes("\\")
-  ) {
-    throw new Error(`Invalid skill directory name: ${skillDirectoryNameValue}`)
-  }
-
-  return skillDirectoryName
 }
 
 function createSkillDirectoryName(payload: ExtractedSkillPayloadV1): string {
@@ -257,7 +248,11 @@ export function createFilesystemAgentAdapter(definition: AgentAdapterDefinition)
       context: AgentInstallContextV1
     ): Promise<InstalledSkillV1> {
       const sourcePath = normalize(payload.extractedPath)
-      const targetPath = join(context.skillsPath, createSkillDirectoryName(payload))
+      const targetPath = resolveSkillInstallPath(
+        context.skillsPath,
+        createSkillDirectoryName(payload),
+        context.skillLayout
+      )
 
       if (!sourcePath || sourcePath === "." || !isAbsolute(sourcePath)) {
         throw new Error(`Invalid extracted skill path: ${payload.extractedPath}`)
@@ -315,7 +310,19 @@ export function createFilesystemAgentAdapter(definition: AgentAdapterDefinition)
       context: AgentInstallContextV1
     ): Promise<InstalledSkillMetadataV1> {
       const safeSkillName = createSafeSkillDirectoryName(skillName)
-      const skillDir = join(context.skillsPath, safeSkillName)
+      const lookup = await findInstalledSkillDirectory(
+        context.skillsPath,
+        safeSkillName,
+        context.skillLayout
+      )
+
+      if (lookup.status === "ambiguous") {
+        throw new Error(
+          `Multiple categorized skill directories found for ${safeSkillName}: ${lookup.skillDirs.join(", ")}`
+        )
+      }
+
+      const skillDir = lookup.skillDir
 
       try {
         const skillDirStat = await stat(skillDir)

@@ -73,6 +73,43 @@ function createDetectionSnapshot(targetPath: string): AgentDetectionSnapshot {
   }
 }
 
+function createCategorizedDetectionSnapshot(targetPath: string): AgentDetectionSnapshot {
+  const snapshot = createDetectionSnapshot(targetPath)
+
+  return {
+    ...snapshot,
+    installedAgentIds: ["hermes"],
+    agentStatuses: [
+      {
+        agentId: "hermes",
+        displayName: "Hermes Agent",
+        installed: true,
+        source: "auto-detected",
+        detectionDirs: [],
+        targetPaths: [targetPath],
+        compatibleReadPaths: [],
+        reason: null
+      }
+    ],
+    uniqueTargets: [
+      {
+        targetId: "hermes-target",
+        targetPath,
+        primaryAgentId: "hermes",
+        coveredAgentIds: ["hermes"],
+        sharedPathKey: null,
+        source: "auto-detected",
+        skillLayout: {
+          mode: "categorized",
+          categoryDepth: 1,
+          defaultCategory: "general",
+          categorySource: "agent-default"
+        }
+      }
+    ]
+  }
+}
+
 afterEach(() => {
   for (const root of tempRoots.splice(0)) {
     rmSync(root, { recursive: true, force: true })
@@ -172,6 +209,33 @@ describe("createLocalSkillInventoryService", () => {
       serverState: "existing",
       remoteSkillId: "remote-self-improving",
       uploadable: false
+    })
+  })
+
+  it("scans categorized skill roots without treating category folders as invalid skills", async () => {
+    const targetPath = createTempRoot()
+    const categorizedSkillPath = writeSkill(
+      join(targetPath, "tools"),
+      "hermes-tool",
+      "name: hermes-tool\nversion: 0.4.0"
+    )
+    mkdirSync(join(targetPath, "empty-category"), { recursive: true })
+
+    const snapshot = await createLocalSkillInventoryService().refresh({
+      detectionSnapshot: createCategorizedDetectionSnapshot(targetPath),
+      remoteSkills: [],
+      serverLookupStatus: "ok",
+      serverLookupMessage: null
+    })
+
+    expect(snapshot.rows).toHaveLength(1)
+    expect(snapshot.rows[0]).toMatchObject({
+      name: "hermes-tool",
+      packageRootPath: categorizedSkillPath,
+      localVersion: "0.4.0",
+      validationState: "valid",
+      sourceAgents: ["hermes"],
+      sourceDisplayNames: ["Hermes Agent"]
     })
   })
 

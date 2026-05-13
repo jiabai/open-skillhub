@@ -208,7 +208,8 @@ export function createDistributionService(
           const adapterAgentId = target.adapterAgentId ?? target.primaryAgentId
           const adapter = dependencies.resolveAgentAdapter(adapterAgentId)
           const installContext: AgentInstallContextV1 = {
-            skillsPath: target.targetPath
+            skillsPath: target.targetPath,
+            ...(target.skillLayout ? { skillLayout: target.skillLayout } : {})
           }
 
           if (!adapter) {

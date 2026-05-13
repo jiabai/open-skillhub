@@ -2,6 +2,7 @@ import { copyFile, lstat, mkdir, readdir, readFile, rm } from "node:fs/promises"
 import { join, posix, win32 } from "node:path"
 
 import type { AgentPathDefinition } from "@/adapters/agents/definitions"
+import { resolveSkillInstallPath } from "@/adapters/agents/skill-layout"
 import { resolveProjectAgentTargets } from "@/core/projects/project-agent-targets"
 import {
   createProjectSkillValidationMessage,
@@ -298,7 +299,7 @@ export function createProjectSkillImportService(
       }
 
       const destinationPath = pathModule.normalize(
-        pathModule.join(target.targetPath, validation.identity)
+        resolveSkillInstallPath(target.targetPath, validation.identity, target.skillLayout)
       )
 
       assertPathInside(projectRoot, target.targetPath, platform)

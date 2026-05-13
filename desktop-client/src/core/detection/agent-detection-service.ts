@@ -8,6 +8,10 @@ import {
   type AgentTargetDefinition
 } from "@/adapters/agents/definitions"
 import {
+  normalizeSkillLayout,
+  skillLayoutsEqual
+} from "@/adapters/agents/skill-layout"
+import {
   resolveAgentPath,
   resolveAgentPathConfigTarget
 } from "@/core/storage/agent-paths-config"
@@ -36,6 +40,7 @@ export interface AgentDetectionService {
 type ResolvedTarget = {
   path: string
   sharedPathKey: string | null
+  skillLayout: AgentSkillTarget["skillLayout"]
 }
 
 function getPathModule(platform: NodeJS.Platform) {
@@ -80,7 +85,8 @@ export function createAgentDetectionService(
   function resolveTarget(target: AgentTargetDefinition): ResolvedTarget {
     return {
       path: resolvePath(target.path),
-      sharedPathKey: target.sharedPathKey ?? null
+      sharedPathKey: target.sharedPathKey ?? null,
+      skillLayout: normalizeSkillLayout(target.skillLayout)
     }
   }
 
@@ -117,7 +123,8 @@ export function createAgentDetectionService(
 
     return {
       path: configuredPath,
-      sharedPathKey: definition.defaultTargets[0]?.sharedPathKey ?? null
+      sharedPathKey: definition.defaultTargets[0]?.sharedPathKey ?? null,
+      skillLayout: normalizeSkillLayout(definition.defaultTargets[0]?.skillLayout)
     }
   }
 
@@ -192,6 +199,10 @@ export function createAgentDetectionService(
     const existing = args.uniqueTargetsByKey.get(dedupeKey)
 
     if (existing) {
+      if (!skillLayoutsEqual(existing.skillLayout, args.target.skillLayout)) {
+        throw new Error(`Shared target has incompatible skill layouts: ${args.target.path}`)
+      }
+
       if (!existing.coveredAgentIds.includes(args.agentId)) {
         existing.coveredAgentIds.push(args.agentId)
       }
@@ -209,7 +220,8 @@ export function createAgentDetectionService(
       primaryAgentId: args.agentId,
       coveredAgentIds: [args.agentId],
       sharedPathKey: args.target.sharedPathKey,
-      source: args.source
+      source: args.source,
+      skillLayout: args.target.skillLayout
     })
   }
 

@@ -110,6 +110,44 @@ describe("agent detection service", () => {
     })
   })
 
+  it("preserves categorized Hermes layout on detected and configured targets", async () => {
+    const detected = await createService({
+      definitions: [definition("hermes")],
+      existingPaths: [resolveHomePath("~/.hermes")]
+    }).refresh()
+
+    expect(detected.uniqueTargets[0]).toMatchObject({
+      targetPath: resolveHomePath("~/.hermes/skills"),
+      primaryAgentId: "hermes",
+      skillLayout: {
+        mode: "categorized",
+        categoryDepth: 1,
+        defaultCategory: "general",
+        categorySource: "agent-default"
+      }
+    })
+
+    const configured = await createService({
+      definitions: [definition("hermes")],
+      agentPathsConfig: {
+        hermes: {
+          targetPath: "D:/Hermes/skills"
+        }
+      }
+    }).refresh()
+
+    expect(configured.uniqueTargets[0]).toMatchObject({
+      targetPath: normalize("D:/Hermes/skills"),
+      primaryAgentId: "hermes",
+      skillLayout: {
+        mode: "categorized",
+        categoryDepth: 1,
+        defaultCategory: "general",
+        categorySource: "agent-default"
+      }
+    })
+  })
+
   it("ignores invalid JSON configured paths and falls back to missing", async () => {
     const service = createService({
       definitions: [definition("cursor"), definition("codex")],

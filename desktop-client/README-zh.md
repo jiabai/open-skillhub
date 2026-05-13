@@ -44,6 +44,39 @@ Electron 主进程在本地开发时读取以下环境变量：
 
 窗口关闭后，系统托盘保持驻留，以便后台刷新继续进行。
 
+## Linux CLI
+
+`desktop-client/` 也会构建面向 Linux 使用场景的 Node 命令行工具，用于将
+技能分发到 Agent 目录。它与 Electron 桌面运行时分离，并使用独立的 XDG
+配置、状态和缓存目录。
+
+```bash
+cd desktop-client
+npm run build:cli
+node dist-cli/skilldrive-agent.js detect --global
+node dist-cli/skilldrive-agent.js install /path/to/skill --global --yes
+node dist-cli/skilldrive-agent.js install /path/to/skill.zip --project /repo/project --yes
+SKILLDRIVE_API_TOKEN=... node dist-cli/skilldrive-agent.js sync --global --yes
+```
+
+`install` 仅处理本地技能目录或 `.zip`，不会访问服务端，也不会更新远程同步
+状态。`sync` 才是服务端同步命令，Token 通过 `--api-token` 或
+`SKILLDRIVE_API_TOKEN` 提供，不会持久化。所有会写入文件的命令默认都是
+dry-run，必须显式传入 `--yes` 才会写入。
+
+CLI 存储位置：
+
+```text
+$XDG_CONFIG_HOME/skilldrive-cli/config.json
+$XDG_CONFIG_HOME/skilldrive-cli/agent-paths.json
+$XDG_STATE_HOME/skilldrive-cli/state.sqlite3
+$XDG_CACHE_HOME/skilldrive-cli/package-*
+```
+
+回退路径为 `~/.config/skilldrive-cli`、`~/.local/state/skilldrive-cli`
+和 `~/.cache/skilldrive-cli`。CLI v1 不支持加密服务端下载；遇到加密下载
+响应时会在写入文件前安全失败。
+
 ## 打包
 
 Windows 安装包打包通过 `electron-builder` 配置。v1 发布目标是 Windows 安装包路径；macOS 构建配置可能存在用于探索性构建，但在非 Windows 包提取和冒烟测试实现之前，macOS 运行时分发不能作为发布声明。
@@ -61,6 +94,7 @@ Windows 发布产物写入 `dist/` 目录，包括 `.exe` NSIS 安装程序和 `
 
 - `npm run pack` - 构建当前平台的解压输出
 - `npm run dist` - 构建当前平台的安装包输出
+- `npm run dist:linux-cli` - 在 `dist-cli/` 下构建 Node CLI 产物
 - `npm run dist:mac` - macOS 探索性打包命令，使用当前未签名的 `build.mac` 配置；公开发布仍需等付费 Developer ID 签名和公证路径获批并完成验证
 
 macOS 发布准备位于 `docs/product-specs/2026-05-03-macos-release-packaging.md`，操作手册位于 `docs/references/macos-release-runbook.md`（[中文版](docs/references/macos-release-runbook-zh.md)）。

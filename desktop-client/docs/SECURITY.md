@@ -20,6 +20,11 @@
 - `getConfiguration` IPC returns only desensitized token state: presence, source, persistence status, secret-store availability, and warning.
 - Saving or testing configuration may send the user-entered token from renderer to main, but the main process must not return the raw token.
 - API Base URL is non-secret and may be stored in `config/config.json`; Token remains in `keytar` only.
+- The Linux CLI accepts API tokens only through `--api-token` or
+  `SKILLDRIVE_API_TOKEN`. It never persists tokens to `config.json`,
+  `agent-paths.json`, SQLite state, cache, or logs.
+- The Linux CLI may persist only non-secret `apiBaseUrl` in its separate XDG
+  `skilldrive-cli/config.json`.
 
 ## Privilege Boundaries
 
@@ -47,6 +52,10 @@
   requires root `SKILL.md`, resolves safe identity from `slug` before `name`,
   rejects symlinks, non-regular entries, path escapes, excessive file count, and
   excessive total bytes, and copies only into the selected project target.
+- CLI local install source validation requires root `SKILL.md`, rejects
+  symlinks, path traversal, escaped real paths, more than 1000 files, and more
+  than 50 MB. CLI zip extraction rejects unsafe entry paths before distribution
+  and cleans temporary extraction/cache roots after use.
 
 ## Path Safety
 
@@ -71,6 +80,11 @@
   catalog target metadata. Existing target skill directories are rejected unless
   the IPC payload has explicit `overwrite: true`, and overwrite removes only the
   resolved target skill directory after containment checks.
+- CLI overwrite flags remove only the resolved destination skill directory
+  after containment checks confirm it is inside the selected target root.
+  `install` requires `--overwrite` for existing destinations; `sync` requires
+  tracked CLI sync state or `--overwrite-untracked` for same-name untracked
+  local skills.
 - Removing a project from the Projects view deletes only the
   `config/projects.json` record. It must not delete project files or skill
   directories.
@@ -84,6 +98,9 @@
   Token bearer authentication; the renderer must not receive the token, package
   bytes, or temporary upload paths.
 - Treat auth, network, path, package, and verification failures as separate error classes so operators can act on them.
+- Linux CLI encrypted server downloads are unsupported in v1. If the server
+  reports an encrypted package, the CLI exits with code `5` before extraction or
+  agent-directory writes.
 
 ## Logging
 

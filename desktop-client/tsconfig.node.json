@@ -8,11 +8,13 @@
   },
   "include": [
     "vite.config.ts",
+    "vite.cli.config.ts",
     "vite.electron.config.ts",
     "vitest.config.ts",
     "electron/**/*.ts",
     "src/i18n/config.ts",
     "src/types/**/*.ts",
+    "src/cli/**/*.ts",
     "src/core/**/*.ts",
     "src/adapters/**/*.ts"
   ]

@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
 import { Copy, Download, KeyRound, Laptop, Loader2, Trash2 } from "lucide-react"
 
 import { NextStepCard } from "@/components/app/next-step-card"
@@ -27,6 +27,12 @@ export default function TokensPage() {
   const { success, error: showError } = useToast()
   const { dictionary } = useI18n()
   const { tokens: copy, validation } = dictionary
+  const desktopVersion = useMemo(() => {
+    const url = config.capabilities.desktop_release_url
+    if (!url) return ""
+    const match = url.match(/\/tag\/(v[\d.]+)$/)
+    return match ? match[1] : ""
+  }, [config.capabilities.desktop_release_url])
   const [tokens, setTokens] = useState<Token[]>([])
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading")
   const [error, setError] = useState<string | null>(null)
@@ -178,13 +184,13 @@ export default function TokensPage() {
                   </span>
                   <div>
                     <p className="font-medium text-foreground">{copy.desktopDownloadTitle}</p>
-                    <p className="mt-1 text-muted-foreground">{copy.desktopDownloadDescription}</p>
+                    <p className="mt-1 text-muted-foreground">{formatMessage(copy.desktopDownloadDescription, { version: desktopVersion })}</p>
                   </div>
                 </div>
                 <Button asChild variant="outline" size="sm" className="mt-4">
                   <a href={config.capabilities.desktop_release_url} target="_blank" rel="noopener noreferrer">
                     <Download className="h-4 w-4" aria-hidden="true" />
-                    {copy.downloadWindowsDesktop}
+                    {formatMessage(copy.downloadWindowsDesktop, { version: desktopVersion })}
                   </a>
                 </Button>
               </div>
@@ -195,13 +201,13 @@ export default function TokensPage() {
                   </span>
                   <div>
                     <p className="font-medium text-foreground">{copy.desktopDownloadTitleMacOS}</p>
-                    <p className="mt-1 text-muted-foreground">{copy.desktopDownloadDescriptionMacOS}</p>
+                    <p className="mt-1 text-muted-foreground">{formatMessage(copy.desktopDownloadDescriptionMacOS, { version: desktopVersion })}</p>
                   </div>
                 </div>
                 <Button asChild variant="outline" size="sm" className="mt-4">
                   <a href={config.capabilities.desktop_release_url} target="_blank" rel="noopener noreferrer">
                     <Download className="h-4 w-4" aria-hidden="true" />
-                    {copy.downloadMacOSDesktop}
+                    {formatMessage(copy.downloadMacOSDesktop, { version: desktopVersion })}
                   </a>
                 </Button>
               </div>

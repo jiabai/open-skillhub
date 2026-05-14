@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest"
 import { createSkillDriveCliProgram, mapCliErrorToExitCode } from "@/cli/main"
 import { CliError } from "@/cli/services/cli-errors"
 
-describe("skilldrive-agent CLI entry", () => {
+describe("skilldrive-cli CLI entry", () => {
   it("registers Linux distribution commands without loading Electron", async () => {
     const output: string[] = []
     const program = createSkillDriveCliProgram({
@@ -12,10 +12,10 @@ describe("skilldrive-agent CLI entry", () => {
     })
 
     await expect(
-      program.parseAsync(["node", "skilldrive-agent", "detect", "--help"])
+      program.parseAsync(["node", "skilldrive-cli", "detect", "--help"])
     ).rejects.toMatchObject({ code: "commander.helpDisplayed" })
 
-    expect(output.join("\n")).toContain("Usage: skilldrive-agent detect")
+    expect(output.join("\n")).toContain("Usage: skilldrive-cli detect")
     expect(output.join("\n")).toContain("--global")
     expect(output.join("\n")).toContain("--project <path>")
   })

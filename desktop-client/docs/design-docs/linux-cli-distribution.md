@@ -20,7 +20,7 @@ Build a Node ESM CLI entry point inside `desktop-client/`, but keep it out of
 Electron main/preload/renderer code.
 
 ```text
-skilldrive-agent command
+skilldrive-cli command
   -> CLI parser and runtime config
   -> package source preparation or server sync source
   -> global/project target resolver
@@ -85,8 +85,8 @@ Create:
 | `src/cli/services/cli-distribution-planner.ts` | Dry-run/action planning, conflict classification, shared target dedupe |
 | `src/cli/services/cli-sync-state.ts` | Scoped SQLite state for server-backed installs |
 | `src/cli/services/cli-sync-service.ts` | Server listing/download orchestration and encrypted-download fail-closed behavior |
-| `src/core/distribution/distribution-write-service.ts` | Shared target write engine with no desktop state updates |
-| `src/core/distribution/distribution-conflicts.ts` | Shared destination existence and overwrite helpers |
+| `src/core/distribution/distribution-write-service.ts` | Shared adapter write/verify engine with no state updates |
+| `src/core/distribution/distribution-conflicts.ts` | Destination conflict and overwrite helpers |
 | `vite.cli.config.ts` | Vite build config for the Node CLI bundle |
 
 Modify:
@@ -113,11 +113,11 @@ a local binary:
 ```json
 {
   "bin": {
-    "skilldrive-agent": "dist-cli/skilldrive-agent.js"
+    "skilldrive-cli": "dist-cli/skilldrive-cli.js"
   },
   "scripts": {
     "build:cli": "vite build --config vite.cli.config.ts",
-    "start:cli": "node dist-cli/skilldrive-agent.js",
+    "start:cli": "node dist-cli/skilldrive-cli.js",
     "dist:linux-cli": "npm run build:cli"
   }
 }

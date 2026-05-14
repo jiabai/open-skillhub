@@ -200,7 +200,7 @@ Dependencies should only point downward across those boundaries.
 ## Packaging Surface
 
 - `package.json` contains the `electron-builder` configuration and packaging
-  scripts, plus the `skilldrive-agent` CLI `bin` entry and CLI build scripts.
+  scripts, plus the `skilldrive-cli` CLI `bin` entry and CLI build scripts.
 - Windows packaging uses the `nsis` and `portable` targets with
   `resources/icons/icon.ico`.
 - macOS `dmg` and `zip` targets are configured with `resources/icons/icon.icns`,
@@ -212,6 +212,12 @@ Dependencies should only point downward across those boundaries.
   `docs/product-specs/2026-05-03-macos-release-packaging.md`,
   `docs/design-docs/macos-release-packaging.md`, and
   `docs/references/macos-release-runbook.md`.
+- Linux CLI packaged deployment replaces the earlier target-machine npm build
+  and `npm link` workflow. The `package:linux-cli` script assembles a tarball
+  with CLI build output, runtime dependencies, install/uninstall scripts,
+  manifest metadata, and checksums under `desktop-client/dist/linux-cli/`.
+  Linux target-machine installation validation is still tracked in
+  `docs/exec-plans/active/2026-05-14-linux-cli-packaged-deployment.md`.
 - Installer artifacts are generated under `desktop-client/dist/` and are not
   repository source files.
 - CLI build artifacts are generated under `desktop-client/dist-cli/` and are

@@ -18,7 +18,7 @@ runtime surface from the Electron desktop app.
 
 ## Goals
 
-- Provide a Linux command named `skilldrive-agent`.
+- Provide a Linux command named `skilldrive-cli`.
 - Support local install from a skill directory or `.zip` archive.
 - Support server-backed sync from SkillDrive using an API base URL and token.
 - Support global and project scopes.
@@ -51,8 +51,8 @@ runtime surface from the Electron desktop app.
 `install` is local-only:
 
 ```bash
-skilldrive-agent install <skill-dir-or-zip> --global
-skilldrive-agent install <skill-dir-or-zip> --project <path>
+skilldrive-cli install <skill-dir-or-zip> --global
+skilldrive-cli install <skill-dir-or-zip> --project <path>
 ```
 
 `install` never calls the SkillDrive server and never updates remote sync
@@ -62,8 +62,8 @@ and confirmation.
 `sync` is server-backed:
 
 ```bash
-skilldrive-agent sync --global
-skilldrive-agent sync --project <path>
+skilldrive-cli sync --global
+skilldrive-cli sync --project <path>
 ```
 
 `sync` lists visible server skills, compares them with CLI sync state for the
@@ -73,16 +73,16 @@ and updates CLI sync state only after successful writes.
 `detect` reports targets without installing:
 
 ```bash
-skilldrive-agent detect --global
-skilldrive-agent detect --project <path>
+skilldrive-cli detect --global
+skilldrive-cli detect --project <path>
 ```
 
 `config` is limited to non-secret CLI settings:
 
 ```bash
-skilldrive-agent config show
-skilldrive-agent config set api-base-url <url>
-skilldrive-agent config paths
+skilldrive-cli config show
+skilldrive-cli config set api-base-url <url>
+skilldrive-cli config paths
 ```
 
 API tokens must not be persisted by `config`.
@@ -254,13 +254,13 @@ records for CLI v1.
 
 ## Acceptance Criteria
 
-- `skilldrive-agent install <dir> --global --yes` installs a local skill into
+- `skilldrive-cli install <dir> --global --yes` installs a local skill into
   every writable global target.
-- `skilldrive-agent install <zip> --project <path> --yes` installs a local zip
+- `skilldrive-cli install <zip> --project <path> --yes` installs a local zip
   package into every writable project target under the supplied project.
-- `skilldrive-agent sync --global --yes` downloads and installs pending
+- `skilldrive-cli sync --global --yes` downloads and installs pending
   server-backed skills for global targets and updates CLI sync state.
-- `skilldrive-agent sync --project <path> --yes` downloads and installs pending
+- `skilldrive-cli sync --project <path> --yes` downloads and installs pending
   server-backed skills for only that project path and updates scoped state.
 - `--agents` limits writes to the requested agents.
 - Shared physical targets are written once and reported for covered agents.

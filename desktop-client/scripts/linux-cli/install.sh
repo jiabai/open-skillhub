@@ -90,6 +90,7 @@ fi
 release_dir="$prefix/releases/$version"
 current_link="$prefix/current"
 command_link="$bin_dir/skilldrive-cli"
+release_command="$release_dir/bin/skilldrive-cli"
 
 case "$prefix" in
   ""|"/"|"$HOME"|"$HOME/"|"/opt"|"/usr"|"/usr/local")
@@ -126,6 +127,11 @@ fi
 run mkdir -p "$prefix/releases" "$bin_dir" "$tmp_dir"
 
 if [ "$is_dry_run" -eq 0 ]; then
+  [ -d "$bin_dir" ] || fail "$bin_dir was not created"
+  [ -w "$bin_dir" ] || fail "$bin_dir is not writable"
+fi
+
+if [ "$is_dry_run" -eq 0 ]; then
   (cd "$script_dir" && tar -cf - .) | (cd "$tmp_dir" && tar -xf -)
   if [ -e "$release_dir" ]; then
     rm -rf "$release_dir"
@@ -137,12 +143,17 @@ else
 fi
 
 if [ "$is_dry_run" -eq 0 ]; then
+  [ -f "$release_command" ] || fail "$release_command is missing"
+  [ -x "$release_command" ] || fail "$release_command is not executable"
   ln -sfn "$release_dir" "$current_link"
   ln -sfn "$current_link/bin/skilldrive-cli" "$command_link"
+  [ -x "$command_link" ] || fail "$command_link is not executable"
   "$command_link" --help >/dev/null
 else
+  echo "[dry-run] verify $release_command exists and is executable"
   echo "[dry-run] ln -sfn $release_dir $current_link"
   echo "[dry-run] ln -sfn $current_link/bin/skilldrive-cli $command_link"
+  echo "[dry-run] verify $command_link is executable"
   echo "[dry-run] $command_link --help"
 fi
 

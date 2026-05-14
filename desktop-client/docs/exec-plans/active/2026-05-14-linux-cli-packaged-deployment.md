@@ -81,6 +81,14 @@ gates.
 - [x] 2026-05-14: Full desktop test suite passed with `npm test`:
   36 test files and 185 tests.
 - [x] 2026-05-14: Desktop production build passed with `npm run build`.
+- [x] 2026-05-14: Addressed install script review feedback by verifying
+  `$bin_dir` exists and is writable after creation, verifying the packaged CLI
+  wrapper is executable before linking, and verifying `$command_link` is
+  executable before running the smoke command.
+- [x] 2026-05-14: Final validation after install-script hardening passed:
+  `npm test` (36 test files, 186 tests), `npm run build`,
+  `npm run package:linux-cli`, docs validation, diff check, tarball sha256
+  verification, and packaged `install.sh` inspection.
 - [ ] Future Linux validation: install, upgrade, verify, and uninstall from the
   generated tarball on Linux.
 
@@ -173,6 +181,7 @@ cd desktop-client && npm run package:linux-cli
 ```
 
 Result on 2026-05-14: both commands passed on the current Windows workspace.
+After install-script hardening, `npm test` reported 36 test files and 186 tests.
 `npm run build` also passed as the desktop-client execution gate.
 
 Linux validation phase:

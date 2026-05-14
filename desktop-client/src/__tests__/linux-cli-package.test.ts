@@ -111,4 +111,17 @@ describe("Linux CLI package assembly", () => {
       shell: false
     })
   })
+
+  it("checks install target executability before running the installed command", () => {
+    const installScript = readFileSync(
+      join(process.cwd(), "scripts", "linux-cli", "install.sh"),
+      "utf8"
+    )
+
+    expect(installScript).toContain('run mkdir -p "$prefix/releases" "$bin_dir" "$tmp_dir"')
+    expect(installScript).toContain('release_command="$release_dir/bin/skilldrive-cli"')
+    expect(installScript).toContain('[ -f "$release_command" ] || fail')
+    expect(installScript).toContain('[ -x "$release_command" ] || fail')
+    expect(installScript).toContain('[ -x "$command_link" ] || fail')
+  })
 })

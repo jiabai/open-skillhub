@@ -17,7 +17,7 @@ export default defineConfig({
     target: "node20",
     rollupOptions: {
       input: {
-        "skilldrive-agent": fileURLToPath(new URL("./src/cli/main.ts", import.meta.url))
+        "skilldrive-cli": fileURLToPath(new URL("./src/cli/main.ts", import.meta.url))
       },
       external: [/^node:/, "sql.js"],
       output: {

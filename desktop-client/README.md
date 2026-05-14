@@ -59,10 +59,10 @@ config, state, and cache directories.
 ```bash
 cd desktop-client
 npm run build:cli
-node dist-cli/skilldrive-agent.js detect --global
-node dist-cli/skilldrive-agent.js install /path/to/skill --global --yes
-node dist-cli/skilldrive-agent.js install /path/to/skill.zip --project /repo/project --yes
-SKILLDRIVE_API_TOKEN=... node dist-cli/skilldrive-agent.js sync --global --yes
+node dist-cli/skilldrive-cli.js detect --global
+node dist-cli/skilldrive-cli.js install /path/to/skill --global --yes
+node dist-cli/skilldrive-cli.js install /path/to/skill.zip --project /repo/project --yes
+SKILLDRIVE_API_TOKEN=... node dist-cli/skilldrive-cli.js sync --global --yes
 ```
 
 `install` is local-only and accepts a skill directory or `.zip`; it does not
@@ -82,6 +82,18 @@ $XDG_CACHE_HOME/skilldrive-cli/package-*
 Fallbacks are `~/.config/skilldrive-cli`, `~/.local/state/skilldrive-cli`,
 and `~/.cache/skilldrive-cli`. CLI v1 does not support encrypted server
 downloads; encrypted download responses fail closed before filesystem writes.
+
+For deployment, build the packaged CLI tarball instead of copying the repository
+to the target machine:
+
+```bash
+cd desktop-client
+npm run package:linux-cli
+```
+
+This writes `dist/linux-cli/skilldrive-cli-<version>-linux-node20.tar.gz` and
+its `.sha256` file. The package contains the CLI bundle, runtime dependencies,
+`install.sh`, `uninstall.sh`, manifest metadata, and checksums.
 
 ## Packaging
 
@@ -106,6 +118,8 @@ Additional configured packaging scripts:
 - `npm run pack` - build unpacked output for the current platform
 - `npm run dist` - build installer output for the current platform
 - `npm run dist:linux-cli` - build the Node CLI artifact under `dist-cli/`
+- `npm run package:linux-cli` - assemble the deployable Linux CLI tarball under
+  `dist/linux-cli/`
 - `npm run dist:mac` - exploratory macOS packaging command using the current
   unsigned `build.mac` configuration; public release use remains deferred until
   a paid Developer ID signing and notarization path is approved and validated

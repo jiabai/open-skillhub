@@ -25,13 +25,18 @@ describe("Electron shell behavior", () => {
 
   it("stages downloaded packages in owned cache directories for cleanup", () => {
     const mainSource = readFileSync(join(process.cwd(), "electron", "main.ts"), "utf8")
+    const clientSkillApiSource = readFileSync(
+      join(process.cwd(), "src", "core", "client-skills", "client-skill-api.ts"),
+      "utf8"
+    )
 
-    expect(mainSource).toContain("mkdtemp(join(config.cacheDirectory, \"package-\"))")
-    expect(mainSource).toContain("createPackageArtifactFileName(payload, request)")
-    expect(mainSource).toContain("sanitizedDownloadFileName !== \"..\"")
-    expect(mainSource).toContain("const artifactPath = join(artifactRoot, fileName)")
-    expect(mainSource).toContain("cleanupPaths: [artifactRoot]")
-    expect(mainSource).toContain("rm(artifactRoot, { recursive: true, force: true })")
+    expect(mainSource).toContain("createClientSkillApi")
+    expect(clientSkillApiSource).toContain("mkdtemp(join(options.cacheDirectory, \"package-\"))")
+    expect(clientSkillApiSource).toContain("createPackageArtifactFileName(payload, request)")
+    expect(clientSkillApiSource).toContain("sanitizedDownloadFileName !== \"..\"")
+    expect(clientSkillApiSource).toContain("const artifactPath = join(artifactRoot, createPackageArtifactFileName(payload, request))")
+    expect(clientSkillApiSource).toContain("cleanupPaths: [artifactRoot]")
+    expect(clientSkillApiSource).toContain("rm(artifactRoot, { recursive: true, force: true })")
   })
 
   it("uses cross-platform archive extraction instead of Windows PowerShell", () => {

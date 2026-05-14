@@ -82,10 +82,13 @@ describe("desktop package scripts", () => {
     const packageJsonPath = join(process.cwd(), "package.json")
     const packageJson = JSON.parse(readFileSync(packageJsonPath, "utf8")) as PackageJson
 
-    expect(packageJson.bin?.["skilldrive-agent"]).toBe("dist-cli/skilldrive-agent.js")
+    expect(packageJson.bin?.["skilldrive-cli"]).toBe("dist-cli/skilldrive-cli.js")
     expect(packageJson.scripts?.["build:cli"]).toBe("vite build --config vite.cli.config.ts")
-    expect(packageJson.scripts?.["start:cli"]).toBe("node dist-cli/skilldrive-agent.js")
+    expect(packageJson.scripts?.["start:cli"]).toBe("node dist-cli/skilldrive-cli.js")
     expect(packageJson.scripts?.["dist:linux-cli"]).toBe("npm run build:cli")
+    expect(packageJson.scripts?.["package:linux-cli"]).toBe(
+      "node scripts/package-linux-cli.mjs"
+    )
   })
 
   it("keeps future macOS hardened runtime entitlements free of release secrets", () => {

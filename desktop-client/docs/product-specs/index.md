@@ -21,5 +21,6 @@
 - `2026-05-07-project-skill-loading.md` - Project Skill Loading product spec for project records, project-level skill scans, and explicit project import (Chinese)
 - `2026-05-13-hermes-categorized-skill-layout.md` - Hermes categorized skill layout support for scan, metadata read, distribution, and project services (English)
 - `2026-05-13-linux-cli-distribution.md` - Linux CLI skill distribution for global and explicit project agent targets (English)
+- `2026-05-14-linux-cli-packaged-deployment.md` - Linux CLI package-and-install-script deployment spec (Chinese)
 
 Canonical rule: work from the local product spec first.

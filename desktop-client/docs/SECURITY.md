@@ -45,6 +45,10 @@
 - Validate package checksum and expiration before extracting or installing.
 - Reject unsafe package layouts, including missing `SKILL.md`, unsafe file names, or unexpected path traversal.
 - Back up an existing installed skill before promoting a new version into the live target directory.
+- Shared package tree safety lives in `src/core/skills/skill-package-tree.ts`.
+  CLI local install, Local Skills upload packaging, and Project Skill import
+  reuse this module for root `SKILL.md` checks, symlink rejection, realpath
+  containment, file count limits, and total byte limits.
 - Local skill upload packaging must revalidate the selected package root in the
   main process, require a root `SKILL.md`, reject path traversal and symlink
   escape, and clean temporary ZIP artifacts after success or failure.
@@ -92,6 +96,10 @@
 ## Network and API Contracts
 
 - The desktop client should call the client-oriented API surface only.
+- Client skill list/download response normalization, bearer auth headers,
+  checksum validation, expiration validation, encrypted-download policy, and
+  cache staging live in `src/core/client-skills/client-skill-api.ts` so the
+  Electron runtime and Linux CLI do not drift on the Client API contract.
 - Do not reuse browser-session JWT routes for the desktop runtime.
 - API configuration connection tests must use an authenticated client route, currently `GET /api/v1/client/skills?limit=1`, rather than unauthenticated health checks.
 - Local skill uploads must use `POST /api/v1/client/skills/upload` with API

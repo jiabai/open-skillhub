@@ -53,10 +53,10 @@ Electron 主进程在本地开发时读取以下环境变量：
 ```bash
 cd desktop-client
 npm run build:cli
-node dist-cli/skilldrive-agent.js detect --global
-node dist-cli/skilldrive-agent.js install /path/to/skill --global --yes
-node dist-cli/skilldrive-agent.js install /path/to/skill.zip --project /repo/project --yes
-SKILLDRIVE_API_TOKEN=... node dist-cli/skilldrive-agent.js sync --global --yes
+node dist-cli/skilldrive-cli.js detect --global
+node dist-cli/skilldrive-cli.js install /path/to/skill --global --yes
+node dist-cli/skilldrive-cli.js install /path/to/skill.zip --project /repo/project --yes
+SKILLDRIVE_API_TOKEN=... node dist-cli/skilldrive-cli.js sync --global --yes
 ```
 
 `install` 仅处理本地技能目录或 `.zip`，不会访问服务端，也不会更新远程同步
@@ -77,6 +77,17 @@ $XDG_CACHE_HOME/skilldrive-cli/package-*
 和 `~/.cache/skilldrive-cli`。CLI v1 不支持加密服务端下载；遇到加密下载
 响应时会在写入文件前安全失败。
 
+部署到 Linux 目标机器时，应构建包化产物，而不是把仓库拷贝到目标机器：
+
+```bash
+cd desktop-client
+npm run package:linux-cli
+```
+
+该命令输出 `dist/linux-cli/skilldrive-cli-<version>-linux-node20.tar.gz`
+和对应 `.sha256` 文件。发布包包含 CLI bundle、运行时依赖、`install.sh`、
+`uninstall.sh`、manifest 元数据和校验信息。
+
 ## 打包
 
 Windows 安装包打包通过 `electron-builder` 配置。v1 发布目标是 Windows 安装包路径；macOS 构建配置可能存在用于探索性构建，但在非 Windows 包提取和冒烟测试实现之前，macOS 运行时分发不能作为发布声明。
@@ -95,6 +106,8 @@ Windows 发布产物写入 `dist/` 目录，包括 `.exe` NSIS 安装程序和 `
 - `npm run pack` - 构建当前平台的解压输出
 - `npm run dist` - 构建当前平台的安装包输出
 - `npm run dist:linux-cli` - 在 `dist-cli/` 下构建 Node CLI 产物
+- `npm run package:linux-cli` - 在 `dist/linux-cli/` 下组装可部署的 Linux CLI
+  tarball
 - `npm run dist:mac` - macOS 探索性打包命令，使用当前未签名的 `build.mac` 配置；公开发布仍需等付费 Developer ID 签名和公证路径获批并完成验证
 
 macOS 发布准备位于 `docs/product-specs/2026-05-03-macos-release-packaging.md`，操作手册位于 `docs/references/macos-release-runbook.md`（[中文版](docs/references/macos-release-runbook-zh.md)）。

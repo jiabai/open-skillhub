@@ -109,7 +109,7 @@ export function createSkillDriveCliProgram(writers?: Partial<CliOutputWriters>):
   let exitCode = 0
 
   program
-    .name("skilldrive-agent")
+    .name("skilldrive-cli")
     .description("SkillDrive Linux CLI for distributing skills to agent targets")
     .exitOverride()
     .configureOutput({
@@ -285,7 +285,7 @@ export async function runCli(argv = process.argv): Promise<number> {
   }
 }
 
-if (process.argv[1]?.endsWith("skilldrive-agent.js")) {
+if (process.argv[1]?.endsWith("skilldrive-cli.js")) {
   void runCli().then((exitCode) => {
     process.exitCode = exitCode
   })

@@ -44,6 +44,12 @@ state.
 - `src/core/distribution/`
   - package preparation, owned artifact cleanup, shared adapter write engine,
     desktop state reconciliation, and distribution result reporting
+- `src/core/client-skills/`
+  - shared Client API list/download contract parsing, auth headers, checksum and
+    expiration validation, encrypted-download policy, and cache staging
+- `src/core/skills/`
+  - shared skill package tree safety helpers for root `SKILL.md`, symlink/path
+    escape rejection, file count/size limits, and safe copy traversal
 - `src/core/local-skills/`
   - read-only local skill inventory, server presence comparison, safe upload ZIP packaging, and Client API upload helper
 - `src/core/projects/`
@@ -68,7 +74,7 @@ Renderer UI -> `src/lib/ipc-client.ts` -> `electron/preload.ts` -> `electron/ipc
 
 `electron/main.ts` -> sync core + distribution core + storage + agent adapters
 
-sync core -> backend client API + state store
+sync core -> shared Client Skill API + state store
 
 runtime config -> agent detection service -> agent catalog + filesystem install signals
 
@@ -79,10 +85,14 @@ distribution core -> package service + detection-derived agent targets + agent a
 Linux CLI -> CLI services + detection/project target resolution + shared
 distribution write engine + CLI XDG sync state
 
-local skills core -> detection-derived unique targets + backend Client API + cache-owned temporary ZIP staging
+local skills core -> detection-derived unique targets + shared package tree
+safety + backend Client API + cache-owned temporary ZIP staging
 
 project skills core -> persisted project records + catalog project targets +
-filesystem scan/import services
+shared package tree safety + filesystem scan/import services
+
+shared Client Skill API -> backend Client API + cache-owned temporary package
+staging
 
 agent adapters -> local agent installations and skill directories
 
@@ -118,6 +128,12 @@ agent adapters -> local agent installations and skill directories
 - Agent skill target layout is catalog metadata. Missing layout means flat
   `skills/<skill-name>`; categorized targets such as Hermes Agent use
   `skills/<category>/<skill-name>` through the shared layout resolver.
+- Client skill list/download semantics live in `src/core/client-skills/` so the
+  Electron runtime and Linux CLI share response normalization, checksum
+  validation, expiration validation, and cache staging behavior.
+- Skill package tree traversal safety lives in `src/core/skills/` so CLI local
+  install, Local Skills upload packaging, and Project Skill import share the
+  same symlink, path escape, root `SKILL.md`, file count, and size limit checks.
 - Agent adapter install and metadata-read directory keys are server skill names; `remoteSkillId` remains the API/state identity and does not determine the local install directory.
 - The Linux CLI has its own runtime state. Local `install` never updates remote
   sync state; server-backed `sync` updates CLI scoped sync records after
@@ -184,7 +200,7 @@ Dependencies should only point downward across those boundaries.
 ## Packaging Surface
 
 - `package.json` contains the `electron-builder` configuration and packaging
-  scripts, plus the `skilldrive-agent` CLI `bin` entry and CLI build scripts.
+  scripts, plus the `skilldrive-cli` CLI `bin` entry and CLI build scripts.
 - Windows packaging uses the `nsis` and `portable` targets with
   `resources/icons/icon.ico`.
 - macOS `dmg` and `zip` targets are configured with `resources/icons/icon.icns`,
@@ -196,6 +212,12 @@ Dependencies should only point downward across those boundaries.
   `docs/product-specs/2026-05-03-macos-release-packaging.md`,
   `docs/design-docs/macos-release-packaging.md`, and
   `docs/references/macos-release-runbook.md`.
+- Linux CLI packaged deployment replaces the earlier target-machine npm build
+  and `npm link` workflow. The `package:linux-cli` script assembles a tarball
+  with CLI build output, runtime dependencies, install/uninstall scripts,
+  manifest metadata, and checksums under `desktop-client/dist/linux-cli/`.
+  Linux target-machine installation validation is still tracked in
+  `docs/exec-plans/active/2026-05-14-linux-cli-packaged-deployment.md`.
 - Installer artifacts are generated under `desktop-client/dist/` and are not
   repository source files.
 - CLI build artifacts are generated under `desktop-client/dist-cli/` and are
@@ -214,6 +236,8 @@ Dependencies should only point downward across those boundaries.
 - `src/core/distribution/distribution-service.ts`
 - `src/core/distribution/distribution-write-service.ts`
 - `src/core/distribution/package-service.ts`
+- `src/core/client-skills/client-skill-api.ts`
+- `src/core/skills/skill-package-tree.ts`
 - `src/cli/main.ts`
 - `src/core/local-skills/local-skill-inventory-service.ts`
 - `src/core/local-skills/local-skill-upload-package.ts`

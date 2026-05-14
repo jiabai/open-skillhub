@@ -24,7 +24,7 @@ describe("agent adapters", () => {
   })
 
   function createTempRoot(): string {
-    const root = mkdtempSync(join(tmpdir(), "skilldrive-agent-"))
+    const root = mkdtempSync(join(tmpdir(), "skilldrive-cli-"))
     tempRoots.push(root)
     return root
   }

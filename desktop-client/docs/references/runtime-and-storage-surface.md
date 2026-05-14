@@ -314,16 +314,16 @@ as writable import targets.
 
 ## Linux CLI Runtime Surface
 
-The CLI command is `skilldrive-agent` after `npm run build:cli`.
+The CLI command is `skilldrive-cli` after `npm run build:cli`.
 
 Supported v1 commands:
 
-- `skilldrive-agent detect --global|--project <path>`
-- `skilldrive-agent install <skill-dir-or-zip> --global|--project <path>`
-- `skilldrive-agent sync --global|--project <path>`
-- `skilldrive-agent config show`
-- `skilldrive-agent config set api-base-url <url>`
-- `skilldrive-agent config paths`
+- `skilldrive-cli detect --global|--project <path>`
+- `skilldrive-cli install <skill-dir-or-zip> --global|--project <path>`
+- `skilldrive-cli sync --global|--project <path>`
+- `skilldrive-cli config show`
+- `skilldrive-cli config set api-base-url <url>`
+- `skilldrive-cli config paths`
 
 Write-capable commands are dry-run by default and require `--yes`. `install`
 uses only local sources and does not call the server. `sync` uses the Client API

@@ -14,5 +14,6 @@
 - `project-skill-loading.md` - Project records, project-level skill scans, and explicit project import technical design
 - `hermes-categorized-skill-layout.md` - Target-level flat/categorized skill layout strategy for Hermes Agent support
 - `linux-cli-distribution.md` - Separate Linux CLI runtime for local install and server-backed global/project skill distribution
+- `linux-cli-packaged-deployment.md` - Linux CLI tarball package, dependency closure, install script, and uninstall script design
 
 This local `design-docs/` directory is the canonical home for durable design guidance.

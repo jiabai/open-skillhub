@@ -1,7 +1,12 @@
-import { lstat, mkdir, mkdtemp, readFile, readdir, realpath, rm, writeFile } from "node:fs/promises"
-import { isAbsolute, join, parse, relative, resolve } from "node:path"
+import { lstat, mkdir, mkdtemp, rm, writeFile } from "node:fs/promises"
+import { isAbsolute, join, parse, resolve } from "node:path"
 
 import { validateLocalSkillName } from "@/core/local-skills/local-skill-inventory-service"
+import {
+  assertRootSkillFile,
+  collectSkillPackageTreeFiles,
+  SkillPackageTreeError
+} from "@/core/skills/skill-package-tree"
 
 const DEFAULT_MAX_FILE_COUNT = 1_000
 const DEFAULT_MAX_TOTAL_BYTES = 50 * 1024 * 1024
@@ -69,104 +74,55 @@ function normalizePackageRoot(pathValue: string): string {
   return normalized
 }
 
-function toZipPath(rootPath: string, filePath: string): string {
-  const relativePath = relative(rootPath, filePath)
-  const zipPath = relativePath.replace(/\\/g, "/")
-
-  if (
-    !zipPath ||
-    zipPath.startsWith("../") ||
-    zipPath === ".." ||
-    isAbsolute(zipPath) ||
-    zipPath.split("/").some((segment) => !segment || segment === "." || segment === "..")
-  ) {
-    throw new Error(`Unsafe local skill package path: ${relativePath}`)
-  }
-
-  return zipPath
-}
-
-function isSameOrInsidePath(pathValue: string, parentPath: string): boolean {
-  const relativePath = relative(parentPath, pathValue)
-
-  return (
-    relativePath === "" ||
-    (!relativePath.startsWith("..") && !isAbsolute(relativePath))
-  )
-}
-
-async function collectZipEntries(args: {
-  rootPath: string
-  currentPath: string
-  rootRealPath: string
-  maxFileCount: number
-  maxTotalBytes: number
-  state: {
-    fileCount: number
-    totalBytes: number
-  }
-}): Promise<ZipEntry[]> {
-  const entries = await readdir(args.currentPath, { withFileTypes: true })
-  const collected: ZipEntry[] = []
-
-  for (const entry of entries.sort((left, right) => left.name.localeCompare(right.name))) {
-    const entryPath = join(args.currentPath, entry.name)
-
-    if (entry.isSymbolicLink()) {
-      throw new Error(`Local skill package cannot include symbolic links: ${entry.name}`)
+function mapPackageTreeError(error: unknown): never {
+  if (error instanceof SkillPackageTreeError) {
+    if (error.code === "symlink") {
+      throw new Error(`Local skill package cannot include symbolic links: ${error.path ?? ""}`)
     }
 
-    if (entry.isDirectory()) {
-      if (entry.name === "__pycache__" || entry.name === ".git" || entry.name === "node_modules") {
-        continue
-      }
-
-      collected.push(
-        ...(await collectZipEntries({
-          ...args,
-          currentPath: entryPath
-        }))
-      )
-      continue
+    if (error.code === "path-escape") {
+      throw new Error(`Local skill package path escapes the package root: ${error.path ?? ""}`)
     }
 
-    if (!entry.isFile()) {
-      continue
-    }
-
-    const entryRealPath = await realpath(entryPath)
-
-    if (!isSameOrInsidePath(entryRealPath, args.rootRealPath)) {
-      throw new Error(`Local skill package path escapes the package root: ${entry.name}`)
-    }
-
-    const fileStat = await lstat(entryPath)
-
-    if (!fileStat.isFile()) {
-      continue
-    }
-
-    args.state.fileCount += 1
-
-    if (args.state.fileCount > args.maxFileCount) {
+    if (error.code === "too-many-files") {
       throw new Error("Local skill package exceeds the file count limit")
     }
 
-    args.state.totalBytes += fileStat.size
-
-    if (args.state.totalBytes > args.maxTotalBytes) {
+    if (error.code === "too-large") {
       throw new Error("Local skill package exceeds the upload size limit")
     }
-
-    const bytes = await readFile(entryPath)
-    collected.push({
-      relativePath: toZipPath(args.rootPath, entryPath),
-      bytes,
-      crc32: crc32(bytes)
-    })
   }
 
-  return collected
+  throw error
+}
+
+async function collectZipEntries(
+  packageRootPath: string,
+  request: LocalSkillUploadPackageRequest
+): Promise<ZipEntry[]> {
+  try {
+    const entries = await collectSkillPackageTreeFiles({
+      rootPath: packageRootPath,
+      maxFileCount: request.maxFileCount ?? DEFAULT_MAX_FILE_COUNT,
+      maxTotalBytes: request.maxTotalBytes ?? DEFAULT_MAX_TOTAL_BYTES,
+      includeBytes: true,
+      ignoredDirectoryNames: ["__pycache__", ".git", "node_modules"]
+    })
+
+    return entries.map((entry) => {
+      if (!entry.bytes) {
+        throw new Error(`Local skill package entry is missing bytes: ${entry.relativePath}`)
+      }
+
+      return {
+        relativePath: entry.relativePath,
+        bytes: entry.bytes,
+        crc32: crc32(entry.bytes)
+      }
+    })
+  } catch (error) {
+    mapPackageTreeError(error)
+  }
 }
 
 function writeZipUInt16(value: number): Buffer {
@@ -278,28 +234,8 @@ export async function prepareLocalSkillUploadPackage(
     throw new Error(`Local skill package root is not a directory: ${request.packageRootPath}`)
   }
 
-  try {
-    const skillMdStat = await lstat(join(packageRootPath, "SKILL.md"))
-
-    if (!skillMdStat.isFile()) {
-      throw new Error("Root SKILL.md is required before uploading a local skill")
-    }
-  } catch {
-    throw new Error("Root SKILL.md is required before uploading a local skill")
-  }
-
-  const rootRealPath = await realpath(packageRootPath)
-  const entries = await collectZipEntries({
-    rootPath: packageRootPath,
-    currentPath: packageRootPath,
-    rootRealPath,
-    maxFileCount: request.maxFileCount ?? DEFAULT_MAX_FILE_COUNT,
-    maxTotalBytes: request.maxTotalBytes ?? DEFAULT_MAX_TOTAL_BYTES,
-    state: {
-      fileCount: 0,
-      totalBytes: 0
-    }
-  })
+  await assertRootSkillFile(packageRootPath, "Root SKILL.md is required before uploading a local skill")
+  const entries = await collectZipEntries(packageRootPath, request)
 
   if (!entries.some((entry) => entry.relativePath === "SKILL.md")) {
     throw new Error("Root SKILL.md is required before uploading a local skill")

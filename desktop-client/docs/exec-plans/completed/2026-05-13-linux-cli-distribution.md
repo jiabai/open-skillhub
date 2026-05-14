@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Build a Linux-only `skilldrive-agent` CLI that can distribute skills globally or to an explicit project path from either local packages or server-backed sync.
+**Goal:** Build a Linux-only `skilldrive-cli` CLI that can distribute skills globally or to an explicit project path from either local packages or server-backed sync.
 
 **Architecture:** Add a separate Node ESM CLI runtime inside `desktop-client/` while reusing core agent catalog, layout, adapter, package, target, and distribution-write services. Keep CLI config/state under Linux XDG paths and keep Electron desktop config/state untouched.
 
@@ -137,17 +137,17 @@ Modify:
 
 ```json
 "bin": {
-  "skilldrive-agent": "dist-cli/skilldrive-agent.js"
+  "skilldrive-cli": "dist-cli/skilldrive-cli.js"
 },
 "scripts": {
   "build:cli": "vite build --config vite.cli.config.ts",
-  "start:cli": "node dist-cli/skilldrive-agent.js",
+  "start:cli": "node dist-cli/skilldrive-cli.js",
   "dist:linux-cli": "npm run build:cli"
 }
 ```
 
 - [ ] Create `vite.cli.config.ts` with a Node library build that outputs
-  `dist-cli/skilldrive-agent.js`, preserves the shebang, and reuses the `@`
+  `dist-cli/skilldrive-cli.js`, preserves the shebang, and reuses the `@`
   alias.
 - [ ] Create `src/cli/main.ts` with `#!/usr/bin/env node`, command
   registration placeholders, and top-level error-to-exit-code handling.
@@ -411,7 +411,7 @@ contracts.
 ## Outcome
 
 Implemented and archived. `desktop-client/` now builds a separate
-`skilldrive-agent` Node CLI with Linux XDG config/state/cache handling, local
+`skilldrive-cli` Node CLI with Linux XDG config/state/cache handling, local
 directory/zip install, server-backed sync, global and explicit project target
 resolution, dry-run planning, overwrite conflict safety, scoped CLI sync state,
 Hermes categorized layout support through shared target metadata, and

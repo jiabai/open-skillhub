@@ -1,12 +1,14 @@
-import { createHash } from "node:crypto"
-import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises"
-import { join } from "node:path"
+import { rm } from "node:fs/promises"
 
 import { prepareCliLocalPackageSource } from "@/cli/services/cli-package-source"
 import { CliError } from "@/cli/services/cli-errors"
 import type { CliSyncScope, CliSyncStateStore } from "@/cli/services/cli-sync-state"
 import type { CliDistributionScope, CliDistributionTarget } from "@/cli/services/cli-targets"
-import type { PreparedSkillPackage, RemoteSkillSummary } from "@/types"
+import {
+  ClientSkillApiError,
+  createClientSkillApi
+} from "@/core/client-skills/client-skill-api"
+import type { DownloadedSkillArtifact, PreparedSkillPackage, RemoteSkillSummary } from "@/types"
 
 export interface CliSyncDownloadOptions {
   cacheDir: string
@@ -94,47 +96,30 @@ export async function selectRemoteSkillsForSync(args: {
   )
 }
 
-function normalizeSkillSummary(item: unknown): RemoteSkillSummary | null {
-  const record = item as Record<string, unknown>
-  const versionRecord = record.latest_version as Record<string, unknown> | undefined
-  const id = String(record.id ?? record.skill_uuid ?? record.skillUuid ?? "").trim()
-  const name = String(record.name ?? "").trim()
-
-  if (!id || !name) {
-    return null
-  }
-
-  return {
-    id,
-    name,
-    version: String(record.version ?? record.current_version ?? versionRecord?.version ?? "").trim() || null,
-    contentHash:
-      String(record.content_hash ?? record.contentHash ?? versionRecord?.content_hash ?? "").trim() ||
-      null,
-    updatedAt: String(record.updatedAt ?? record.updated_at ?? versionRecord?.updated_at ?? new Date().toISOString())
+async function cleanupDownloadedArtifact(artifact: DownloadedSkillArtifact): Promise<void> {
+  for (const cleanupPath of artifact.cleanupPaths ?? []) {
+    await rm(cleanupPath, { recursive: true, force: true })
   }
 }
 
-function computeSha256(bytes: Buffer): string {
-  return `sha256:${createHash("sha256").update(bytes).digest("hex")}`
-}
+function toCliApiError(action: "list" | "download", error: unknown): never {
+  if (error instanceof ClientSkillApiError) {
+    if (error.code === "unsupported-encrypted-download") {
+      throw new CliError(
+        "unsupported-encrypted-download",
+        "encrypted downloads not supported by Linux CLI v1"
+      )
+    }
 
-function assertChecksum(bytes: Buffer, checksum: string): void {
-  const normalized = checksum.trim().toLowerCase()
+    const message =
+      error.code === "auth-missing"
+        ? "API token is required for sync"
+        : error.message.replace("Failed to load client skills", "Failed to list server skills")
 
-  if (normalized && computeSha256(bytes) !== normalized) {
-    throw new CliError("remote", "Downloaded skill package checksum verification failed")
+    throw new CliError("remote", action === "download" ? `Failed to download skill package: ${message}` : message)
   }
-}
 
-function createAuthHeaders(apiToken: string): Record<string, string> {
-  if (!apiToken.trim()) {
-    throw new CliError("remote", "API token is required for sync")
-  }
-
-  return {
-    Authorization: `Bearer ${apiToken}`
-  }
+  throw error
 }
 
 export function createHttpCliSyncApiClient(options: HttpCliSyncApiClientOptions): CliSyncApiClient {
@@ -142,66 +127,38 @@ export function createHttpCliSyncApiClient(options: HttpCliSyncApiClientOptions)
 
   return {
     async listClientSkills(): Promise<RemoteSkillSummary[]> {
-      const response = await fetchImpl(`${options.apiBaseUrl}/api/v1/client/skills`, {
-        headers: createAuthHeaders(options.apiToken)
-      })
-
-      if (!response.ok) {
-        throw new CliError("remote", `Failed to list server skills: ${response.status} ${response.statusText}`)
-      }
-
-      const payload = (await response.json()) as unknown
-      const items = Array.isArray((payload as { items?: unknown }).items)
-        ? ((payload as { items: unknown[] }).items as unknown[])
-        : Array.isArray(payload)
-          ? payload
-          : []
-
-      return items.map(normalizeSkillSummary).filter((item): item is RemoteSkillSummary => item !== null)
-    },
-    async downloadSkillPackage(skill: RemoteSkillSummary): Promise<PreparedSkillPackage> {
-      const response = await fetchImpl(`${options.apiBaseUrl}/api/v1/client/skills/download`, {
-        method: "POST",
-        headers: {
-          ...createAuthHeaders(options.apiToken),
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          skill_uuid: skill.id,
-          version: skill.version
-        })
-      })
-      const payload = (await response.json()) as Record<string, unknown>
-
-      if (!response.ok) {
-        throw new CliError("remote", `Failed to download skill package: ${response.status} ${response.statusText}`)
-      }
-
-      if (Boolean(payload.encryption_enabled)) {
-        throw new CliError(
-          "unsupported-encrypted-download",
-          "encrypted downloads not supported by Linux CLI v1"
-        )
-      }
-
-      const encoded = String(payload.encrypted_code ?? "").trim()
-
-      if (!encoded) {
-        throw new CliError("remote", "Client download response is missing package bytes")
-      }
-
-      const archiveBytes = Buffer.from(encoded, "base64")
-      assertChecksum(archiveBytes, String(payload.checksum ?? ""))
-
-      await mkdir(options.cacheDir, { recursive: true })
-      const artifactRoot = await mkdtemp(join(options.cacheDir, "package-"))
-      const archivePath = join(artifactRoot, String(payload.download_filename ?? `${skill.id}.zip`).trim() || `${skill.id}.zip`)
-
       try {
-        await writeFile(archivePath, archiveBytes)
+        return await createClientSkillApi({
+          apiBaseUrl: options.apiBaseUrl,
+          apiToken: options.apiToken,
+          cacheDirectory: options.cacheDir,
+          fetchImpl
+        }).listRemoteSkills()
+      } catch (error) {
+        toCliApiError("list", error)
+      }
+    },
+    async downloadSkillPackage(
+      skill: RemoteSkillSummary,
+      downloadOptions: CliSyncDownloadOptions = { cacheDir: options.cacheDir }
+    ): Promise<PreparedSkillPackage> {
+      let artifact: DownloadedSkillArtifact | null = null
+      try {
+        artifact = await createClientSkillApi({
+          apiBaseUrl: options.apiBaseUrl,
+          apiToken: options.apiToken,
+          cacheDirectory: downloadOptions.cacheDir,
+          encryptedDownloadPolicy: "reject",
+          fetchImpl
+        }).downloadSkillArtifact({
+          skillId: skill.id,
+          name: skill.name,
+          version: skill.version,
+          packageSource: { source: "client-download" }
+        })
         const prepared = await prepareCliLocalPackageSource({
-          sourcePath: archivePath,
-          cacheDir: options.cacheDir
+          sourcePath: artifact.artifactPath,
+          cacheDir: downloadOptions.cacheDir
         })
 
         return {
@@ -211,12 +168,16 @@ export function createHttpCliSyncApiClient(options: HttpCliSyncApiClientOptions)
           version: skill.version,
           async cleanup(): Promise<void> {
             await prepared.cleanup()
-            await rm(artifactRoot, { recursive: true, force: true })
+            if (artifact) {
+              await cleanupDownloadedArtifact(artifact)
+            }
           }
         }
       } catch (error) {
-        await rm(artifactRoot, { recursive: true, force: true })
-        throw error
+        if (artifact) {
+          await cleanupDownloadedArtifact(artifact)
+        }
+        toCliApiError("download", error)
       }
     }
   }

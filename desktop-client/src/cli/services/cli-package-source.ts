@@ -1,7 +1,12 @@
-import { lstat, mkdir, mkdtemp, readFile, readdir, realpath, rm } from "node:fs/promises"
-import { extname, isAbsolute, join, parse, relative, resolve } from "node:path"
+import { lstat, mkdir, mkdtemp, readFile, rm } from "node:fs/promises"
+import { extname, isAbsolute, join, parse, resolve } from "node:path"
 
 import { extractZipArchive } from "@/core/distribution/archive-extraction"
+import {
+  assertRootSkillFile,
+  collectSkillPackageTreeFiles,
+  SkillPackageTreeError
+} from "@/core/skills/skill-package-tree"
 import {
   parseProjectSkillFrontmatter,
   resolveProjectSkillIdentity
@@ -28,12 +33,6 @@ function normalizeLocalPath(pathValue: string, label: string): string {
   return normalized
 }
 
-function isSameOrInsidePath(pathValue: string, parentPath: string): boolean {
-  const relativePath = relative(parentPath, pathValue)
-
-  return relativePath === "" || (!relativePath.startsWith("..") && !isAbsolute(relativePath))
-}
-
 async function readPackageIdentity(packageRoot: string): Promise<Pick<PreparedSkillPackage, "skillId" | "name" | "version">> {
   let skillMarkdown: string
 
@@ -57,65 +56,40 @@ async function readPackageIdentity(packageRoot: string): Promise<Pick<PreparedSk
   }
 }
 
-async function assertSkillMdFile(packageRoot: string): Promise<void> {
-  try {
-    const skillMd = await lstat(join(packageRoot, "SKILL.md"))
-
-    if (!skillMd.isFile()) {
-      throw new Error("Root SKILL.md is required")
-    }
-  } catch {
-    throw new Error("Root SKILL.md is required")
-  }
-}
-
-async function validatePackageTree(args: {
-  rootPath: string
-  currentPath: string
-  rootRealPath: string
-  maxFileCount: number
-  maxTotalBytes: number
-  state: { fileCount: number; totalBytes: number }
-}): Promise<void> {
-  const entries = await readdir(args.currentPath, { withFileTypes: true })
-
-  for (const entry of entries) {
-    const entryPath = join(args.currentPath, entry.name)
-
-    if (entry.isSymbolicLink()) {
-      throw new Error(`Local skill package cannot include symbolic links: ${entry.name}`)
+function mapPackageTreeError(error: unknown): never {
+  if (error instanceof SkillPackageTreeError) {
+    if (error.code === "symlink") {
+      throw new Error(`Local skill package cannot include symbolic links: ${error.path ?? ""}`)
     }
 
-    const entryStat = await lstat(entryPath)
-    const entryRealPath = await realpath(entryPath)
-
-    if (!isSameOrInsidePath(entryRealPath, args.rootRealPath)) {
-      throw new Error(`Local skill package path escapes the package root: ${entry.name}`)
+    if (error.code === "path-escape") {
+      throw new Error(`Local skill package path escapes the package root: ${error.path ?? ""}`)
     }
 
-    if (entryStat.isDirectory()) {
-      await validatePackageTree({
-        ...args,
-        currentPath: entryPath
-      })
-      continue
-    }
-
-    if (!entryStat.isFile()) {
-      continue
-    }
-
-    args.state.fileCount += 1
-
-    if (args.state.fileCount > args.maxFileCount) {
+    if (error.code === "too-many-files") {
       throw new Error("Local skill package exceeds the file count limit")
     }
 
-    args.state.totalBytes += entryStat.size
-
-    if (args.state.totalBytes > args.maxTotalBytes) {
+    if (error.code === "too-large") {
       throw new Error("Local skill package exceeds the size limit")
     }
+  }
+
+  throw error
+}
+
+async function validatePackageTree(
+  packageRoot: string,
+  request: PrepareCliLocalPackageSourceRequest
+): Promise<void> {
+  try {
+    await collectSkillPackageTreeFiles({
+      rootPath: packageRoot,
+      maxFileCount: request.maxFileCount ?? DEFAULT_MAX_FILE_COUNT,
+      maxTotalBytes: request.maxTotalBytes ?? DEFAULT_MAX_TOTAL_BYTES
+    })
+  } catch (error) {
+    mapPackageTreeError(error)
   }
 }
 
@@ -129,15 +103,8 @@ async function validateDirectoryPackage(
     throw new Error(`Local skill package root is not a directory: ${request.sourcePath}`)
   }
 
-  await assertSkillMdFile(packageRoot)
-  await validatePackageTree({
-    rootPath: packageRoot,
-    currentPath: packageRoot,
-    rootRealPath: await realpath(packageRoot),
-    maxFileCount: request.maxFileCount ?? DEFAULT_MAX_FILE_COUNT,
-    maxTotalBytes: request.maxTotalBytes ?? DEFAULT_MAX_TOTAL_BYTES,
-    state: { fileCount: 0, totalBytes: 0 }
-  })
+  await assertRootSkillFile(packageRoot)
+  await validatePackageTree(packageRoot, request)
 
   return {
     ...(await readPackageIdentity(packageRoot)),
@@ -165,15 +132,8 @@ async function validateZipPackage(
   try {
     await mkdir(extractedPath, { recursive: true })
     await extractZipArchive(archivePath, extractedPath)
-    await assertSkillMdFile(extractedPath)
-    await validatePackageTree({
-      rootPath: extractedPath,
-      currentPath: extractedPath,
-      rootRealPath: await realpath(extractedPath),
-      maxFileCount: request.maxFileCount ?? DEFAULT_MAX_FILE_COUNT,
-      maxTotalBytes: request.maxTotalBytes ?? DEFAULT_MAX_TOTAL_BYTES,
-      state: { fileCount: 0, totalBytes: 0 }
-    })
+    await assertRootSkillFile(extractedPath)
+    await validatePackageTree(extractedPath, request)
 
     const identity = await readPackageIdentity(extractedPath)
 

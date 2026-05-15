@@ -133,23 +133,54 @@ function sanitizeCacheSegment(value: string): string {
   return value.replace(/[^a-zA-Z0-9._-]+/g, "_")
 }
 
+function appendZipExtension(value: string, fallback: string): string {
+  return value && value !== "." && value !== ".." ? `${value}.zip` : fallback
+}
+
+function normalizeZipCacheFileName(value: string, fallback: string): string {
+  const lowerValue = value.toLowerCase()
+
+  if (lowerValue.endsWith(".zip")) {
+    return value
+  }
+
+  if (lowerValue.endsWith(".encrypted.json")) {
+    return appendZipExtension(value.slice(0, -".encrypted.json".length), fallback)
+  }
+
+  if (lowerValue.endsWith(".json")) {
+    return appendZipExtension(value.slice(0, -".json".length), fallback)
+  }
+
+  const lastDotIndex = value.lastIndexOf(".")
+
+  if (lastDotIndex > 0) {
+    return appendZipExtension(value.slice(0, lastDotIndex), fallback)
+  }
+
+  return appendZipExtension(value, fallback)
+}
+
 function createPackageArtifactFileName(
   payload: Pick<ClientSkillDownloadPayload, "download_filename" | "encryption_enabled" | "version">,
   request: SkillPackageRequest
 ): string {
   const sanitizedDownloadFileName = sanitizeCacheSegment(payload.download_filename.trim())
-
-  if (
-    sanitizedDownloadFileName &&
+  const fallbackBaseName = `${sanitizeCacheSegment(request.skillId)}-${sanitizeCacheSegment(payload.version)}`
+  const hasUsableDownloadFileName =
+    Boolean(sanitizedDownloadFileName) &&
     sanitizedDownloadFileName !== "." &&
     sanitizedDownloadFileName !== ".."
-  ) {
-    return sanitizedDownloadFileName
+
+  if (!hasUsableDownloadFileName) {
+    return `${fallbackBaseName}${payload.encryption_enabled ? ".encrypted.bin" : ".zip"}`
   }
 
-  return `${sanitizeCacheSegment(request.skillId)}-${sanitizeCacheSegment(payload.version)}${
-    payload.encryption_enabled ? ".encrypted.bin" : ".zip"
-  }`
+  if (!payload.encryption_enabled) {
+    return normalizeZipCacheFileName(sanitizedDownloadFileName, `${fallbackBaseName}.zip`)
+  }
+
+  return sanitizedDownloadFileName
 }
 
 function computeSha256(bytes: Buffer): string {

@@ -1,6 +1,6 @@
 # Client API Contract
 
-> **Last Updated**: 2026-05-02
+> **Last Updated**: 2026-05-15
 > **Version**: v1
 > **Owner**: Desktop Client Team
 
@@ -126,6 +126,10 @@ The desktop client must enforce the following validation sequence before extract
    which must match the backend `SECRET_KEY` used for download encryption.
    Missing or invalid decryption material fails closed before extraction or
    agent-directory writes.
+5. **Plain ZIP Cache Naming**: If `encryption_enabled` is `false`, the decoded
+   payload is a ZIP archive. The desktop client and CLI must stage that artifact
+   with a `.zip` filename even when a backward-compatible backend
+   `download_filename` ends in `.json`.
 
 ## `POST /api/v1/client/skills/upload`
 
@@ -208,6 +212,7 @@ uv run pytest tests/test_client_skills_api.py -q
 
 | Date | Version | Change | Author |
 |------|---------|--------|--------|
+| 2026-05-15 | v1 | Documented plain decoded download cache naming as `.zip` for CLI package detection | Codex |
 | 2026-05-02 | v1 | Documented Client API ZIP upload route for desktop Local Skills planning | Codex |
 | 2026-04-23 | v1 | Documented secret-store bootstrap and authenticated configuration probe | Codex |
 | 2026-04-23 | v1 | Initial contract documentation with normalization rules and handling rules | Desktop Client Team |

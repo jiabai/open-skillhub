@@ -103,6 +103,10 @@ gates.
   release tar headers normalize executable scripts to `0755` and regular files
   to `0644`, and `install.sh` reapplies executable bits after copying the
   release into the selected prefix.
+- [x] 2026-05-15: Fixed non-encrypted Client API downloads so decoded ZIP
+  payloads are staged with `.zip` cache filenames even when the backend
+  compatibility filename ends in `.json`; this keeps `skilldrive-cli sync`
+  aligned with CLI package-source detection.
 - [ ] Future Linux validation: install, upgrade, verify, and uninstall from the
   generated tarball on Linux.
 
@@ -222,6 +226,14 @@ Regression fix validation on 2026-05-15:
 - `npm run build` passed.
 - `python scripts/validate_agents_docs.py --level ERROR` passed with 0 errors.
 - `git diff --check` passed.
+- `npm test -- src/__tests__/client-skill-api.test.ts` passed with 1 test file
+  and 6 tests after the decoded ZIP cache filename regression fix.
+- The same decoded ZIP cache filename fix also passed
+  `npm test -- src/__tests__/cli-sync-service.test.ts
+  src/__tests__/cli-package-source.test.ts
+  src/__tests__/cli-install-command.test.ts
+  src/__tests__/client-skill-api.test.ts`, full `npm test`, `npm run build`,
+  `npm run package:linux-cli`, docs validation, and diff check.
 
 Linux validation phase:
 

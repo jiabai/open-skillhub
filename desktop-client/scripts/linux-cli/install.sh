@@ -144,12 +144,16 @@ fi
 
 if [ "$is_dry_run" -eq 0 ]; then
   [ -f "$release_command" ] || fail "$release_command is missing"
+  chmod 755 "$release_command"
+  chmod 755 "$release_dir/install.sh" "$release_dir/uninstall.sh"
   [ -x "$release_command" ] || fail "$release_command is not executable"
   ln -sfn "$release_dir" "$current_link"
   ln -sfn "$current_link/bin/skilldrive-cli" "$command_link"
   [ -x "$command_link" ] || fail "$command_link is not executable"
   "$command_link" --help >/dev/null
 else
+  echo "[dry-run] chmod 755 $release_command"
+  echo "[dry-run] chmod 755 $release_dir/install.sh $release_dir/uninstall.sh"
   echo "[dry-run] verify $release_command exists and is executable"
   echo "[dry-run] ln -sfn $release_dir $current_link"
   echo "[dry-run] ln -sfn $current_link/bin/skilldrive-cli $command_link"

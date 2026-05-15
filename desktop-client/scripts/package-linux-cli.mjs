@@ -1,4 +1,3 @@
-#!/usr/bin/env node
 import { createHash } from "node:crypto"
 import {
   chmod,
@@ -52,6 +51,12 @@ const FORBIDDEN_PACKAGE_NAMES = new Set([
 const REQUIRED_OUTPUTS = [
   "dist-cli/skilldrive-cli.js"
 ]
+
+const EXECUTABLE_RELEASE_PATHS = new Set([
+  "bin/skilldrive-cli",
+  "install.sh",
+  "uninstall.sh"
+])
 
 function scriptRoot() {
   return resolve(dirname(fileURLToPath(import.meta.url)), "..")
@@ -138,7 +143,13 @@ export function createBinWrapper() {
   return [
     "#!/usr/bin/env sh",
     "set -eu",
-    'SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)',
+    'self="$0"',
+    'while [ -L "$self" ]; do',
+    '  dir=$(CDPATH= cd -- "$(dirname -- "$self")" && pwd)',
+    '  self=$(readlink "$self")',
+    '  case "$self" in /*) ;; *) self="$dir/$self" ;; esac',
+    "done",
+    'SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$self")" && pwd)',
     'exec node "$SCRIPT_DIR/../lib/skilldrive-cli.js" "$@"',
     ""
   ].join("\n")
@@ -277,6 +288,14 @@ async function writeExecutable(path, content) {
   await chmod(path, 0o755)
 }
 
+function releaseEntryMode(relativePath, kind) {
+  if (kind === "directory") {
+    return 0o755
+  }
+
+  return EXECUTABLE_RELEASE_PATHS.has(relativePath) ? 0o755 : 0o644
+}
+
 async function collectFileEntries(root, base = root) {
   const entries = []
   const names = await readdir(root)
@@ -293,7 +312,7 @@ async function collectFileEntries(root, base = root) {
         kind: "directory",
         path: relativePath.endsWith("/") ? relativePath : `${relativePath}/`,
         fullPath,
-        mode: entryStat.mode
+        mode: releaseEntryMode(relativePath, "directory")
       })
       entries.push(...await collectFileEntries(fullPath, base))
     } else if (entryStat.isFile()) {
@@ -301,7 +320,7 @@ async function collectFileEntries(root, base = root) {
         kind: "file",
         path: relativePath,
         fullPath,
-        mode: entryStat.mode,
+        mode: releaseEntryMode(relativePath, "file"),
         size: entryStat.size
       })
     } else {
@@ -388,8 +407,7 @@ function createTarHeader(entry) {
   return header
 }
 
-async function createTarGz({ sourceRoot, outputPath }) {
-  const parent = dirname(sourceRoot)
+export async function createTarGz({ sourceRoot, outputPath }) {
   const topLevel = basename(sourceRoot)
   const rawEntries = [
     {

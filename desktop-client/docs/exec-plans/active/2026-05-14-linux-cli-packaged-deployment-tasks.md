@@ -29,6 +29,10 @@ Status: active
 - [x] Add release `install.sh`.
 - [x] Add release `uninstall.sh`.
 - [x] Add tests for package script metadata and forbidden package contents.
+- [x] Add regression tests for symlink-safe wrapper generation, tar executable
+  modes, and install-time executable-bit hardening.
+- [x] Normalize release tar file modes and make the installer reapply executable
+  bits after copying a release into place.
 - [x] Decide whether source maps ship in the public tarball or as separate debug
   artifacts.
 - [x] Update README docs after the package script exists.

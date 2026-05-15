@@ -89,6 +89,20 @@ gates.
   `npm test` (36 test files, 186 tests), `npm run build`,
   `npm run package:linux-cli`, docs validation, diff check, tarball sha256
   verification, and packaged `install.sh` inspection.
+- [x] 2026-05-15: Reproduced the packaged CLI wrapper and executable-mode
+  regressions from the generated 0.1.4 tarball: `bin/skilldrive-cli`,
+  `install.sh`, and `uninstall.sh` were emitted without executable bits, and
+  the wrapper still derived `SCRIPT_DIR` from `dirname "$0"` instead of the
+  symlink target.
+- [x] 2026-05-15: Removed the package script shebang because `package:linux-cli`
+  invokes it through `node scripts/package-linux-cli.mjs`; this lets Vitest
+  import the package assembly module directly.
+- [x] 2026-05-15: Added regression tests for symlink-safe wrapper generation,
+  tar header executable modes, and install-time `chmod` hardening.
+- [x] 2026-05-15: Hardened package assembly so the wrapper resolves symlinks,
+  release tar headers normalize executable scripts to `0755` and regular files
+  to `0644`, and `install.sh` reapplies executable bits after copying the
+  release into the selected prefix.
 - [ ] Future Linux validation: install, upgrade, verify, and uninstall from the
   generated tarball on Linux.
 
@@ -111,6 +125,14 @@ gates.
 - Program files and CLI data remain separate. Installer upgrades must not delete
   `skilldrive-cli` config, state, or cache.
 - The installer must not accept or persist API tokens.
+- Package tar modes are normalized by the release assembler instead of trusting
+  build-host filesystem modes. This keeps Windows-built tarballs executable on
+  Linux and avoids world-writable regular files in release artifacts.
+- The install script also runs `chmod 755` on the installed command wrapper and
+  release shell scripts before linking as a defense-in-depth step.
+- `scripts/package-linux-cli.mjs` is intentionally run through `node`, not as a
+  directly executable script, so it does not carry a shebang that breaks
+  Vitest/vite-node imports.
 - Documentation must say this is the target deployment design until the package
   script and Linux validation are implemented.
 
@@ -183,6 +205,23 @@ cd desktop-client && npm run package:linux-cli
 Result on 2026-05-14: both commands passed on the current Windows workspace.
 After install-script hardening, `npm test` reported 36 test files and 186 tests.
 `npm run build` also passed as the desktop-client execution gate.
+
+Regression fix validation on 2026-05-15:
+
+- `npm test -- src/__tests__/linux-cli-package.test.ts
+  src/__tests__/package-scripts.test.ts` passed with 2 test files and 12 tests.
+- `npm run package:linux-cli` passed and regenerated
+  `dist/linux-cli/skilldrive-cli-0.1.4-linux-node20.tar.gz`.
+- Tar header inspection confirmed `bin/skilldrive-cli`, `install.sh`, and
+  `uninstall.sh` are `-rwxr-xr-x`, while CLI JS files are `-rw-r--r--`.
+- WSL fake-`node` symlink smoke check confirmed the installed command wrapper
+  resolves through `current/bin/../lib/skilldrive-cli.js` instead of
+  `bin/../lib/skilldrive-cli.js`; full Linux install validation remains open
+  because the available WSL environment does not have Node.js installed.
+- `npm test` passed with 36 test files and 187 tests.
+- `npm run build` passed.
+- `python scripts/validate_agents_docs.py --level ERROR` passed with 0 errors.
+- `git diff --check` passed.
 
 Linux validation phase:
 

@@ -107,6 +107,16 @@ gates.
   payloads are staged with `.zip` cache filenames even when the backend
   compatibility filename ends in `.json`; this keeps `skilldrive-cli sync`
   aligned with CLI package-source detection.
+- [x] 2026-05-16: Reproduced the Linux `./install.sh` failure as a Windows
+  CRLF checkout issue: Linux reads the shebang interpreter as `sh\r`.
+- [x] 2026-05-16: Added LF-only regression coverage for Linux-executed shebang
+  files, added `desktop-client/.gitattributes` rules for shell scripts and the
+  CLI entrypoint, and normalized release shell-script copying during package
+  assembly so Windows-built tarballs do not inherit CRLF line endings.
+- [x] 2026-05-16: Verified the generated tarball contents after CRLF hardening:
+  `install.sh`, `uninstall.sh`, `bin/skilldrive-cli`, and
+  `lib/skilldrive-cli.js` contain no CR bytes and their shebang lines contain no
+  `\r`.
 - [ ] Future Linux validation: install, upgrade, verify, and uninstall from the
   generated tarball on Linux.
 
@@ -137,6 +147,9 @@ gates.
 - `scripts/package-linux-cli.mjs` is intentionally run through `node`, not as a
   directly executable script, so it does not carry a shebang that breaks
   Vitest/vite-node imports.
+- Linux-executed shebang files must stay LF-only. The desktop client now uses a
+  local `.gitattributes` file for checkout protection, and package assembly
+  normalizes copied release shell scripts before archiving as a second guard.
 - Documentation must say this is the target deployment design until the package
   script and Linux validation are implemented.
 
@@ -167,6 +180,7 @@ Future implementation files:
 
 | File | Change |
 |------|--------|
+| `.gitattributes` | Keep Linux CLI shell scripts and `src/cli/main.ts` checked out with LF line endings |
 | `package.json` | Add `package:linux-cli` script |
 | `scripts/package-linux-cli.mjs` | Assemble release staging directory and tarball |
 | `scripts/linux-cli/install.sh` | Install release into user/system prefix |
@@ -234,6 +248,27 @@ Regression fix validation on 2026-05-15:
   src/__tests__/cli-install-command.test.ts
   src/__tests__/client-skill-api.test.ts`, full `npm test`, `npm run build`,
   `npm run package:linux-cli`, docs validation, and diff check.
+
+CRLF hardening validation on 2026-05-16:
+
+- The new regression test first failed against the Windows CRLF checkout with
+  `scripts/linux-cli/install.sh: expected ... not to contain '\r'`, and then
+  passed after LF normalization and packaging hardening.
+- `npm test -- src/__tests__/linux-cli-package.test.ts` passed with 1 test file
+  and 8 tests.
+- `npm test` passed with 36 test files and 190 tests.
+- `npm run build` passed.
+- `npm run package:linux-cli` passed and regenerated
+  `dist/linux-cli/skilldrive-cli-0.1.4-linux-node20.tar.gz`.
+- Extracted tarball inspection confirmed `install.sh`, `uninstall.sh`,
+  `bin/skilldrive-cli`, and `lib/skilldrive-cli.js` contain no CR bytes and no
+  shebang CR.
+- WSL shell validation extracted the generated tarball under Linux and confirmed
+  `./install.sh --help` and `./uninstall.sh --help` execute directly without
+  the previous `sh\r` interpreter failure.
+- `python scripts/validate_agents_docs.py --level ERROR` passed with 0 errors
+  and 0 warnings.
+- `git diff --check` passed.
 
 Linux validation phase:
 

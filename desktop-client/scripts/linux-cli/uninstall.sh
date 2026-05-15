@@ -1,4 +1,5 @@
 #!/usr/bin/env sh
+# Keep this file LF-only; Linux shebang parsing treats CR as part of the interpreter.
 set -eu
 
 usage() {

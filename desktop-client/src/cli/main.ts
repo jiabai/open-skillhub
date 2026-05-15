@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+// Keep this entrypoint LF-only when checked out for Linux CLI packaging.
 import { Command } from "commander"
 
 import { getAgentAdapter, hasAgentAdapter } from "@/adapters/agents/registry"

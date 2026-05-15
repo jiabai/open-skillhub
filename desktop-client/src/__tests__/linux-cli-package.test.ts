@@ -29,6 +29,7 @@ type LinuxCliPackageModule = {
     args: string[]
     shell: boolean
   }
+  copyTextFileWithLf(source: string, destination: string): Promise<void>
   createTarGz(input: { sourceRoot: string; outputPath: string }): Promise<void>
 }
 
@@ -65,6 +66,39 @@ function parseTarModes(content: Buffer): Map<string, number> {
 }
 
 describe("Linux CLI package assembly", () => {
+  it("keeps Linux-executed shebang files LF-only", () => {
+    const linuxEntrypoints = [
+      "scripts/linux-cli/install.sh",
+      "scripts/linux-cli/uninstall.sh",
+      "src/cli/main.ts"
+    ]
+
+    for (const entrypoint of linuxEntrypoints) {
+      const content = readFileSync(join(process.cwd(), entrypoint), "utf8")
+      const firstLine = content.split("\n")[0]
+
+      expect(firstLine, entrypoint).toMatch(/^#!/)
+      expect(content, entrypoint).not.toContain("\r")
+    }
+  })
+
+  it("normalizes copied release shell scripts to LF", async () => {
+    const packageModule = await importPackageModule()
+    const root = await mkdtemp(join(tmpdir(), "skilldrive-linux-cli-lf-"))
+    const sourcePath = join(root, "install.sh")
+    const destinationPath = join(root, "copied", "install.sh")
+
+    try {
+      await writeFile(sourcePath, "#!/usr/bin/env sh\r\nset -eu\r\n")
+
+      await packageModule.copyTextFileWithLf(sourcePath, destinationPath)
+
+      expect(readFileSync(destinationPath, "utf8")).toBe("#!/usr/bin/env sh\nset -eu\n")
+    } finally {
+      await rm(root, { recursive: true, force: true })
+    }
+  })
+
   it("declares the runtime dependency closure needed by the current CLI bundle", async () => {
     const packageModule = await importPackageModule()
     const packageLock = JSON.parse(readFileSync(join(process.cwd(), "package-lock.json"), "utf8"))
@@ -104,6 +138,7 @@ describe("Linux CLI package assembly", () => {
       runtimeDependencies: ["commander", "extract-zip", "sql.js"]
     })
     expect(wrapper).toContain("#!/usr/bin/env sh")
+    expect(wrapper).not.toContain("\r")
     expect(wrapper).toContain('while [ -L "$self" ]; do')
     expect(wrapper).toContain('self=$(readlink "$self")')
     expect(wrapper).toContain('SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$self")" && pwd)')

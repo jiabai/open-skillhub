@@ -1,0 +1,2 @@
+scripts/linux-cli/*.sh text eol=lf
+src/cli/main.ts text eol=lf

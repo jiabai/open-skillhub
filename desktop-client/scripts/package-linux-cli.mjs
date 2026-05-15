@@ -288,6 +288,14 @@ async function writeExecutable(path, content) {
   await chmod(path, 0o755)
 }
 
+export async function copyTextFileWithLf(source, destination) {
+  const content = await readFile(source, "utf8")
+  const normalized = content.replace(/\r\n?/g, "\n")
+
+  await mkdir(dirname(destination), { recursive: true })
+  await writeFile(destination, normalized, "utf8")
+}
+
 function releaseEntryMode(relativePath, kind) {
   if (kind === "directory") {
     return 0o755
@@ -570,8 +578,14 @@ export async function packageLinuxCli(argv = process.argv.slice(2)) {
     join(releaseRoot, "lib", "skilldrive-cli.js.map")
   )
   await writeExecutable(join(releaseRoot, "bin", "skilldrive-cli"), createBinWrapper())
-  await cp(join(root, "scripts", "linux-cli", "install.sh"), join(releaseRoot, "install.sh"))
-  await cp(join(root, "scripts", "linux-cli", "uninstall.sh"), join(releaseRoot, "uninstall.sh"))
+  await copyTextFileWithLf(
+    join(root, "scripts", "linux-cli", "install.sh"),
+    join(releaseRoot, "install.sh")
+  )
+  await copyTextFileWithLf(
+    join(root, "scripts", "linux-cli", "uninstall.sh"),
+    join(releaseRoot, "uninstall.sh")
+  )
   await chmod(join(releaseRoot, "install.sh"), 0o755)
   await chmod(join(releaseRoot, "uninstall.sh"), 0o755)
   await copyIfExists(

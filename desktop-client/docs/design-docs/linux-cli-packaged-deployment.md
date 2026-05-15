@@ -86,13 +86,22 @@ skilldrive-cli-<version>-linux-node20/
 ```sh
 #!/usr/bin/env sh
 set -eu
-SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+self="$0"
+while [ -L "$self" ]; do
+  dir=$(CDPATH= cd -- "$(dirname -- "$self")" && pwd)
+  self=$(readlink "$self")
+  case "$self" in /*) ;; *) self="$dir/$self" ;; esac
+done
+SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$self")" && pwd)
 exec node "$SCRIPT_DIR/../lib/skilldrive-cli.js" "$@"
 ```
 
 This keeps `import.meta.url` inside the JS entry under the installed package,
 so Node module resolution can find the sibling `node_modules/` directory and
-`sql.js` can resolve its wasm file.
+`sql.js` can resolve its wasm file. The wrapper resolves symlinks before
+computing `SCRIPT_DIR` because installed commands point through
+`~/.local/bin/skilldrive-cli` or `/usr/local/bin/skilldrive-cli` into the
+versioned release directory.
 
 ## Build Script
 
@@ -126,8 +135,10 @@ staging/bin/skilldrive-cli config paths
 ```
 
 9. Generate `SHA256SUMS`.
-10. Create `dist/linux-cli/skilldrive-cli-<version>-linux-node20.tar.gz`.
-11. Create `dist/linux-cli/skilldrive-cli-<version>-linux-node20.tar.gz.sha256`.
+10. Normalize tar modes so directories and shell entrypoints are `0755`, while
+    regular files are `0644`, regardless of the build host filesystem.
+11. Create `dist/linux-cli/skilldrive-cli-<version>-linux-node20.tar.gz`.
+12. Create `dist/linux-cli/skilldrive-cli-<version>-linux-node20.tar.gz.sha256`.
 
 The script should be deterministic enough for review, but it does not need to
 solve reproducible builds in v1.

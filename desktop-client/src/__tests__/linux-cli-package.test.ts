@@ -1,8 +1,9 @@
 import { mkdtemp, mkdir, writeFile, rm } from "node:fs/promises"
 import { readFileSync } from "node:fs"
 import { tmpdir } from "node:os"
-import { join } from "node:path"
+import { basename, join } from "node:path"
 import { pathToFileURL } from "node:url"
+import { gunzipSync } from "node:zlib"
 import { describe, expect, it } from "vitest"
 
 type LinuxCliPackageModule = {
@@ -28,6 +29,7 @@ type LinuxCliPackageModule = {
     args: string[]
     shell: boolean
   }
+  createTarGz(input: { sourceRoot: string; outputPath: string }): Promise<void>
 }
 
 async function importPackageModule(): Promise<LinuxCliPackageModule> {
@@ -36,6 +38,30 @@ async function importPackageModule(): Promise<LinuxCliPackageModule> {
   ).href
 
   return await import(moduleUrl) as LinuxCliPackageModule
+}
+
+function parseTarModes(content: Buffer): Map<string, number> {
+  const modes = new Map<string, number>()
+  let offset = 0
+
+  while (offset + 512 <= content.length) {
+    const header = content.subarray(offset, offset + 512)
+    if (header.every((byte) => byte === 0)) {
+      break
+    }
+
+    const name = header.subarray(0, 100).toString("utf8").replace(/\0.*$/, "")
+    const prefix = header.subarray(345, 500).toString("utf8").replace(/\0.*$/, "")
+    const path = prefix ? `${prefix}/${name}` : name
+    const modeText = header.subarray(100, 108).toString("ascii").replace(/\0.*$/, "").trim()
+    const sizeText = header.subarray(124, 136).toString("ascii").replace(/\0.*$/, "").trim()
+    const size = Number.parseInt(sizeText || "0", 8)
+
+    modes.set(path, Number.parseInt(modeText, 8))
+    offset += 512 + Math.ceil(size / 512) * 512
+  }
+
+  return modes
 }
 
 describe("Linux CLI package assembly", () => {
@@ -78,7 +104,38 @@ describe("Linux CLI package assembly", () => {
       runtimeDependencies: ["commander", "extract-zip", "sql.js"]
     })
     expect(wrapper).toContain("#!/usr/bin/env sh")
+    expect(wrapper).toContain('while [ -L "$self" ]; do')
+    expect(wrapper).toContain('self=$(readlink "$self")')
+    expect(wrapper).toContain('SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$self")" && pwd)')
     expect(wrapper).toContain('exec node "$SCRIPT_DIR/../lib/skilldrive-cli.js" "$@"')
+  })
+
+  it("writes executable modes for the release command and shell scripts in the tarball", async () => {
+    const packageModule = await importPackageModule()
+    const root = await mkdtemp(join(tmpdir(), "skilldrive-linux-cli-tar-"))
+    const releaseRoot = join(root, "skilldrive-cli-test")
+    const artifactPath = join(root, "skilldrive-cli-test.tar.gz")
+
+    try {
+      await mkdir(join(releaseRoot, "bin"), { recursive: true })
+      await mkdir(join(releaseRoot, "lib"), { recursive: true })
+      await writeFile(join(releaseRoot, "bin", "skilldrive-cli"), "#!/usr/bin/env sh\n")
+      await writeFile(join(releaseRoot, "install.sh"), "#!/usr/bin/env sh\n")
+      await writeFile(join(releaseRoot, "uninstall.sh"), "#!/usr/bin/env sh\n")
+      await writeFile(join(releaseRoot, "lib", "skilldrive-cli.js"), "console.log('ok')\n")
+
+      await packageModule.createTarGz({ sourceRoot: releaseRoot, outputPath: artifactPath })
+
+      const modes = parseTarModes(gunzipSync(readFileSync(artifactPath)))
+      const topLevel = basename(releaseRoot)
+
+      expect(modes.get(`${topLevel}/bin/skilldrive-cli`)).toBe(0o755)
+      expect(modes.get(`${topLevel}/install.sh`)).toBe(0o755)
+      expect(modes.get(`${topLevel}/uninstall.sh`)).toBe(0o755)
+      expect(modes.get(`${topLevel}/lib/skilldrive-cli.js`)).toBe(0o644)
+    } finally {
+      await rm(root, { recursive: true, force: true })
+    }
   })
 
   it("rejects forbidden desktop/runtime packages in the release staging directory", async () => {
@@ -120,6 +177,7 @@ describe("Linux CLI package assembly", () => {
 
     expect(installScript).toContain('run mkdir -p "$prefix/releases" "$bin_dir" "$tmp_dir"')
     expect(installScript).toContain('release_command="$release_dir/bin/skilldrive-cli"')
+    expect(installScript).toContain('chmod 755 "$release_command"')
     expect(installScript).toContain('[ -f "$release_command" ] || fail')
     expect(installScript).toContain('[ -x "$release_command" ] || fail')
     expect(installScript).toContain('[ -x "$command_link" ] || fail')

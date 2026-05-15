@@ -68,6 +68,7 @@ frontend/tsconfig.tsbuildinfo
 # Vite (desktop-client)
 desktop-client/.vite/
 desktop-client/dist-electron/
+desktop-client/dist-cli/
 desktop-client/tsconfig.node.tsbuildinfo
 
 # Python

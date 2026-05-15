@@ -148,12 +148,14 @@ export type SkillDownloadResponse = {
   version: string
   encrypted_code: string
   checksum: string
+  checksum_basis?: "encrypted_payload" | "plaintext_archive"
   expires_at: string
   cache_ttl_seconds?: number
   archive_size_bytes: number
   encryption_enabled: boolean
   download_filename: string
   decryption_hint?: string | null
+  warning?: string | null
 }
 
 export type SkillCachePolicyResponse = {

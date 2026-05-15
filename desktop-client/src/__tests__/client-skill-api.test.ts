@@ -132,6 +132,43 @@ describe("client skill API", () => {
     expect(existsSync(artifact.cleanupPaths?.[0] ?? "")).toBe(true)
   })
 
+  it("stores unencrypted decoded downloads as zip files even when the backend filename is json", async () => {
+    const cacheDirectory = createTempRoot()
+    const archiveBytes = Buffer.from("zip bytes")
+    const fetchImpl = vi.fn(async () =>
+      new Response(
+        JSON.stringify({
+          skill_uuid: "skill-1",
+          version: "1.0.0",
+          encrypted_code: archiveBytes.toString("base64"),
+          checksum: checksum(archiveBytes),
+          expires_at: "2026-05-15T00:00:00.000Z",
+          encryption_enabled: false,
+          download_filename: "skill-d2551f13-1.0.0.json"
+        }),
+        { status: 200 }
+      )
+    )
+    const api = createClientSkillApi({
+      apiBaseUrl: "https://skilldrive.test",
+      apiToken: "token",
+      cacheDirectory,
+      fetchImpl,
+      now: () => new Date("2026-05-14T00:00:00.000Z")
+    })
+
+    const artifact = await api.downloadSkillArtifact({
+      skillId: "skill-d2551f13",
+      name: "Skill One",
+      version: "1.0.0",
+      packageSource: { source: "test" }
+    })
+
+    expect(artifact.encrypted).toBe(false)
+    expect(readFileSync(artifact.artifactPath)).toEqual(archiveBytes)
+    expect(artifact.artifactPath.endsWith("skill-d2551f13-1.0.0.zip")).toBe(true)
+  })
+
   it("rejects mismatched checksums", async () => {
     const archiveBytes = Buffer.from("zip bytes")
     const api = createClientSkillApi({

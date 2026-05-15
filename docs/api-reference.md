@@ -873,16 +873,21 @@ POST /client/skills/download
   "version": "1.2.0",
   "encrypted_code": "base64encoded...",
   "checksum": "sha256:abc123...",
+  "checksum_basis": "encrypted_payload",
   "expires_at": "2026-04-24T13:00:00Z",
   "cache_ttl_seconds": 3600,
   "archive_size_bytes": 10240,
   "encryption_enabled": true,
-  "download_filename": "my-skill-1.2.0.zip",
-  "decryption_hint": null
+  "download_filename": "my-skill-1.2.0.encrypted.json",
+  "decryption_hint": "This download is encrypted and requires the official decryption tool before use.",
+  "warning": null
 }
 ```
 
-> `encrypted_code` 是加密后的技能包内容，客户端需根据 `encryption_enabled` 判断是否解密。
+> `encrypted_code` 是 base64 编码的下载载荷。`encryption_enabled=true`
+> 时，base64 解码后是加密载荷，`checksum_basis` 为
+> `encrypted_payload`；`encryption_enabled=false` 时，base64 解码后是明文
+> ZIP，`checksum_basis` 为 `plaintext_archive`，并返回非加密下载警告。
 
 ---
 

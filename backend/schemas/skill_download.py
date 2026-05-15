@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import Literal
 from uuid import UUID
 
 from pydantic import BaseModel, Field, field_validator
@@ -27,9 +28,11 @@ class SkillDownloadResponse(BaseModel):
     version: str
     encrypted_code: str
     checksum: str
+    checksum_basis: Literal["encrypted_payload", "plaintext_archive"]
     expires_at: datetime
     cache_ttl_seconds: int | None = None
     archive_size_bytes: int
     encryption_enabled: bool
     download_filename: str
     decryption_hint: str | None = None
+    warning: str | None = None

@@ -198,7 +198,6 @@ class SkillVersionCoordinator:
         archive_bytes = await load_archive(source_skill.user_id, source_skill.name, target_version)
         return await self.download_service.build_download_payload(
             skill_id=skill.id,
-            skill_uuid=skill.id,
             target_version=target_version,
             version_dir=version_dir,
             source_user_id=source_skill.user_id,

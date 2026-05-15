@@ -161,12 +161,14 @@ async def test_skill_download_returns_encrypted_payload(client, tmp_path, monkey
     encrypted = base64.b64decode(payload["encrypted_code"])
     digest = hashlib.sha256(encrypted).hexdigest()
     assert payload["checksum"] == f"sha256:{digest}"
+    assert payload["checksum_basis"] == "encrypted_payload"
     assert payload["skill_uuid"] == skill_id
     assert payload["version"] == "1.0.0"
     assert payload["archive_size_bytes"] > 0
     assert payload["encryption_enabled"] is True
     assert payload["download_filename"] == f"skill-{skill_id[:8]}-1.0.0.encrypted.json"
     assert "decryption" in payload["decryption_hint"].lower()
+    assert payload["warning"] is None
     expires_at = datetime.fromisoformat(payload["expires_at"].replace("Z", "+00:00"))
     assert expires_at > datetime.now(timezone.utc)
 
@@ -429,6 +431,9 @@ async def test_reference_skill_download_uses_pinned_public_version_when_owned_an
         payload = response.json()
         assert payload["skill_uuid"] == reference_id
         assert payload["version"] == "1.2.3"
+        assert payload["encryption_enabled"] is False
+        assert payload["checksum_basis"] == "plaintext_archive"
+        assert payload["warning"] == "Download is not encrypted"
 
         files = _decode_download_archive(payload)
         assert files["reference.md"] == "public reference v123"

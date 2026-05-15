@@ -190,4 +190,44 @@ describe("project skill scan service", () => {
     expect(snapshot.rows).toEqual([])
     expect(snapshot.errors.length).toBeGreaterThan(0)
   })
+
+  it("scans categorized project skill roots", async () => {
+    const project = createProject()
+    const categorizedDefinitions: AgentPathDefinition[] = [
+      {
+        ...definitions[0],
+        projectTargets: [
+          {
+            path: ".hermes/skills",
+            role: "primary",
+            skillLayout: {
+              mode: "categorized",
+              categoryDepth: 1,
+              defaultCategory: "general",
+              categorySource: "agent-default"
+            }
+          }
+        ]
+      }
+    ]
+    writeSkill(
+      join(project.path, ".hermes", "skills", "tools", "project-tool"),
+      "---\nname: Project Tool\nslug: project-tool\nversion: 3.0.0\n---\n"
+    )
+    mkdirSync(join(project.path, ".hermes", "skills", "empty-category"), { recursive: true })
+    const service = createProjectSkillScanService({
+      definitions: categorizedDefinitions,
+      now: () => new Date("2026-05-07T01:00:00.000Z")
+    })
+
+    const snapshot = await service.scan({ project, globalSnapshot: null })
+
+    expect(snapshot.rows).toHaveLength(1)
+    expect(snapshot.rows[0]).toMatchObject({
+      identity: "project-tool",
+      version: "3.0.0",
+      relativePath: join(".hermes", "skills", "tools", "project-tool"),
+      validationState: "valid"
+    })
+  })
 })

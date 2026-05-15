@@ -8,20 +8,27 @@
   "private": true,
   "type": "module",
   "main": "dist-electron/main.js",
+  "bin": {
+    "skilldrive-cli": "dist-cli/skilldrive-cli.js"
+  },
   "scripts": {
     "dev": "vite",
     "build": "npm run typecheck:electron && vite build && npm run build:electron",
     "build:electron": "vite build --config vite.electron.config.ts && vite build --config vite.preload.config.ts",
+    "build:cli": "vite build --config vite.cli.config.ts",
     "preview": "vite preview",
+    "start:cli": "node dist-cli/skilldrive-cli.js",
     "start:electron": "npm run build && electron .",
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck:electron": "tsc -p tsconfig.node.json --noEmit",
     "pack": "electron-builder --dir",
     "dist": "electron-builder",
+    "dist:linux-cli": "npm run build:cli",
+    "package:linux-cli": "node scripts/package-linux-cli.mjs",
     "dist:win": "electron-builder --win",
     "dist:mac": "electron-builder --mac",
-    "clean": "rimraf dist dist-electron"
+    "clean": "rimraf dist dist-electron dist-cli"
   },
   "build": {
     "appId": "com.skilldrive.skilldrive-desktop",
@@ -84,6 +91,7 @@
     }
   },
   "dependencies": {
+    "commander": "^12.1.0",
     "extract-zip": "^2.0.1",
     "keytar": "^7.9.0",
     "lucide-react": "^0.452.0",

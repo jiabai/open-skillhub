@@ -1,8 +1,14 @@
-import { copyFile, lstat, mkdir, readdir, readFile, rm } from "node:fs/promises"
+import { lstat, mkdir, readFile, rm } from "node:fs/promises"
 import { join, posix, win32 } from "node:path"
 
 import type { AgentPathDefinition } from "@/adapters/agents/definitions"
+import { resolveSkillInstallPath } from "@/adapters/agents/skill-layout"
 import { resolveProjectAgentTargets } from "@/core/projects/project-agent-targets"
+import {
+  collectSkillPackageTreeFiles,
+  copySkillPackageTree,
+  SkillPackageTreeError
+} from "@/core/skills/skill-package-tree"
 import {
   createProjectSkillValidationMessage,
   parseProjectSkillFrontmatter,
@@ -37,11 +43,6 @@ export interface ProjectSkillImportPayload {
 export interface ProjectSkillImportService {
   validateSkillFolder(payload: ProjectSkillFolderValidationPayload): Promise<ProjectSkillFolderValidation>
   importSkill(payload: ProjectSkillImportPayload): Promise<ProjectSkillImportResult>
-}
-
-type SourceStats = {
-  fileCount: number
-  totalBytes: number
 }
 
 const DEFAULT_MAX_FILE_COUNT = 1_000
@@ -116,40 +117,42 @@ export function createProjectSkillImportService(
   const platform = options.platform ?? process.platform
   const pathModule = getPathModule(platform)
 
-  async function walkSource(sourceRoot: string, currentPath: string, totals: SourceStats): Promise<void> {
-    const stats = await lstat(currentPath)
-
-    if (stats.isSymbolicLink()) {
-      throw new Error(`Skill import rejects symlink entries: ${currentPath}`)
-    }
-
-    assertPathInside(sourceRoot, currentPath, platform, true)
-
-    if (stats.isDirectory()) {
-      const entries = await readdir(currentPath, { withFileTypes: true })
-
-      for (const entry of entries) {
-        await walkSource(sourceRoot, join(currentPath, entry.name), totals)
+  function mapPackageTreeError(error: unknown): never {
+    if (error instanceof SkillPackageTreeError) {
+      if (error.code === "symlink") {
+        throw new Error(`Skill import rejects symlink entries: ${error.path ?? ""}`)
       }
 
-      return
+      if (error.code === "path-escape") {
+        throw new Error(`Resolved path escapes its allowed root: ${error.path ?? ""}`)
+      }
+
+      if (error.code === "too-many-files") {
+        throw new Error(`Skill import source has too many files`)
+      }
+
+      if (error.code === "too-large") {
+        throw new Error(`Skill import source is too large`)
+      }
+
+      if (error.code === "non-regular") {
+        throw new Error(`Skill import only supports regular files and directories: ${error.path ?? ""}`)
+      }
     }
 
-    if (!stats.isFile()) {
-      throw new Error(`Skill import only supports regular files and directories: ${currentPath}`)
-    }
+    throw error
+  }
 
-    totals.fileCount += 1
-    totals.totalBytes += stats.size
-
-    if (totals.fileCount > maxFileCount) {
-      throw new Error(`Skill import source has too many files (${totals.fileCount}/${maxFileCount})`)
-    }
-
-    if (totals.totalBytes > maxTotalBytes) {
-      throw new Error(
-        `Skill import source is too large (${totals.totalBytes}/${maxTotalBytes} bytes)`
-      )
+  async function validatePackageTree(sourcePath: string): Promise<void> {
+    try {
+      await collectSkillPackageTreeFiles({
+        rootPath: sourcePath,
+        maxFileCount,
+        maxTotalBytes,
+        rejectNonRegular: true
+      })
+    } catch (error) {
+      mapPackageTreeError(error)
     }
   }
 
@@ -218,10 +221,7 @@ export function createProjectSkillImportService(
     }
 
     try {
-      await walkSource(sourcePath, sourcePath, {
-        fileCount: 0,
-        totalBytes: 0
-      })
+      await validatePackageTree(sourcePath)
     } catch (error) {
       return createInvalidValidation({
         sourcePath,
@@ -241,36 +241,17 @@ export function createProjectSkillImportService(
     }
   }
 
-  async function copyTree(sourceRoot: string, destinationRoot: string, currentSource: string): Promise<void> {
-    const relativePath = pathModule.relative(sourceRoot, currentSource)
-    const destinationPath =
-      relativePath === "" ? destinationRoot : pathModule.join(destinationRoot, relativePath)
-    const stats = await lstat(currentSource)
-
-    if (stats.isSymbolicLink()) {
-      throw new Error(`Skill import rejects symlink entries: ${currentSource}`)
+  async function copyTree(sourceRoot: string, destinationRoot: string): Promise<void> {
+    try {
+      await copySkillPackageTree({
+        sourceRoot,
+        destinationRoot,
+        maxFileCount,
+        maxTotalBytes
+      })
+    } catch (error) {
+      mapPackageTreeError(error)
     }
-
-    assertPathInside(sourceRoot, currentSource, platform, true)
-
-    if (stats.isDirectory()) {
-      await mkdir(destinationPath, { recursive: true })
-
-      const entries = await readdir(currentSource, { withFileTypes: true })
-
-      for (const entry of entries) {
-        await copyTree(sourceRoot, destinationRoot, join(currentSource, entry.name))
-      }
-
-      return
-    }
-
-    if (!stats.isFile()) {
-      throw new Error(`Skill import only supports regular files and directories: ${currentSource}`)
-    }
-
-    await mkdir(pathModule.dirname(destinationPath), { recursive: true })
-    await copyFile(currentSource, destinationPath)
   }
 
   return {
@@ -298,7 +279,7 @@ export function createProjectSkillImportService(
       }
 
       const destinationPath = pathModule.normalize(
-        pathModule.join(target.targetPath, validation.identity)
+        resolveSkillInstallPath(target.targetPath, validation.identity, target.skillLayout)
       )
 
       assertPathInside(projectRoot, target.targetPath, platform)
@@ -331,7 +312,7 @@ export function createProjectSkillImportService(
       }
 
       await mkdir(target.targetPath, { recursive: true })
-      await copyTree(validation.sourcePath, destinationPath, validation.sourcePath)
+      await copyTree(validation.sourcePath, destinationPath)
       await readFile(join(destinationPath, "SKILL.md"), "utf8")
 
       return {

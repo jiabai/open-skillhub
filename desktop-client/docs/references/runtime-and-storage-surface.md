@@ -4,8 +4,10 @@
 
 - `npm test`
 - `npm run build`
+- `npm run build:cli`
 - `npm run dev` (renderer only)
 - `npm run start:electron` (full Electron runtime)
+- `npm run start:cli` (run built CLI artifact)
 
 `npm run start:electron` builds the renderer, builds the Electron main/preload
 bundle into `dist-electron/`, and launches Electron through the package `main`
@@ -16,6 +18,7 @@ entry.
 - `npm run pack` (unpacked output for the current platform)
 - `npm run dist` (installer output for the current platform)
 - `npm run dist:win` (Windows release packaging path)
+- `npm run dist:linux-cli` (build Node CLI artifact under `dist-cli/`)
 - `npm run dist:mac` (exploratory macOS packaging command using the current
   unsigned `build.mac` configuration)
 
@@ -36,6 +39,11 @@ approved, configured, and validated on macOS.
   enabled server-side)
 - `SKILLDRIVE_POLL_INTERVAL_MS`
 - `SKILLDRIVE_DESKTOP_DATA_DIR`
+
+The Linux CLI reads:
+
+- `SKILLDRIVE_API_BASE_URL` (optional API base URL override)
+- `SKILLDRIVE_API_TOKEN` (current-invocation API token; never persisted)
 
 Agent skill path overrides live in `config/agent-paths.json`, not environment
 variables. A valid non-empty `targetPath` for a built-in Agent ID marks that
@@ -162,6 +170,21 @@ Platform base directory rules:
 - Linux: `$XDG_DATA_HOME/SkillDrive` or `~/.local/share/SkillDrive`
 - Override: `SKILLDRIVE_DESKTOP_DATA_DIR`
 
+The Linux CLI does not use the desktop app root. It uses:
+
+```text
+$XDG_CONFIG_HOME/skilldrive-cli/
+  config.json
+  agent-paths.json
+$XDG_STATE_HOME/skilldrive-cli/
+  state.sqlite3
+$XDG_CACHE_HOME/skilldrive-cli/
+  package-*
+```
+
+Fallback paths are `~/.config/skilldrive-cli`,
+`~/.local/state/skilldrive-cli`, and `~/.cache/skilldrive-cli`.
+
 ## Current Storage Reality
 
 - `config.json` stores non-secret runtime preferences such as API Base URL,
@@ -185,6 +208,12 @@ Platform base directory rules:
   folder and copies directly into the selected project target directory after
   containment, conflict, symlink, file-count, and byte-size checks
 - `logs/` and `backups/` are not yet created by the current implementation
+- CLI `config.json` stores only non-secret settings such as `apiBaseUrl`.
+- CLI `state.sqlite3` stores scoped server-backed sync records. Local
+  `install` does not update this state.
+- CLI cache roots are temporary package staging and extraction directories and
+  are removed after validation, dry-run planning, write success, or write
+  failure.
 
 ## Agent Runtime Surface
 
@@ -210,10 +239,13 @@ Supported agent IDs:
 - `pi`
 - `antigravity`
 - `openclaw`
+- `codebuddy`
+- `workbuddy`
+- `hermes`
 
 Default owned write targets are catalog-driven in
 `src/adapters/agents/definitions.ts`, not hardcoded in `electron/main.ts`.
-The standard targets are:
+The standard targets are flat unless otherwise noted:
 
 - Claude Code: `~/.claude/skills`
 - Cursor: `~/.cursor/skills`
@@ -236,10 +268,21 @@ The standard targets are:
 - Antigravity: `~/.gemini/antigravity/skills`
 - OpenClaw: first existing target from `~/.openclaw/skills`,
   `~/.clawdbot/skills`, `~/.moltbot/skills`
+- CodeBuddy: `~/.codebuddy/skills`
+- WorkBuddy: `~/.workbuddy/skills`
+- Hermes Agent: categorized target `~/.hermes/skills/<category>/<skill>`,
+  with SkillDrive-managed distribution using `general` as the deterministic
+  default category
 
 Cline/Warp/Codex and Amp/Kimi shared physical targets are deduped before
 pre-check and distribution. Distribution writes a shared path once and reports
 every covered assistant in the result.
+
+Agent target layout metadata is carried through detection snapshots and project
+target resolution. Missing layout means flat `skills/<skill-name>` behavior.
+Categorized targets are scanned one category level deep, and pre-distribution
+metadata reads fail closed when the same skill name appears in multiple
+categories.
 
 Project-relative skill targets are catalog-driven through
 `supportedAgentDefinitions.projectTargets`. Current writable project target
@@ -268,3 +311,21 @@ candidates are:
 Cursor and OpenCode also declare compatible project read paths for project skill
 scans. Compatible-read paths can contribute inventory rows but are not exposed
 as writable import targets.
+
+## Linux CLI Runtime Surface
+
+The CLI command is `skilldrive-cli` after `npm run build:cli`.
+
+Supported v1 commands:
+
+- `skilldrive-cli detect --global|--project <path>`
+- `skilldrive-cli install <skill-dir-or-zip> --global|--project <path>`
+- `skilldrive-cli sync --global|--project <path>`
+- `skilldrive-cli config show`
+- `skilldrive-cli config set api-base-url <url>`
+- `skilldrive-cli config paths`
+
+Write-capable commands are dry-run by default and require `--yes`. `install`
+uses only local sources and does not call the server. `sync` uses the Client API
+and updates scoped CLI sync state after successful writes. CLI v1 rejects
+encrypted server downloads before filesystem writes.

@@ -1,15 +1,15 @@
-import type { AgentAdapterV1, AgentInstallContextV1 } from "@/adapters/agents/base"
+import type { AgentAdapterV1 } from "@/adapters/agents/base"
 import type {
   DesktopSyncState,
   PreparedSkillPackage,
   SkillDistributionRequest,
   SkillDistributionResult,
   SkillDistributionTarget,
-  SkillDistributionTargetResult,
   StateStore
 } from "@/types"
 
 import type { PackageService } from "@/core/distribution/package-service"
+import { createDistributionWriteService } from "@/core/distribution/distribution-write-service"
 
 export interface DistributionServiceDependencies {
   packageService: PackageService
@@ -50,34 +50,6 @@ function normalizeTargetPath(value: string): string {
   }
 
   return normalized
-}
-
-function createTargetFailure(
-  agentId: string,
-  targetPath: string,
-  error: unknown
-): SkillDistributionTargetResult {
-  return {
-    agentId,
-    targetPath,
-    status: "failed",
-    success: false,
-    errorMessage: error instanceof Error ? error.message : String(error)
-  }
-}
-
-function createTargetSuccess(
-  agentId: string,
-  targetPath: string,
-  status: SkillDistributionTargetResult["status"] = "success"
-): SkillDistributionTargetResult {
-  return {
-    agentId,
-    targetPath,
-    status,
-    success: true,
-    errorMessage: null
-  }
 }
 
 function updateStateAfterSuccessfulDistribution(
@@ -139,36 +111,13 @@ function normalizeDistributionTarget(target: SkillDistributionTarget): SkillDist
   }
 }
 
-function createSkipResults(target: SkillDistributionTarget): SkillDistributionTargetResult[] {
-  return target.coveredAgentIds.map((agentId) =>
-    createTargetSuccess(agentId, target.targetPath, "skipped-installed-content")
-  )
-}
-
-function createSuccessfulWriteResults(target: SkillDistributionTarget): SkillDistributionTargetResult[] {
-  return target.coveredAgentIds.map((agentId, index) =>
-    createTargetSuccess(
-      agentId,
-      target.targetPath,
-      index === 0 ? "success" : "covered-by-shared-path"
-    )
-  )
-}
-
-function createFailureResults(
-  target: SkillDistributionTarget,
-  error: unknown,
-  agentIdOverride?: string
-): SkillDistributionTargetResult[] {
-  const agentIds = agentIdOverride ? [agentIdOverride] : target.coveredAgentIds
-
-  return agentIds.map((agentId) => createTargetFailure(agentId, target.targetPath, error))
-}
-
 export function createDistributionService(
   dependencies: DistributionServiceDependencies
 ): DistributionService {
   const now = dependencies.now ?? (() => new Date().toISOString())
+  const writeService = createDistributionWriteService({
+    resolveAgentAdapter: dependencies.resolveAgentAdapter
+  })
 
   return {
     async distribute(request: SkillDistributionRequest): Promise<SkillDistributionResult> {
@@ -182,15 +131,8 @@ export function createDistributionService(
         throw new Error("At least one enabled agent target is required for distribution")
       }
 
-      const targetResults: SkillDistributionTargetResult[] = []
       const writeTargets = targets.filter((target) => target.writeMode !== "skip-installed-content")
       let preparedPackage: PreparedSkillPackage | null = null
-
-      for (const target of targets) {
-        if (target.writeMode === "skip-installed-content") {
-          targetResults.push(...createSkipResults(target))
-        }
-      }
 
       if (writeTargets.length > 0) {
         preparedPackage = await dependencies.packageService.validateAndExtract({
@@ -201,48 +143,13 @@ export function createDistributionService(
         })
       }
 
-      let allSucceeded = true
-
       try {
-        for (const target of writeTargets) {
-          const adapterAgentId = target.adapterAgentId ?? target.primaryAgentId
-          const adapter = dependencies.resolveAgentAdapter(adapterAgentId)
-          const installContext: AgentInstallContextV1 = {
-            skillsPath: target.targetPath
-          }
+        const writeResult = await writeService.write({
+          preparedPackage,
+          targets
+        })
 
-          if (!adapter) {
-            targetResults.push(
-              ...createFailureResults(
-                target,
-                new Error(`No adapter registered for agent: ${adapterAgentId}`),
-                target.adapterAgentId
-              )
-            )
-            allSucceeded = false
-            continue
-          }
-
-          try {
-            if (!preparedPackage) {
-              throw new Error("Prepared package unavailable for write target")
-            }
-
-            const installedSkill = await adapter.installSkill(preparedPackage, installContext)
-            const verified = await adapter.verifyInstalledSkill(preparedPackage, installedSkill)
-
-            if (!verified) {
-              throw new Error(`Installed skill verification failed for agent: ${adapterAgentId}`)
-            }
-
-            targetResults.push(...createSuccessfulWriteResults(target))
-          } catch (error) {
-            targetResults.push(...createFailureResults(target, error))
-            allSucceeded = false
-          }
-        }
-
-        if (allSucceeded) {
+        if (writeResult.allSucceeded) {
           const currentState = await dependencies.stateStore.readState()
           const nextState = updateStateAfterSuccessfulDistribution(currentState, {
             skillId,
@@ -254,22 +161,15 @@ export function createDistributionService(
           await dependencies.stateStore.writeState(nextState)
         }
 
-        const succeededAgentIds = targetResults
-          .filter((result) => result.success)
-          .map((result) => result.agentId)
-        const failedAgentIds = targetResults
-          .filter((result) => !result.success)
-          .map((result) => result.agentId)
-
         return {
           skillId,
           name,
           version,
           extractedPath: preparedPackage?.extractedPath ?? null,
-          targets: targetResults,
-          succeededAgentIds,
-          failedAgentIds,
-          syncedToLocalState: allSucceeded
+          targets: writeResult.targets,
+          succeededAgentIds: writeResult.succeededAgentIds,
+          failedAgentIds: writeResult.failedAgentIds,
+          syncedToLocalState: writeResult.allSucceeded
         }
       } finally {
         await preparedPackage?.cleanup()

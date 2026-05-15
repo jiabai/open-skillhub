@@ -50,6 +50,51 @@ plaintext config, renderer state, or logs.
 
 The tray stays resident after the window is closed so background refreshes can continue.
 
+## Linux CLI
+
+`desktop-client/` also builds a Linux-oriented Node CLI for agent skill
+distribution. It is separate from the Electron runtime and uses its own XDG
+config, state, and cache directories.
+
+```bash
+cd desktop-client
+npm run build:cli
+node dist-cli/skilldrive-cli.js detect --global
+node dist-cli/skilldrive-cli.js install /path/to/skill --global --yes
+node dist-cli/skilldrive-cli.js install /path/to/skill.zip --project /repo/project --yes
+SKILLDRIVE_API_TOKEN=... node dist-cli/skilldrive-cli.js sync --global --yes
+```
+
+`install` is local-only and accepts a skill directory or `.zip`; it does not
+call the server or update remote sync state. `sync` is server-backed and uses
+`--api-token` or `SKILLDRIVE_API_TOKEN`; tokens are not persisted. Write-capable
+commands are dry-run by default and require `--yes`.
+
+CLI storage:
+
+```text
+$XDG_CONFIG_HOME/skilldrive-cli/config.json
+$XDG_CONFIG_HOME/skilldrive-cli/agent-paths.json
+$XDG_STATE_HOME/skilldrive-cli/state.sqlite3
+$XDG_CACHE_HOME/skilldrive-cli/package-*
+```
+
+Fallbacks are `~/.config/skilldrive-cli`, `~/.local/state/skilldrive-cli`,
+and `~/.cache/skilldrive-cli`. CLI v1 does not support encrypted server
+downloads; encrypted download responses fail closed before filesystem writes.
+
+For deployment, build the packaged CLI tarball instead of copying the repository
+to the target machine:
+
+```bash
+cd desktop-client
+npm run package:linux-cli
+```
+
+This writes `dist/linux-cli/skilldrive-cli-<version>-linux-node20.tar.gz` and
+its `.sha256` file. The package contains the CLI bundle, runtime dependencies,
+`install.sh`, `uninstall.sh`, manifest metadata, and checksums.
+
 ## Packaging
 
 Windows installer packaging is configured through `electron-builder`. The v1
@@ -72,6 +117,9 @@ Additional configured packaging scripts:
 
 - `npm run pack` - build unpacked output for the current platform
 - `npm run dist` - build installer output for the current platform
+- `npm run dist:linux-cli` - build the Node CLI artifact under `dist-cli/`
+- `npm run package:linux-cli` - assemble the deployable Linux CLI tarball under
+  `dist/linux-cli/`
 - `npm run dist:mac` - exploratory macOS packaging command using the current
   unsigned `build.mac` configuration; public release use remains deferred until
   a paid Developer ID signing and notarization path is approved and validated

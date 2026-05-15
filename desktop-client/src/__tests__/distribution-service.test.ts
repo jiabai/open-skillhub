@@ -99,7 +99,8 @@ describe("distribution pipeline", () => {
     agentId: AgentId,
     targetPath: string,
     coveredAgentIds: AgentId[] = [agentId],
-    writeMode: SkillDistributionTarget["writeMode"] = "write"
+    writeMode: SkillDistributionTarget["writeMode"] = "write",
+    skillLayout?: SkillDistributionTarget["skillLayout"]
   ): SkillDistributionTarget {
     return {
       targetId: `target-${agentId}`,
@@ -108,7 +109,8 @@ describe("distribution pipeline", () => {
       coveredAgentIds,
       sharedPathKey: coveredAgentIds.length > 1 ? "shared-target" : null,
       source: "auto-detected",
-      writeMode
+      writeMode,
+      skillLayout
     }
   }
 
@@ -431,6 +433,55 @@ describe("distribution pipeline", () => {
       }
     ])
     expect((await stateStore.readState()).pendingUpdates).toEqual([])
+
+    await stateStore.close()
+  })
+
+  it("writes categorized targets under the configured default category", async () => {
+    const rootDir = createTempRoot()
+    const dbPath = join(rootDir, "state", "state.sqlite3")
+    const stateStore = await createSqliteStateStore(dbPath)
+    const packageSource = createPackageSource(rootDir, "# Hermes Skill")
+    const { service: packageService } = buildPackageService({
+      artifactPath: packageSource,
+      encrypted: false
+    })
+    const skillsPath = join(rootDir, "skills", "hermes")
+    const distributionService = createDistributionService({
+      packageService,
+      stateStore,
+      resolveAgentAdapter: (agentId: string) =>
+        hasAgentAdapter(agentId) ? getAgentAdapter(agentId) : null
+    })
+
+    await stateStore.writeState({
+      localRecords: [],
+      pendingUpdates: [],
+      successfulDistributionCount: 0,
+      lastRefreshedAt: null
+    })
+
+    const result = await distributionService.distribute({
+      skillId: "hermes-skill",
+      name: "Hermes Skill",
+      version: "1.0.0",
+      contentHash: "hash-hermes",
+      packageSource: { source: packageSource },
+      targets: [
+        createTarget("hermes", skillsPath, ["hermes"], "write", {
+          mode: "categorized",
+          categoryDepth: 1,
+          defaultCategory: "general",
+          categorySource: "agent-default"
+        })
+      ]
+    })
+
+    const skillDir = join(skillsPath, "general", "Hermes Skill")
+
+    expect(result.syncedToLocalState).toBe(true)
+    expect(readFileSync(join(skillDir, "README.md"), "utf8")).toBe("# Hermes Skill")
+    expect(existsSync(join(skillsPath, "Hermes Skill"))).toBe(false)
 
     await stateStore.close()
   })

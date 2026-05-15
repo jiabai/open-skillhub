@@ -6,6 +6,7 @@ type PackageJson = {
   author?: {
     name?: string
   }
+  bin?: Record<string, string>
   build?: {
     appId?: string
     extraResources?: Array<{ from: string; to: string }>
@@ -75,6 +76,19 @@ describe("desktop package scripts", () => {
     expect(packageJson.build?.mac?.notarize).toBe(false)
     expect(packageJson.build?.mac?.entitlements).toBeUndefined()
     expect(packageJson.build?.mac?.entitlementsInherit).toBeUndefined()
+  })
+
+  it("exposes the Linux CLI build and bin entry", () => {
+    const packageJsonPath = join(process.cwd(), "package.json")
+    const packageJson = JSON.parse(readFileSync(packageJsonPath, "utf8")) as PackageJson
+
+    expect(packageJson.bin?.["skilldrive-cli"]).toBe("dist-cli/skilldrive-cli.js")
+    expect(packageJson.scripts?.["build:cli"]).toBe("vite build --config vite.cli.config.ts")
+    expect(packageJson.scripts?.["start:cli"]).toBe("node dist-cli/skilldrive-cli.js")
+    expect(packageJson.scripts?.["dist:linux-cli"]).toBe("npm run build:cli")
+    expect(packageJson.scripts?.["package:linux-cli"]).toBe(
+      "node scripts/package-linux-cli.mjs"
+    )
   })
 
   it("keeps future macOS hardened runtime entitlements free of release secrets", () => {

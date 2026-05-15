@@ -14,6 +14,10 @@ exploratory path. Package extraction is cross-platform, but the initial macOS
 `build.mac` configuration intentionally keeps Developer ID signing and
 notarization disabled until a paid release path is approved and validated on
 macOS.
+The Linux CLI is a separate Node ESM runtime built from the same package. It
+shares core agent, target, layout, package, and write services, but it does not
+share Electron IPC, desktop config, desktop project records, or desktop sync
+state.
 
 ## Code Map
 
@@ -27,6 +31,10 @@ macOS.
   - desktop shell, Home, Updates, Local Skills, and Projects views, Settings drawer, theme toggle, local UI primitives, and supporting review panels
 - `src/i18n/`
   - local locale dictionaries, provider, hook, formatting helpers, and language codes used by the renderer
+- `src/cli/`
+  - Linux command entry, command handlers, XDG config/state/cache resolution,
+    local package preparation, target planning, server sync orchestration, and
+    CLI output rendering
 - `src/styles.css`
   - desktop renderer light/dark design tokens and shared component classes
 - `src/core/sync/`
@@ -34,7 +42,14 @@ macOS.
 - `src/core/pre-distribution-check/`
   - read-only target-directory metadata checks, strict version comparison, transient snapshots, and stale-check fingerprints
 - `src/core/distribution/`
-  - package preparation, owned artifact cleanup, install orchestration, and distribution result reporting
+  - package preparation, owned artifact cleanup, shared adapter write engine,
+    desktop state reconciliation, and distribution result reporting
+- `src/core/client-skills/`
+  - shared Client API list/download contract parsing, auth headers, checksum and
+    expiration validation, encrypted-download policy, and cache staging
+- `src/core/skills/`
+  - shared skill package tree safety helpers for root `SKILL.md`, symlink/path
+    escape rejection, file count/size limits, and safe copy traversal
 - `src/core/local-skills/`
   - read-only local skill inventory, server presence comparison, safe upload ZIP packaging, and Client API upload helper
 - `src/core/projects/`
@@ -47,7 +62,7 @@ macOS.
 - `src/core/runtime/`
   - reloadable runtime configuration assembled from JSON config, secret store, environment bootstrap, cache, and agent detection snapshots
 - `src/adapters/agents/`
-  - 20 catalog-backed filesystem adapters, per-agent package validation, install, metadata read, and verification
+  - catalog-backed filesystem adapters, per-agent package validation, layout-aware install, metadata read, and verification
 - `src/lib/ipc-client.ts`
   - renderer wrapper around the preload-exposed bridge
 - `src/types/`
@@ -59,7 +74,7 @@ Renderer UI -> `src/lib/ipc-client.ts` -> `electron/preload.ts` -> `electron/ipc
 
 `electron/main.ts` -> sync core + distribution core + storage + agent adapters
 
-sync core -> backend client API + state store
+sync core -> shared Client Skill API + state store
 
 runtime config -> agent detection service -> agent catalog + filesystem install signals
 
@@ -67,10 +82,17 @@ pre-distribution check core -> state store + detection-derived agent targets + c
 
 distribution core -> package service + detection-derived agent targets + agent adapters + state store
 
-local skills core -> detection-derived unique targets + backend Client API + cache-owned temporary ZIP staging
+Linux CLI -> CLI services + detection/project target resolution + shared
+distribution write engine + CLI XDG sync state
+
+local skills core -> detection-derived unique targets + shared package tree
+safety + backend Client API + cache-owned temporary ZIP staging
 
 project skills core -> persisted project records + catalog project targets +
-filesystem scan/import services
+shared package tree safety + filesystem scan/import services
+
+shared Client Skill API -> backend Client API + cache-owned temporary package
+staging
 
 agent adapters -> local agent installations and skill directories
 
@@ -103,7 +125,19 @@ agent adapters -> local agent installations and skill directories
   values resolve to dark, and the renderer applies the current theme by toggling
   `.dark` on `document.documentElement`.
 - Agent adapters own per-agent filesystem conventions, package installation, metadata reads, and install verification.
+- Agent skill target layout is catalog metadata. Missing layout means flat
+  `skills/<skill-name>`; categorized targets such as Hermes Agent use
+  `skills/<category>/<skill-name>` through the shared layout resolver.
+- Client skill list/download semantics live in `src/core/client-skills/` so the
+  Electron runtime and Linux CLI share response normalization, checksum
+  validation, expiration validation, and cache staging behavior.
+- Skill package tree traversal safety lives in `src/core/skills/` so CLI local
+  install, Local Skills upload packaging, and Project Skill import share the
+  same symlink, path escape, root `SKILL.md`, file count, and size limit checks.
 - Agent adapter install and metadata-read directory keys are server skill names; `remoteSkillId` remains the API/state identity and does not determine the local install directory.
+- The Linux CLI has its own runtime state. Local `install` never updates remote
+  sync state; server-backed `sync` updates CLI scoped sync records after
+  successful writes.
 - Shared type contracts live in `src/types/` instead of being redefined across layers.
 
 ## Layer Boundaries
@@ -145,6 +179,10 @@ Dependencies should only point downward across those boundaries.
 - Saving or clearing API configuration reloads the in-memory runtime config so sync, package download, and distribution paths use the latest URL and token without an app restart
 - `logs/` and `backups/` belong to the target design language but are not yet created by the current implementation
 - State persistence currently stores sync snapshot data, not full per-run distribution history
+- CLI sync state is stored separately from desktop state under the Linux XDG
+  `skilldrive-cli` state directory. CLI records are scoped by global/project
+  scope, target key, agent ID, and remote skill ID so global and project syncs
+  do not overwrite each other.
 - Runtime package downloads are staged in unique directories under `cache/`.
   Staging directories are temporary package artifacts and are removed through
   the package-service cleanup ownership contract after distribution succeeds or
@@ -162,7 +200,7 @@ Dependencies should only point downward across those boundaries.
 ## Packaging Surface
 
 - `package.json` contains the `electron-builder` configuration and packaging
-  scripts.
+  scripts, plus the `skilldrive-cli` CLI `bin` entry and CLI build scripts.
 - Windows packaging uses the `nsis` and `portable` targets with
   `resources/icons/icon.ico`.
 - macOS `dmg` and `zip` targets are configured with `resources/icons/icon.icns`,
@@ -174,8 +212,16 @@ Dependencies should only point downward across those boundaries.
   `docs/product-specs/2026-05-03-macos-release-packaging.md`,
   `docs/design-docs/macos-release-packaging.md`, and
   `docs/references/macos-release-runbook.md`.
+- Linux CLI packaged deployment replaces the earlier target-machine npm build
+  and `npm link` workflow. The `package:linux-cli` script assembles a tarball
+  with CLI build output, runtime dependencies, install/uninstall scripts,
+  manifest metadata, and checksums under `desktop-client/dist/linux-cli/`.
+  Linux target-machine installation validation is still tracked in
+  `docs/exec-plans/active/2026-05-14-linux-cli-packaged-deployment.md`.
 - Installer artifacts are generated under `desktop-client/dist/` and are not
   repository source files.
+- CLI build artifacts are generated under `desktop-client/dist-cli/` and are
+  not repository source files.
 
 ## Key Files
 
@@ -188,7 +234,11 @@ Dependencies should only point downward across those boundaries.
 - `src/core/sync/sync-service.ts`
 - `src/core/detection/agent-detection-service.ts`
 - `src/core/distribution/distribution-service.ts`
+- `src/core/distribution/distribution-write-service.ts`
 - `src/core/distribution/package-service.ts`
+- `src/core/client-skills/client-skill-api.ts`
+- `src/core/skills/skill-package-tree.ts`
+- `src/cli/main.ts`
 - `src/core/local-skills/local-skill-inventory-service.ts`
 - `src/core/local-skills/local-skill-upload-package.ts`
 - `src/core/local-skills/local-skill-client-api.ts`

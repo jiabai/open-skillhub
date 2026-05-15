@@ -1,6 +1,5 @@
-import { createHash } from "node:crypto"
 import { existsSync } from "node:fs"
-import { mkdtemp, rm, writeFile } from "node:fs/promises"
+import { mkdtemp, rm } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { fileURLToPath } from "node:url"
@@ -20,6 +19,7 @@ import {
 import type { OpenDialogOptions } from "electron"
 
 import { getAgentAdapter } from "@/adapters/agents/registry"
+import { createClientSkillApi } from "@/core/client-skills/client-skill-api"
 import {
   createDistributionNotification,
   createDistributionService
@@ -52,7 +52,6 @@ import type {
   ConfigurationPayload,
   ConfigurationState,
   DesktopSyncState,
-  DownloadedSkillArtifact,
   LocalSkillServerLookupStatus,
   LocalSkillsInventorySnapshot,
   LocalSkillUploadResult,
@@ -90,16 +89,6 @@ type TrayNotificationPayload = {
   body: string
 }
 
-type ClientSkillDownloadPayload = {
-  skill_uuid: string
-  version: string
-  encrypted_code: string
-  checksum: string
-  expires_at: string
-  encryption_enabled: boolean
-  download_filename: string
-}
-
 let mainWindow: BrowserWindow | null = null
 let tray: Tray | null = null
 let stateStore: Awaited<ReturnType<typeof createSqliteStateStore>> | null = null
@@ -112,57 +101,6 @@ function getTargetWindowContentSize() {
   return {
     width: Math.round(TARGET_RENDERER_PHYSICAL_SIZE.width / scaleFactor),
     height: Math.round(TARGET_RENDERER_PHYSICAL_SIZE.height / scaleFactor)
-  }
-}
-
-function normalizeVersion(version: string | null | undefined): string | null {
-  const trimmed = version?.trim()
-  return trimmed ? trimmed : null
-}
-
-function normalizeContentHash(value: unknown): string | null {
-  const trimmed = typeof value === "string" ? value.trim() : ""
-  return trimmed ? trimmed : null
-}
-
-function sanitizeCacheSegment(value: string): string {
-  return value.replace(/[^a-zA-Z0-9._-]+/g, "_")
-}
-
-function createPackageArtifactFileName(
-  payload: Pick<ClientSkillDownloadPayload, "download_filename" | "encryption_enabled" | "version">,
-  request: SkillPackageRequest
-): string {
-  const sanitizedDownloadFileName = sanitizeCacheSegment(payload.download_filename.trim())
-
-  if (
-    sanitizedDownloadFileName &&
-    sanitizedDownloadFileName !== "." &&
-    sanitizedDownloadFileName !== ".."
-  ) {
-    return sanitizedDownloadFileName
-  }
-
-  return `${sanitizeCacheSegment(request.skillId)}-${sanitizeCacheSegment(payload.version)}${
-    payload.encryption_enabled ? ".encrypted.bin" : ".zip"
-  }`
-}
-
-function computeSha256(bytes: Buffer): string {
-  return `sha256:${createHash("sha256").update(bytes).digest("hex")}`
-}
-
-function assertChecksum(bytes: Buffer, expectedChecksum: string): void {
-  if (computeSha256(bytes) !== expectedChecksum.trim().toLowerCase()) {
-    throw new Error("Downloaded skill package checksum verification failed")
-  }
-}
-
-function assertNotExpired(expiresAt: string): void {
-  const expiresAtMs = Date.parse(expiresAt)
-
-  if (!Number.isFinite(expiresAtMs) || expiresAtMs <= Date.now()) {
-    throw new Error("Downloaded skill package has expired")
   }
 }
 
@@ -295,126 +233,23 @@ function createWindow(): BrowserWindow {
   return window
 }
 
-function normalizeSkillSummary(item: unknown): RemoteSkillSummary | null {
-  const record = item as Record<string, unknown>
-  const versionRecord = record.latest_version as Record<string, unknown> | undefined
-  const id = String(
-    record.id ?? record.skill_uuid ?? record.skillUuid ?? record.remoteSkillId ?? ""
-  ).trim()
-  const name = String(record.name ?? "").trim()
-
-  if (!id || !name) {
-    return null
-  }
-
-  return {
-    id,
-    name,
-    version:
-      normalizeVersion(
-        String(record.version ?? record.current_version ?? record.currentVersion ?? "").trim() ||
-          null
-      ) ?? normalizeVersion(versionRecord?.version as string | null | undefined),
-    contentHash:
-      normalizeContentHash(record.content_hash ?? record.contentHash) ??
-      normalizeContentHash(versionRecord?.content_hash ?? versionRecord?.contentHash),
-    updatedAt: String(
-      record.updatedAt ?? record.updated_at ?? versionRecord?.updated_at ?? new Date().toISOString()
-    )
-  }
-}
-
-function createAuthHeaders(config: DesktopRuntimeConfig): Record<string, string> {
-  if (!config.apiToken) {
-    throw new Error("An SkillDrive API token is required to connect the desktop client")
-  }
-
-  return {
-    Authorization: `Bearer ${config.apiToken}`
-  }
-}
-
 async function listRemoteSkills(config: DesktopRuntimeConfig): Promise<RemoteSkillSummary[]> {
-  const response = await fetch(`${config.apiBaseUrl}/api/v1/client/skills`, {
-    headers: createAuthHeaders(config)
-  })
-
-  if (!response.ok) {
-    throw new Error(`Failed to load client skills: ${response.status} ${response.statusText}`)
-  }
-
-  const payload = (await response.json()) as unknown
-  const items = Array.isArray((payload as { items?: unknown }).items)
-    ? ((payload as { items: unknown[] }).items as unknown[])
-    : Array.isArray(payload)
-      ? payload
-      : []
-
-  return items.map(normalizeSkillSummary).filter((item): item is RemoteSkillSummary => item !== null)
-}
-
-function parseDownloadPayload(payload: unknown): ClientSkillDownloadPayload {
-  const record = payload as Record<string, unknown>
-
-  return {
-    skill_uuid: String(record.skill_uuid ?? "").trim(),
-    version: String(record.version ?? "").trim(),
-    encrypted_code: String(record.encrypted_code ?? "").trim(),
-    checksum: String(record.checksum ?? "").trim().toLowerCase(),
-    expires_at: String(record.expires_at ?? "").trim(),
-    encryption_enabled: Boolean(record.encryption_enabled),
-    download_filename: String(record.download_filename ?? "").trim()
-  }
+  return createClientSkillApi({
+    apiBaseUrl: config.apiBaseUrl,
+    apiToken: config.apiToken,
+    cacheDirectory: config.cacheDirectory
+  }).listRemoteSkills()
 }
 
 async function downloadSkillArtifact(
   config: DesktopRuntimeConfig,
   request: SkillPackageRequest
-): Promise<DownloadedSkillArtifact> {
-  const response = await fetch(`${config.apiBaseUrl}/api/v1/client/skills/download`, {
-    method: "POST",
-    headers: {
-      ...createAuthHeaders(config),
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify({
-      skill_uuid: request.skillId,
-      version: request.version
-    })
-  })
-  const payload = parseDownloadPayload(await response.json())
-
-  if (!response.ok) {
-    throw new Error(`Failed to download skill package: ${response.status} ${response.statusText}`)
-  }
-
-  if (!payload.skill_uuid || !payload.version || !payload.encrypted_code) {
-    throw new Error("Client download response is missing required fields")
-  }
-
-  assertNotExpired(payload.expires_at)
-
-  const archiveBytes = Buffer.from(payload.encrypted_code, "base64")
-  assertChecksum(archiveBytes, payload.checksum)
-
-  const fileName = createPackageArtifactFileName(payload, request)
-  const artifactRoot = await mkdtemp(join(config.cacheDirectory, "package-"))
-  const artifactPath = join(artifactRoot, fileName)
-
-  try {
-    await writeFile(artifactPath, archiveBytes)
-  } catch (error) {
-    await rm(artifactRoot, { recursive: true, force: true }).catch((cleanupError: unknown) => {
-      console.warn(`Failed to clean up incomplete package artifact staging: ${artifactRoot}`, cleanupError)
-    })
-    throw error
-  }
-
-  return {
-    artifactPath,
-    encrypted: payload.encryption_enabled,
-    cleanupPaths: [artifactRoot]
-  }
+) {
+  return createClientSkillApi({
+    apiBaseUrl: config.apiBaseUrl,
+    apiToken: config.apiToken,
+    cacheDirectory: config.cacheDirectory
+  }).downloadSkillArtifact(request)
 }
 
 async function extractArchive(artifactPath: string, extractedPath: string): Promise<void> {
@@ -442,7 +277,8 @@ function getPreDistributionCheckTargets(config: DesktopRuntimeConfig) {
       coveredAdapters,
       target,
       installContext: {
-        skillsPath: target.targetPath
+        skillsPath: target.targetPath,
+        ...(target.skillLayout ? { skillLayout: target.skillLayout } : {})
       }
     }
   })

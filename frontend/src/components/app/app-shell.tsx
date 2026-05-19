@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from "react"
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
-import { BarChart3, LogOut, Menu, User2, Boxes } from "lucide-react"
+import { BarChart3, Boxes, HelpCircle, LogOut, Menu, User2 } from "lucide-react"
 
 import { api, clearTokens, getStoredTokens } from "@/lib/api"
 import { useRuntimeConfig } from "@/hooks/use-runtime-config"
@@ -40,7 +40,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const router = useRouter()
   const isAuthRoute = pathname === "/login" || pathname === "/register"
-  const isPublicRoute = pathname === "/"
+  const isPublicRoute = pathname === "/" || pathname === "/help"
   const { config } = useRuntimeConfig()
   const { dictionary } = useI18n()
   const { appShell, navigation } = dictionary
@@ -68,7 +68,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
     const tokens = getStoredTokens()
     if (!tokens?.access_token) {
-      // 首页可以在没有 token 时正常显示
+      // 公开页面可以在没有 token 时正常显示。
       if (!isPublicRoute) {
         router.replace("/login")
       }
@@ -167,6 +167,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <div className="flex items-center gap-2">
               <LanguageToggle />
               <ThemeToggle />
+              <Button asChild variant="ghost" size="icon">
+                <Link href="/help" aria-label={appShell.helpCenter} title={appShell.helpCenter}>
+                  <HelpCircle className="h-4 w-4" aria-hidden="true" />
+                  <span className="sr-only">{appShell.helpCenter}</span>
+                </Link>
+              </Button>
 
               <div className="hidden md:block">
                 <DropdownMenu>

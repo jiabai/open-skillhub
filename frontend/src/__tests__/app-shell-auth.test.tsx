@@ -78,6 +78,18 @@ describe("AppShell auth guard", () => {
     expect(replaceMock).not.toHaveBeenCalled()
   })
 
+  it("renders the public help route without requiring stored tokens", async () => {
+    pathnameMock = "/help"
+    replaceMock.mockClear()
+    refreshMock.mockClear()
+    window.localStorage.removeItem("skilldrive.tokens")
+
+    renderWithRuntimeConfig(<AppShell>help center</AppShell>)
+
+    expect(await screen.findByText("help center")).toBeInTheDocument()
+    expect(replaceMock).not.toHaveBeenCalled()
+  })
+
   it("redirects to login when not authenticated", async () => {
     replaceMock.mockClear()
     refreshMock.mockClear()
@@ -109,6 +121,7 @@ describe("AppShell auth guard", () => {
     renderWithRuntimeConfig(<AppShell>content</AppShell>)
 
     expect(await screen.findByRole("button", { name: "工作台" })).toBeInTheDocument()
+    expect(await screen.findByRole("link", { name: "帮助中心" })).toHaveAttribute("href", "/help")
     expect(await screen.findAllByText("公共 Skills")).not.toHaveLength(0)
     expect(await screen.findAllByText("我的 Skills")).not.toHaveLength(0)
     expect(await screen.findAllByText("令牌")).not.toHaveLength(0)

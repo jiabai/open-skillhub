@@ -488,6 +488,7 @@ export type AppDictionary = {
     description: string
     tableOfContents: string
     openDirectory: string
+    backToPrevious: string
     sections: Record<string, {
       title: string
       body: string[]

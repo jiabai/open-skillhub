@@ -490,6 +490,7 @@ export const zhCNDictionary: AppDictionary = {
     description: "这里整理了 SkillDrive 的基础概念、常用操作和常见问题。你可以把它当作一份随手可查的使用指南：遇到不确定的地方，先来这里看看。",
     tableOfContents: "帮助目录",
     openDirectory: "打开帮助目录",
+    backToPrevious: "返回上一页",
     sections: {
       "getting-started": {
         title: "快速入门",

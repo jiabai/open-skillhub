@@ -7,6 +7,12 @@ import { getDictionary } from "@/i18n/get-dictionary"
 import { getRuntimeConfigSnapshot } from "@/lib/runtime-config"
 import HelpPage from "@/app/help/page"
 
+const backMock = vi.fn()
+
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ back: backMock }),
+}))
+
 function renderHelpPage() {
   return render(
     <I18nProvider locale="zh-CN" dictionary={getDictionary("zh-CN")}>
@@ -19,6 +25,7 @@ function renderHelpPage() {
 
 describe("help page", () => {
   beforeEach(() => {
+    backMock.mockClear()
     vi.stubGlobal(
       "IntersectionObserver",
       vi.fn(() => ({
@@ -47,5 +54,13 @@ describe("help page", () => {
 
     expect(screen.getByRole("dialog")).toBeInTheDocument()
     expect(screen.getByRole("heading", { name: "帮助目录" })).toBeInTheDocument()
+  })
+
+  it("returns to the previous page from the help header", () => {
+    renderHelpPage()
+
+    fireEvent.click(screen.getByRole("button", { name: "返回上一页" }))
+
+    expect(backMock).toHaveBeenCalledTimes(1)
   })
 })

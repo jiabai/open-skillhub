@@ -1,7 +1,8 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
-import { ListTree } from "lucide-react"
+import { useRouter } from "next/navigation"
+import { ArrowLeft, ListTree } from "lucide-react"
 
 import { HelpContent } from "@/components/app/help-content"
 import { HelpSidebar } from "@/components/app/help-sidebar"
@@ -11,6 +12,7 @@ import { useI18n } from "@/i18n/use-i18n"
 import { flattenHelpSections, helpSections } from "@/lib/help-data"
 
 export function HelpLayout() {
+  const router = useRouter()
   const { dictionary } = useI18n()
   const copy = dictionary.help
   const flatSections = useMemo(() => flattenHelpSections(helpSections), [])
@@ -50,11 +52,17 @@ export function HelpLayout() {
     <div className="min-h-screen bg-[radial-gradient(circle_at_top,_hsl(var(--secondary)),_transparent_58%),_linear-gradient(to_bottom,_hsl(var(--muted)_/_0.65),_transparent_42%)]">
       <main className="container mx-auto flex max-w-screen-xl flex-col gap-6 px-6 py-8 3xl:max-w-screen-2xl 4k:max-w-screen-3xl">
         <header className="flex flex-wrap items-start justify-between gap-4 border-b border-border pb-6">
-          <div className="space-y-2">
-            <h1 className="font-display text-3xl 3xl:text-4xl 4k:text-5xl">{copy.title}</h1>
-            <p className="max-w-3xl text-sm leading-6 text-muted-foreground 3xl:text-base">
-              {copy.description}
-            </p>
+          <div className="flex max-w-3xl flex-col gap-4">
+            <Button className="w-fit" variant="outline" type="button" onClick={() => router.back()}>
+              <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+              {copy.backToPrevious}
+            </Button>
+            <div className="space-y-2">
+              <h1 className="font-display text-3xl 3xl:text-4xl 4k:text-5xl">{copy.title}</h1>
+              <p className="text-sm leading-6 text-muted-foreground 3xl:text-base">
+                {copy.description}
+              </p>
+            </div>
           </div>
           <Sheet>
             <SheetTrigger asChild>

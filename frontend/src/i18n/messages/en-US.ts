@@ -490,6 +490,7 @@ export const enUSDictionary: AppDictionary = {
     description: "Learn the core SkillDrive concepts, everyday workflows, and common troubleshooting steps for managing Skills, tokens, and account security.",
     tableOfContents: "Help Directory",
     openDirectory: "Open help directory",
+    backToPrevious: "Back to previous page",
     sections: {
       "getting-started": {
         title: "Getting Started",

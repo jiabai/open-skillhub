@@ -120,6 +120,7 @@ export const enUSDictionary: AppDictionary = {
     cancel: "Cancel",
     openNavigationMenu: "Open navigation menu",
     navigation: "Navigation",
+    helpCenter: "Help Center",
   },
   workspaceBoundary: {
     governed: {
@@ -483,6 +484,149 @@ export const enUSDictionary: AppDictionary = {
     exportLogs: "Export logs",
     exporting: "Exporting...",
     totalRecords: "{count} records",
+  },
+  help: {
+    title: "Help Center",
+    description: "Learn the core SkillDrive concepts, everyday workflows, and common troubleshooting steps for managing Skills, tokens, and account security.",
+    tableOfContents: "Help Directory",
+    openDirectory: "Open help directory",
+    sections: {
+      "getting-started": {
+        title: "Getting Started",
+        body: [
+          "Start here to understand how SkillDrive manages Skill lifecycle, access boundaries, and client distribution.",
+        ],
+      },
+      "what-is-skilldrive": {
+        title: "What is SkillDrive",
+        body: [
+          "SkillDrive is your private Skill management and distribution hub. It stores, versions, and distributes Skills for AI agents while keeping browser management separate from client access.",
+          "In personal mode, you manage your own Skills, public Skill references, cloned copies, and API tokens. In governed mode, administrators may also see audit and scoped access features.",
+        ],
+      },
+      "register-and-login": {
+        title: "Register and sign in",
+        body: [
+          "When public signup is enabled, you can create an account with an email verification code. Existing users can sign in with email codes, and enterprise environments may also enable SSO or LDAP.",
+          "After sign-in, the browser opens your console workspace. Client tools do not reuse the browser session; they use API tokens that you create in the console.",
+        ],
+      },
+      "ui-overview": {
+        title: "Interface overview",
+        body: [
+          "The overview page shows workspace status and suggested next steps. Public Skills are for discovery, My Skills is for managing private, referenced, and cloned Skills, and Tokens connects clients.",
+          "The Workbench menu contains profile, security, and sign-out actions. Primary navigation adapts to the runtime capabilities exposed by the backend.",
+        ],
+      },
+      skills: {
+        title: "Skills",
+        body: [
+          "Skills are the core SkillDrive resource. Each Skill has a name, description, visibility, files, and version behavior.",
+        ],
+      },
+      "public-skills": {
+        title: "Public Skills: reference and clone",
+        body: [
+          "Public Skills are reusable starting points. A reference is best when you want to use a public Skill quickly and keep following the source. A clone is best when you need an editable private copy.",
+          "Use references for fast adoption. Use clones when you need to edit files, maintain a private version line, or customize the Skill long term.",
+        ],
+      },
+      "my-skills": {
+        title: "My Skills",
+        body: [
+          "My Skills lists the private Skills, public references, and clones in your workspace. Open a detail page to inspect files, versions, effective behavior, and settings.",
+          "Deactivate a Skill when clients should stop using it temporarily, then reactivate it when it is ready again.",
+        ],
+      },
+      "upload-skill": {
+        title: "Upload a Skill",
+        body: [
+          "Upload a ZIP archive containing `SKILL.md`. SkillDrive parses the metadata, stores the files, and creates a Skill record that can receive future versions.",
+          "If upload fails, first check that the ZIP includes `SKILL.md`, stays within the size limit, and has complete metadata.",
+        ],
+      },
+      "version-management": {
+        title: "Version management",
+        body: [
+          "The version page helps you inspect release history, install instructions, and dependency metadata. Private Skills can roll back to old versions; references can pin a public version or follow the latest release.",
+        ],
+      },
+      tokens: {
+        title: "Tokens and clients",
+        body: [
+          "API tokens let client tools access SkillDrive. They are a separate authentication boundary from browser sign-in.",
+        ],
+      },
+      "create-token": {
+        title: "Create an API token",
+        body: [
+          "On the Tokens page, enter a name and validity period to create a token. The full token is shown only once, so copy it immediately into your client configuration.",
+          "Use descriptive names such as `desktop-client`, `ci-runner`, or a machine name so later review and revocation are easier.",
+        ],
+      },
+      "desktop-client": {
+        title: "Connect the desktop client",
+        body: [
+          "After downloading the desktop client, connect it to this service with an API token created in the console. The client syncs Skills visible to that token.",
+          "If the client cannot connect, check the service URL, token value, expiration state, and whether your account still has access to the target Skills.",
+        ],
+      },
+      "token-lifecycle": {
+        title: "Token lifecycle",
+        body: [
+          "Tokens can be active, expired, or revoked. Expired or revoked tokens cannot access the service, so create a new token when needed.",
+          "If you suspect a token leaked, revoke it immediately and create a new token for trusted clients.",
+        ],
+      },
+      "account-security": {
+        title: "Account and security",
+        body: [
+          "The profile page manages basic account details, while the security page handles sensitive actions. Review the impact before changing identity, email, or account deletion settings.",
+        ],
+      },
+      "update-profile": {
+        title: "Update profile",
+        body: [
+          "Use the profile page to update your display name and review platform identity, account status, and organization placement.",
+        ],
+      },
+      "bind-email": {
+        title: "Bind email",
+        body: [
+          "Binding a new email requires verification. Make sure the new inbox can receive mail, or future sign-in and security actions may be affected.",
+        ],
+      },
+      "delete-account": {
+        title: "Delete account",
+        body: [
+          "Account deletion cannot be undone. It makes the account, Skills, and tokens unavailable, and requires a deletion verification code before confirmation.",
+        ],
+      },
+      faq: {
+        title: "FAQ",
+        body: [
+          "These answers cover the most common points of confusion. Start here when a workflow behaves unexpectedly.",
+        ],
+      },
+      "faq-reference-vs-clone": {
+        title: "What is the difference between reference and clone",
+        body: [
+          "A reference keeps its relationship to the public source and is best for quick adoption. A clone creates an independent copy for editing files, maintaining private versions, or long-term customization.",
+        ],
+      },
+      "faq-lost-token": {
+        title: "What if I lose a token",
+        body: [
+          "The full token cannot be shown again. Revoke the old token, create a new one, and update your client configuration.",
+        ],
+      },
+      "faq-upload-failed": {
+        title: "What if Skill upload fails",
+        body: [
+          "Check that the ZIP is valid, includes `SKILL.md`, is not too large, and has valid Skill metadata. If it still fails, keep the error message for an administrator to inspect.",
+        ],
+      },
+    },
   },
   usersAdmin: {
     title: "User Management",

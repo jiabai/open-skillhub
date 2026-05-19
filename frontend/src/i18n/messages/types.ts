@@ -118,6 +118,7 @@ export type AppDictionary = {
     cancel: string
     openNavigationMenu: string
     navigation: string
+    helpCenter: string
   }
   workspaceBoundary: {
     governed: {
@@ -481,6 +482,16 @@ export type AppDictionary = {
     exportLogs: string
     exporting: string
     totalRecords: string
+  }
+  help: {
+    title: string
+    description: string
+    tableOfContents: string
+    openDirectory: string
+    sections: Record<string, {
+      title: string
+      body: string[]
+    }>
   }
   usersAdmin: {
     title: string

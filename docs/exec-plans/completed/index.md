@@ -30,6 +30,7 @@
 | `runtime-capabilities-enhancement-tasks.md` | Runtime capability enhancement checklist completed with backend/frontend/docs gates passing |
 | `refresh-token-hardening-plan.md` | Stateful single-use refresh-token rotation implemented with persisted token families, reuse detection, user-wide JWT revocation on compromise, logout session revocation, and backend/docs gates passing |
 | `refresh-token-hardening-tasks.md` | Refresh-token hardening checklist completed with focused rotation tests, full backend pytest, ruff, mypy, Alembic upgrade, and docs validation passing |
+| `help-center-plan.md` | Help Center implemented at `/help` with i18n content, docs directory, public route access, AppShell help entry, and frontend validation passing |
 
 ## Notes
 

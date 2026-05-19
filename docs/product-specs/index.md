@@ -19,6 +19,7 @@ Product specs describe user-visible intent and boundaries for a feature before o
 | `2026-05-06-distributed-rate-limits.md` | Production-safe global and download rate-limit store behavior |
 | `2026-05-06-list-count-consistency.md` | Paginated API list/count consistency strategy |
 | `2026-05-06-refresh-token-hardening.md` | Single-use refresh-token rotation and reuse detection for web sessions |
+| `2026-05-19-help-center.md` | Public Help Center page for ordinary console users, with i18n content, docs navigation, and responsive directory behavior |
 
 ## Guidelines
 

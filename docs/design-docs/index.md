@@ -27,6 +27,7 @@ This directory stores durable design decisions, architecture notes, and review f
 | `auth-provider-consistency.md` | Shared SSO validation and explicit email provider selection design |
 | `list-count-consistency.md` | Paginated list/count consistency decision framework |
 | `documentation-freshness-automation.md` | Validator checks for stale docs, plan indexes, and tech-debt links |
+| `help-center-design.md` | Frontend Help Center layout, i18n content boundary, navigation integration, and responsive directory behavior |
 
 ## How To Use This Directory
 

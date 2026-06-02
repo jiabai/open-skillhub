@@ -9,8 +9,10 @@ from typing import Protocol
 from urllib.parse import quote
 
 import httpx
+from loguru import logger
 
 from backend.config.settings import settings
+from backend.core.middleware.logging import safe_log_context
 
 
 class EmailSender(Protocol):
@@ -85,7 +87,13 @@ class SmtpEmailSender:
         purpose: str,
     ) -> None:
         if not self._host or not self._from_address:
+            logger.bind(host_configured=bool(self._host), from_configured=bool(self._from_address)).debug(
+                "SMTP verification email rejected because settings are incomplete"
+            )
             raise ValueError("SMTP settings are not configured")
+        logger.bind(
+            **safe_log_context(email=email, host=self._host, port=self._port, use_tls=self._use_tls, username_configured=bool(self._username))
+        ).debug("SMTP verification email send started")
         subject, text, html = render_verification_email(
             brand="SkillDrive",
             code=code,
@@ -113,6 +121,9 @@ class SmtpEmailSender:
                 if self._username:
                     server.login(self._username, self._password)
                 server.send_message(message)
+        logger.bind(**safe_log_context(email=email, host=self._host, port=self._port)).debug(
+            "SMTP verification email sent"
+        )
 
 
 class AliyunEmailSender:
@@ -143,7 +154,11 @@ class AliyunEmailSender:
         purpose: str,
     ) -> None:
         if not self._access_key_id or not self._access_key_secret or not self._account_name:
+            logger.debug("Aliyun DM verification email rejected because settings are incomplete")
             raise ValueError("Aliyun DM settings are not configured")
+        logger.bind(
+            **safe_log_context(email=email, endpoint=self._endpoint, account_configured=bool(self._account_name))
+        ).debug("Aliyun DM verification email send started")
         subject, _, html = render_verification_email(
             brand="SkillDrive",
             code=code,
@@ -172,11 +187,20 @@ class AliyunEmailSender:
         params["Signature"] = _sign_aliyun_params(params, self._access_key_secret)
         response = httpx.post(self._endpoint, data=params, timeout=self._timeout)
         if response.status_code != 200:
+            logger.bind(status_code=response.status_code, reason=response.reason_phrase).debug(
+                "Aliyun DM verification email request failed"
+            )
             raise ValueError("Aliyun DM request failed")
         payload = response.json() if response.content else {}
         if isinstance(payload, dict) and payload.get("Code") not in (None, "OK"):
             message = payload.get("Message") or "Aliyun DM error"
+            logger.bind(status_code=response.status_code, aliyun_code=payload.get("Code")).debug(
+                "Aliyun DM verification email response rejected"
+            )
             raise ValueError(message)
+        logger.bind(**safe_log_context(email=email, endpoint=self._endpoint)).debug(
+            "Aliyun DM verification email sent"
+        )
 
 
 def _percent_encode(value: str) -> str:

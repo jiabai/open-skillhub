@@ -1,7 +1,9 @@
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse
+from loguru import logger
 
 from backend.config.settings import settings
+from backend.core.middleware.logging import safe_log_context
 
 from ._exceptions import error_payload
 
@@ -14,11 +16,21 @@ def register_request_size_middleware(application: FastAPI) -> None:
             if content_length:
                 try:
                     if int(content_length) > settings.SKILL_DOWNLOAD_MAX_REQUEST_BYTES:
+                        logger.bind(
+                            **safe_log_context(
+                                path=request.url.path,
+                                content_length=content_length,
+                                limit_bytes=settings.SKILL_DOWNLOAD_MAX_REQUEST_BYTES,
+                            )
+                        ).debug("Client skill download request rejected because Content-Length is too large")
                         return JSONResponse(
                             status_code=413,
                             content=error_payload("Request too large", "REQUEST_TOO_LARGE"),
                         )
                 except ValueError:
+                    logger.bind(path=request.url.path, content_length=content_length).debug(
+                        "Client skill download request rejected because Content-Length is invalid"
+                    )
                     return JSONResponse(
                         status_code=400,
                         content=error_payload("Invalid Content-Length header", "BAD_REQUEST"),
@@ -33,6 +45,13 @@ def register_request_size_middleware(application: FastAPI) -> None:
                     body = message.get("body", b"")
                     received_bytes += len(body)
                     if received_bytes > settings.SKILL_DOWNLOAD_MAX_REQUEST_BYTES:
+                        logger.bind(
+                            **safe_log_context(
+                                path=request.url.path,
+                                received_bytes=received_bytes,
+                                limit_bytes=settings.SKILL_DOWNLOAD_MAX_REQUEST_BYTES,
+                            )
+                        ).debug("Client skill download request stream exceeded size limit")
                         raise HTTPException(
                             status_code=413,
                             detail={"detail": "Request too large", "code": "REQUEST_TOO_LARGE"},

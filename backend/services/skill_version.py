@@ -1,8 +1,16 @@
 import difflib
 from pathlib import Path
 
+from loguru import logger
+
+from backend.core.middleware.logging import safe_log_context
 from backend.core.utils.skill_archive import load_archive
-from backend.core.utils.skill_storage import clear_skill_current_dir, get_skill_versions_dir, get_user_skill_dir, validate_skill_name
+from backend.core.utils.skill_storage import (
+    clear_skill_current_dir,
+    get_skill_versions_dir,
+    get_user_skill_dir,
+    validate_skill_name,
+)
 from backend.models.skill import Skill
 from backend.models.skill_version import SkillVersion
 from backend.models.user import User
@@ -46,9 +54,16 @@ class SkillVersionCoordinator:
         repo = self.require_version_repo()
         source_skill = await self.lifecycle.resolve_source_skill(skill)
         if self.lifecycle.is_reference_skill(skill):
-            version = str(skill.pinned_version or requested_version or source_skill.current_version or "").strip()
+            version = str(
+                skill.pinned_version
+                or requested_version
+                or source_skill.current_version
+                or ""
+            ).strip()
         else:
-            version = str(requested_version or source_skill.current_version or "").strip()
+            version = str(
+                requested_version or source_skill.current_version or ""
+            ).strip()
         if not version:
             versions = await repo.list_by_skill(source_skill.id)
             if versions:
@@ -66,17 +81,25 @@ class SkillVersionCoordinator:
         skill: Skill,
         requested_version: str | None = None,
     ) -> tuple[Skill, str, object, Path]:
-        source_skill, version, record = await self.resolve_version_and_record(skill, requested_version)
-        version_dir = get_skill_versions_dir(source_skill.user_id, source_skill.name) / version
+        source_skill, version, record = await self.resolve_version_and_record(
+            skill, requested_version
+        )
+        version_dir = (
+            get_skill_versions_dir(source_skill.user_id, source_skill.name) / version
+        )
         if not version_dir.exists():
-            fallback_dir = self._resolve_current_skill_dir_fallback(source_skill, version)
+            fallback_dir = self._resolve_current_skill_dir_fallback(
+                source_skill, version
+            )
             if fallback_dir is None:
                 raise SkillError(SkillErrorCode.VERSION_FILES_NOT_FOUND)
             return source_skill, version, record, fallback_dir
         return source_skill, version, record, version_dir
 
     @staticmethod
-    def _resolve_current_skill_dir_fallback(source_skill: Skill, version: str) -> Path | None:
+    def _resolve_current_skill_dir_fallback(
+        source_skill: Skill, version: str
+    ) -> Path | None:
         current_version = str(source_skill.current_version or "").strip()
         skill_dir = str(source_skill.skill_dir or "").strip()
         if not current_version or current_version != version or not skill_dir:
@@ -98,14 +121,18 @@ class SkillVersionCoordinator:
         valid, error = validate_skill_name(name)
         if not valid:
             raise SkillError(SkillErrorCode.INVALID_SKILL_NAME, error)
-        existing_reference = await self.lifecycle.skill_repo.get_reference_by_source(user.id, source_skill.id)
+        existing_reference = await self.lifecycle.skill_repo.get_reference_by_source(
+            user.id, source_skill.id
+        )
         if existing_reference:
             raise SkillError(SkillErrorCode.REFERENCE_ALREADY_EXISTS)
         if await self.lifecycle.skill_repo.get_by_name(user.id, name):
             raise SkillError(SkillErrorCode.SKILL_ALREADY_EXISTS)
         pinned_value = None
         if pinned_version:
-            _, pinned_value, _ = await self.resolve_version_and_record(source_skill, pinned_version)
+            _, pinned_value, _ = await self.resolve_version_and_record(
+                source_skill, pinned_version
+            )
         return await self.lifecycle.skill_repo.create(
             user_id=user.id,
             name=name,
@@ -132,7 +159,12 @@ class SkillVersionCoordinator:
         if not self.clone_service:
             raise SkillError(SkillErrorCode.VERSION_REPOSITORY_NOT_CONFIGURED)
         source_skill = await self.lifecycle.get_public_source_skill(public_skill_id)
-        _, _resolved_version, source_record, source_version_dir = await self.resolve_version_dir(source_skill)
+        (
+            _,
+            _resolved_version,
+            source_record,
+            source_version_dir,
+        ) = await self.resolve_version_dir(source_skill)
         return await self.clone_service.create_clone(
             user=user,
             source_skill=source_skill,
@@ -143,7 +175,9 @@ class SkillVersionCoordinator:
             name=name,
         )
 
-    async def pin_reference_version(self, user: User, skill_id: str, version: str) -> Skill:
+    async def pin_reference_version(
+        self, user: User, skill_id: str, version: str
+    ) -> Skill:
         skill = await self.lifecycle.get_skill(user, skill_id)
         self.lifecycle.ensure_owner(user, skill)
         if not self.lifecycle.is_reference_skill(skill):
@@ -186,16 +220,44 @@ class SkillVersionCoordinator:
             raise SkillError(SkillErrorCode.VERSION_NOT_FOUND)
         return record
 
-    async def download_skill(self, user: User, skill_id: str, version: str | None = None) -> dict:
+    async def download_skill(
+        self, user: User, skill_id: str, version: str | None = None
+    ) -> dict:
         if not self.download_service:
+            logger.bind(
+                **safe_log_context(user_id=str(user.id), skill_uuid=skill_id)
+            ).debug("Skill download requested without download service")
             raise SkillError(SkillErrorCode.VERSION_REPOSITORY_NOT_CONFIGURED)
         skill = await self.lifecycle.get_skill(user, skill_id)
         self.lifecycle.ensure_active(skill)
         if self.lifecycle.is_public_skill(skill):
-            raise SkillError(SkillErrorCode.PUBLIC_SKILL_DOWNLOAD_REQUIRES_REFERENCE_OR_CLONE)
-        source_skill, target_version, _record = await self.resolve_version_and_record(skill, version)
-        version_dir = get_skill_versions_dir(source_skill.user_id, source_skill.name) / target_version
-        archive_bytes = await load_archive(source_skill.user_id, source_skill.name, target_version)
+            logger.bind(
+                **safe_log_context(user_id=str(user.id), skill_uuid=skill_id)
+            ).debug("Public source skill download rejected")
+            raise SkillError(
+                SkillErrorCode.PUBLIC_SKILL_DOWNLOAD_REQUIRES_REFERENCE_OR_CLONE
+            )
+        source_skill, target_version, _record = await self.resolve_version_and_record(
+            skill, version
+        )
+        version_dir = (
+            get_skill_versions_dir(source_skill.user_id, source_skill.name)
+            / target_version
+        )
+        archive_bytes = await load_archive(
+            source_skill.user_id, source_skill.name, target_version
+        )
+        logger.bind(
+            **safe_log_context(
+                user_id=str(user.id),
+                skill_uuid=skill_id,
+                source_skill_id=str(source_skill.id),
+                target_version=target_version,
+                requested_version=version or "(current)",
+                archive_cache_hit=archive_bytes is not None,
+                version_dir=str(version_dir),
+            )
+        ).debug("Resolved skill download source")
         return await self.download_service.build_download_payload(
             skill_id=skill.id,
             target_version=target_version,
@@ -205,7 +267,9 @@ class SkillVersionCoordinator:
             archive_bytes=archive_bytes,
         )
 
-    async def get_install_instructions(self, user: User, skill_id: str, version: str) -> dict:
+    async def get_install_instructions(
+        self, user: User, skill_id: str, version: str
+    ) -> dict:
         skill = await self.lifecycle.get_skill(user, skill_id)
         self.lifecycle.ensure_active(skill)
         _, version, record = await self.resolve_version_and_record(skill, version)
@@ -249,7 +313,9 @@ class SkillVersionCoordinator:
             "dependency_spec": dependency_spec or None,
         }
 
-    async def diff_versions(self, user: User, skill_id: str, from_version: str, to_version: str) -> dict:
+    async def diff_versions(
+        self, user: User, skill_id: str, from_version: str, to_version: str
+    ) -> dict:
         skill = await self.lifecycle.get_skill(user, skill_id)
         self.lifecycle.ensure_active(skill)
         source_skill = await self.lifecycle.resolve_source_skill(skill)
@@ -259,7 +325,9 @@ class SkillVersionCoordinator:
         to_version = validate_version(to_version)
         from_dir = (base_dir / from_version).resolve()
         to_dir = (base_dir / to_version).resolve()
-        if not from_dir.is_relative_to(base_resolved) or not to_dir.is_relative_to(base_resolved):
+        if not from_dir.is_relative_to(base_resolved) or not to_dir.is_relative_to(
+            base_resolved
+        ):
             raise SkillError(SkillErrorCode.INVALID_VERSION)
         if not from_dir.exists() or not to_dir.exists():
             raise SkillError(SkillErrorCode.VERSION_FILES_NOT_FOUND)
@@ -283,8 +351,12 @@ class SkillVersionCoordinator:
                 continue
             diff_text = ""
             if left.stat().st_size <= 100_000 and right.stat().st_size <= 100_000:
-                left_text = left.read_text(encoding="utf-8", errors="replace").splitlines()
-                right_text = right.read_text(encoding="utf-8", errors="replace").splitlines()
+                left_text = left.read_text(
+                    encoding="utf-8", errors="replace"
+                ).splitlines()
+                right_text = right.read_text(
+                    encoding="utf-8", errors="replace"
+                ).splitlines()
                 diff_lines = difflib.unified_diff(
                     left_text,
                     right_text,
@@ -327,5 +399,7 @@ class SkillVersionCoordinator:
             target = root_dir / relative
             target.parent.mkdir(parents=True, exist_ok=True)
             target.write_bytes(file_path.read_bytes())
-        await self.lifecycle.skill_repo.update(skill, current_version=version, description=record.description)
+        await self.lifecycle.skill_repo.update(
+            skill, current_version=version, description=record.description
+        )
         return record

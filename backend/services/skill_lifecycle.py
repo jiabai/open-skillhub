@@ -3,10 +3,22 @@ from datetime import datetime, timezone
 from loguru import logger
 
 from backend.config.settings import settings
+from backend.core.middleware.logging import safe_log_context
 from backend.core.security.rbac import is_skill_visible
-from backend.core.utils.skill_archive import delete_archives_for_skill, rename_archives_for_skill
-from backend.core.utils.skill_storage import create_skill_dir, delete_skill_dir, get_user_skill_dir, validate_skill_name
-from backend.domain.skill_visibility import PUBLIC_SKILL_VISIBILITY, normalize_writable_skill_visibility
+from backend.core.utils.skill_archive import (
+    delete_archives_for_skill,
+    rename_archives_for_skill,
+)
+from backend.core.utils.skill_storage import (
+    create_skill_dir,
+    delete_skill_dir,
+    get_user_skill_dir,
+    validate_skill_name,
+)
+from backend.domain.skill_visibility import (
+    PUBLIC_SKILL_VISIBILITY,
+    normalize_writable_skill_visibility,
+)
 from backend.models.skill import Skill
 from backend.models.user import User
 from backend.repositories.skill import SkillRepository
@@ -133,7 +145,11 @@ class SkillLifecycleCoordinator:
         if not isinstance(source_skill_id, str) or not source_skill_id.strip():
             return skill
         source_skill = await self.skill_repo.get_by_id(source_skill_id)
-        if not source_skill or not self.is_public_skill(source_skill) or not source_skill.is_active:
+        if (
+            not source_skill
+            or not self.is_public_skill(source_skill)
+            or not source_skill.is_active
+        ):
             raise SkillError(SkillErrorCode.SOURCE_SKILL_UNAVAILABLE)
         return source_skill
 
@@ -148,15 +164,36 @@ class SkillLifecycleCoordinator:
     ) -> Skill:
         valid, error = validate_skill_name(name)
         if not valid:
+            logger.bind(
+                **safe_log_context(user_id=str(user.id), skill_name=name, reason=error)
+            ).debug("Skill creation rejected because name is invalid")
             raise SkillError(SkillErrorCode.INVALID_SKILL_NAME, error)
         if await self.skill_repo.get_by_name(user.id, name):
+            logger.bind(
+                **safe_log_context(user_id=str(user.id), skill_name=name)
+            ).debug("Skill creation rejected because name already exists")
             raise SkillError(SkillErrorCode.SKILL_ALREADY_EXISTS)
         tags = tags or []
         try:
-            visibility_value = normalize_writable_skill_visibility(visibility, settings.DEFAULT_SKILL_VISIBILITY)
+            visibility_value = normalize_writable_skill_visibility(
+                visibility, settings.DEFAULT_SKILL_VISIBILITY
+            )
         except ValueError as exc:
+            logger.bind(
+                **safe_log_context(
+                    user_id=str(user.id), skill_name=name, visibility=visibility
+                )
+            ).debug("Skill creation rejected because visibility is invalid")
             raise SkillError(SkillErrorCode.INVALID_VISIBILITY) from exc
         path = create_skill_dir(user.id, name)
+        logger.bind(
+            **safe_log_context(
+                user_id=str(user.id),
+                skill_name=name,
+                visibility=visibility_value,
+                path=str(path),
+            )
+        ).debug("Creating skill record")
         return await self.skill_repo.create(
             user_id=user.id,
             name=name,
@@ -175,12 +212,26 @@ class SkillLifecycleCoordinator:
         if self.is_reference_skill(skill):
             disallowed = {"description", "tags", "visibility"}
             if any(key in fields for key in disallowed):
+                logger.bind(
+                    **safe_log_context(
+                        user_id=str(user.id),
+                        skill_uuid=skill_id,
+                        fields=list(fields.keys()),
+                    )
+                ).debug("Reference skill update rejected because fields are read-only")
                 raise SkillError(SkillErrorCode.REFERENCE_SKILL_READ_ONLY)
         visibility = fields.get("visibility")
         if visibility is not None:
             try:
-                normalized = normalize_writable_skill_visibility(str(visibility), settings.DEFAULT_SKILL_VISIBILITY)
+                normalized = normalize_writable_skill_visibility(
+                    str(visibility), settings.DEFAULT_SKILL_VISIBILITY
+                )
             except ValueError as exc:
+                logger.bind(
+                    **safe_log_context(
+                        user_id=str(user.id), skill_uuid=skill_id, visibility=visibility
+                    )
+                ).debug("Skill update rejected because visibility is invalid")
                 raise SkillError(SkillErrorCode.INVALID_VISIBILITY) from exc
             fields["visibility"] = str(normalized)
         new_name = fields.get("name")
@@ -189,9 +240,22 @@ class SkillLifecycleCoordinator:
         elif new_name != skill.name:
             valid, error = validate_skill_name(new_name)
             if not valid:
+                logger.bind(
+                    **safe_log_context(
+                        user_id=str(user.id),
+                        skill_uuid=skill_id,
+                        skill_name=new_name,
+                        reason=error,
+                    )
+                ).debug("Skill update rejected because new name is invalid")
                 raise SkillError(SkillErrorCode.INVALID_SKILL_NAME, error)
             existing = await self.skill_repo.get_by_name(user.id, new_name)
             if existing and existing.id != skill.id:
+                logger.bind(
+                    **safe_log_context(
+                        user_id=str(user.id), skill_uuid=skill_id, skill_name=new_name
+                    )
+                ).debug("Skill update rejected because new name already exists")
                 raise SkillError(SkillErrorCode.SKILL_ALREADY_EXISTS)
             if not self.is_reference_skill(skill):
                 old_dir = get_user_skill_dir(user.id, skill.name)
@@ -203,6 +267,19 @@ class SkillLifecycleCoordinator:
                     new_dir.mkdir(parents=True, exist_ok=True)
                 rename_archives_for_skill(user.id, skill.name, new_name)
                 fields["skill_dir"] = str(new_dir)
+                logger.bind(
+                    **safe_log_context(
+                        user_id=str(user.id),
+                        skill_uuid=skill_id,
+                        old_name=skill.name,
+                        new_name=new_name,
+                    )
+                ).debug("Skill directory renamed")
+        logger.bind(
+            **safe_log_context(
+                user_id=str(user.id), skill_uuid=skill_id, fields=list(fields.keys())
+            )
+        ).debug("Updating skill record")
         return await self.skill_repo.update(skill, **fields)
 
     async def deactivate_skill(self, user: User, skill_id: str) -> Skill:
@@ -210,22 +287,32 @@ class SkillLifecycleCoordinator:
         self.ensure_owner(user, skill)
         self.ensure_not_reference(skill)
         now = datetime.now(timezone.utc).replace(microsecond=0)
-        return await self.skill_repo.update(skill, is_active=False, cache_revoked_at=now)
+        return await self.skill_repo.update(
+            skill, is_active=False, cache_revoked_at=now
+        )
 
     async def activate_skill(self, user: User, skill_id: str) -> Skill:
         skill = await self.get_skill(user, skill_id)
         self.ensure_owner(user, skill)
         self.ensure_not_reference(skill)
-        return await self.skill_repo.update(skill, is_active=True, cache_revoked_at=None)
+        return await self.skill_repo.update(
+            skill, is_active=True, cache_revoked_at=None
+        )
 
-    async def delete_skill(self, user: User, skill_id: str, delete_archives: bool = False) -> bool:
-        logger.info(f"[DELETE_SKILL] user_id={user.id}, skill_id={skill_id}, delete_archives={delete_archives}")
+    async def delete_skill(
+        self, user: User, skill_id: str, delete_archives: bool = False
+    ) -> bool:
+        logger.info(
+            f"[DELETE_SKILL] user_id={user.id}, skill_id={skill_id}, delete_archives={delete_archives}"
+        )
         skill = await self.get_skill(user, skill_id)
         logger.debug(f"[DELETE_SKILL] Found skill: name={skill.name}, id={skill.id}")
         self.ensure_owner(user, skill)
         if self.is_reference_skill(skill):
             await self.skill_repo.delete(skill)
-            logger.info(f"[DELETE_SKILL] Deleted reference skill, skill_name={skill.name}")
+            logger.info(
+                f"[DELETE_SKILL] Deleted reference skill, skill_name={skill.name}"
+            )
             return True
         await self.skill_repo.delete(skill)
         delete_skill_dir(user.id, skill.name)
@@ -248,7 +335,9 @@ class SkillLifecycleCoordinator:
     def storage_owner_id(skill: Skill) -> str:
         return str(skill.user_id)
 
-    async def list_public_skills(self, skip: int = 0, limit: int = 100, query: str | None = None) -> list[Skill]:
+    async def list_public_skills(
+        self, skip: int = 0, limit: int = 100, query: str | None = None
+    ) -> list[Skill]:
         self.assert_public_features_enabled()
         return await self.skill_repo.list_public(skip=skip, limit=limit, query=query)
 

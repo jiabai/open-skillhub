@@ -1,10 +1,22 @@
 import os
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Request, Response, UploadFile, status
+from fastapi import (
+    APIRouter,
+    Depends,
+    File,
+    Form,
+    HTTPException,
+    Query,
+    Request,
+    Response,
+    UploadFile,
+    status,
+)
 from loguru import logger
 
 from backend.config.settings import settings
 from backend.core.deps import require_permission
+from backend.core.middleware.logging import safe_log_context
 from backend.core.utils.skill_storage import MAX_FILE_SIZE, MAX_TOTAL_SIZE
 from backend.db.session import get_async_session
 from backend.repositories.skill import SkillRepository
@@ -17,7 +29,10 @@ from backend.api.v1.skills_support import (
     serialize_skill,
     stream_upload_to_temp_file,
 )
-from backend.schemas.skill_lifecycle import SkillInstallInstructionsResponse, SkillVersionDiffResponse
+from backend.schemas.skill_lifecycle import (
+    SkillInstallInstructionsResponse,
+    SkillVersionDiffResponse,
+)
 from backend.schemas.skill import (
     SkillCachePolicyResponse,
     SkillCloneCreate,
@@ -86,7 +101,9 @@ async def list_public_skills(
         reference_source_ids = await repo.list_reference_source_ids(current_user.id)
         clone_source_ids = await repo.list_cloned_source_ids(current_user.id)
     items = [
-        await serialize_public_skill(service, skill, reference_source_ids, clone_source_ids)
+        await serialize_public_skill(
+            service, skill, reference_source_ids, clone_source_ids
+        )
         for skill in skills
     ]
     return PublicSkillListResponse(items=items, total=total)
@@ -115,8 +132,12 @@ async def get_cache_policy(current_user=Depends(require_permission("skill.read")
     )
 
 
-@router.post("", response_model=SkillConsoleResponse, status_code=status.HTTP_201_CREATED)
-@router.post("/", response_model=SkillConsoleResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "", response_model=SkillConsoleResponse, status_code=status.HTTP_201_CREATED
+)
+@router.post(
+    "/", response_model=SkillConsoleResponse, status_code=status.HTTP_201_CREATED
+)
 async def create_skill(
     request: Request,
     payload: SkillCreate,
@@ -169,7 +190,9 @@ async def update_skill(
         skill = await service.update_skill(current_user, skill_uuid, **fields)
     except ValueError as exc:
         raise handle_skill_value_error(exc) from exc
-    await create_audit_event(session, request, current_user, "skill.update", skill_uuid, metadata=fields)
+    await create_audit_event(
+        session, request, current_user, "skill.update", skill_uuid, metadata=fields
+    )
     return await serialize_skill(service, skill)
 
 
@@ -183,16 +206,27 @@ async def delete_skill(
 ):
     service = build_skill_service(session)
     try:
-        await service.delete_skill(current_user, skill_uuid, delete_archives=delete_archives)
+        await service.delete_skill(
+            current_user, skill_uuid, delete_archives=delete_archives
+        )
     except ValueError as exc:
         raise handle_skill_value_error(exc) from exc
     await create_audit_event(
-        session, request, current_user, "skill.delete", skill_uuid, metadata={"delete_archives": delete_archives}
+        session,
+        request,
+        current_user,
+        "skill.delete",
+        skill_uuid,
+        metadata={"delete_archives": delete_archives},
     )
     return None
 
 
-@router.post("/{public_uuid}/reference", response_model=SkillConsoleResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/{public_uuid}/reference",
+    response_model=SkillConsoleResponse,
+    status_code=status.HTTP_201_CREATED,
+)
 async def create_reference_skill(
     request: Request,
     public_uuid: str,
@@ -202,7 +236,9 @@ async def create_reference_skill(
 ):
     service = build_skill_service(session)
     try:
-        skill = await service.create_reference_skill(current_user, public_uuid, payload.name, payload.pinned_version)
+        skill = await service.create_reference_skill(
+            current_user, public_uuid, payload.name, payload.pinned_version
+        )
     except ValueError as exc:
         raise handle_skill_value_error(exc) from exc
     await create_audit_event(
@@ -211,12 +247,19 @@ async def create_reference_skill(
         current_user,
         "skill.reference",
         skill.id,
-        metadata={"source_skill_id": public_uuid, "pinned_version": payload.pinned_version},
+        metadata={
+            "source_skill_id": public_uuid,
+            "pinned_version": payload.pinned_version,
+        },
     )
     return await serialize_skill(service, skill)
 
 
-@router.post("/{public_uuid}/clone", response_model=SkillConsoleResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/{public_uuid}/clone",
+    response_model=SkillConsoleResponse,
+    status_code=status.HTTP_201_CREATED,
+)
 async def clone_public_skill(
     request: Request,
     public_uuid: str,
@@ -226,7 +269,9 @@ async def clone_public_skill(
 ):
     service = build_skill_service(session)
     try:
-        result = await service.clone_public_skill(current_user, public_uuid, payload.name, payload.visible)
+        result = await service.clone_public_skill(
+            current_user, public_uuid, payload.name, payload.visible
+        )
     except ValueError as exc:
         raise handle_skill_value_error(exc) from exc
     await create_audit_event(
@@ -254,11 +299,18 @@ async def pin_reference_skill_version(
 ):
     service = build_skill_service(session)
     try:
-        skill = await service.pin_reference_version(current_user, skill_uuid, payload.version)
+        skill = await service.pin_reference_version(
+            current_user, skill_uuid, payload.version
+        )
     except ValueError as exc:
         raise handle_skill_value_error(exc) from exc
     await create_audit_event(
-        session, request, current_user, "skill.pin_version", skill_uuid, metadata={"version": payload.version}
+        session,
+        request,
+        current_user,
+        "skill.pin_version",
+        skill_uuid,
+        metadata={"version": payload.version},
     )
     return await serialize_skill(service, skill)
 
@@ -275,7 +327,9 @@ async def unpin_reference_skill_version(
         skill = await service.unpin_reference_version(current_user, skill_uuid)
     except ValueError as exc:
         raise handle_skill_value_error(exc) from exc
-    await create_audit_event(session, request, current_user, "skill.unpin_version", skill_uuid)
+    await create_audit_event(
+        session, request, current_user, "skill.unpin_version", skill_uuid
+    )
     return await serialize_skill(service, skill)
 
 
@@ -296,28 +350,42 @@ async def upload_skill_file(
     content_size = 0
     max_upload_size = MAX_TOTAL_SIZE if is_zip else MAX_FILE_SIZE
     try:
-        temp_path, content_size = await stream_upload_to_temp_file(file, max_upload_size)
+        temp_path, content_size = await stream_upload_to_temp_file(
+            file, max_upload_size
+        )
         logger.info(
             f"[UPLOAD START] user_id={current_user.id}, filename={filename}, "
             f"skill_uuid={skill_uuid}, visibility={visibility}, content_size={content_size} bytes"
         )
         if is_zip:
             if skill_uuid:
-                logger.debug(f"[UPLOAD ZIP] Updating existing skill, skill_uuid={skill_uuid}")
-                payload = await service.upload_zip_from_path(current_user, skill_uuid, filename, temp_path, metadata)
-                logger.info(f"[UPLOAD ZIP SUCCESS] Updated skill, version={payload.get('version')}")
+                logger.debug(
+                    f"[UPLOAD ZIP] Updating existing skill, skill_uuid={skill_uuid}"
+                )
+                payload = await service.upload_zip_from_path(
+                    current_user, skill_uuid, filename, temp_path, metadata
+                )
+                logger.info(
+                    f"[UPLOAD ZIP SUCCESS] Updated skill, version={payload.get('version')}"
+                )
                 await create_audit_event(
                     session,
                     request,
                     current_user,
                     "skill.upload",
                     skill_uuid,
-                    metadata={"filename": filename, "archive": True, "version": payload.get("version")},
+                    metadata={
+                        "filename": filename,
+                        "archive": True,
+                        "version": payload.get("version"),
+                    },
                 )
                 return payload
             else:
                 logger.debug("[UPLOAD ZIP] Creating new skill")
-                payload = await service.upload_zip_create_skill_from_path(current_user, filename, temp_path, visibility)
+                payload = await service.upload_zip_create_skill_from_path(
+                    current_user, filename, temp_path, visibility
+                )
                 logger.info(
                     f"[UPLOAD ZIP SUCCESS] Created new skill, id={payload.get('id')}, "
                     f"name={payload.get('name')}, version={payload.get('version')}"
@@ -328,27 +396,51 @@ async def upload_skill_file(
                     current_user,
                     "skill.create",
                     payload.get("id", ""),
-                    metadata={"filename": filename, "name": payload.get("name"), "version": payload.get("version")},
+                    metadata={
+                        "filename": filename,
+                        "name": payload.get("name"),
+                        "version": payload.get("version"),
+                    },
                 )
                 return payload
         if not skill_uuid:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="skill_uuid is required for non-zip uploads")
-        filename = await service.upload_file_from_path(current_user, skill_uuid, filename, temp_path, content_size)
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="skill_uuid is required for non-zip uploads",
+            )
+        filename = await service.upload_file_from_path(
+            current_user, skill_uuid, filename, temp_path, content_size
+        )
     except ValueError as exc:
-        logger.error(f"[UPLOAD FAILED] user_id={current_user.id}, filename={filename}, error={str(exc)}", exc_info=True)
+        logger.error(
+            f"[UPLOAD FAILED] user_id={current_user.id}, filename={filename}, error={str(exc)}",
+            exc_info=True,
+        )
         raise handle_skill_value_error(exc) from exc
     except Exception as exc:
-        logger.error(f"[UPLOAD FAILED] user_id={current_user.id}, filename={filename}, unexpected_error={str(exc)}", exc_info=True)
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Upload failed") from exc
+        logger.error(
+            f"[UPLOAD FAILED] user_id={current_user.id}, filename={filename}, unexpected_error={str(exc)}",
+            exc_info=True,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Upload failed"
+        ) from exc
     finally:
         await file.close()
         if temp_path:
             try:
                 os.unlink(temp_path)
             except OSError:
-                pass
+                logger.bind(
+                    **safe_log_context(temp_path=str(temp_path), filename=filename)
+                ).debug("Skill upload temp file cleanup failed")
     await create_audit_event(
-        session, request, current_user, "skill.upload", skill_uuid, metadata={"filename": filename, "archive": False}
+        session,
+        request,
+        current_user,
+        "skill.upload",
+        skill_uuid,
+        metadata={"filename": filename, "archive": False},
     )
     return {"filename": filename}
 
@@ -365,7 +457,9 @@ async def deactivate_skill(
         skill = await service.deactivate_skill(current_user, skill_uuid)
     except ValueError as exc:
         raise handle_skill_value_error(exc) from exc
-    await create_audit_event(session, request, current_user, "skill.deactivate", skill_uuid)
+    await create_audit_event(
+        session, request, current_user, "skill.deactivate", skill_uuid
+    )
     return await serialize_skill(service, skill)
 
 
@@ -381,7 +475,9 @@ async def activate_skill(
         skill = await service.activate_skill(current_user, skill_uuid)
     except ValueError as exc:
         raise handle_skill_value_error(exc) from exc
-    await create_audit_event(session, request, current_user, "skill.activate", skill_uuid)
+    await create_audit_event(
+        session, request, current_user, "skill.activate", skill_uuid
+    )
     return await serialize_skill(service, skill)
 
 
@@ -396,7 +492,9 @@ async def list_skill_versions(
         versions = await service.list_versions(current_user, skill_uuid)
     except ValueError as exc:
         raise handle_skill_value_error(exc) from exc
-    return SkillVersionListResponse(items=[SkillVersionResponse.model_validate(item) for item in versions])
+    return SkillVersionListResponse(
+        items=[SkillVersionResponse.model_validate(item) for item in versions]
+    )
 
 
 # NOTE: /versions/diff must come before /versions/{version} to avoid route collision
@@ -410,7 +508,9 @@ async def diff_skill_versions(
 ):
     service = build_skill_service(session)
     try:
-        payload = await service.diff_versions(current_user, skill_uuid, from_version, to_version)
+        payload = await service.diff_versions(
+            current_user, skill_uuid, from_version, to_version
+        )
     except ValueError as exc:
         raise handle_skill_value_error(exc) from exc
     return SkillVersionDiffResponse.model_validate(payload)
@@ -431,7 +531,10 @@ async def get_skill_version(
     return SkillVersionResponse.model_validate(record)
 
 
-@router.get("/{skill_uuid}/versions/{version}/install-instructions", response_model=SkillInstallInstructionsResponse)
+@router.get(
+    "/{skill_uuid}/versions/{version}/install-instructions",
+    response_model=SkillInstallInstructionsResponse,
+)
 async def get_install_instructions(
     skill_uuid: str,
     version: str,
@@ -440,13 +543,17 @@ async def get_install_instructions(
 ):
     service = build_skill_service(session)
     try:
-        payload = await service.get_install_instructions(current_user, skill_uuid, version)
+        payload = await service.get_install_instructions(
+            current_user, skill_uuid, version
+        )
     except ValueError as exc:
         raise handle_skill_value_error(exc) from exc
     return SkillInstallInstructionsResponse.model_validate(payload)
 
 
-@router.post("/{skill_uuid}/versions/{version}/rollback", response_model=SkillVersionResponse)
+@router.post(
+    "/{skill_uuid}/versions/{version}/rollback", response_model=SkillVersionResponse
+)
 async def rollback_skill_version(
     request: Request,
     skill_uuid: str,
@@ -460,7 +567,12 @@ async def rollback_skill_version(
     except ValueError as exc:
         raise handle_skill_value_error(exc) from exc
     await create_audit_event(
-        session, request, current_user, "skill.rollback", skill_uuid, metadata={"version": version}
+        session,
+        request,
+        current_user,
+        "skill.rollback",
+        skill_uuid,
+        metadata={"version": version},
     )
     return SkillVersionResponse.model_validate(record)
 

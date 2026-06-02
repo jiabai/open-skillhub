@@ -4,6 +4,7 @@ from pathlib import Path
 import psutil
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import JSONResponse
+from loguru import logger
 
 from backend.config.settings import settings
 
@@ -46,7 +47,8 @@ def register_operational_endpoints(
         try:
             disk = psutil.disk_usage(str(disk_root))
             disk_usage_percent = disk.percent
-        except Exception:
+        except Exception as exc:
+            logger.bind(disk_root=str(disk_root), reason=str(exc)).debug("Metrics disk usage read failed")
             disk_usage_percent = None
         memory = psutil.virtual_memory()
         return {

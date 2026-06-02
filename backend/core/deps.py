@@ -20,10 +20,12 @@ import inspect
 
 from fastapi import Depends, HTTPException
 from fastapi.security import OAuth2PasswordBearer
+from loguru import logger
 from starlette import status
 
 from backend.config.settings import settings
 from backend.core.middleware.auth import assert_user_active, get_current_active_user
+from backend.core.middleware.logging import safe_log_context
 from backend.core.security.rbac import has_permission
 from backend.db.session import get_async_session
 from backend.repositories.skill import SkillRepository
@@ -69,9 +71,7 @@ def require_permission(permission: str):
     """
     # P3: Input validation - ensure permission is a non-empty string
     if not isinstance(permission, str) or not permission.strip():
-        raise ValueError(
-            f"Permission must be a non-empty string, got: {permission!r}"
-        )
+        raise ValueError(f"Permission must be a non-empty string, got: {permission!r}")
     permission = permission.strip()
 
     async def _permission_checker(
@@ -83,6 +83,11 @@ def require_permission(permission: str):
         while inspect.isawaitable(current_user):
             current_user = await current_user
         if not has_permission(current_user, permission):
+            logger.bind(
+                **safe_log_context(
+                    user_id=str(getattr(current_user, "id", "")), permission=permission
+                )
+            ).debug("Permission check denied")
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Permission denied",
@@ -105,12 +110,22 @@ def require_management_access():
         current_user=Depends(get_current_active_user),
     ):
         if not settings.ENABLE_RBAC:
+            logger.bind(
+                **safe_log_context(user_id=str(getattr(current_user, "id", "")))
+            ).debug("Management access denied because RBAC is disabled")
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Management access requires RBAC",
             )
         if current_user.is_superuser or (current_user.role or "").strip() == "admin":
             return current_user
+        logger.bind(
+            **safe_log_context(
+                user_id=str(current_user.id),
+                role=current_user.role,
+                is_superuser=current_user.is_superuser,
+            )
+        ).debug("Management access denied")
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Permission denied",
@@ -124,6 +139,7 @@ async def get_current_api_token_user(
     session=Depends(get_async_session),
 ):
     if not token_value:
+        logger.debug("API token authentication missing bearer token")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Not authenticated",
@@ -133,6 +149,7 @@ async def get_current_api_token_user(
     try:
         token = await token_service.validate_token(token_value)
     except ValueError as exc:
+        logger.bind(reason=str(exc)).debug("API token validation failed")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail=str(exc),
@@ -140,6 +157,9 @@ async def get_current_api_token_user(
         ) from exc
     user = await token_service.user_repo.get_by_id(token.user_id)
     if not user:
+        logger.bind(
+            **safe_log_context(user_id=str(token.user_id), token_id=str(token.id))
+        ).debug("API token owner user not found")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="User not found",
@@ -148,6 +168,9 @@ async def get_current_api_token_user(
     try:
         assert_user_active(user)
     except HTTPException as exc:
+        logger.bind(
+            **safe_log_context(user_id=str(user.id), token_id=str(token.id))
+        ).debug("API token owner is inactive")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail=str(exc.detail),
@@ -158,15 +181,18 @@ async def get_current_api_token_user(
 
 def require_api_token_permission(permission: str):
     if not isinstance(permission, str) or not permission.strip():
-        raise ValueError(
-            f"Permission must be a non-empty string, got: {permission!r}"
-        )
+        raise ValueError(f"Permission must be a non-empty string, got: {permission!r}")
     permission = permission.strip()
 
     async def _permission_checker(
         current_user=Depends(get_current_api_token_user),
     ):
         if not has_permission(current_user, permission):
+            logger.bind(
+                **safe_log_context(
+                    user_id=str(getattr(current_user, "id", "")), permission=permission
+                )
+            ).debug("API token permission check denied")
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Permission denied",
@@ -194,6 +220,11 @@ def require_skill_download_access():
         if settings.ENABLE_RBAC:
             if has_permission(current_user, "skill.download"):
                 return current_user
+            logger.bind(
+                **safe_log_context(
+                    user_id=str(current_user.id), skill_uuid=payload.skill_uuid
+                )
+            ).debug("Skill download denied by RBAC permission")
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Permission denied",
@@ -202,6 +233,14 @@ def require_skill_download_access():
         skill = await SkillRepository(session).get_by_id(payload.skill_uuid)
         if skill and skill.user_id == current_user.id:
             return current_user
+        logger.bind(
+            **safe_log_context(
+                user_id=str(current_user.id),
+                skill_uuid=payload.skill_uuid,
+                skill_found=bool(skill),
+                owner_id=str(skill.user_id) if skill else "",
+            )
+        ).debug("Skill download denied by ownership check")
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Permission denied",
@@ -226,6 +265,11 @@ def require_api_token_skill_download_access():
         if settings.ENABLE_RBAC:
             if has_permission(current_user, "skill.download"):
                 return current_user
+            logger.bind(
+                **safe_log_context(
+                    user_id=str(current_user.id), skill_uuid=payload.skill_uuid
+                )
+            ).debug("API token skill download denied by RBAC permission")
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Permission denied",
@@ -234,6 +278,14 @@ def require_api_token_skill_download_access():
         skill = await SkillRepository(session).get_by_id(payload.skill_uuid)
         if skill and skill.user_id == current_user.id:
             return current_user
+        logger.bind(
+            **safe_log_context(
+                user_id=str(current_user.id),
+                skill_uuid=payload.skill_uuid,
+                skill_found=bool(skill),
+                owner_id=str(skill.user_id) if skill else "",
+            )
+        ).debug("API token skill download denied by ownership check")
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Permission denied",

@@ -1,6 +1,8 @@
 from fastapi import Request
+from loguru import logger
 
 from backend.config.settings import settings
+from backend.core.middleware.logging import safe_log_context
 from backend.repositories.audit_log import AuditLogRepository
 from backend.services.audit import AuditService
 
@@ -14,6 +16,7 @@ async def create_audit_event(
     metadata: dict | None = None,
 ) -> None:
     if not settings.ENABLE_AUDIT_LOG:
+        logger.bind(**safe_log_context(action=action, target=target)).debug("Audit event skipped because audit is disabled")
         return
     audit_service = AuditService(AuditLogRepository(session))
     await audit_service.create_event(

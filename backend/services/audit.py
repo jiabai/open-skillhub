@@ -3,6 +3,9 @@ import io
 import json
 from datetime import datetime
 
+from loguru import logger
+
+from backend.core.middleware.logging import safe_log_context
 from backend.repositories.audit_log import AuditLogRepository
 
 
@@ -29,6 +32,15 @@ class AuditService:
             "user_agent": user_agent,
             "details": metadata or {},
         }
+        logger.bind(
+            **safe_log_context(
+                actor_id=actor_id,
+                action=action,
+                target=target,
+                result=result,
+                metadata_keys=list((metadata or {}).keys()),
+            )
+        ).debug("Creating audit event")
         return await self.repo.create_event(**payload)
 
     async def list_events(

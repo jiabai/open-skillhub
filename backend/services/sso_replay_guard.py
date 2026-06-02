@@ -8,8 +8,10 @@ from typing import Any, cast
 from sqlalchemy import delete, select, update
 from sqlalchemy.engine import CursorResult
 from sqlalchemy.ext.asyncio import AsyncSession
+from loguru import logger
 
 from backend.config.settings import settings
+from backend.core.middleware.logging import safe_log_context
 from backend.models.sso_auth_request import SSOAuthRequest
 from backend.models.sso_nonce import SSONonce
 from backend.models.sso_replay_token import SSOReplayToken
@@ -44,6 +46,7 @@ class SSOReplayGuardService:
             ),
         )
         await self._session.commit()
+        logger.bind(expires_in=expires_in).debug("Issued SSO nonce")
         return nonce, expires_in
 
     async def issue_auth_request(self, redirect_uri: str) -> tuple[str, str, str, int]:
@@ -63,13 +66,26 @@ class SSOReplayGuardService:
             )
         )
         await self._session.commit()
+        logger.bind(
+            **safe_log_context(
+                redirect_uri=redirect_uri,
+                expires_in=expires_in,
+                state_hash_prefix=self._hash(state)[:12],
+                nonce_hash_prefix=self._hash(nonce)[:12],
+            )
+        ).debug("Issued SSO auth request")
         return state, nonce, code_verifier, expires_in
 
     async def consume_auth_request(self, state: str) -> SSOAuthRequest:
         now = self._now()
         state_hash = self._hash(state)
+        logger.bind(state_hash_prefix=state_hash[:12]).debug(
+            "Consuming SSO auth request"
+        )
         await self._session.execute(
-            delete(SSOAuthRequest).where(SSOAuthRequest.expires_at <= now, SSOAuthRequest.used_at.is_(None)),
+            delete(SSOAuthRequest).where(
+                SSOAuthRequest.expires_at <= now, SSOAuthRequest.used_at.is_(None)
+            ),
         )
         result = await self._session.execute(
             select(SSOAuthRequest).where(SSOAuthRequest.state_hash == state_hash),
@@ -77,21 +93,41 @@ class SSOReplayGuardService:
         record = result.scalar_one_or_none()
         if not record:
             await self._session.rollback()
+            logger.bind(state_hash_prefix=state_hash[:12]).debug(
+                "SSO auth request state not found"
+            )
             raise ValueError("SSO_STATE_INVALID")
         if record.used_at is not None:
             await self._session.rollback()
+            logger.bind(state_hash_prefix=state_hash[:12]).debug(
+                "SSO auth request state replayed"
+            )
             raise ValueError("SSO_STATE_REPLAYED")
         if self._ensure_utc(record.expires_at) <= now:
             await self._session.rollback()
+            logger.bind(
+                state_hash_prefix=state_hash[:12],
+                expires_at=self._ensure_utc(record.expires_at).isoformat(),
+                now=now.isoformat(),
+            ).debug("SSO auth request state expired")
             raise ValueError("SSO_STATE_EXPIRED")
         record.used_at = now
         await self._session.commit()
         await self._session.refresh(record)
+        logger.bind(state_hash_prefix=state_hash[:12]).debug(
+            "SSO auth request consumed"
+        )
         return record
 
     def verify_auth_request_nonce(self, record: SSOAuthRequest, nonce: str) -> None:
         if record.nonce_hash != self._hash(nonce):
+            logger.bind(auth_request_id=str(record.id)).debug(
+                "SSO auth request nonce mismatch"
+            )
             raise ValueError("SSO_NONCE_INVALID")
+        logger.bind(auth_request_id=str(record.id)).debug(
+            "SSO auth request nonce verified"
+        )
 
     def build_code_challenge(self, code_verifier: str) -> str:
         return SSOOIDCService.build_code_challenge(code_verifier)
@@ -99,42 +135,65 @@ class SSOReplayGuardService:
     async def consume_nonce(self, nonce: str) -> None:
         now = self._now()
         nonce_hash = self._hash(nonce)
+        logger.bind(nonce_hash_prefix=nonce_hash[:12]).debug("Consuming SSO nonce")
         await self._session.execute(
-            delete(SSONonce).where(SSONonce.expires_at <= now, SSONonce.used_at.is_(None)),
+            delete(SSONonce).where(
+                SSONonce.expires_at <= now, SSONonce.used_at.is_(None)
+            ),
         )
-        result = cast(CursorResult[Any], await self._session.execute(
-            update(SSONonce)
-            .where(
-                SSONonce.nonce_hash == nonce_hash,
-                SSONonce.purpose == "sso_login",
-                SSONonce.used_at.is_(None),
-                SSONonce.expires_at > now,
-            )
-            .values(used_at=now),
-        ))
+        result = cast(
+            CursorResult[Any],
+            await self._session.execute(
+                update(SSONonce)
+                .where(
+                    SSONonce.nonce_hash == nonce_hash,
+                    SSONonce.purpose == "sso_login",
+                    SSONonce.used_at.is_(None),
+                    SSONonce.expires_at > now,
+                )
+                .values(used_at=now),
+            ),
+        )
         if (result.rowcount or 0) == 1:
             await self._session.commit()
+            logger.bind(nonce_hash_prefix=nonce_hash[:12]).debug("SSO nonce consumed")
             return
 
-        existing = await self._session.execute(select(SSONonce).where(SSONonce.nonce_hash == nonce_hash))
+        existing = await self._session.execute(
+            select(SSONonce).where(SSONonce.nonce_hash == nonce_hash)
+        )
         record = existing.scalar_one_or_none()
         await self._session.rollback()
         if not record:
+            logger.bind(nonce_hash_prefix=nonce_hash[:12]).debug("SSO nonce not found")
             raise ValueError("SSO_NONCE_INVALID")
         if record.used_at is not None:
+            logger.bind(nonce_hash_prefix=nonce_hash[:12]).debug("SSO nonce replayed")
             raise ValueError("SSO_NONCE_REPLAYED")
+        logger.bind(nonce_hash_prefix=nonce_hash[:12]).debug("SSO nonce expired")
         raise ValueError("SSO_NONCE_EXPIRED")
 
     async def mark_token_used(self, replay_key: str, expires_at: datetime) -> None:
         now = self._now()
         replay_key_hash = self._hash(replay_key)
-        await self._session.execute(delete(SSOReplayToken).where(SSOReplayToken.expires_at <= now))
+        logger.bind(
+            replay_key_hash_prefix=replay_key_hash[:12],
+            expires_at=expires_at.isoformat(),
+        ).debug("Marking SSO replay key used")
+        await self._session.execute(
+            delete(SSOReplayToken).where(SSOReplayToken.expires_at <= now)
+        )
         existing = await self._session.execute(
-            select(SSOReplayToken).where(SSOReplayToken.replay_key_hash == replay_key_hash),
+            select(SSOReplayToken).where(
+                SSOReplayToken.replay_key_hash == replay_key_hash
+            ),
         )
         record = existing.scalar_one_or_none()
         if record:
             await self._session.rollback()
+            logger.bind(replay_key_hash_prefix=replay_key_hash[:12]).debug(
+                "SSO replay key already used"
+            )
             raise ValueError("SSO_TOKEN_REPLAYED")
         self._session.add(
             SSOReplayToken(
@@ -144,3 +203,6 @@ class SSOReplayGuardService:
             ),
         )
         await self._session.commit()
+        logger.bind(replay_key_hash_prefix=replay_key_hash[:12]).debug(
+            "SSO replay key recorded"
+        )

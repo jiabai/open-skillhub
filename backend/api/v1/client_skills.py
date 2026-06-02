@@ -1,6 +1,16 @@
 import os
 
-from fastapi import APIRouter, Depends, HTTPException, File, Form, Request, UploadFile, status
+from fastapi import (
+    APIRouter,
+    Depends,
+    HTTPException,
+    File,
+    Form,
+    Request,
+    UploadFile,
+    status,
+)
+from loguru import logger
 
 from backend.api.v1.skills_support import (
     build_skill_service,
@@ -9,7 +19,11 @@ from backend.api.v1.skills_support import (
     handle_skill_value_error,
     stream_upload_to_temp_file,
 )
-from backend.core.deps import require_api_token_permission, require_api_token_skill_download_access
+from backend.core.deps import (
+    require_api_token_permission,
+    require_api_token_skill_download_access,
+)
+from backend.core.middleware.logging import safe_log_context
 from backend.core.utils.skill_storage import MAX_TOTAL_SIZE
 from backend.db.session import get_async_session
 from backend.schemas.client_skill import ClientSkillListResponse
@@ -42,7 +56,9 @@ async def list_client_skills(
     session=Depends(get_async_session),
 ):
     service = ClientSkillCatalogService(build_skill_service(session))
-    return await service.list_client_skills(current_user, skip=skip, limit=limit, query=q)
+    return await service.list_client_skills(
+        current_user, skip=skip, limit=limit, query=q
+    )
 
 
 @router.post("/download", response_model=SkillDownloadResponse)
@@ -70,6 +86,13 @@ async def upload_client_skill(
     temp_path = None
     try:
         if metadata and not skill_uuid:
+            logger.bind(
+                **safe_log_context(
+                    user_id=str(current_user.id),
+                    filename=filename,
+                    metadata_present=True,
+                )
+            ).debug("Client skill upload rejected because metadata requires skill_uuid")
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail={
@@ -77,7 +100,19 @@ async def upload_client_skill(
                     "code": "INVALID_METADATA",
                 },
             )
-        temp_path, _content_size = await stream_upload_to_temp_file(file, MAX_TOTAL_SIZE)
+        temp_path, _content_size = await stream_upload_to_temp_file(
+            file, MAX_TOTAL_SIZE
+        )
+        logger.bind(
+            **safe_log_context(
+                user_id=str(current_user.id),
+                filename=filename,
+                skill_uuid=skill_uuid or "",
+                visibility=visibility,
+                content_size=_content_size,
+                metadata_present=bool(metadata),
+            )
+        ).debug("Client skill upload started")
         if skill_uuid:
             payload = await service.upload_zip_from_path(
                 current_user,
@@ -99,9 +134,19 @@ async def upload_client_skill(
                     "client_api": True,
                 },
             )
+            logger.bind(
+                **safe_log_context(
+                    user_id=str(current_user.id),
+                    skill_uuid=skill_uuid,
+                    filename=filename,
+                    version=payload.get("version"),
+                )
+            ).debug("Client skill upload updated existing skill")
             return payload
 
-        payload = await service.upload_zip_create_skill_from_path(current_user, filename, temp_path, visibility)
+        payload = await service.upload_zip_create_skill_from_path(
+            current_user, filename, temp_path, visibility
+        )
         await create_audit_event(
             session,
             request,
@@ -115,17 +160,46 @@ async def upload_client_skill(
                 "client_api": True,
             },
         )
+        logger.bind(
+            **safe_log_context(
+                user_id=str(current_user.id),
+                skill_uuid=payload.get("id", ""),
+                filename=filename,
+                skill_name=payload.get("name", ""),
+                version=payload.get("version"),
+            )
+        ).debug("Client skill upload created skill")
         return payload
     except ValueError as exc:
+        logger.bind(
+            **safe_log_context(
+                user_id=str(current_user.id),
+                skill_uuid=skill_uuid or "",
+                filename=filename,
+                reason=str(exc),
+            )
+        ).debug("Client skill upload rejected")
         raise _handle_client_upload_value_error(exc) from exc
     except HTTPException:
         raise
     except Exception as exc:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Upload failed") from exc
+        logger.bind(
+            **safe_log_context(
+                user_id=str(current_user.id),
+                skill_uuid=skill_uuid or "",
+                filename=filename,
+                reason=str(exc),
+            )
+        ).exception("Client skill upload failed unexpectedly")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Upload failed"
+        ) from exc
     finally:
         await file.close()
         if temp_path:
             try:
                 os.unlink(temp_path)
             except OSError:
-                pass
+                logger.bind(
+                    **safe_log_context(temp_path=str(temp_path), filename=filename)
+                ).debug("Client skill upload temp file cleanup failed")

@@ -4,7 +4,13 @@ from pathlib import Path
 
 from loguru import logger
 
-from backend.core.utils.skill_storage import clear_skill_current_dir, delete_skill_dir, get_skill_versions_dir, get_user_skill_dir
+from backend.core.middleware.logging import safe_log_context
+from backend.core.utils.skill_storage import (
+    clear_skill_current_dir,
+    delete_skill_dir,
+    get_skill_versions_dir,
+    get_user_skill_dir,
+)
 from backend.models.skill import Skill
 from backend.models.user import User
 from backend.repositories.skill import SkillRepository
@@ -20,14 +26,18 @@ class CloneCreationResult:
 
 
 class SkillCloneService:
-    def __init__(self, skill_repo: SkillRepository, version_repo: SkillVersionRepository):
+    def __init__(
+        self, skill_repo: SkillRepository, version_repo: SkillVersionRepository
+    ):
         self.skill_repo = skill_repo
         self.version_repo = version_repo
 
     @staticmethod
     def has_clone_origin(skill: Skill) -> bool:
         clone_source_skill_id = skill.cloned_from_skill_id
-        return isinstance(clone_source_skill_id, str) and bool(clone_source_skill_id.strip())
+        return isinstance(clone_source_skill_id, str) and bool(
+            clone_source_skill_id.strip()
+        )
 
     async def get_clone_origin_metadata(self, skill: Skill) -> dict[str, str]:
         if self.has_clone_origin(skill):
@@ -52,6 +62,16 @@ class SkillCloneService:
     ) -> CloneCreationResult:
         skill = None
         try:
+            logger.bind(
+                **safe_log_context(
+                    user_id=str(user.id),
+                    source_skill_id=str(source_skill.id),
+                    source_version=getattr(source_record, "version", ""),
+                    source_version_dir=str(source_version_dir),
+                    visibility=visibility,
+                    clone_name=name,
+                )
+            ).debug("Public skill clone creation started")
             skill = await create_skill(
                 user,
                 name,
@@ -63,6 +83,7 @@ class SkillCloneService:
             version = "1.0.0"
             version_dir = get_skill_versions_dir(skill.user_id, skill.name) / version
             version_dir.mkdir(parents=True, exist_ok=True)
+            copied_source_files = 0
             for entry_path in source_version_dir.rglob("*"):
                 if not entry_path.is_file():
                     continue
@@ -70,9 +91,11 @@ class SkillCloneService:
                 target = version_dir / relative
                 target.parent.mkdir(parents=True, exist_ok=True)
                 shutil.copy2(entry_path, target)
+                copied_source_files += 1
 
             clear_skill_current_dir(skill.user_id, skill.name)
             root_dir = get_user_skill_dir(skill.user_id, skill.name)
+            copied_current_files = 0
             for entry_path in version_dir.rglob("*"):
                 if not entry_path.is_file():
                     continue
@@ -80,6 +103,16 @@ class SkillCloneService:
                 target = root_dir / relative
                 target.parent.mkdir(parents=True, exist_ok=True)
                 shutil.copy2(entry_path, target)
+                copied_current_files += 1
+            logger.bind(
+                **safe_log_context(
+                    user_id=str(user.id),
+                    skill_uuid=str(skill.id),
+                    version_dir=str(version_dir),
+                    copied_source_files=copied_source_files,
+                    copied_current_files=copied_current_files,
+                )
+            ).debug("Public skill clone files copied")
 
             resolved_version = source_record.version
             metadata = dict(source_record.metadata_json or {})
@@ -105,6 +138,15 @@ class SkillCloneService:
                 commit=False,
             )
             await self.skill_repo.session.commit()
+            logger.bind(
+                **safe_log_context(
+                    user_id=str(user.id),
+                    skill_uuid=str(skill.id),
+                    source_skill_id=str(source_skill.id),
+                    source_version=resolved_version,
+                    version=record.version,
+                )
+            ).debug("Public skill clone creation committed")
             return CloneCreationResult(
                 skill=skill,
                 version=record.version,
@@ -112,13 +154,23 @@ class SkillCloneService:
                 source_version=resolved_version,
             )
         except Exception:
+            logger.bind(
+                **safe_log_context(
+                    user_id=str(user.id),
+                    skill_uuid=str(skill.id) if skill is not None else "",
+                    source_skill_id=str(source_skill.id),
+                )
+            ).exception("Public skill clone creation failed")
             try:
                 await self.skill_repo.session.rollback()
+                logger.debug("Public skill clone transaction rolled back")
             except Exception:
                 pass
             if skill is not None:
                 try:
                     delete_skill_dir(skill.user_id, skill.name)
                 except Exception:
-                    logger.exception("Failed to clean up partially created cloned skill directory")
+                    logger.exception(
+                        "Failed to clean up partially created cloned skill directory"
+                    )
             raise

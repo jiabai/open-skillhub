@@ -2,6 +2,7 @@ from contextlib import asynccontextmanager
 
 from sqlalchemy import text
 from fastapi import FastAPI
+from loguru import logger
 
 from backend.api._endpoints import register_operational_endpoints
 from backend.api._exceptions import register_exception_handlers
@@ -20,7 +21,8 @@ async def _check_db_connection() -> bool:
         async with engine.connect() as conn:
             await conn.execute(text("SELECT 1"))
         return True
-    except Exception:
+    except Exception as exc:
+        logger.bind(reason=str(exc)).debug("Database readiness check failed")
         return False
 
 

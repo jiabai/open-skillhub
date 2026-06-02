@@ -3,6 +3,9 @@ import tempfile
 from pathlib import Path
 
 from fastapi import UploadFile
+from loguru import logger
+
+from backend.core.middleware.logging import safe_log_context
 
 
 UPLOAD_CHUNK_SIZE = 64 * 1024
@@ -20,6 +23,9 @@ async def stream_upload_to_temp_file(file: UploadFile, max_bytes: int) -> tuple[
                     break
                 total_size += len(chunk)
                 if total_size > max_bytes:
+                    logger.bind(
+                        **safe_log_context(filename=file.filename or "", total_size=total_size, max_bytes=max_bytes)
+                    ).debug("Upload stream exceeded maximum size")
                     raise ValueError("File too large")
                 temp_file.write(chunk)
         except Exception:
@@ -27,5 +33,11 @@ async def stream_upload_to_temp_file(file: UploadFile, max_bytes: int) -> tuple[
                 os.unlink(temp_path)
             except OSError:
                 pass
+            logger.bind(**safe_log_context(filename=file.filename or "", temp_path=str(temp_path))).debug(
+                "Upload temp file removed after stream failure"
+            )
             raise
+    logger.bind(**safe_log_context(filename=file.filename or "", total_size=total_size, temp_path=str(temp_path))).debug(
+        "Upload stream written to temp file"
+    )
     return temp_path, total_size

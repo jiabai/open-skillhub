@@ -18,7 +18,12 @@ def _archive_backend() -> str:
 
 
 def _storage_root(dirname: str, user_id: str, skill_name: str) -> Path:
-    return Path(settings.SKILL_STORAGE_PATH).expanduser() / dirname / str(user_id) / str(skill_name)
+    return (
+        Path(settings.SKILL_STORAGE_PATH).expanduser()
+        / dirname
+        / str(user_id)
+        / str(skill_name)
+    )
 
 
 def _archive_key(user_id: str, skill_name: str, version: str) -> str:
@@ -87,23 +92,29 @@ def _read_local_cache(path: Path) -> bytes | None:
             path.unlink()
         except OSError:
             pass
+        logger.debug(f"[ARCHIVE_CACHE] Local cache expired and was removed: {path}")
         return None
     data = path.read_bytes()
     if settings.ENABLE_LOCAL_CACHE_ENCRYPTION:
         try:
             return _decrypt_payload(data)
-        except Exception:
+        except Exception as exc:
             try:
                 path.unlink()
             except OSError:
                 pass
+            logger.debug(
+                f"[ARCHIVE_CACHE] Local cache decrypt failed and was removed: path={path}, error={exc}"
+            )
             return None
     return data
 
 
 def _write_local_cache(path: Path, content: bytes) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    data = _encrypt_payload(content) if settings.ENABLE_LOCAL_CACHE_ENCRYPTION else content
+    data = (
+        _encrypt_payload(content) if settings.ENABLE_LOCAL_CACHE_ENCRYPTION else content
+    )
     path.write_bytes(data)
 
 
@@ -115,6 +126,7 @@ def _read_plain_archive(path: Path) -> bytes | None:
             path.unlink()
         except OSError:
             pass
+        logger.debug(f"[ARCHIVE_LOAD] Local archive expired and was removed: {path}")
         return None
     return path.read_bytes()
 
@@ -138,9 +150,13 @@ def _get_s3_client():
     )
 
 
-async def save_archive(user_id: str, skill_name: str, version: str, content: bytes) -> None:
+async def save_archive(
+    user_id: str, skill_name: str, version: str, content: bytes
+) -> None:
     backend = _archive_backend()
-    logger.debug(f"[ARCHIVE_SAVE] user_id={user_id}, skill_name={skill_name}, version={version}, backend={backend}, content_size={len(content)} bytes")
+    logger.debug(
+        f"[ARCHIVE_SAVE] user_id={user_id}, skill_name={skill_name}, version={version}, backend={backend}, content_size={len(content)} bytes"
+    )
     if backend == "s3":
         _write_local_cache(_local_cache_path(user_id, skill_name, version), content)
         client = _get_s3_client()
@@ -149,7 +165,9 @@ async def save_archive(user_id: str, skill_name: str, version: str, content: byt
             Key=_archive_key(user_id, skill_name, version),
             Body=content,
         )
-        logger.debug(f"[ARCHIVE_SAVE] Saved to S3, key={_archive_key(user_id, skill_name, version)}")
+        logger.debug(
+            f"[ARCHIVE_SAVE] Saved to S3, key={_archive_key(user_id, skill_name, version)}"
+        )
         return
     path = _archive_path(user_id, skill_name, version)
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -157,7 +175,9 @@ async def save_archive(user_id: str, skill_name: str, version: str, content: byt
     logger.debug(f"[ARCHIVE_SAVE] Saved to local file, path={path}")
 
 
-async def save_archive_from_path(user_id: str, skill_name: str, version: str, source_path: Path) -> None:
+async def save_archive_from_path(
+    user_id: str, skill_name: str, version: str, source_path: Path
+) -> None:
     backend = _archive_backend()
     size = source_path.stat().st_size if source_path.exists() else 0
     logger.debug(
@@ -165,11 +185,19 @@ async def save_archive_from_path(user_id: str, skill_name: str, version: str, so
         f"version={version}, backend={backend}, content_size={size} bytes"
     )
     if backend == "s3":
-        _write_local_cache(_local_cache_path(user_id, skill_name, version), source_path.read_bytes())
+        _write_local_cache(
+            _local_cache_path(user_id, skill_name, version), source_path.read_bytes()
+        )
         client = _get_s3_client()
         with source_path.open("rb") as file_obj:
-            client.upload_fileobj(file_obj, settings.SKILL_ARCHIVE_S3_BUCKET, _archive_key(user_id, skill_name, version))
-        logger.debug(f"[ARCHIVE_SAVE_PATH] Saved to S3, key={_archive_key(user_id, skill_name, version)}")
+            client.upload_fileobj(
+                file_obj,
+                settings.SKILL_ARCHIVE_S3_BUCKET,
+                _archive_key(user_id, skill_name, version),
+            )
+        logger.debug(
+            f"[ARCHIVE_SAVE_PATH] Saved to S3, key={_archive_key(user_id, skill_name, version)}"
+        )
         return
     path = _archive_path(user_id, skill_name, version)
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -179,7 +207,9 @@ async def save_archive_from_path(user_id: str, skill_name: str, version: str, so
 
 async def load_archive(user_id: str, skill_name: str, version: str) -> bytes | None:
     backend = _archive_backend()
-    logger.debug(f"[ARCHIVE_LOAD] user_id={user_id}, skill_name={skill_name}, version={version}, backend={backend}")
+    logger.debug(
+        f"[ARCHIVE_LOAD] user_id={user_id}, skill_name={skill_name}, version={version}, backend={backend}"
+    )
     if backend == "s3":
         client = _get_s3_client()
         try:
@@ -191,17 +221,23 @@ async def load_archive(user_id: str, skill_name: str, version: str) -> bytes | N
             logger.debug(f"[ARCHIVE_LOAD] S3 load failed: {str(e)}")
             if settings.ENABLE_CACHE_OFFLINE_FALLBACK:
                 logger.debug("[ARCHIVE_LOAD] Falling back to local cache")
-                return _read_local_cache(_local_cache_path(user_id, skill_name, version))
+                return _read_local_cache(
+                    _local_cache_path(user_id, skill_name, version)
+                )
             return None
         body = result.get("Body")
         payload = body.read() if body else None
         if payload is not None:
             _write_local_cache(_local_cache_path(user_id, skill_name, version), payload)
-        logger.debug(f"[ARCHIVE_LOAD] Loaded from S3, payload_size={len(payload) if payload else 0} bytes")
+        logger.debug(
+            f"[ARCHIVE_LOAD] Loaded from S3, payload_size={len(payload) if payload else 0} bytes"
+        )
         return payload
     path = _archive_path(user_id, skill_name, version)
     data = _read_plain_archive(path)
-    logger.debug(f"[ARCHIVE_LOAD] Loaded from local, path={path}, found={'yes' if data else 'no'}")
+    logger.debug(
+        f"[ARCHIVE_LOAD] Loaded from local, path={path}, found={'yes' if data else 'no'}"
+    )
     return data
 
 
@@ -215,23 +251,33 @@ def delete_archives_for_skill(user_id: str, skill_name: str) -> None:
         try:
             paginator = client.get_paginator("list_objects_v2")
             count = 0
-            for page in paginator.paginate(Bucket=settings.SKILL_ARCHIVE_S3_BUCKET, Prefix=prefix):
+            for page in paginator.paginate(
+                Bucket=settings.SKILL_ARCHIVE_S3_BUCKET, Prefix=prefix
+            ):
                 for obj in page.get("Contents", []):
-                    client.delete_object(Bucket=settings.SKILL_ARCHIVE_S3_BUCKET, Key=obj["Key"])
+                    client.delete_object(
+                        Bucket=settings.SKILL_ARCHIVE_S3_BUCKET, Key=obj["Key"]
+                    )
                     count += 1
-            logger.debug(f"[ARCHIVE_DELETE] Deleted {count} objects from S3, prefix={prefix}")
+            logger.debug(
+                f"[ARCHIVE_DELETE] Deleted {count} objects from S3, prefix={prefix}"
+            )
         except Exception as e:
             logger.error(f"[ARCHIVE_DELETE] S3 delete failed: {str(e)}", exc_info=True)
         local_cache_dir = _local_cache_dir(user_id, skill_name)
         _remove_dir_if_exists(local_cache_dir)
-        logger.debug(f"[ARCHIVE_DELETE] Deleted local cache directory: {local_cache_dir}")
+        logger.debug(
+            f"[ARCHIVE_DELETE] Deleted local cache directory: {local_cache_dir}"
+        )
         return
     archive_dir = _archive_dir(user_id, skill_name)
     _remove_dir_if_exists(archive_dir)
     logger.debug(f"[ARCHIVE_DELETE] Deleted local archive directory: {archive_dir}")
 
 
-def rename_archives_for_skill(user_id: str, old_skill_name: str, new_skill_name: str) -> None:
+def rename_archives_for_skill(
+    user_id: str, old_skill_name: str, new_skill_name: str
+) -> None:
     if old_skill_name == new_skill_name:
         return
     backend = _archive_backend()
@@ -244,16 +290,23 @@ def rename_archives_for_skill(user_id: str, old_skill_name: str, new_skill_name:
         old_prefix = f"{user_id}/{old_skill_name}/"
         new_prefix = f"{user_id}/{new_skill_name}/"
         paginator = client.get_paginator("list_objects_v2")
-        for page in paginator.paginate(Bucket=settings.SKILL_ARCHIVE_S3_BUCKET, Prefix=old_prefix):
+        for page in paginator.paginate(
+            Bucket=settings.SKILL_ARCHIVE_S3_BUCKET, Prefix=old_prefix
+        ):
             for obj in page.get("Contents", []):
                 old_key = obj["Key"]
                 new_key = old_key.replace(old_prefix, new_prefix, 1)
                 client.copy_object(
                     Bucket=settings.SKILL_ARCHIVE_S3_BUCKET,
-                    CopySource={"Bucket": settings.SKILL_ARCHIVE_S3_BUCKET, "Key": old_key},
+                    CopySource={
+                        "Bucket": settings.SKILL_ARCHIVE_S3_BUCKET,
+                        "Key": old_key,
+                    },
                     Key=new_key,
                 )
-                client.delete_object(Bucket=settings.SKILL_ARCHIVE_S3_BUCKET, Key=old_key)
+                client.delete_object(
+                    Bucket=settings.SKILL_ARCHIVE_S3_BUCKET, Key=old_key
+                )
     old_archive_dir = _archive_dir(user_id, old_skill_name)
     new_archive_dir = _archive_dir(user_id, new_skill_name)
     if old_archive_dir.exists():
@@ -276,22 +329,32 @@ def list_archive_versions(user_id: str, skill_name: str) -> list[str]:
         versions = []
         try:
             paginator = client.get_paginator("list_objects_v2")
-            for page in paginator.paginate(Bucket=settings.SKILL_ARCHIVE_S3_BUCKET, Prefix=prefix):
+            for page in paginator.paginate(
+                Bucket=settings.SKILL_ARCHIVE_S3_BUCKET, Prefix=prefix
+            ):
                 for obj in page.get("Contents", []):
                     key = obj["Key"]
                     if key.endswith(".zip"):
                         version = key.split("/")[-1].replace(".zip", "")
                         versions.append(version)
         except Exception as e:
-            logger.error(f"[ARCHIVE_LIST_VERSIONS] S3 list failed: {str(e)}", exc_info=True)
-        logger.debug(f"[ARCHIVE_LIST_VERSIONS] Found {len(versions)} versions from S3: {versions}")
+            logger.error(
+                f"[ARCHIVE_LIST_VERSIONS] S3 list failed: {str(e)}", exc_info=True
+            )
+        logger.debug(
+            f"[ARCHIVE_LIST_VERSIONS] Found {len(versions)} versions from S3: {versions}"
+        )
         return versions
     archive_dir = _archive_dir(user_id, skill_name)
     if not archive_dir.exists():
-        logger.debug(f"[ARCHIVE_LIST_VERSIONS] Archive directory does not exist: {archive_dir}")
+        logger.debug(
+            f"[ARCHIVE_LIST_VERSIONS] Archive directory does not exist: {archive_dir}"
+        )
         return []
     versions = [p.stem for p in archive_dir.glob("*.zip")]
-    logger.debug(f"[ARCHIVE_LIST_VERSIONS] Found {len(versions)} versions from local: {versions}")
+    logger.debug(
+        f"[ARCHIVE_LIST_VERSIONS] Found {len(versions)} versions from local: {versions}"
+    )
     return versions
 
 

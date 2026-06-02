@@ -12,6 +12,7 @@ from loguru import logger
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from backend.core.middleware.logging import safe_log_context
 from backend.core.errors import (
     CodeExpiredError,
     CodeInvalidError,
@@ -71,9 +72,13 @@ class VerificationCodeService:
             return value.replace(tzinfo=timezone.utc)
         return value
 
-    async def _get_record(self, email: str, purpose: Purpose) -> VerificationCode | None:
+    async def _get_record(
+        self, email: str, purpose: Purpose
+    ) -> VerificationCode | None:
         result = await self._session.execute(
-            select(VerificationCode).where(VerificationCode.email == email, VerificationCode.purpose == purpose),
+            select(VerificationCode).where(
+                VerificationCode.email == email, VerificationCode.purpose == purpose
+            ),
         )
         return result.scalar_one_or_none()
 
@@ -126,6 +131,15 @@ class VerificationCodeService:
         last_error = None
         for attempt in range(1, retries + 1):
             try:
+                logger.bind(
+                    **safe_log_context(
+                        email=email,
+                        purpose=purpose,
+                        channel=channel,
+                        attempt=attempt,
+                        max_attempts=retries,
+                    )
+                ).debug("Verification code delivery attempt started")
                 await asyncio.to_thread(
                     sender.send_verification_code,
                     email,
@@ -134,14 +148,37 @@ class VerificationCodeService:
                     self._resend_interval,
                     purpose,
                 )
-                await self._log_delivery(email, purpose, channel, "sent", attempt, None, use_external_session)
+                await self._log_delivery(
+                    email, purpose, channel, "sent", attempt, None, use_external_session
+                )
+                logger.bind(
+                    **safe_log_context(
+                        email=email, purpose=purpose, channel=channel, attempt=attempt
+                    )
+                ).debug("Verification code delivered")
                 return
             except Exception as exc:
                 last_error = str(exc)
+                logger.bind(
+                    **safe_log_context(
+                        email=email,
+                        purpose=purpose,
+                        channel=channel,
+                        attempt=attempt,
+                        max_attempts=retries,
+                        reason=last_error,
+                    )
+                ).debug("Verification code delivery attempt failed")
                 if attempt < retries:
                     await asyncio.sleep(0.5 * attempt)
-        await self._log_delivery(email, purpose, channel, "failed", retries, last_error, use_external_session)
-        logger.error(f"Email delivery failed: {email} purpose={purpose} error={last_error}")
+        await self._log_delivery(
+            email, purpose, channel, "failed", retries, last_error, use_external_session
+        )
+        logger.bind(
+            **safe_log_context(
+                email=email, purpose=purpose, channel=channel, reason=last_error
+            )
+        ).error("Verification code delivery failed")
 
     async def send_code(
         self,
@@ -153,6 +190,17 @@ class VerificationCodeService:
         now = self._now()
         existing = await self._get_record(normalized, purpose)
         if existing and now < self._ensure_aware(existing.resend_available_at):
+            logger.bind(
+                **safe_log_context(
+                    email=normalized,
+                    purpose=purpose,
+                    resend_available_at=self._ensure_aware(
+                        existing.resend_available_at
+                    ).isoformat(),
+                )
+            ).debug(
+                "Verification code resend rejected because resend interval has not elapsed"
+            )
             raise ResendTooFrequentError()
         record = CodeRecord(
             code=self._generate_code(),
@@ -181,6 +229,15 @@ class VerificationCodeService:
                 ),
             )
         await self._session.commit()
+        logger.bind(
+            **safe_log_context(
+                email=normalized,
+                purpose=purpose,
+                expires_at=record.expires_at.isoformat(),
+                resend_available_at=record.resend_available_at.isoformat(),
+                scheduled=bool(schedule),
+            )
+        ).debug("Verification code record persisted")
         if schedule:
             schedule(self._deliver_code, email, purpose, record, True)
         else:
@@ -197,6 +254,9 @@ class VerificationCodeService:
         normalized = self._normalize(email)
         record = await self._get_record(normalized, purpose)
         if not record:
+            logger.bind(**safe_log_context(email=normalized, purpose=purpose)).debug(
+                "Verification code rejected because no record exists"
+            )
             raise CodeInvalidError()
         now = self._now()
         if now >= self._ensure_aware(record.expires_at):
@@ -207,12 +267,25 @@ class VerificationCodeService:
                 ),
             )
             await self._session.commit()
+            logger.bind(**safe_log_context(email=normalized, purpose=purpose)).debug(
+                "Verification code rejected because it expired"
+            )
             raise CodeExpiredError()
         if record.attempts_left <= 0:
+            logger.bind(**safe_log_context(email=normalized, purpose=purpose)).debug(
+                "Verification code rejected because attempts are exhausted"
+            )
             raise TooManyAttemptsError()
         if not hmac.compare_digest(record.code_hash, self._hash_code(code)):
             record.attempts_left -= 1
             await self._session.commit()
+            logger.bind(
+                **safe_log_context(
+                    email=normalized,
+                    purpose=purpose,
+                    attempts_left=record.attempts_left,
+                )
+            ).debug("Verification code rejected because code does not match")
             raise CodeInvalidError()
         await self._session.execute(
             delete(VerificationCode).where(
@@ -221,6 +294,9 @@ class VerificationCodeService:
             ),
         )
         await self._session.commit()
+        logger.bind(**safe_log_context(email=normalized, purpose=purpose)).debug(
+            "Verification code accepted"
+        )
 
 
 def get_verification_service(session: AsyncSession) -> VerificationCodeService:

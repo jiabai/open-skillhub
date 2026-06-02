@@ -3,8 +3,11 @@ from fastapi.responses import RedirectResponse
 import secrets
 from urllib.parse import urlencode, urlsplit, urlunsplit
 
+from loguru import logger
+
 from backend.config.settings import settings
 from backend.core.errors import VerificationError, build_http_error_detail
+from backend.core.middleware.logging import safe_log_context
 from backend.core.middleware.auth import get_current_active_user
 from backend.core.security.jwt_utils import decode_token
 from backend.db.session import get_async_session
@@ -15,7 +18,10 @@ from backend.schemas.auth import LDAPLoginRequest
 from backend.schemas.response import TokenPair
 from backend.schemas.token import TokenRefresh
 from backend.schemas.user import UserLoginCode, UserRegisterCode
-from backend.schemas.verification import VerificationCodeRequest, VerificationCodeResponse
+from backend.schemas.verification import (
+    VerificationCodeRequest,
+    VerificationCodeResponse,
+)
 from backend.services.audit import AuditService
 from backend.services.auth import AuthService, RefreshTokenReuseDetected
 from backend.services.sso_oidc import SSOOIDCService
@@ -26,19 +32,30 @@ from backend.services.verification_code import get_verification_service
 router = APIRouter()
 
 
-def _frontend_callback_url(*, fragment: dict[str, str] | None = None, query: dict[str, str] | None = None) -> str:
+def _frontend_callback_url(
+    *, fragment: dict[str, str] | None = None, query: dict[str, str] | None = None
+) -> str:
     base_url = str(settings.SSO_FRONTEND_CALLBACK_URL or "").strip()
     if not base_url:
         raise ValueError("SSO configuration incomplete: SSO_FRONTEND_CALLBACK_URL")
     split = urlsplit(base_url)
     query_string = urlencode(query or {})
     fragment_string = urlencode(fragment or {})
-    return urlunsplit((split.scheme, split.netloc, split.path, query_string, fragment_string))
+    return urlunsplit(
+        (split.scheme, split.netloc, split.path, query_string, fragment_string)
+    )
 
 
-def _redirect_frontend_error(detail: str, status_code: int = status.HTTP_302_FOUND) -> RedirectResponse:
+def _redirect_frontend_error(
+    detail: str, status_code: int = status.HTTP_302_FOUND
+) -> RedirectResponse:
+    logger.bind(reason=detail, status_code=status_code).debug(
+        "Redirecting frontend with SSO error"
+    )
     return RedirectResponse(
-        url=_frontend_callback_url(query={"error": "sso_error", "error_description": detail}),
+        url=_frontend_callback_url(
+            query={"error": "sso_error", "error_description": detail}
+        ),
         status_code=status_code,
     )
 
@@ -51,16 +68,32 @@ async def send_verification_code(
     session=Depends(get_async_session),
 ):
     if not settings.ENABLE_EMAIL_OTP_LOGIN:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Email OTP disabled")
+        logger.bind(
+            **safe_log_context(email=payload.email, purpose=payload.purpose)
+        ).debug("Verification code request denied because email OTP is disabled")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="Email OTP disabled"
+        )
     service = get_verification_service(session)
     try:
-        response = await service.send_code(payload.email, payload.purpose, schedule=background_tasks.add_task)
+        response = await service.send_code(
+            payload.email, payload.purpose, schedule=background_tasks.add_task
+        )
     except VerificationError as exc:
+        logger.bind(
+            **safe_log_context(
+                email=payload.email, purpose=payload.purpose, code=exc.code
+            )
+        ).debug("Verification code request failed")
         raise HTTPException(
             status_code=exc.status_code,
             detail=build_http_error_detail(exc),
         ) from exc
     except ValueError as exc:
+        logger.bind(
+            **safe_log_context(email=payload.email, purpose=payload.purpose),
+            reason=str(exc),
+        ).debug("Verification code request rejected")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(exc),
@@ -81,9 +114,13 @@ async def send_verification_code(
 @router.post("/register", response_model=TokenPair, status_code=status.HTTP_201_CREATED)
 async def register(payload: UserRegisterCode, session=Depends(get_async_session)):
     if not settings.ENABLE_PUBLIC_SIGNUP:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Signup disabled")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="Signup disabled"
+        )
     verification_service = get_verification_service(session)
-    service = AuthService(UserRepository(session), refresh_token_repo=RefreshTokenRepository(session))
+    service = AuthService(
+        UserRepository(session), refresh_token_repo=RefreshTokenRepository(session)
+    )
     try:
         await verification_service.verify_code(payload.email, "register", payload.code)
         user = await service.register(
@@ -99,7 +136,9 @@ async def register(payload: UserRegisterCode, session=Depends(get_async_session)
     except ValueError as exc:
         detail = str(exc)
         if "already" in detail.lower():
-            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=detail) from exc
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT, detail=detail
+            ) from exc
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail=detail,
@@ -107,22 +146,32 @@ async def register(payload: UserRegisterCode, session=Depends(get_async_session)
     token_pair = await service.issue_token_pair(user)
     if settings.ENABLE_AUDIT_LOG:
         audit_service = AuditService(AuditLogRepository(session))
-        await audit_service.create_event(actor_id=user.id, action="auth.register", target=user.id)
-    return TokenPair(access_token=token_pair.access_token, refresh_token=token_pair.refresh_token)
+        await audit_service.create_event(
+            actor_id=user.id, action="auth.register", target=user.id
+        )
+    return TokenPair(
+        access_token=token_pair.access_token, refresh_token=token_pair.refresh_token
+    )
 
 
 @router.post("/login", response_model=TokenPair)
 async def login(payload: UserLoginCode, session=Depends(get_async_session)):
     if not settings.ENABLE_EMAIL_OTP_LOGIN:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Email OTP disabled")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="Email OTP disabled"
+        )
     verification_service = get_verification_service(session)
-    service = AuthService(UserRepository(session), refresh_token_repo=RefreshTokenRepository(session))
+    service = AuthService(
+        UserRepository(session), refresh_token_repo=RefreshTokenRepository(session)
+    )
     try:
         await verification_service.verify_code(payload.email, "login", payload.code)
         user = await service.user_repo.get_by_email(payload.email)
         if not user:
             if not settings.ENABLE_PUBLIC_SIGNUP:
-                raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Signup disabled")
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN, detail="Signup disabled"
+                )
             username = f"user_{secrets.token_hex(6)}"
             raw_password = secrets.token_urlsafe(24)
             user = await service.user_repo.create(
@@ -165,21 +214,34 @@ async def login(payload: UserLoginCode, session=Depends(get_async_session)):
     token_pair = await service.issue_token_pair(user)
     if settings.ENABLE_AUDIT_LOG:
         audit_service = AuditService(AuditLogRepository(session))
-        await audit_service.create_event(actor_id=user.id, action="auth.login", target=user.id)
-    return TokenPair(access_token=token_pair.access_token, refresh_token=token_pair.refresh_token)
+        await audit_service.create_event(
+            actor_id=user.id, action="auth.login", target=user.id
+        )
+    return TokenPair(
+        access_token=token_pair.access_token, refresh_token=token_pair.refresh_token
+    )
 
 
 @router.post("/refresh", response_model=TokenPair)
 async def refresh(payload: TokenRefresh, session=Depends(get_async_session)):
-    service = AuthService(UserRepository(session), refresh_token_repo=RefreshTokenRepository(session))
+    service = AuthService(
+        UserRepository(session), refresh_token_repo=RefreshTokenRepository(session)
+    )
     target = "unknown"
     try:
         target = str(decode_token(payload.refresh_token).get("sub") or "") or "unknown"
     except Exception:
+        logger.debug("Refresh token target could not be decoded before refresh")
         target = "unknown"
     try:
+        logger.bind(**safe_log_context(target=target)).debug(
+            "Refresh token endpoint started"
+        )
         token_pair = await service.refresh_token(payload.refresh_token)
     except RefreshTokenReuseDetected as exc:
+        logger.bind(**safe_log_context(target=target), reason=str(exc)).debug(
+            "Refresh token reuse detected at endpoint"
+        )
         if settings.ENABLE_AUDIT_LOG:
             audit_service = AuditService(AuditLogRepository(session))
             await audit_service.create_event(
@@ -189,8 +251,13 @@ async def refresh(payload: TokenRefresh, session=Depends(get_async_session)):
                 result="failed",
                 metadata={"detail": str(exc)},
             )
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token revoked") from exc
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Token revoked"
+        ) from exc
     except ValueError as exc:
+        logger.bind(**safe_log_context(target=target), reason=str(exc)).debug(
+            "Refresh token endpoint rejected token"
+        )
         if settings.ENABLE_AUDIT_LOG:
             audit_service = AuditService(AuditLogRepository(session))
             await audit_service.create_event(
@@ -200,26 +267,48 @@ async def refresh(payload: TokenRefresh, session=Depends(get_async_session)):
                 result="failed",
                 metadata={"detail": str(exc)},
             )
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=str(exc)) from exc
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail=str(exc)
+        ) from exc
     if settings.ENABLE_AUDIT_LOG:
         if target == "unknown":
-            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
+            logger.debug(
+                "Refresh token endpoint rejected because target remained unknown"
+            )
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token"
+            )
         audit_service = AuditService(AuditLogRepository(session))
-        await audit_service.create_event(actor_id=target, action="auth.refresh", target=target)
-    return TokenPair(access_token=token_pair.access_token, refresh_token=token_pair.refresh_token)
+        await audit_service.create_event(
+            actor_id=target, action="auth.refresh", target=target
+        )
+    return TokenPair(
+        access_token=token_pair.access_token, refresh_token=token_pair.refresh_token
+    )
 
 
 @router.get("/sso/authorize")
 async def sso_authorize(session=Depends(get_async_session)):
     if not settings.ENABLE_SSO:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="SSO disabled")
+        logger.debug("SSO authorize denied because SSO is disabled")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="SSO disabled"
+        )
     oidc_service = SSOOIDCService()
     try:
         oidc_service.validate_configuration()
     except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(exc)) from exc
+        logger.bind(reason=str(exc)).debug(
+            "SSO authorize configuration validation failed"
+        )
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(exc)
+        ) from exc
     replay_guard = SSOReplayGuardService(session)
-    state, nonce, code_verifier, _expires_in = await replay_guard.issue_auth_request(settings.SSO_REDIRECT_URI)
+    state, nonce, code_verifier, _expires_in = await replay_guard.issue_auth_request(
+        settings.SSO_REDIRECT_URI
+    )
+    logger.bind(expires_in=_expires_in).debug("SSO authorize auth request issued")
     url = oidc_service.build_authorization_url(
         state=state,
         nonce=nonce,
@@ -238,28 +327,47 @@ async def sso_callback(
     session=Depends(get_async_session),
 ):
     if not settings.ENABLE_SSO:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="SSO disabled")
+        logger.debug("SSO callback denied because SSO is disabled")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="SSO disabled"
+        )
     if error:
+        logger.bind(reason=error, has_description=bool(error_description)).debug(
+            "SSO callback received provider error"
+        )
         return _redirect_frontend_error(error_description or error)
     if not code:
+        logger.debug("SSO callback missing authorization code")
         return _redirect_frontend_error("Missing authorization code")
     state_value = state_param or ""
     if request is not None and not state_value:
         state_value = str(request.query_params.get("state") or "")
     if not state_value:
+        logger.debug("SSO callback missing state")
         return _redirect_frontend_error("Missing state")
 
     replay_guard = SSOReplayGuardService(session)
     oidc_service = SSOOIDCService()
     try:
+        logger.bind(state_present=bool(state_value), code_present=bool(code)).debug(
+            "SSO callback started"
+        )
         auth_request = await replay_guard.consume_auth_request(state_value)
-        token_payload = await oidc_service.exchange_code_for_tokens(code, auth_request.code_verifier)
+        token_payload = await oidc_service.exchange_code_for_tokens(
+            code, auth_request.code_verifier
+        )
         id_token = str(token_payload.get("id_token") or "").strip()
         payload = await oidc_service.decode_id_token(id_token)
         token_nonce = str(payload.get("nonce") or "").strip()
         replay_guard.verify_auth_request_nonce(auth_request, token_nonce)
-        expires_at = oidc_service.validate_nonce_and_timestamps(payload, expected_nonce=token_nonce)
-        replay_key = str(payload.get("jti") or "").strip() or token_payload.get("access_token") or id_token
+        expires_at = oidc_service.validate_nonce_and_timestamps(
+            payload, expected_nonce=token_nonce
+        )
+        replay_key = (
+            str(payload.get("jti") or "").strip()
+            or token_payload.get("access_token")
+            or id_token
+        )
         auth_service = AuthService(
             UserRepository(session),
             replay_guard,
@@ -274,12 +382,17 @@ async def sso_callback(
             user_id = str(decode_token(token_pair.access_token).get("sub") or "")
             if user_id:
                 audit_service = AuditService(AuditLogRepository(session))
-                await audit_service.create_event(actor_id=user_id, action="auth.sso.login", target=user_id)
+                await audit_service.create_event(
+                    actor_id=user_id, action="auth.sso.login", target=user_id
+                )
     except ValueError as exc:
+        logger.bind(reason=str(exc)).debug("SSO callback rejected")
         return _redirect_frontend_error(str(exc))
     except Exception as exc:
+        logger.bind(reason=str(exc)).exception("SSO callback failed unexpectedly")
         return _redirect_frontend_error(str(exc))
 
+    logger.debug("SSO callback completed")
     return RedirectResponse(
         url=_frontend_callback_url(
             fragment={
@@ -294,19 +407,36 @@ async def sso_callback(
 @router.post("/ldap/login", response_model=TokenPair)
 async def ldap_login(payload: LDAPLoginRequest, session=Depends(get_async_session)):
     if not settings.ENABLE_LDAP:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="LDAP disabled")
-    service = AuthService(UserRepository(session), refresh_token_repo=RefreshTokenRepository(session))
+        logger.debug("LDAP login denied because LDAP is disabled")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="LDAP disabled"
+        )
+    service = AuthService(
+        UserRepository(session), refresh_token_repo=RefreshTokenRepository(session)
+    )
     try:
         token_pair = await service.login_ldap(payload.username, payload.password)
     except Exception as exc:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=str(exc)) from exc
+        logger.bind(
+            **safe_log_context(username=payload.username), reason=str(exc)
+        ).debug("LDAP login failed")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail=str(exc)
+        ) from exc
     if settings.ENABLE_AUDIT_LOG:
         user_id = str(decode_token(token_pair.access_token).get("sub") or "")
         if not user_id:
-            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token"
+            )
         audit_service = AuditService(AuditLogRepository(session))
-        await audit_service.create_event(actor_id=user_id, action="auth.ldap.login", target=user_id)
-    return TokenPair(access_token=token_pair.access_token, refresh_token=token_pair.refresh_token)
+        await audit_service.create_event(
+            actor_id=user_id, action="auth.ldap.login", target=user_id
+        )
+    return TokenPair(
+        access_token=token_pair.access_token, refresh_token=token_pair.refresh_token
+    )
+
 
 @router.post("/logout")
 async def logout(
@@ -317,6 +447,12 @@ async def logout(
     Logout current user and revoke all previously issued JWTs for that user.
     """
     current_user.jwt_token_version = current_user.jwt_token_version + 1
+    logger.bind(
+        **safe_log_context(
+            user_id=str(current_user.id),
+            jwt_token_version=current_user.jwt_token_version,
+        )
+    ).debug("Logout revoking user sessions")
     await RefreshTokenRepository(session).revoke_user_sessions(str(current_user.id))
     await session.commit()
     if settings.ENABLE_AUDIT_LOG:

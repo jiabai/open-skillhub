@@ -1,6 +1,12 @@
+from loguru import logger
+
 from backend.config.settings import settings
+from backend.core.middleware.logging import safe_log_context
 from backend.core.security.rbac import has_permission
-from backend.schemas.client_skill import ClientSkillListResponse, ClientSkillSummaryResponse
+from backend.schemas.client_skill import (
+    ClientSkillListResponse,
+    ClientSkillSummaryResponse,
+)
 from backend.schemas.skill import SkillBaseResponse
 from backend.schemas.skill_version import SkillVersionResponse
 from backend.services.skill import SkillService
@@ -32,6 +38,16 @@ class ClientSkillCatalogService:
             user.id,
             query=query,
         )
+        logger.bind(
+            **safe_log_context(
+                user_id=str(user.id),
+                skip=skip,
+                limit=limit,
+                query=bool(query),
+                result_count=len(skills),
+                total=total,
+            )
+        ).debug("Listed client skills")
         items = [await self._build_summary(user, skill) for skill in skills]
         return ClientSkillListResponse(items=items, total=total)
 
@@ -41,7 +57,9 @@ class ClientSkillCatalogService:
         latest_version = None
         if resolved_version:
             lookup_skill_id = skill.source_skill_id or skill.id
-            version_record = await self.version_repo.get_by_version(lookup_skill_id, resolved_version)
+            version_record = await self.version_repo.get_by_version(
+                lookup_skill_id, resolved_version
+            )
             if version_record:
                 latest_version = SkillVersionResponse.model_validate(version_record)
                 payload["content_hash"] = version_record.content_hash or None

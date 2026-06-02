@@ -1,0 +1,16 @@
+[Unit]
+Description=SkillDrive Backend API
+After=network.target
+
+[Service]
+Type=simple
+User=ubuntu
+Group=ubuntu
+WorkingDirectory=/home/ubuntu/skilldrive
+EnvironmentFile=/home/ubuntu/skilldrive/backend/.env
+ExecStart=/home/ubuntu/skilldrive/.venv/bin/uvicorn backend.api_app:app --host 0.0.0.0 --port 8001 --workers 1
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target

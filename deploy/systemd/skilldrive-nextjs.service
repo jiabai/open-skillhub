@@ -1,0 +1,21 @@
+[Unit]
+Description=SkillDrive Next.js Frontend
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=ubuntu
+WorkingDirectory=/home/ubuntu/skilldrive/frontend/.next/standalone
+Environment=NODE_ENV=production
+Environment=PORT=3000
+Environment=HOSTNAME=127.0.0.1
+ExecStart=/home/ubuntu/.nvm/versions/node/v24.14.1/bin/node server.js
+Restart=always
+RestartSec=3
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=skilldrive-nextjs
+
+[Install]
+WantedBy=multi-user.target

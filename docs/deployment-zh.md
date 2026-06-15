@@ -304,6 +304,8 @@ CORS_ORIGINS=["http://YOUR_SERVER_IP","https://YOUR_DOMAIN"]
 
 不要把无关的公网 IP 留在生产配置里。
 
+如果同一个前端同时通过裸域名和 `www` 域名访问，请把两个 HTTPS origin 都加入 `CORS_ORIGINS`，例如 `https://8xf.pro` 和 `https://www.8xf.pro`。否则当前端构建里的 `NEXT_PUBLIC_API_BASE_URL` 指向其中一个域名、浏览器从另一个域名打开页面时，runtime-config 和登录请求会被浏览器按跨域请求拦截。
+
 ### 6. 启动迁移和服务
 
 默认 Compose 的推荐启动顺序：

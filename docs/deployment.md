@@ -305,6 +305,8 @@ CORS_ORIGINS=["http://YOUR_SERVER_IP","https://YOUR_DOMAIN"]
 
 Do not keep unrelated hardcoded public IPs in production config.
 
+If the same frontend is reachable through both the bare domain and the `www` domain, include both HTTPS origins in `CORS_ORIGINS`, for example `https://8xf.pro` and `https://www.8xf.pro`. Otherwise, when the frontend build's `NEXT_PUBLIC_API_BASE_URL` points at one hostname and the browser opens the other, runtime-config and login requests are treated as cross-origin and can be blocked by the browser.
+
 ### 6. Run migrations and start services
 
 Recommended first boot sequence for the default stack:

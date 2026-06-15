@@ -483,6 +483,9 @@ From the repository root:
 ```bash
 cd frontend
 npm run build
+mkdir -p .next/standalone/.next
+cp -R .next/static .next/standalone/.next/
+cp -R public .next/standalone/
 ```
 
 If dependency files changed, run this first:
@@ -491,7 +494,7 @@ If dependency files changed, run this first:
 npm ci
 ```
 
-A successful build writes `frontend/.next/standalone/server.js`.
+A successful build writes `frontend/.next/standalone/server.js`. The Next.js standalone output does not automatically include `.next/static` or `public`, while the current systemd template runs from `frontend/.next/standalone`. Run the copy commands above; otherwise the HTML page may return successfully while `/_next/static/...` JS, CSS, or font assets return `404`, leaving the browser page blank.
 
 ### 3. Install or restart the systemd service
 
@@ -527,7 +530,7 @@ Expected results:
 
 ### 5. When to rebuild
 
-Run `npm run build`, then `systemctl restart skilldrive-nextjs.service`, after changing:
+Rebuild, copy static assets, then run `systemctl restart skilldrive-nextjs.service` after changing:
 
 - `NEXT_PUBLIC_API_BASE_URL`
 - `API_INTERNAL_URL`

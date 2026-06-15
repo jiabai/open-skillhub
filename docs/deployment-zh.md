@@ -482,6 +482,9 @@ API_INTERNAL_URL=http://127.0.0.1:8001
 ```bash
 cd frontend
 npm run build
+mkdir -p .next/standalone/.next
+cp -R .next/static .next/standalone/.next/
+cp -R public .next/standalone/
 ```
 
 如果依赖文件有变化，先执行一次：
@@ -490,7 +493,7 @@ npm run build
 npm ci
 ```
 
-构建成功后，Next.js 会生成 `frontend/.next/standalone/server.js`。
+构建成功后，Next.js 会生成 `frontend/.next/standalone/server.js`。Next.js standalone 产物不会自动携带 `.next/static` 和 `public`，而当前 systemd 模板的工作目录是 `frontend/.next/standalone`，所以必须执行上面的复制步骤；否则首页 HTML 可能正常返回，但 `/_next/static/...` JS、CSS 或字体资源会返回 `404`，浏览器页面会黑屏。
 
 ### 3. 安装或重启 systemd 服务
 
@@ -526,7 +529,7 @@ curl -sS https://YOUR_DOMAIN/api/v1/runtime-config
 
 ### 5. 什么时候需要重新构建
 
-需要 `npm run build` 后再 `systemctl restart skilldrive-nextjs.service`：
+需要重新执行构建、复制静态资源，并 `systemctl restart skilldrive-nextjs.service`：
 
 - 修改了 `NEXT_PUBLIC_API_BASE_URL`
 - 修改了 `API_INTERNAL_URL`

@@ -2,12 +2,13 @@
 
 ## Scope
 
-This guide covers Linux deployment with Docker Compose for the current repository layout, including both the default deployment-style stack and a test-machine hot-reload overlay.
+This guide covers Linux deployment for the current repository layout. Docker Compose is the primary path, and this guide also records the standalone Next.js + systemd frontend path for hosts that do not run the web UI in Docker.
 
 It assumes:
 
 - backend runs on port `8001`
-- web UI runs on port `3000` in Docker and is published to host `127.0.0.1:3000`
+- for Docker deployments, web UI runs on port `3000` in Docker and is published to host `127.0.0.1:3000`
+- for non-Docker frontend deployments, the Next.js standalone service is managed by systemd and listens on host `127.0.0.1:3000`
 - an external Nginx reverse proxy terminates public traffic on port `80` or `443`
 - web UI calls the backend through the public frontend origin plus `/api/*`
 - Next.js rewrites proxy `/api/*` to `API_INTERNAL_URL`
@@ -56,21 +57,29 @@ grep -n "pypi.org/simple\\|files.pythonhosted.org" uv.lock | head
 
 For local-only development, the test-preprod overlay can keep `http://127.0.0.1:3000`.
 
-For preprod or any browser-facing deployment, set it to the public origin that browsers actually use. For this host, that means `http://39.107.59.41`.
+For preprod or any browser-facing deployment, set it to the public origin that browsers actually use, such as the current public domain `https://8xf.pro`.
 
 Do not use `0.0.0.0`; that is only a bind/listen address. Do not point it at the internal Docker hostname like `http://api:8001`.
 
-If you change this value, rebuild the frontend image.
+If you change this value, rebuild the frontend image for Docker deployments. For non-Docker standalone deployments, rerun `npm run build` and restart the Next.js systemd service.
 
-### 4. Internal API URL stays inside the Docker network
+### 4. Internal API URL is deployment-specific
 
-Keep:
+For Docker deployments, keep:
 
 ```env
 API_INTERNAL_URL=http://api:8001
 ```
 
 This is only used by the Next.js server-side rewrite inside the frontend container.
+
+For non-Docker standalone frontend deployments, this usually becomes:
+
+```env
+API_INTERNAL_URL=http://127.0.0.1:8001
+```
+
+`API_INTERNAL_URL` is written into the Next.js rewrite build output, so changing it also requires rebuilding the frontend.
 
 ### 5. Default stack uses a named volume; the dev overlay uses host bind mounts
 
@@ -246,7 +255,7 @@ Before building images, verify synced catalogs:
 python scripts/sync_shared_catalogs.py --check
 ```
 
-For the default stack or the dev overlay, set `NEXT_PUBLIC_API_BASE_URL` to the browser-facing origin. In the overlay, `.env.preprod` can default to `http://127.0.0.1:3000` for local-only access. For preprod or any public browser access, override it to the actual public origin, such as `http://39.107.59.41` on this host or a domain name.
+For the default stack or the dev overlay, set `NEXT_PUBLIC_API_BASE_URL` to the browser-facing origin. In the overlay, `.env.preprod` can default to `http://127.0.0.1:3000` for local-only access. For preprod or any public browser access, override it to the actual public origin, such as the current public domain `https://8xf.pro`.
 
 Do not use `0.0.0.0`; it is only a bind/listen address. Do not point it at `http://api:8001`.
 
@@ -441,6 +450,96 @@ Then confirm:
 - editing a file under `frontend/src/` triggers frontend recompilation or HMR
 - a source-only `git pull` is reflected without rebuilding
 
+## Non-Docker Standalone Next.js Deployment
+
+Use this flow when the backend and frontend run directly on the host, with host Nginx proxying public traffic to `127.0.0.1:3000`.
+
+The repository provides a systemd template at [deploy/systemd/skilldrive-nextjs.service](/D:/Github/skilldrive/deploy/systemd/skilldrive-nextjs.service). The template assumes:
+
+- working directory `frontend/.next/standalone`
+- `node server.js` starts the Next.js standalone build output
+- `HOSTNAME=127.0.0.1` and `PORT=3000`
+- Nginx owns the public `80` / `443` entry point
+
+### 1. Set frontend build env
+
+Prepare a local `frontend/.env` from [frontend/.env.example](/D:/Github/skilldrive/frontend/.env.example). Production or public-host example:
+
+```env
+NEXT_PUBLIC_API_BASE_URL=https://YOUR_DOMAIN
+API_INTERNAL_URL=http://127.0.0.1:8001
+```
+
+Rules:
+
+- `NEXT_PUBLIC_API_BASE_URL` must be the browser-facing frontend origin, such as `https://8xf.pro`
+- `API_INTERNAL_URL` is the backend target for the Next.js server-side rewrite; on the same host it is usually `http://127.0.0.1:8001`
+- both values are compiled into the frontend build output, so changing either value requires rebuilding the frontend
+
+### 2. Build the standalone frontend output
+
+From the repository root:
+
+```bash
+cd frontend
+npm run build
+```
+
+If dependency files changed, run this first:
+
+```bash
+npm ci
+```
+
+A successful build writes `frontend/.next/standalone/server.js`.
+
+### 3. Install or restart the systemd service
+
+For the first install, adjust `deploy/systemd/skilldrive-nextjs.service` for the actual user, repository path, and Node path, then run:
+
+```bash
+sudo cp deploy/systemd/skilldrive-nextjs.service /etc/systemd/system/skilldrive-nextjs.service
+sudo systemctl daemon-reload
+sudo systemctl enable --now skilldrive-nextjs.service
+```
+
+If the service is already installed, only restart it after rebuilding:
+
+```bash
+sudo systemctl restart skilldrive-nextjs.service
+```
+
+### 4. Verify
+
+From the server:
+
+```bash
+systemctl status skilldrive-nextjs.service --no-pager
+curl -I http://127.0.0.1:3000
+curl -sS https://YOUR_DOMAIN/api/v1/runtime-config
+```
+
+Expected results:
+
+- `skilldrive-nextjs.service` is `active (running)`
+- local `127.0.0.1:3000` returns `200 OK`
+- `/api/v1/runtime-config` under the public domain returns capability JSON
+
+### 5. When to rebuild
+
+Run `npm run build`, then `systemctl restart skilldrive-nextjs.service`, after changing:
+
+- `NEXT_PUBLIC_API_BASE_URL`
+- `API_INTERNAL_URL`
+- production frontend source code
+- `frontend/package.json` or `frontend/package-lock.json`
+
+Only restart the affected service for:
+
+- backend-only env changes: restart the backend service
+- Nginx-only config changes: test and reload Nginx
+- backend-only code changes: restart or hot-reload the backend according to the backend deployment path
+
 ## SQLite vs PostgreSQL
 
 ### SQLite
@@ -479,7 +578,7 @@ If you switch to PostgreSQL, update `DATABASE_URL` and add a `db` service to Com
 - ensure `./data` and `./logs` exist and are writable when using the test-preprod overlay
 - set `LOCAL_UID` and `LOCAL_GID` to match the host user if `1000:1000` is not writable
 - use PostgreSQL if this is not a low-traffic single-node deployment
-- rebuild web UI whenever `NEXT_PUBLIC_API_BASE_URL` changes
+- rebuild web UI whenever `NEXT_PUBLIC_API_BASE_URL` changes; for non-Docker standalone deployments, also restart `skilldrive-nextjs.service`
 
 ## Common Mistakes
 
@@ -488,6 +587,9 @@ If you switch to PostgreSQL, update `DATABASE_URL` and add a `db` service to Com
 
 - Leaving `NEXT_PUBLIC_API_BASE_URL` on an old server IP
   The web UI will keep calling the wrong host until rebuilt.
+
+- Restarting `skilldrive-nextjs.service` in a non-Docker deployment without first running `npm run build`
+  `NEXT_PUBLIC_API_BASE_URL` and `API_INTERNAL_URL` will still come from the old build output.
 
 - Publishing `webui` directly on host port `80` while also using an external Nginx proxy
   This creates port conflicts and defeats the reverse-proxy layout.

@@ -2,15 +2,16 @@
 
 ## 适用范围
 
-本文档面向当前仓库结构下，基于 Docker Compose 的 Linux 部署。
+本文档面向当前仓库结构下的 Linux 部署。主路径是 Docker Compose，也记录非 Docker 的 standalone Next.js + systemd 前端部署方式。
 
 默认假设：
 
 - 后端运行在 `8001` 端口
-- Web UI 在 Docker 内运行于 `3000` 端口，并映射到宿主机 `127.0.0.1:3000`
+- Docker 部署时，Web UI 在容器内运行于 `3000` 端口，并映射到宿主机 `127.0.0.1:3000`
+- 非 Docker 前端部署时，Next.js standalone 服务由 systemd 管理，并监听宿主机 `127.0.0.1:3000`
 - 由外部 Nginx 反向代理统一对外提供 `80` 或 `443`
 - Web UI 通过公网前端域名下的 `/api/*` 访问后端
-- Next.js 通过 `API_INTERNAL_URL` 将 `/api/*` 重写到容器内后端
+- Next.js 通过 `API_INTERNAL_URL` 将 `/api/*` 重写到后端内部地址
 
 ## 重要说明
 
@@ -56,21 +57,29 @@ grep -n "pypi.org/simple\\|files.pythonhosted.org" uv.lock | head
 
 本地开发或仅限本机访问时，测试预发覆盖层可以保持 `http://127.0.0.1:3000`。
 
-如果是预发或任何浏览器要直接访问的环境，就必须填浏览器实际打开的公网 origin。对这台机器来说，就是 `http://39.107.59.41`。
+如果是预发或任何浏览器要直接访问的环境，就必须填浏览器实际打开的公网 origin，例如当前公网域名 `https://8xf.pro`。
 
 不要使用 `0.0.0.0`，它只是监听地址，不是浏览器可访问的 origin。也不要填 Docker 内部地址，例如 `http://api:8001`。
 
-如果修改了这个值，需要重新构建前端镜像。
+如果修改了这个值，Docker 部署需要重新构建前端镜像；非 Docker standalone 部署需要重新运行 `npm run build` 并重启 Next.js systemd 服务。
 
-### 4. 内部 API 地址只在 Docker 网络内使用
+### 4. 内部 API 地址按部署方式设置
 
-保持：
+Docker 部署保持：
 
 ```env
 API_INTERNAL_URL=http://api:8001
 ```
 
 它只用于前端容器内的 Next.js 服务端重写。
+
+非 Docker standalone 前端部署时，通常应改为：
+
+```env
+API_INTERNAL_URL=http://127.0.0.1:8001
+```
+
+`API_INTERNAL_URL` 会写入 Next.js 的 rewrite 产物，因此修改后也需要重新构建前端。
 
 ### 5. 默认 Compose 使用 named volume，测试预发覆盖层使用宿主机 bind mount
 
@@ -245,7 +254,7 @@ cp .env.preprod.example .env.preprod
 python scripts/sync_shared_catalogs.py --check
 ```
 
-默认 Compose 或测试预发覆盖层都要把 `NEXT_PUBLIC_API_BASE_URL` 设成浏览器实际访问的前端地址。覆盖层里的 `.env.preprod` 可以默认用 `http://127.0.0.1:3000` 仅供本机访问；如果是预发或通过公网 IP / 域名访问，就改成实际公网 origin，例如这台机器的 `http://39.107.59.41`。
+默认 Compose 或测试预发覆盖层都要把 `NEXT_PUBLIC_API_BASE_URL` 设成浏览器实际访问的前端地址。覆盖层里的 `.env.preprod` 可以默认用 `http://127.0.0.1:3000` 仅供本机访问；如果是预发或通过公网 IP / 域名访问，就改成实际公网 origin，例如当前公网域名 `https://8xf.pro`。
 
 不要使用 `0.0.0.0`，它只是监听地址，不是浏览器可访问地址。也不要填 Docker 内部地址，例如 `http://api:8001`。
 
@@ -440,6 +449,96 @@ docker compose --env-file .env.preprod -f docker-compose.yml -f docker-compose.d
 - 编辑 `frontend/src/` 下的文件会触发前端重新编译或 HMR
 - 纯源码的 `git pull` 无需重建即可生效
 
+## 非 Docker Standalone Next.js 部署
+
+当后端和前端直接跑在宿主机上，并由宿主机 Nginx 反向代理到 `127.0.0.1:3000` 时，使用本节流程。
+
+仓库提供了 systemd 模板：[deploy/systemd/skilldrive-nextjs.service](/D:/Github/skilldrive/deploy/systemd/skilldrive-nextjs.service)。该模板默认：
+
+- 工作目录为 `frontend/.next/standalone`
+- 使用 `node server.js` 启动 Next.js standalone 产物
+- 设置 `HOSTNAME=127.0.0.1` 和 `PORT=3000`
+- 由 Nginx 负责公网 `80` / `443` 入口
+
+### 1. 设置前端构建环境
+
+在 [frontend/.env.example](/D:/Github/skilldrive/frontend/.env.example) 的基础上准备本机的 `frontend/.env`。生产或公网环境示例：
+
+```env
+NEXT_PUBLIC_API_BASE_URL=https://YOUR_DOMAIN
+API_INTERNAL_URL=http://127.0.0.1:8001
+```
+
+规则：
+
+- `NEXT_PUBLIC_API_BASE_URL` 必须是浏览器实际访问的前端 origin，例如 `https://8xf.pro`
+- `API_INTERNAL_URL` 是 Next.js 服务端 rewrite 访问后端的地址；同机后端通常用 `http://127.0.0.1:8001`
+- 这两个值都会进入前端构建产物，修改任意一个都要重新构建前端
+
+### 2. 构建前端 standalone 产物
+
+在仓库根目录执行：
+
+```bash
+cd frontend
+npm run build
+```
+
+如果依赖文件有变化，先执行一次：
+
+```bash
+npm ci
+```
+
+构建成功后，Next.js 会生成 `frontend/.next/standalone/server.js`。
+
+### 3. 安装或重启 systemd 服务
+
+首次安装模板时，先根据实际用户名、仓库路径和 Node 路径调整 `deploy/systemd/skilldrive-nextjs.service`，再执行：
+
+```bash
+sudo cp deploy/systemd/skilldrive-nextjs.service /etc/systemd/system/skilldrive-nextjs.service
+sudo systemctl daemon-reload
+sudo systemctl enable --now skilldrive-nextjs.service
+```
+
+如果服务已经安装，前端重新构建后只需要重启：
+
+```bash
+sudo systemctl restart skilldrive-nextjs.service
+```
+
+### 4. 验证
+
+在服务器上执行：
+
+```bash
+systemctl status skilldrive-nextjs.service --no-pager
+curl -I http://127.0.0.1:3000
+curl -sS https://YOUR_DOMAIN/api/v1/runtime-config
+```
+
+期望结果：
+
+- `skilldrive-nextjs.service` 为 `active (running)`
+- 本机 `127.0.0.1:3000` 返回 `200 OK`
+- 公网域名下的 `/api/v1/runtime-config` 返回 capability JSON
+
+### 5. 什么时候需要重新构建
+
+需要 `npm run build` 后再 `systemctl restart skilldrive-nextjs.service`：
+
+- 修改了 `NEXT_PUBLIC_API_BASE_URL`
+- 修改了 `API_INTERNAL_URL`
+- 修改了生产前端源码
+- 修改了 `frontend/package.json` 或 `frontend/package-lock.json`
+
+只需要重启对应服务：
+
+- 只改后端环境变量：重启后端服务
+- 只改 Nginx 配置：测试并 reload Nginx
+- 只改后端代码：按后端部署方式重启或热重载后端
+
 ## SQLite 与 PostgreSQL
 
 ### SQLite
@@ -478,7 +577,7 @@ docker compose --env-file .env.preprod -f docker-compose.yml -f docker-compose.d
 - 只有在使用测试预发覆盖层时，才需要确保 `./data` 和 `./logs` 可写
 - 如果 `1000:1000` 不是宿主机用户，请把 `LOCAL_UID` 和 `LOCAL_GID` 设成对应值
 - 如果不是低流量单节点场景，优先使用 PostgreSQL
-- 只要修改了 `NEXT_PUBLIC_API_BASE_URL`，就需要重新构建 Web UI
+- 只要修改了 `NEXT_PUBLIC_API_BASE_URL`，就需要重新构建 Web UI；非 Docker standalone 部署还要重启 `skilldrive-nextjs.service`
 
 ## 常见错误
 
@@ -487,6 +586,9 @@ docker compose --env-file .env.preprod -f docker-compose.yml -f docker-compose.d
 
 - `NEXT_PUBLIC_API_BASE_URL` 还保留着旧服务器 IP
   前端会持续请求错误地址，直到重新构建。
+
+- 非 Docker 部署中只重启了 `skilldrive-nextjs.service`，但没有先执行 `npm run build`
+  `NEXT_PUBLIC_API_BASE_URL` 和 `API_INTERNAL_URL` 仍然会停留在旧构建产物中。
 
 - 同时让 `webui` 直接监听宿主机 `80`，又额外使用外部 Nginx 反向代理
   这样会造成端口冲突，也破坏当前的反向代理布局。

@@ -23,6 +23,9 @@
    - 验证 docs/exec-plans/active/index.md 和 completed/index.md 中的引用
    - 确保索引中列出的执行计划文件都存在
    - 反向一致性：目录中的计划文件必须注册在对应 index.md 中（未注册记 WARN）
+   - Plan/task 配对检查：<slug>-plan.md 与 <slug>-tasks.md 必须成对出现（缺失配对记 WARN）
+   - Tech debt 源链接检查：tech-debt-tracker.md 中 Source 列引用的文件必须存在（缺失记 ERROR）
+   - Completed 计划状态检查：completed/ 下的 plan 若有 Status 行且非已完结状态（Completed/Archived）记 WARN
 
 5. 桌面客户端任务跟踪器检查
    - 验证 desktop-client/task-tracker.md 是否存在
@@ -194,6 +197,100 @@ def validate_exec_plan_directory_consistency(index_path: Path) -> list[Validatio
     return results
 
 
+def validate_plan_task_pairing(directory: Path) -> list[ValidationResult]:
+    """检查 active/completed 目录中的 plan 文件是否有配套 tasks 文件，反之亦然。
+
+    命名约定：<slug>-plan.md 对应 <slug>-tasks.md。
+    缺失配对按 warning-first 策略记 WARN。
+    """
+    results: list[ValidationResult] = []
+    if not directory.is_dir():
+        return results
+
+    plan_files = {
+        f.stem.removesuffix("-plan"): f
+        for f in directory.glob("*-plan.md")
+    }
+    task_files = {
+        f.stem.removesuffix("-tasks"): f
+        for f in directory.glob("*-tasks.md")
+    }
+
+    for slug, plan_file in sorted(plan_files.items()):
+        if slug not in task_files:
+            results.append(ValidationResult(
+                plan_file,
+                Severity.WARN,
+                f"Plan 缺少配套 tasks 文件: {slug}-tasks.md",
+            ))
+
+    for slug, task_file in sorted(task_files.items()):
+        if slug not in plan_files:
+            results.append(ValidationResult(
+                task_file,
+                Severity.WARN,
+                f"Tasks 缺少配套 plan 文件: {slug}-plan.md",
+            ))
+
+    return results
+
+
+def validate_tech_debt_source_links(path: Path) -> list[ValidationResult]:
+    """检查 tech-debt-tracker.md 中 Source 列的路径引用是否指向存在的文件。
+
+    Source 列中的路径是相对于仓库根目录的，而不是相对于 tech-debt-tracker.md
+    本身。只扫描 Markdown 表格行中的反引号引用，避免误检 Review Notes 等叙述文本。
+    """
+    results: list[ValidationResult] = []
+    if not path.exists():
+        return results
+
+    repo_root = ROOT
+    text = path.read_text(encoding="utf-8")
+    for line in text.splitlines():
+        if "|" not in line:
+            continue
+        for rel in BACKTICK_PATH_PATTERN.findall(line):
+            if "*" in rel or "<" in rel or ">" in rel:
+                continue
+            if "/" not in rel and "\\" not in rel:
+                continue
+            if not (rel.endswith(".md") or rel.endswith(".py") or rel.endswith(".ts") or rel.endswith(".tsx") or rel.endswith(".js") or rel.endswith(".json")):
+                continue
+            target = (repo_root / rel).resolve()
+            if not target.exists():
+                results.append(ValidationResult(path, Severity.ERROR, f"Tech debt source 引用不存在: {rel}"))
+    return results
+
+
+TERMINAL_STATUSES = {"completed", "archived", "done", "finished"}
+
+
+def validate_completed_plan_status(directory: Path) -> list[ValidationResult]:
+    """检查 completed 目录中的 plan 文件是否标记为已完结状态。
+
+    历史计划可能没有 Status 行，这是允许的。只有当 Status 行存在且值不是
+    已完结状态时才记 WARN。
+    """
+    results: list[ValidationResult] = []
+    if not directory.is_dir():
+        return results
+
+    for plan_file in sorted(directory.glob("*-plan.md")):
+        text = plan_file.read_text(encoding="utf-8")
+        match = re.search(r"^Status:\s*(.+)", text, re.MULTILINE)
+        if match is None:
+            continue
+        status_value = match.group(1).strip().lower()
+        if status_value not in TERMINAL_STATUSES:
+            results.append(ValidationResult(
+                plan_file,
+                Severity.WARN,
+                f"已完成计划状态为 '{match.group(1).strip()}'，应为 Completed/Archived",
+            ))
+    return results
+
+
 def validate_desktop_task_tracker(path: Path) -> list[ValidationResult]:
     results: list[ValidationResult] = []
     if not path.exists():
@@ -305,9 +402,14 @@ def validate_project(root: Path) -> list[ValidationResult]:
 
     for rel in ("active", "completed"):
         index_path = root / "docs" / "exec-plans" / rel / "index.md"
+        directory = index_path.parent
         results.extend(validate_exec_plan_index(index_path))
         results.extend(validate_exec_plan_directory_consistency(index_path))
+        results.extend(validate_plan_task_pairing(directory))
+        if rel == "completed":
+            results.extend(validate_completed_plan_status(directory))
     results.extend(validate_desktop_task_tracker(root / "desktop-client" / "task-tracker.md"))
+    results.extend(validate_tech_debt_source_links(root / "docs" / "exec-plans" / "tech-debt-tracker.md"))
 
     return results
 

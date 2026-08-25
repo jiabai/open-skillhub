@@ -31,6 +31,8 @@
 | `refresh-token-hardening-plan.md` | Stateful single-use refresh-token rotation implemented with persisted token families, reuse detection, user-wide JWT revocation on compromise, logout session revocation, and backend/docs gates passing |
 | `refresh-token-hardening-tasks.md` | Refresh-token hardening checklist completed with focused rotation tests, full backend pytest, ruff, mypy, Alembic upgrade, and docs validation passing |
 | `help-center-plan.md` | Help Center implemented at `/help` with i18n content, docs directory, public route access, AppShell help entry, and frontend validation passing |
+| `documentation-freshness-automation-plan.md` | Repository docs validator extended with 4 new checks: reverse index consistency, plan/task pairing, tech-debt source link existence, and completed plan status validation; 21 tests passing |
+| `documentation-freshness-automation-tasks.md` | 4-task implementation checklist completed with full validator test coverage and docs gate passing |
 
 ## Notes
 

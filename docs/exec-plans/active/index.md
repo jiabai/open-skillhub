@@ -12,7 +12,6 @@
 | `legacy-compatibility-retirement-plan.md` | Retire legacy shims and fallbacks after tests/backfills prove safety |
 | `auth-provider-consistency-plan.md` | Share SSO validation and make email provider selection explicit |
 | `list-count-consistency-plan.md` | Make paginated list/count consistency explicit and tested |
-| `documentation-freshness-automation-plan.md` | Extend repository docs validation for stale links and plan state |
 
 ## Task Checklists
 
@@ -23,7 +22,6 @@
 | `backend-service-boundaries-tasks.md` | `backend-service-boundaries-plan.md` |
 | `browser-session-token-storage-tasks.md` | `browser-session-token-storage-plan.md` |
 | `distributed-rate-limit-stores-tasks.md` | `distributed-rate-limit-stores-plan.md` |
-| `documentation-freshness-automation-tasks.md` | `documentation-freshness-automation-plan.md` |
 | `legacy-compatibility-retirement-tasks.md` | `legacy-compatibility-retirement-plan.md` |
 | `list-count-consistency-tasks.md` | `list-count-consistency-plan.md` |
 | `skill-data-contract-cleanup-tasks.md` | `skill-data-contract-cleanup-plan.md` |

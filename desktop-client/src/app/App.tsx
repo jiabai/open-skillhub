@@ -1108,7 +1108,7 @@ export function App() {
     }
   }
 
-  const handleDeleteLocalSkill = async (row: LocalSkillInventoryRow) => {
+  const handleDeleteLocalSkill = async (row: LocalSkillInventoryRow, groupRowKeys?: string[]) => {
     if (!bridgeAvailable) {
       return
     }
@@ -1116,7 +1116,10 @@ export function App() {
     setBusyLocalSkillDeleteRowKey(row.rowKey)
 
     try {
-      const refreshedSnapshot = await desktopClient.deleteLocalSkill({ rowKey: row.rowKey })
+      const refreshedSnapshot = await desktopClient.deleteLocalSkill({
+        rowKey: row.rowKey,
+        groupRowKeys
+      })
       setLocalSkillsSnapshot(refreshedSnapshot)
       setActivity((current) =>
         [

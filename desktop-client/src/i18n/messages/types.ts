@@ -123,6 +123,8 @@ export interface AppDictionary {
     remoteId: (value: string) => string
     validationReason: (value: string) => string
     serverLookupWarning: (value: string) => string
+    pathCount: (count: number) => string
+    versionConflict: string
     serverStateLabels: {
       existing: string
       missing: string

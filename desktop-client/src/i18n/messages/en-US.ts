@@ -126,6 +126,8 @@ export const enUSDictionary = {
     remoteId: (value: string) => `Remote ID ${value}`,
     validationReason: (value: string) => `Validation ${value}`,
     serverLookupWarning: (value: string) => `Server lookup unavailable: ${value}`,
+    pathCount: (count: number) => `${count} paths`,
+    versionConflict: "Version mismatch across paths",
     serverStateLabels: {
       existing: "On server",
       missing: "Missing on server",

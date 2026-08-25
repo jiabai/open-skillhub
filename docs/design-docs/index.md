@@ -28,6 +28,7 @@ This directory stores durable design decisions, architecture notes, and review f
 | `list-count-consistency.md` | Paginated list/count consistency decision framework |
 | `documentation-freshness-automation.md` | Validator checks for stale docs, plan indexes, and tech-debt links |
 | `help-center-design.md` | Frontend Help Center layout, i18n content boundary, navigation integration, and responsive directory behavior |
+| `local-skill-name-grouping.md` | Local Skills same-name grouping design: aggregation model, version conflict detection, batch operations, and backward compatibility |
 
 ## How To Use This Directory
 

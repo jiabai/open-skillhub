@@ -86,6 +86,7 @@ function createGlobalSnapshot(homeDir: string): LocalSkillsInventorySnapshot {
         uploadable: true
       }
     ],
+    groupedRows: [],
     serverLookupStatus: "ok",
     serverLookupMessage: null
   }

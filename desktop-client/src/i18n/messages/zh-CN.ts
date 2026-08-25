@@ -124,6 +124,8 @@ export const zhCNDictionary = {
     remoteId: (value: string) => `远程 ID ${value}`,
     validationReason: (value: string) => `校验 ${value}`,
     serverLookupWarning: (value: string) => `服务端查询不可用：${value}`,
+    pathCount: (count: number) => `${count} 个路径`,
+    versionConflict: "各路径版本不一致",
     serverStateLabels: {
       existing: "服务端已存在",
       missing: "服务端缺失",

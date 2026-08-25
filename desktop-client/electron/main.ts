@@ -585,13 +585,20 @@ async function createApplicationServices(): Promise<void> {
     }
 
     const snapshot = await refreshLocalSkillsSnapshot()
-    const row = snapshot.rows.find((item) => item.rowKey === normalizedRowKey)
 
-    if (!row) {
-      throw new Error(`Unknown local skill row: ${normalizedRowKey}`)
+    const rowKeysToDelete: string[] = []
+    if (payload.groupRowKeys && payload.groupRowKeys.length > 0) {
+      rowKeysToDelete.push(...payload.groupRowKeys)
+    } else {
+      rowKeysToDelete.push(normalizedRowKey)
     }
 
-    await rm(row.packageRootPath, { recursive: true, force: true })
+    for (const rk of rowKeysToDelete) {
+      const row = snapshot.rows.find((item) => item.rowKey === rk)
+      if (row) {
+        await rm(row.packageRootPath, { recursive: true, force: true })
+      }
+    }
 
     return refreshLocalSkillsSnapshot()
   }

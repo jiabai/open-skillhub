@@ -1,7 +1,7 @@
 import { useMemo } from "react"
 import { Badge, Button, Card, CardContent, CardDescription, CardHeader, CardTitle, PageIntro } from "@/components/ui-primitives"
 import { useI18n } from "@/i18n/use-i18n"
-import type { LocalSkillInventoryRow, LocalSkillsInventorySnapshot } from "@/types"
+import type { LocalSkillGroupRow, LocalSkillInventoryRow, LocalSkillsInventorySnapshot } from "@/types"
 
 type LocalSkillsViewProps = {
   snapshot: LocalSkillsInventorySnapshot | null
@@ -12,12 +12,16 @@ type LocalSkillsViewProps = {
   deletingRowKey: string | null
   onRefresh: () => void
   onUpload: (row: LocalSkillInventoryRow) => void
-  onDelete: (row: LocalSkillInventoryRow) => void
+  onDelete: (row: LocalSkillInventoryRow, groupRowKeys?: string[]) => void
   onOpenFolder: (row: LocalSkillInventoryRow) => void
 }
 
 function displayName(row: LocalSkillInventoryRow): string {
   return row.name ?? row.packageRootPath.split(/[\\/]/).filter(Boolean).at(-1) ?? row.packageRootPath
+}
+
+function groupDisplayName(group: LocalSkillGroupRow): string {
+  return group.name
 }
 
 function serverStateLabel(row: LocalSkillInventoryRow, labels: ReturnType<typeof useI18n>["dictionary"]["localSkillsView"]["serverStateLabels"]): string {
@@ -46,6 +50,22 @@ function badgeTone(row: LocalSkillInventoryRow) {
   }
 }
 
+function badgeToneForGroup(group: LocalSkillGroupRow) {
+  if (group.hasVersionConflict) return "warning" as const
+  return badgeTone(group.primary)
+}
+
+function isGroupBusy(group: LocalSkillGroupRow, uploadingRowKey: string | null, deletingRowKey: string | null): boolean {
+  if (uploadingRowKey && group.items.some((r) => r.rowKey === uploadingRowKey)) return true
+  if (deletingRowKey && group.items.some((r) => r.rowKey === deletingRowKey)) return true
+  return false
+}
+
+function versionLabel(group: LocalSkillGroupRow, nA: string): string {
+  if (group.hasVersionConflict) return `${group.items.map((r) => r.localVersion ?? nA).join(", ")}`
+  return group.primary.localVersion ?? nA
+}
+
 export function LocalSkillsView({
   snapshot,
   bridgeAvailable,
@@ -61,15 +81,21 @@ export function LocalSkillsView({
   const { dictionary } = useI18n()
   const copy = dictionary.localSkillsView
 
-  const sortedRows = useMemo(() => {
+  const groupedRows = useMemo(() => {
     if (!snapshot) return []
-    return [...snapshot.rows].sort((a, b) => {
-      const nameA = displayName(a).toLowerCase()
-      const nameB = displayName(b).toLowerCase()
-      if (nameA < nameB) return -1
-      if (nameA > nameB) return 1
-      return 0
-    })
+    if (snapshot.groupedRows && snapshot.groupedRows.length > 0) {
+      return snapshot.groupedRows
+    }
+    return snapshot.rows.map((row) => ({
+      groupKey: row.rowKey,
+      name: displayName(row),
+      items: [row],
+      primary: row,
+      sourceDisplayNames: [...row.sourceDisplayNames],
+      pathCount: 1,
+      uploadable: row.uploadable,
+      hasVersionConflict: false
+    }))
   }, [snapshot])
 
   return (
@@ -109,56 +135,89 @@ export function LocalSkillsView({
         <CardHeader>
           <CardTitle id="local-skills-list-heading">{dictionary.updatesView.inventoryTitle}</CardTitle>
           <CardDescription>
-            {snapshot ? `${snapshot.rows.length} local skill${snapshot.rows.length === 1 ? "" : "s"}` : copy.noSnapshot}
+            {snapshot ? `${groupedRows.length} local skill${groupedRows.length === 1 ? "" : "s"}` : copy.noSnapshot}
           </CardDescription>
         </CardHeader>
         <CardContent>
           {isRefreshing && !snapshot ? <div className="callout">{copy.loading}</div> : null}
           {!isRefreshing && !snapshot ? <div className="callout">{copy.noSnapshot}</div> : null}
-          {snapshot && snapshot.rows.length === 0 ? <div className="callout">{copy.empty}</div> : null}
+          {snapshot && groupedRows.length === 0 ? <div className="callout">{copy.empty}</div> : null}
 
-          {snapshot && snapshot.rows.length > 0 ? (
+          {snapshot && groupedRows.length > 0 ? (
             <div className="stack-list">
-              {sortedRows.map((row) => {
-                const name = displayName(row)
-                const isUploading = uploadingRowKey === row.rowKey
-                const isDeleting = deletingRowKey === row.rowKey
+              {groupedRows.map((group) => {
+                const name = groupDisplayName(group)
+                const isBusy = isGroupBusy(group, uploadingRowKey, deletingRowKey)
+                const isUploading = uploadingRowKey !== null && group.items.some((r) => r.rowKey === uploadingRowKey)
+                const isDeleting = deletingRowKey !== null && group.items.some((r) => r.rowKey === deletingRowKey)
+
+                const handleGroupUpload = () => {
+                  for (const item of group.items) {
+                    if (item.uploadable) {
+                      onUpload(item)
+                      break
+                    }
+                  }
+                }
+
+                const handleGroupDelete = () => {
+                  onDelete(group.primary, group.items.map((r) => r.rowKey))
+                }
+
+                const handleGroupOpen = () => {
+                  onOpenFolder(group.primary)
+                }
 
                 return (
                   <article
                     className="update-item"
-                    key={row.rowKey}
+                    key={group.groupKey}
                     role="button"
                     tabIndex={0}
                     style={{ cursor: "pointer" }}
-                    onClick={() => onOpenFolder(row)}
+                    onClick={handleGroupOpen}
                     onKeyDown={(e) => {
                       if (e.key === "Enter" || e.key === " ") {
                         e.preventDefault()
-                        onOpenFolder(row)
+                        handleGroupOpen()
                       }
                     }}
                   >
                     <div className="update-item__header">
                       <div>
                         <h3>{name}</h3>
-                        <span className="muted mono">{copy.localPath(row.packageRootPath)}</span>
+                        <div style={{ display: "flex", flexWrap: "wrap", gap: "0.35rem", marginTop: "0.25rem" }}>
+                          {group.items.map((item) => (
+                            <span key={item.rowKey} className="muted mono" style={{
+                              fontSize: "0.75rem",
+                              padding: "0.1rem 0.4rem",
+                              borderRadius: "0.25rem",
+                              background: "var(--muted)",
+                              opacity: 0.7
+                            }}>
+                              {item.packageRootPath.split(/[\\/]/).filter(Boolean).slice(-2).join("/")}
+                            </span>
+                          ))}
+                        </div>
                       </div>
                       <div className="update-item__actions">
-                        <Badge tone={badgeTone(row)}>
-                          {serverStateLabel(row, copy.serverStateLabels)}
+                        <Badge tone={badgeToneForGroup(group)}>
+                          {serverStateLabel(group.primary, copy.serverStateLabels)}
                         </Badge>
+                        {group.pathCount > 1 ? (
+                          <Badge tone="neutral">{copy.pathCount(group.pathCount)}</Badge>
+                        ) : null}
                         <span style={{ display: "flex", gap: "0.45rem" }}>
-                          {row.uploadable ? (
-                            <Button size="sm" disabled={isUploading || isDeleting} onClick={(e) => { e.stopPropagation(); onUpload(row) }}>
+                          {group.uploadable ? (
+                            <Button size="sm" disabled={isBusy} onClick={(e) => { e.stopPropagation(); handleGroupUpload() }}>
                               {isUploading ? copy.uploading : copy.upload}
                             </Button>
                           ) : null}
                           <Button
                             size="sm"
                             variant="secondary"
-                            disabled={isUploading || isDeleting}
-                            onClick={(e) => { e.stopPropagation(); onDelete(row) }}
+                            disabled={isBusy}
+                            onClick={(e) => { e.stopPropagation(); handleGroupDelete() }}
                           >
                             {isDeleting ? copy.deleting : copy.delete}
                           </Button>
@@ -166,11 +225,16 @@ export function LocalSkillsView({
                       </div>
                     </div>
                     <div className="update-item__meta">
-                      <span>{copy.sourceAgents(row.sourceDisplayNames.join(", "))}</span>
-                      <span>{copy.localVersion(row.localVersion ?? dictionary.common.nA)}</span>
-                      {row.remoteVersion ? <span>{copy.remoteVersion(row.remoteVersion)}</span> : null}
-                      {row.remoteSkillId ? <span className="mono">{copy.remoteId(row.remoteSkillId)}</span> : null}
-                      {row.validationMessage ? <span>{copy.validationReason(row.validationMessage)}</span> : null}
+                      <span>{copy.sourceAgents(group.sourceDisplayNames.join(", "))}</span>
+                      <span>{copy.localVersion(versionLabel(group, dictionary.common.nA))}</span>
+                      {group.primary.remoteVersion ? <span>{copy.remoteVersion(group.primary.remoteVersion)}</span> : null}
+                      {group.primary.remoteSkillId ? <span className="mono">{copy.remoteId(group.primary.remoteSkillId)}</span> : null}
+                      {group.hasVersionConflict ? (
+                        <span style={{ color: "var(--warning)" }}>{copy.versionConflict ?? "Version mismatch across paths"}</span>
+                      ) : null}
+                      {group.items.find((r) => r.validationMessage)?.validationMessage ? (
+                        <span>{copy.validationReason(group.items.find((r) => r.validationMessage)!.validationMessage!)}</span>
+                      ) : null}
                     </div>
                   </article>
                 )

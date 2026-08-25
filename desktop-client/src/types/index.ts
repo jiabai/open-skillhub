@@ -151,9 +151,21 @@ export interface LocalSkillInventoryRow {
   uploadable: boolean
 }
 
+export interface LocalSkillGroupRow {
+  groupKey: string
+  name: string
+  items: LocalSkillInventoryRow[]
+  primary: LocalSkillInventoryRow
+  sourceDisplayNames: string[]
+  pathCount: number
+  uploadable: boolean
+  hasVersionConflict: boolean
+}
+
 export interface LocalSkillsInventorySnapshot {
   checkedAt: string
   rows: LocalSkillInventoryRow[]
+  groupedRows: LocalSkillGroupRow[]
   serverLookupStatus: LocalSkillServerLookupStatus
   serverLookupMessage: string | null
 }
@@ -168,6 +180,7 @@ export interface LocalSkillUploadResult {
 
 export interface LocalSkillDeletePayload {
   rowKey: string
+  groupRowKeys?: string[]
 }
 
 export interface LocalSkillOpenFolderPayload {

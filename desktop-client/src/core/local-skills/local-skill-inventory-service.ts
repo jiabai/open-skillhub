@@ -6,6 +6,7 @@ import { enumerateSkillDirectories } from "@/adapters/agents/skill-layout"
 import type {
   AgentDetectionSnapshot,
   AgentId,
+  LocalSkillGroupRow,
   LocalSkillInventoryRow,
   LocalSkillServerLookupStatus,
   LocalSkillServerState,
@@ -231,6 +232,66 @@ function sortRows(rows: LocalSkillInventoryRow[]): LocalSkillInventoryRow[] {
   })
 }
 
+function pickPrimaryRow(items: LocalSkillInventoryRow[]): LocalSkillInventoryRow {
+  return items.find((r) => r.validationState === "valid" && r.serverState === "existing")
+    ?? items.find((r) => r.validationState === "valid")
+    ?? items[0]
+}
+
+function groupSkillRowsByName(rows: LocalSkillInventoryRow[]): LocalSkillGroupRow[] {
+  const groups = new Map<string, LocalSkillInventoryRow[]>()
+
+  for (const row of rows) {
+    const key = row.name ?? row.rowKey
+    if (!groups.has(key)) {
+      groups.set(key, [])
+    }
+    groups.get(key)!.push(row)
+  }
+
+  const result: LocalSkillGroupRow[] = []
+
+  for (const [, items] of groups) {
+    if (items.length === 1) {
+      const item = items[0]
+      result.push({
+        groupKey: item.rowKey,
+        name: item.name ?? basename(item.packageRootPath),
+        items: [item],
+        primary: item,
+        sourceDisplayNames: [...item.sourceDisplayNames],
+        pathCount: 1,
+        uploadable: item.uploadable,
+        hasVersionConflict: false
+      })
+      continue
+    }
+
+    const versions = new Set(items.map((r) => r.localVersion ?? ""))
+    const hasVersionConflict = versions.size > 1
+
+    const primary = pickPrimaryRow(items)
+    const allDisplayNames = [...new Set(items.flatMap((r) => r.sourceDisplayNames))]
+
+    result.push({
+      groupKey: items.map((r) => r.rowKey).join("|"),
+      name: primary.name ?? basename(primary.packageRootPath),
+      items,
+      primary,
+      sourceDisplayNames: allDisplayNames,
+      pathCount: items.length,
+      uploadable: items.some((r) => r.uploadable),
+      hasVersionConflict
+    })
+  }
+
+  return result.sort((a, b) => {
+    const nameComparison = a.name.localeCompare(b.name)
+    if (nameComparison !== 0) return nameComparison
+    return a.primary.packageRootPath.localeCompare(b.primary.packageRootPath)
+  })
+}
+
 export function createLocalSkillInventoryService(
   dependencies: LocalSkillInventoryServiceDependencies = {}
 ): LocalSkillInventoryService {
@@ -352,9 +413,13 @@ export function createLocalSkillInventoryService(
         )
       )
 
+      const sortedRows = sortRows(rows)
+      const groupedRows = groupSkillRowsByName(sortedRows)
+
       return {
         checkedAt: now().toISOString(),
-        rows: sortRows(rows),
+        rows: sortedRows,
+        groupedRows,
         serverLookupStatus: input.serverLookupStatus,
         serverLookupMessage: input.serverLookupMessage
       }

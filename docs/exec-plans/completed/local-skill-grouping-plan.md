@@ -9,13 +9,13 @@ Tasks: `docs/exec-plans/active/local-skill-grouping-tasks.md`
 
 ## Purpose / Big Picture
 
-Group same-name local skills from different paths into a single row in the Local Skills view, with path tags and version conflict detection. Operations (upload/delete) act on the entire group.
+Group same-name local skills from different paths into a single row in the Local Skills view, with path tags and version conflict detection. Upload targets the highest-versioned copy (primary); delete acts on all copies in the group.
 
 ## Progress
 
 - [x] Create spec, design doc, plan, and task checklist.
 - [x] Add `LocalSkillGroupRow` type and extend snapshot/payload types.
-- [x] Implement `groupSkillRowsByName` and `pickPrimaryRow` in inventory service.
+- [x] Implement `groupSkillRowsByName` and `pickPrimaryRow` (semver-based primary selection) in inventory service.
 - [x] Update `LocalSkillsView` to render grouped rows with path tags.
 - [x] Update delete operation to support batch via `groupRowKeys`.
 - [x] Add i18n keys for path count and version conflict.

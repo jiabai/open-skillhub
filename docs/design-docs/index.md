@@ -29,6 +29,7 @@ This directory stores durable design decisions, architecture notes, and review f
 | `documentation-freshness-automation.md` | Validator checks for stale docs, plan indexes, and tech-debt links |
 | `help-center-design.md` | Frontend Help Center layout, i18n content boundary, navigation integration, and responsive directory behavior |
 | `local-skill-name-grouping.md` | Local Skills same-name grouping design: aggregation model, version conflict detection, batch operations, and backward compatibility |
+| `skill-delete-confirmation.md` | Delete confirmation dialog design: destructive confirm (type-to-confirm), full path display with agent ownership, Dialog component integration |
 
 ## How To Use This Directory
 

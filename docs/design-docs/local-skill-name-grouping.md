@@ -9,7 +9,7 @@
 ## 设计原则
 
 1. **聚合不合并数据**：分组仅在展示层进行，底层数据结构保持不变。
-2. **操作粒度明确**：上传作用于单副本（组内任一可上传项即可），删除作用于全部副本。
+2. **操作粒度明确**：上传作用于 primary（组内最新版本的副本），删除作用于全部副本。
 3. **版本冲突可见**：同 name 不同 version 的 SKILL 不合并为一组，以警告提示。
 4. **向后兼容**：不破坏现有 API 和 IPC 合约。
 
@@ -55,17 +55,17 @@ groupRowKeys?: string[]  // 组内所有 rowKey，用于批量删除
 2. 对每组检测版本一致性：
    - 若所有 items 的 localVersion 一致 → hasVersionConflict = false
    - 若存在不同 localVersion → hasVersionConflict = true
-3. 选择 primary：优先选择有远端关联（remoteSkillId 非空）的行
+3. 选择 primary：先按 semver 降序排列，再优先级选择（详见 `pickPrimaryRow`）
 4. 构造 LocalSkillGroupRow 返回
 ```
 
 ### `pickPrimaryRow`
 
 ```
-选择优先级:
-1. remoteSkillId 非空的行
-2. 有远端版本信息的行
-3. 列表中第一行
+先按 semver 版本降序排列（最高版本排最前），再按以下优先级选择：
+1. 版本排序后，remoteSkillId 非空且 validationState === "valid" 的行
+2. 版本排序后，validationState === "valid" 的行
+3. 版本排序后，第一行（即最高版本）
 ```
 
 ## UI 渲染
@@ -101,10 +101,10 @@ const groupedRows = snapshot.groupedRows?.length
 
 ### 上传
 
-保持原有单 `rowKey` 上传流程不变。视图层从组内选取第一个 `uploadable` 的 item 作为上传目标。
+保持原有单 `rowKey` 上传流程不变。视图层使用 `group.primary`（即版本最高的副本）作为上传目标。
 
 ```
-用户点击上传 → handleGroupUpload → onUpload(group.uploadableItems[0])
+用户点击上传 → handleGroupUpload → onUpload(group.primary)
 ```
 
 ### 删除（新增批量能力）

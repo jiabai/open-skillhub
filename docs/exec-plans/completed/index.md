@@ -35,6 +35,8 @@
 | `documentation-freshness-automation-tasks.md` | 4-task implementation checklist completed with full validator test coverage and docs gate passing |
 | `local-skill-grouping-plan.md` | Local Skills same-name grouping implemented: `LocalSkillGroupRow` type, `groupSkillRowsByName` aggregation, path tags, version conflict detection, batch delete via `groupRowKeys`, i18n keys, backward-compatible fallback, all 190 tests passing, build succeeding, and docs validation clean |
 | `local-skill-grouping-tasks.md` | 9-task execution checklist completed; types, grouping logic, UI rewrite, batch operations, i18n, test fixtures, and full validation passed |
+| `skill-delete-confirmation-plan.md` | Delete confirmation dialog with destructive confirm (type-to-confirm) implemented in Local Skills view; shows full paths, agent ownership, permanent deletion warning; 8 new i18n keys, 5 new test cases, 195 tests passing, build succeeding |
+| `skill-delete-confirmation-tasks.md` | 4-task execution checklist completed; i18n keys, dialog UI, destructive confirm, test adaptation, and full validation passed |
 
 ## Notes
 

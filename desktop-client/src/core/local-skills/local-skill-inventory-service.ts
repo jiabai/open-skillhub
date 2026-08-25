@@ -2,6 +2,7 @@ import { createHash } from "node:crypto"
 import { readFile, readdir } from "node:fs/promises"
 import { basename, join, normalize, posix, win32 } from "node:path"
 
+import { parseStrictSemver } from "@/core/pre-distribution-check/version-compare"
 import { enumerateSkillDirectories } from "@/adapters/agents/skill-layout"
 import type {
   AgentDetectionSnapshot,
@@ -232,10 +233,24 @@ function sortRows(rows: LocalSkillInventoryRow[]): LocalSkillInventoryRow[] {
   })
 }
 
+function compareLocalVersions(a: LocalSkillInventoryRow, b: LocalSkillInventoryRow): number {
+  const aVer = parseStrictSemver(a.localVersion)
+  const bVer = parseStrictSemver(b.localVersion)
+  if (aVer && bVer) {
+    if (aVer.major !== bVer.major) return bVer.major - aVer.major
+    if (aVer.minor !== bVer.minor) return bVer.minor - aVer.minor
+    return bVer.patch - aVer.patch
+  }
+  if (aVer) return -1
+  if (bVer) return 1
+  return 0
+}
+
 function pickPrimaryRow(items: LocalSkillInventoryRow[]): LocalSkillInventoryRow {
-  return items.find((r) => r.validationState === "valid" && r.serverState === "existing")
-    ?? items.find((r) => r.validationState === "valid")
-    ?? items[0]
+  const sorted = [...items].sort(compareLocalVersions)
+  return sorted.find((r) => r.validationState === "valid" && r.serverState === "existing")
+    ?? sorted.find((r) => r.validationState === "valid")
+    ?? sorted[0]
 }
 
 function groupSkillRowsByName(rows: LocalSkillInventoryRow[]): LocalSkillGroupRow[] {

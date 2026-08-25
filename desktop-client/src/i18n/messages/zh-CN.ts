@@ -24,7 +24,8 @@ export const zhCNDictionary = {
     nA: "n/a",
     notRefreshedYet: "尚未刷新",
     bridgeUnavailable: (action: string) =>
-      `桌面桥接不可用。请启动 Electron 运行时（\`npm run start:electron\`）以便${action}。`
+      `桌面桥接不可用。请启动 Electron 运行时（\`npm run start:electron\`）以便${action}。`,
+    cancel: "取消"
   },
   appShell: {
     brandTitle: "SkillDrive",
@@ -131,7 +132,15 @@ export const zhCNDictionary = {
       missing: "服务端缺失",
       unknown: "服务端未知",
       invalidLocal: "本地 SKILL 无效"
-    }
+    },
+    deleteConfirmTitle: "删除 SKILL",
+    deleteConfirmDescription: (name: string, count: number) => `这将从 ${count} 个位置永久删除 '${name}'。`,
+    deleteConfirmWarning: "此操作无法撤销。以下文件将从磁盘永久删除：",
+    deleteConfirmPathsTitle: "即将删除的路径：",
+    deleteConfirmPathAgent: (agents: string) => `使用者：${agents}`,
+    deleteConfirmDestructiveHint: "输入 SKILL 名称以确认删除：",
+    deleteConfirmDestructivePlaceholder: "在此输入 SKILL 名称",
+    deleteConfirmButton: "删除"
   },
   projectsView: {
     eyebrow: "",

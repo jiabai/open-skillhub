@@ -24,7 +24,8 @@ export const enUSDictionary = {
     nA: "n/a",
     notRefreshedYet: "Not refreshed yet",
     bridgeUnavailable: (action: string) =>
-      `Desktop bridge unavailable. Launch the Electron runtime with \`npm run start:electron\` to ${action}.`
+      `Desktop bridge unavailable. Launch the Electron runtime with \`npm run start:electron\` to ${action}.`,
+    cancel: "Cancel"
   },
   appShell: {
     brandTitle: "SkillDrive",
@@ -133,7 +134,15 @@ export const enUSDictionary = {
       missing: "Missing on server",
       unknown: "Server unknown",
       invalidLocal: "Invalid local skill"
-    }
+    },
+    deleteConfirmTitle: "Delete skill",
+    deleteConfirmDescription: (name: string, count: number) => `This will permanently delete '${name}' from ${count} location${count > 1 ? "s" : ""}.`,
+    deleteConfirmWarning: "This action cannot be undone. The following files will be permanently removed from disk:",
+    deleteConfirmPathsTitle: "Paths to be deleted:",
+    deleteConfirmPathAgent: (agents: string) => `Used by: ${agents}`,
+    deleteConfirmDestructiveHint: "Type the skill name to confirm deletion:",
+    deleteConfirmDestructivePlaceholder: "Type skill name here",
+    deleteConfirmButton: "Delete"
   },
   projectsView: {
     eyebrow: "",

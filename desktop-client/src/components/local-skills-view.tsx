@@ -1,5 +1,5 @@
-import { useMemo } from "react"
-import { Badge, Button, Card, CardContent, CardDescription, CardHeader, CardTitle, PageIntro } from "@/components/ui-primitives"
+import { useMemo, useState } from "react"
+import { Badge, Button, Card, CardContent, CardDescription, CardHeader, CardTitle, Dialog, Input, PageIntro } from "@/components/ui-primitives"
 import { useI18n } from "@/i18n/use-i18n"
 import type { LocalSkillGroupRow, LocalSkillInventoryRow, LocalSkillsInventorySnapshot } from "@/types"
 
@@ -81,6 +81,9 @@ export function LocalSkillsView({
   const { dictionary } = useI18n()
   const copy = dictionary.localSkillsView
 
+  const [pendingDeleteGroup, setPendingDeleteGroup] = useState<LocalSkillGroupRow | null>(null)
+  const [confirmText, setConfirmText] = useState<string>("")
+
   const groupedRows = useMemo(() => {
     if (!snapshot) return []
     if (snapshot.groupedRows && snapshot.groupedRows.length > 0) {
@@ -97,6 +100,18 @@ export function LocalSkillsView({
       hasVersionConflict: false
     }))
   }, [snapshot])
+
+  const handleConfirmDelete = () => {
+    if (!pendingDeleteGroup) return
+    onDelete(pendingDeleteGroup.primary, pendingDeleteGroup.items.map((r) => r.rowKey))
+    setPendingDeleteGroup(null)
+    setConfirmText("")
+  }
+
+  const handleCancelDelete = () => {
+    setPendingDeleteGroup(null)
+    setConfirmText("")
+  }
 
   return (
     <section className="page-stack" aria-labelledby="local-skills-heading">
@@ -152,16 +167,15 @@ export function LocalSkillsView({
                 const isDeleting = deletingRowKey !== null && group.items.some((r) => r.rowKey === deletingRowKey)
 
                 const handleGroupUpload = () => {
-                  for (const item of group.items) {
-                    if (item.uploadable) {
-                      onUpload(item)
-                      break
-                    }
+                  const primary = group.primary
+                  if (primary.uploadable) {
+                    onUpload(primary)
                   }
                 }
 
                 const handleGroupDelete = () => {
-                  onDelete(group.primary, group.items.map((r) => r.rowKey))
+                  setPendingDeleteGroup(group)
+                  setConfirmText("")
                 }
 
                 const handleGroupOpen = () => {
@@ -216,7 +230,7 @@ export function LocalSkillsView({
                           <Button
                             size="sm"
                             variant="secondary"
-                            disabled={isBusy}
+                            disabled={isBusy || pendingDeleteGroup !== null}
                             onClick={(e) => { e.stopPropagation(); handleGroupDelete() }}
                           >
                             {isDeleting ? copy.deleting : copy.delete}
@@ -243,6 +257,60 @@ export function LocalSkillsView({
           ) : null}
         </CardContent>
       </Card>
+
+      {pendingDeleteGroup ? (
+        <Dialog
+          open={true}
+          onClose={handleCancelDelete}
+          title={copy.deleteConfirmTitle}
+          description={copy.deleteConfirmDescription(pendingDeleteGroup.name, pendingDeleteGroup.pathCount)}
+          footer={
+            <>
+              <Button variant="secondary" onClick={handleCancelDelete}>
+                {dictionary.common.cancel}
+              </Button>
+              <Button
+                variant="destructive"
+                disabled={confirmText !== pendingDeleteGroup.name}
+                onClick={handleConfirmDelete}
+              >
+                {copy.deleteConfirmButton}
+              </Button>
+            </>
+          }
+        >
+          <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+            <div className="callout callout--warning" role="alert">
+              {copy.deleteConfirmWarning}
+            </div>
+            <div>
+              <strong>{copy.deleteConfirmPathsTitle}</strong>
+              <ul style={{ margin: "0.5rem 0 0 0", paddingLeft: "1.2rem" }}>
+                {pendingDeleteGroup.items.map((item) => (
+                  <li key={item.rowKey}>
+                    <code style={{ fontSize: "0.85rem" }}>{item.packageRootPath}</code>
+                    <div className="muted" style={{ fontSize: "0.8rem" }}>
+                      {copy.deleteConfirmPathAgent(item.sourceDisplayNames.join(", "))}
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </div>
+            <div>
+              <label htmlFor="delete-confirm-input" style={{ display: "block", marginBottom: "0.25rem" }}>
+                {copy.deleteConfirmDestructiveHint}
+              </label>
+              <Input
+                id="delete-confirm-input"
+                value={confirmText}
+                onChange={(e) => setConfirmText(e.target.value)}
+                placeholder={copy.deleteConfirmDestructivePlaceholder}
+                autoFocus
+              />
+            </div>
+          </div>
+        </Dialog>
+      ) : null}
     </section>
   )
 }

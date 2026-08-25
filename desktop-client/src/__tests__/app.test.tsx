@@ -31,6 +31,7 @@ type MockDesktopClientBridge = {
   importProjectSkill: ReturnType<typeof vi.fn>
   reconcileInstalledSkill: ReturnType<typeof vi.fn>
   distributePendingUpdate: ReturnType<typeof vi.fn>
+  deleteLocalSkill: ReturnType<typeof vi.fn>
 }
 
 const mockDesktopClient = {
@@ -59,7 +60,8 @@ const mockDesktopClient = {
   validateProjectSkillFolder: vi.fn(),
   importProjectSkill: vi.fn(),
   reconcileInstalledSkill: vi.fn(),
-  distributePendingUpdate: vi.fn()
+  distributePendingUpdate: vi.fn(),
+  deleteLocalSkill: vi.fn()
 } satisfies MockDesktopClientBridge
 
 const configuredState = {
@@ -258,6 +260,7 @@ beforeEach(() => {
     version: "0.1.0",
     refreshedSnapshot: defaultLocalSkillsSnapshot
   })
+  mockDesktopClient.deleteLocalSkill.mockResolvedValue(defaultLocalSkillsSnapshot)
   mockDesktopClient.listProjects.mockResolvedValue(defaultProjectsSnapshot)
   mockDesktopClient.addProject.mockResolvedValue(defaultProjectsSnapshot)
   mockDesktopClient.renameProject.mockResolvedValue(defaultProjectsSnapshot)
@@ -340,6 +343,7 @@ describe("App", () => {
     expect(window.desktopClient?.importProjectSkill).toBeTypeOf("function")
     expect(window.desktopClient?.reconcileInstalledSkill).toBeTypeOf("function")
     expect(window.desktopClient?.distributePendingUpdate).toBeTypeOf("function")
+    expect(window.desktopClient?.deleteLocalSkill).toBeTypeOf("function")
   })
 
   it("surfaces a bridge unavailable error when configuration actions run outside Electron", async () => {
@@ -485,6 +489,7 @@ describe("App", () => {
       failedAgentIds: [],
       syncedToLocalState: true
     })
+    mockDesktopClient.deleteLocalSkill.mockResolvedValue(defaultLocalSkillsSnapshot)
 
     await expect(desktopClient.getConfiguration()).resolves.toEqual(configuredState)
     await expect(
@@ -1594,6 +1599,152 @@ describe("App", () => {
       expect(
         screen.getByText("Skill A reached 1 agent target, but failed on gemini-cli.")
       ).toBeInTheDocument()
+    })
+  })
+
+  describe("Local Skills delete confirmation", () => {
+    it("shows delete confirmation dialog when delete button is clicked", async () => {
+      render(<App />)
+
+      const navigation = screen.getByRole("navigation", { name: "SkillDrive Desktop" })
+
+      await waitFor(() => {
+        expect(within(navigation).getByRole("button", { name: "Local Skills" })).toBeInTheDocument()
+      })
+
+      fireEvent.click(within(navigation).getByRole("button", { name: "Local Skills" }))
+
+      await waitFor(() => {
+        expect(screen.getByText("local-only")).toBeInTheDocument()
+      })
+
+      fireEvent.click(screen.getAllByRole("button", { name: "Delete" })[0])
+
+      const dialog = await screen.findByRole("dialog", { name: "Delete skill" })
+      expect(dialog).toBeInTheDocument()
+
+      expect(dialog).toHaveTextContent("C:\\Users\\test\\.agents\\skills\\local-only")
+      expect(dialog).toHaveTextContent("Codex")
+      expect(dialog).toHaveTextContent(/This action cannot be undone/)
+      expect(dialog).toHaveTextContent(/permanently removed from disk/)
+
+      const deleteButton = within(dialog).getByRole("button", { name: "Delete" })
+      expect(deleteButton).toBeDisabled()
+
+      expect(mockDesktopClient.deleteLocalSkill).not.toHaveBeenCalled()
+    })
+
+    it("enables delete button when correct skill name is typed", async () => {
+      render(<App />)
+
+      const navigation = screen.getByRole("navigation", { name: "SkillDrive Desktop" })
+
+      await waitFor(() => {
+        expect(within(navigation).getByRole("button", { name: "Local Skills" })).toBeInTheDocument()
+      })
+
+      fireEvent.click(within(navigation).getByRole("button", { name: "Local Skills" }))
+
+      await waitFor(() => {
+        expect(screen.getByText("local-only")).toBeInTheDocument()
+      })
+
+      fireEvent.click(screen.getAllByRole("button", { name: "Delete" })[0])
+
+      const dialog = await screen.findByRole("dialog", { name: "Delete skill" })
+
+      const input = screen.getByLabelText("Type the skill name to confirm deletion:")
+      fireEvent.change(input, { target: { value: "local-only" } })
+
+      const deleteButton = within(dialog).getByRole("button", { name: "Delete" })
+      expect(deleteButton).not.toBeDisabled()
+    })
+
+    it("does not enable delete button when wrong name is typed", async () => {
+      render(<App />)
+
+      const navigation = screen.getByRole("navigation", { name: "SkillDrive Desktop" })
+
+      await waitFor(() => {
+        expect(within(navigation).getByRole("button", { name: "Local Skills" })).toBeInTheDocument()
+      })
+
+      fireEvent.click(within(navigation).getByRole("button", { name: "Local Skills" }))
+
+      await waitFor(() => {
+        expect(screen.getByText("local-only")).toBeInTheDocument()
+      })
+
+      fireEvent.click(screen.getAllByRole("button", { name: "Delete" })[0])
+
+      const dialog = await screen.findByRole("dialog", { name: "Delete skill" })
+
+      const input = screen.getByLabelText("Type the skill name to confirm deletion:")
+      fireEvent.change(input, { target: { value: "wrong-name" } })
+
+      const deleteButton = within(dialog).getByRole("button", { name: "Delete" })
+      expect(deleteButton).toBeDisabled()
+    })
+
+    it("cancels delete without triggering deletion", async () => {
+      render(<App />)
+
+      const navigation = screen.getByRole("navigation", { name: "SkillDrive Desktop" })
+
+      await waitFor(() => {
+        expect(within(navigation).getByRole("button", { name: "Local Skills" })).toBeInTheDocument()
+      })
+
+      fireEvent.click(within(navigation).getByRole("button", { name: "Local Skills" }))
+
+      await waitFor(() => {
+        expect(screen.getByText("local-only")).toBeInTheDocument()
+      })
+
+      fireEvent.click(screen.getAllByRole("button", { name: "Delete" })[0])
+
+      await screen.findByRole("dialog", { name: "Delete skill" })
+
+      fireEvent.click(screen.getByRole("button", { name: "Cancel" }))
+
+      await waitFor(() => {
+        expect(screen.queryByRole("dialog")).not.toBeInTheDocument()
+      })
+
+      expect(mockDesktopClient.deleteLocalSkill).not.toHaveBeenCalled()
+    })
+
+    it("confirms delete with correct name triggers deletion with correct groupRowKeys", async () => {
+      render(<App />)
+
+      const navigation = screen.getByRole("navigation", { name: "SkillDrive Desktop" })
+
+      await waitFor(() => {
+        expect(within(navigation).getByRole("button", { name: "Local Skills" })).toBeInTheDocument()
+      })
+
+      fireEvent.click(within(navigation).getByRole("button", { name: "Local Skills" }))
+
+      await waitFor(() => {
+        expect(screen.getByText("local-only")).toBeInTheDocument()
+      })
+
+      fireEvent.click(screen.getAllByRole("button", { name: "Delete" })[0])
+
+      const dialog = await screen.findByRole("dialog", { name: "Delete skill" })
+
+      const input = screen.getByLabelText("Type the skill name to confirm deletion:")
+      fireEvent.change(input, { target: { value: "local-only" } })
+
+      const deleteButton = within(dialog).getByRole("button", { name: "Delete" })
+      fireEvent.click(deleteButton)
+
+      await waitFor(() => {
+        expect(mockDesktopClient.deleteLocalSkill).toHaveBeenCalledWith({
+          rowKey: "row-local-only",
+          groupRowKeys: ["row-local-only"]
+        })
+      })
     })
   })
 })

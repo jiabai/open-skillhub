@@ -1,4 +1,4 @@
-import { useEffect, type ButtonHTMLAttributes, type HTMLAttributes, type ReactNode } from "react"
+import { useEffect, type ButtonHTMLAttributes, type HTMLAttributes, type InputHTMLAttributes, type ReactNode } from "react"
 
 type ButtonVariant = "primary" | "secondary" | "outline" | "ghost" | "destructive" | "nav-active"
 type ButtonSize = "default" | "sm" | "icon"
@@ -89,6 +89,20 @@ export function PageIntro({ eyebrow, title, summary, actions }: PageIntroProps) 
       </div>
       {actions ? <div className="page-intro__actions">{actions}</div> : null}
     </div>
+  )
+}
+
+export function Input({
+  className,
+  type = "text",
+  ...props
+}: InputHTMLAttributes<HTMLInputElement>) {
+  return (
+    <input
+      type={type}
+      className={joinClassNames("input", className)}
+      {...props}
+    />
   )
 }
 

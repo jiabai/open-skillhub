@@ -24,6 +24,7 @@ export interface AppDictionary {
     nA: string
     notRefreshedYet: string
     bridgeUnavailable: (action: string) => string
+    cancel: string
   }
   appShell: {
     brandTitle: string
@@ -131,6 +132,14 @@ export interface AppDictionary {
       unknown: string
       invalidLocal: string
     }
+    deleteConfirmTitle: string
+    deleteConfirmDescription: (name: string, count: number) => string
+    deleteConfirmWarning: string
+    deleteConfirmPathsTitle: string
+    deleteConfirmPathAgent: (agents: string) => string
+    deleteConfirmDestructiveHint: string
+    deleteConfirmDestructivePlaceholder: string
+    deleteConfirmButton: string
   }
   projectsView: {
     eyebrow: string

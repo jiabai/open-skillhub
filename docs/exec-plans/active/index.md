@@ -14,6 +14,20 @@
 | `list-count-consistency-plan.md` | Make paginated list/count consistency explicit and tested |
 | `documentation-freshness-automation-plan.md` | Extend repository docs validation for stale links and plan state |
 
+## Task Checklists
+
+| File | Companion Plan |
+|------|----------------|
+| `audit-permission-consistency-tasks.md` | `audit-permission-consistency-plan.md` |
+| `auth-provider-consistency-tasks.md` | `auth-provider-consistency-plan.md` |
+| `backend-service-boundaries-tasks.md` | `backend-service-boundaries-plan.md` |
+| `browser-session-token-storage-tasks.md` | `browser-session-token-storage-plan.md` |
+| `distributed-rate-limit-stores-tasks.md` | `distributed-rate-limit-stores-plan.md` |
+| `documentation-freshness-automation-tasks.md` | `documentation-freshness-automation-plan.md` |
+| `legacy-compatibility-retirement-tasks.md` | `legacy-compatibility-retirement-plan.md` |
+| `list-count-consistency-tasks.md` | `list-count-consistency-plan.md` |
+| `skill-data-contract-cleanup-tasks.md` | `skill-data-contract-cleanup-plan.md` |
+
 ## Working Agreement
 
 - Update the plan itself when scope, progress, or discoveries change.

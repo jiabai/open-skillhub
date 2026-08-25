@@ -22,6 +22,7 @@
 4. 执行计划索引检查
    - 验证 docs/exec-plans/active/index.md 和 completed/index.md 中的引用
    - 确保索引中列出的执行计划文件都存在
+   - 反向一致性：目录中的计划文件必须注册在对应 index.md 中（未注册记 WARN）
 
 5. 桌面客户端任务跟踪器检查
    - 验证 desktop-client/task-tracker.md 是否存在
@@ -164,6 +165,35 @@ def validate_exec_plan_index(path: Path) -> list[ValidationResult]:
     return results
 
 
+def validate_exec_plan_directory_consistency(index_path: Path) -> list[ValidationResult]:
+    """检查计划目录中的文件是否都注册在对应 index.md 中（反向一致性）。
+
+    索引引用缺失文件是 ERROR（见 validate_exec_plan_index）；
+    目录中存在未注册文件按 warning-first 策略记 WARN。
+    """
+    results: list[ValidationResult] = []
+    if not index_path.exists():
+        return results
+
+    directory = index_path.parent
+    referenced = {
+        rel
+        for rel in BACKTICK_PATH_PATTERN.findall(index_path.read_text(encoding="utf-8"))
+        if rel.endswith(".md") and "*" not in rel and "<" not in rel and ">" not in rel
+    }
+
+    for plan_file in sorted(directory.glob("*.md")):
+        if plan_file.name == "index.md":
+            continue
+        if plan_file.name not in referenced:
+            results.append(ValidationResult(
+                plan_file,
+                Severity.WARN,
+                f"存在于 {directory.name}/ 但未注册在 index.md 中",
+            ))
+    return results
+
+
 def validate_desktop_task_tracker(path: Path) -> list[ValidationResult]:
     results: list[ValidationResult] = []
     if not path.exists():
@@ -273,8 +303,10 @@ def validate_project(root: Path) -> list[ValidationResult]:
     for rel_path in ENTRYPOINT_FILES:
         results.extend(validate_backtick_links(root / rel_path))
 
-    results.extend(validate_exec_plan_index(root / "docs" / "exec-plans" / "active" / "index.md"))
-    results.extend(validate_exec_plan_index(root / "docs" / "exec-plans" / "completed" / "index.md"))
+    for rel in ("active", "completed"):
+        index_path = root / "docs" / "exec-plans" / rel / "index.md"
+        results.extend(validate_exec_plan_index(index_path))
+        results.extend(validate_exec_plan_directory_consistency(index_path))
     results.extend(validate_desktop_task_tracker(root / "desktop-client" / "task-tracker.md"))
 
     return results

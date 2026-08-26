@@ -4,6 +4,8 @@ export type AppLocale = "en-US" | "zh-CN"
 
 export type AppTheme = "light" | "dark"
 
+export const SKILL_PACKAGE_IGNORED_DIRECTORY_NAMES = ["__pycache__", ".git", "node_modules"] as const
+
 export type AgentId =
   | "claude-code"
   | "cursor"

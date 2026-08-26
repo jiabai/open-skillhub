@@ -7,11 +7,12 @@ import {
   findInstalledSkillDirectory,
   resolveSkillInstallPath
 } from "@/adapters/agents/skill-layout"
-import type {
-  AgentSkillLayout,
-  AgentId,
-  InstalledSkillMetadataV1,
-  InstalledSkillVersionSource
+import {
+  SKILL_PACKAGE_IGNORED_DIRECTORY_NAMES,
+  type AgentSkillLayout,
+  type AgentId,
+  type InstalledSkillMetadataV1,
+  type InstalledSkillVersionSource
 } from "@/types"
 
 export interface ExtractedSkillPayloadV1 {
@@ -178,7 +179,11 @@ async function ensureDirectoryContents(path: string): Promise<boolean> {
   return entries.length > 0
 }
 
-async function collectRelativeFiles(rootPath: string, currentPath = rootPath): Promise<string[]> {
+async function collectRelativeFiles(
+  rootPath: string,
+  currentPath = rootPath,
+  ignoredDirectoryNames = new Set<string>(SKILL_PACKAGE_IGNORED_DIRECTORY_NAMES)
+): Promise<string[]> {
   const entries = await readdir(currentPath, { withFileTypes: true })
   const collected: string[] = []
 
@@ -186,7 +191,11 @@ async function collectRelativeFiles(rootPath: string, currentPath = rootPath): P
     const nextPath = join(currentPath, entry.name)
 
     if (entry.isDirectory()) {
-      collected.push(...(await collectRelativeFiles(rootPath, nextPath)))
+      if (ignoredDirectoryNames.has(entry.name)) {
+        continue
+      }
+
+      collected.push(...(await collectRelativeFiles(rootPath, nextPath, ignoredDirectoryNames)))
       continue
     }
 

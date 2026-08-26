@@ -7,6 +7,7 @@ import {
   collectSkillPackageTreeFiles,
   SkillPackageTreeError
 } from "@/core/skills/skill-package-tree"
+import { SKILL_PACKAGE_IGNORED_DIRECTORY_NAMES } from "@/types"
 
 const DEFAULT_MAX_FILE_COUNT = 1_000
 const DEFAULT_MAX_TOTAL_BYTES = 50 * 1024 * 1024
@@ -106,7 +107,7 @@ async function collectZipEntries(
       maxFileCount: request.maxFileCount ?? DEFAULT_MAX_FILE_COUNT,
       maxTotalBytes: request.maxTotalBytes ?? DEFAULT_MAX_TOTAL_BYTES,
       includeBytes: true,
-      ignoredDirectoryNames: ["__pycache__", ".git", "node_modules"]
+      ignoredDirectoryNames: [...SKILL_PACKAGE_IGNORED_DIRECTORY_NAMES]
     })
 
     return entries.map((entry) => {

@@ -59,3 +59,15 @@ invisible whenever the version comparison cannot decide.
 5. Hash computation error (unreadable file) does not break refresh; falls back to `existing`.
 6. Hash is computed only when needed (name matched + lookup ok + semver not decisive).
 7. All existing tests pass; new unit tests cover criteria 1–6.
+
+## Follow-up Fix: Aligning Hash Scope with Upload Packages
+
+- Date: 2026-08-26
+- Root cause: local content hashing traversed runtime and repository directories that
+  `prepareLocalSkillUploadPackage` intentionally omitted (`__pycache__`, `.git`, and
+  `node_modules`). After upload, the server therefore stored a hash for different bytes,
+  leaving the row incorrectly marked as update-available.
+- Resolution: `SKILL_PACKAGE_IGNORED_DIRECTORY_NAMES` is now shared by upload packaging and
+  `computeSkillContentHash`, so both compute the digest over the same packaged file set.
+- Regression coverage: `src/__tests__/local-skill-upload-package.test.ts` verifies that adding
+  files under those ignored directories does not change the local content hash or ZIP entries.

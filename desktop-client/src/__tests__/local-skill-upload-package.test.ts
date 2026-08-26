@@ -4,6 +4,7 @@ import { basename, join } from "node:path"
 
 import { afterEach, describe, expect, it } from "vitest"
 
+import { computeSkillContentHash } from "@/adapters/agents/base"
 import { prepareLocalSkillUploadPackage } from "@/core/local-skills/local-skill-upload-package"
 
 const tempRoots: string[] = []
@@ -65,6 +66,33 @@ describe("prepareLocalSkillUploadPackage", () => {
     await prepared.cleanup()
 
     expect(existsSync(prepared.artifactPath)).toBe(false)
+  })
+
+  it("keeps ignored runtime directories out of the content hash just like upload packaging", async () => {
+    const skillRoot = createTempRoot()
+    const cacheRoot = createTempRoot()
+    writeFileSync(join(skillRoot, "SKILL.md"), "---\nname: local-only\n---\n# Local")
+    mkdirSync(join(skillRoot, "docs"))
+    writeFileSync(join(skillRoot, "docs", "guide.md"), "Guide")
+
+    const baselineHash = await computeSkillContentHash(skillRoot)
+
+    for (const directory of ["__pycache__", ".git", "node_modules"]) {
+      mkdirSync(join(skillRoot, directory), { recursive: true })
+      writeFileSync(join(skillRoot, directory, "generated.bin"), directory)
+    }
+
+    const hashWithIgnoredDirectories = await computeSkillContentHash(skillRoot)
+    expect(hashWithIgnoredDirectories).toBe(baselineHash)
+
+    const prepared = await prepareLocalSkillUploadPackage({
+      packageRootPath: skillRoot,
+      skillName: "local-only",
+      cacheDirectory: cacheRoot
+    })
+
+    expect(readZipFileNames(prepared.artifactPath)).toEqual(["SKILL.md", "docs/guide.md"])
+    await prepared.cleanup()
   })
 
   it("rejects a package root without SKILL.md", async () => {

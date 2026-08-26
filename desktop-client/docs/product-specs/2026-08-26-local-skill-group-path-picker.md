@@ -1,7 +1,7 @@
 # Product Spec: Local Skill Group Path Picker
 
 - Date: 2026-08-26
-- Status: Approved for planning
+- Status: Implemented
 - Related: `2026-05-01-local-skills-management.md`, `2026-08-25-local-skill-grouping`
 
 ## User-Visible Goal
@@ -53,3 +53,11 @@ open. The user chooses the exact local path in a compact dialog.
 6. Existing upload/delete controls continue to stop card-click propagation.
 7. Existing desktop tests, Electron typecheck, production build, documentation
    validation, and diff checks pass.
+
+## Implementation Notes
+
+- Single-path groups keep the direct card-open behavior.
+- Multi-path groups use a narrow dialog with a controlled radio list, defaulting
+  to the first path and requiring an explicit “Open path” confirmation.
+- The dialog is renderer-only and reuses the existing `onOpenFolder` callback;
+  IPC/API contracts remain unchanged.

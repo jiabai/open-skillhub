@@ -32,6 +32,7 @@ type MockDesktopClientBridge = {
   reconcileInstalledSkill: ReturnType<typeof vi.fn>
   distributePendingUpdate: ReturnType<typeof vi.fn>
   deleteLocalSkill: ReturnType<typeof vi.fn>
+  openLocalSkillFolder: ReturnType<typeof vi.fn>
 }
 
 const mockDesktopClient = {
@@ -61,7 +62,8 @@ const mockDesktopClient = {
   importProjectSkill: vi.fn(),
   reconcileInstalledSkill: vi.fn(),
   distributePendingUpdate: vi.fn(),
-  deleteLocalSkill: vi.fn()
+  deleteLocalSkill: vi.fn(),
+  openLocalSkillFolder: vi.fn()
 } satisfies MockDesktopClientBridge
 
 const configuredState = {
@@ -261,6 +263,7 @@ beforeEach(() => {
     refreshedSnapshot: defaultLocalSkillsSnapshot
   })
   mockDesktopClient.deleteLocalSkill.mockResolvedValue(defaultLocalSkillsSnapshot)
+  mockDesktopClient.openLocalSkillFolder.mockResolvedValue(undefined)
   mockDesktopClient.listProjects.mockResolvedValue(defaultProjectsSnapshot)
   mockDesktopClient.addProject.mockResolvedValue(defaultProjectsSnapshot)
   mockDesktopClient.renameProject.mockResolvedValue(defaultProjectsSnapshot)
@@ -313,6 +316,55 @@ afterEach(() => {
   document.documentElement.style.colorScheme = ""
   vi.clearAllMocks()
 })
+
+const multiPathPrimaryRow = {
+  ...defaultLocalSkillsSnapshot.rows[0],
+  rowKey: "row-vibe-primary",
+  name: "vibe-coding-launcher",
+  packageRootPath: "C:\\Users\\test\\.agents\\skills\\vibe-coding-launcher",
+  sourceAgents: ["codex" as const],
+  sourceDisplayNames: ["Codex"]
+}
+
+const multiPathSecondaryRow = {
+  ...defaultLocalSkillsSnapshot.rows[0],
+  rowKey: "row-vibe-secondary",
+  name: "vibe-coding-launcher",
+  packageRootPath: "C:\\Users\\test\\.workbuddy\\skills\\vibe-coding-launcher",
+  sourceAgents: ["workbuddy" as const],
+  sourceDisplayNames: ["WorkBuddy"]
+}
+
+const multiPathLocalSkillsSnapshot = {
+  ...defaultLocalSkillsSnapshot,
+  rows: [multiPathPrimaryRow, multiPathSecondaryRow],
+  groupedRows: [
+    {
+      groupKey: "group-vibe-coding-launcher",
+      name: "vibe-coding-launcher",
+      items: [multiPathPrimaryRow, multiPathSecondaryRow],
+      primary: multiPathPrimaryRow,
+      sourceDisplayNames: ["Codex", "WorkBuddy"],
+      pathCount: 2,
+      uploadable: false,
+      hasVersionConflict: false
+    }
+  ]
+}
+
+async function openLocalSkillsView() {
+  render(<App />)
+
+  const navigation = screen.getByRole("navigation", { name: "SkillDrive Desktop" })
+  await waitFor(() => {
+    expect(within(navigation).getByRole("button", { name: "Local Skills" })).toBeInTheDocument()
+  })
+
+  fireEvent.click(within(navigation).getByRole("button", { name: "Local Skills" }))
+  await waitFor(() => {
+    expect(screen.getByRole("heading", { name: "Local Skills" })).toBeInTheDocument()
+  })
+}
 
 describe("App", () => {
   it("exposes a desktop client API surface", () => {
@@ -931,6 +983,73 @@ describe("App", () => {
       expect(screen.getByText(/uploaded-skill/)).toBeInTheDocument()
       expect(screen.queryByRole("button", { name: "Upload" })).not.toBeInTheDocument()
     })
+  })
+
+  it("opens a multi-path group dialog without opening a folder before confirmation", async () => {
+    mockDesktopClient.refreshLocalSkills.mockResolvedValueOnce(multiPathLocalSkillsSnapshot)
+
+    await openLocalSkillsView()
+
+    const groupCard = screen.getByRole("heading", { name: "vibe-coding-launcher" }).closest("article")
+    expect(groupCard).not.toBeNull()
+    fireEvent.click(groupCard!)
+
+    const dialog = await screen.findByRole("dialog", { name: "Choose local path" })
+    expect(dialog).toHaveTextContent(multiPathPrimaryRow.packageRootPath)
+    expect(dialog).toHaveTextContent(multiPathSecondaryRow.packageRootPath)
+    expect(screen.getAllByRole("radio")).toHaveLength(2)
+    expect(screen.getAllByRole("radio")[0]).toBeChecked()
+    expect(mockDesktopClient.openLocalSkillFolder).not.toHaveBeenCalled()
+  })
+
+  it("opens the selected path from a multi-path group", async () => {
+    mockDesktopClient.refreshLocalSkills.mockResolvedValueOnce(multiPathLocalSkillsSnapshot)
+
+    await openLocalSkillsView()
+
+    const groupCard = screen.getByRole("heading", { name: "vibe-coding-launcher" }).closest("article")
+    expect(groupCard).not.toBeNull()
+    fireEvent.click(groupCard!)
+    await screen.findByRole("dialog", { name: "Choose local path" })
+
+    fireEvent.click(screen.getAllByRole("radio")[1])
+    expect(screen.getAllByRole("radio")[1]).toBeChecked()
+    fireEvent.click(screen.getByRole("button", { name: "Open path" }))
+
+    await waitFor(() => {
+      expect(mockDesktopClient.openLocalSkillFolder).toHaveBeenCalledTimes(1)
+      expect(mockDesktopClient.openLocalSkillFolder).toHaveBeenCalledWith({ rowKey: multiPathSecondaryRow.rowKey })
+      expect(screen.queryByRole("dialog", { name: "Choose local path" })).not.toBeInTheDocument()
+    })
+  })
+
+  it("cancels a multi-path group dialog without opening a folder", async () => {
+    mockDesktopClient.refreshLocalSkills.mockResolvedValueOnce(multiPathLocalSkillsSnapshot)
+
+    await openLocalSkillsView()
+
+    const groupCard = screen.getByRole("heading", { name: "vibe-coding-launcher" }).closest("article")
+    expect(groupCard).not.toBeNull()
+    fireEvent.click(groupCard!)
+    await screen.findByRole("dialog", { name: "Choose local path" })
+
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }))
+
+    expect(screen.queryByRole("dialog", { name: "Choose local path" })).not.toBeInTheDocument()
+    expect(mockDesktopClient.openLocalSkillFolder).not.toHaveBeenCalled()
+  })
+
+  it("opens a single-path group directly without showing a path picker", async () => {
+    await openLocalSkillsView()
+
+    const groupCard = screen.getByRole("heading", { name: "local-only" }).closest("article")
+    expect(groupCard).not.toBeNull()
+    fireEvent.click(groupCard!)
+
+    await waitFor(() => {
+      expect(mockDesktopClient.openLocalSkillFolder).toHaveBeenCalledWith({ rowKey: "row-local-only" })
+    })
+    expect(screen.queryByRole("dialog", { name: "Choose local path" })).not.toBeInTheDocument()
   })
 
   it("refreshes Local Skills after an upload conflict", async () => {

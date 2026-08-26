@@ -87,6 +87,8 @@ export function LocalSkillsView({
 
   const [pendingDeleteGroup, setPendingDeleteGroup] = useState<LocalSkillGroupRow | null>(null)
   const [confirmText, setConfirmText] = useState<string>("")
+  const [pendingOpenGroup, setPendingOpenGroup] = useState<LocalSkillGroupRow | null>(null)
+  const [selectedOpenRowKey, setSelectedOpenRowKey] = useState<string | null>(null)
 
   const groupedRows = useMemo(() => {
     if (!snapshot) return []
@@ -115,6 +117,20 @@ export function LocalSkillsView({
   const handleCancelDelete = () => {
     setPendingDeleteGroup(null)
     setConfirmText("")
+  }
+
+  const handleCloseOpenPathDialog = () => {
+    setPendingOpenGroup(null)
+    setSelectedOpenRowKey(null)
+  }
+
+  const handleConfirmOpenPath = () => {
+    if (!pendingOpenGroup || !selectedOpenRowKey) return
+    const selectedRow = pendingOpenGroup.items.find((item) => item.rowKey === selectedOpenRowKey)
+    if (!selectedRow) return
+
+    onOpenFolder(selectedRow)
+    handleCloseOpenPathDialog()
   }
 
   return (
@@ -183,7 +199,13 @@ export function LocalSkillsView({
                 }
 
                 const handleGroupOpen = () => {
-                  onOpenFolder(group.primary)
+                  if (group.pathCount <= 1) {
+                    onOpenFolder(group.primary)
+                    return
+                  }
+
+                  setPendingOpenGroup(group)
+                  setSelectedOpenRowKey(group.items[0]?.rowKey ?? null)
                 }
 
                 return (
@@ -302,6 +324,50 @@ export function LocalSkillsView({
               autoFocus
             />
           </label>
+        </Dialog>
+      ) : null}
+
+      {pendingOpenGroup ? (
+        <Dialog
+          open={true}
+          size="narrow"
+          onClose={handleCloseOpenPathDialog}
+          title={copy.openPathDialogTitle}
+          description={copy.openPathDialogDescription(pendingOpenGroup.name, pendingOpenGroup.pathCount)}
+          closeLabel={dictionary.common.close}
+          footer={
+            <div className="dialog-actions">
+              <Button variant="outline" onClick={handleCloseOpenPathDialog}>
+                {dictionary.common.cancel}
+              </Button>
+              <Button disabled={!selectedOpenRowKey} onClick={handleConfirmOpenPath}>
+                {copy.openPathDialogConfirm}
+              </Button>
+            </div>
+          }
+        >
+          <div className="dialog-path-picker" role="radiogroup" aria-label={copy.openPathDialogTitle}>
+            {pendingOpenGroup.items.map((item, index) => (
+              <label className="dialog-path-option" key={item.rowKey}>
+                <input
+                  type="radio"
+                  name={`open-local-skill-${pendingOpenGroup.groupKey}`}
+                  value={item.rowKey}
+                  checked={selectedOpenRowKey === item.rowKey}
+                  onChange={() => setSelectedOpenRowKey(item.rowKey)}
+                  autoFocus={index === 0}
+                />
+                <span className="dialog-path-option__content">
+                  <span className="dialog-path-option__path">{copy.openPathDialogPathLabel(item.packageRootPath)}</span>
+                  {item.sourceDisplayNames.length > 0 ? (
+                    <span className="dialog-path-option__agents">
+                      {copy.openPathDialogPathAgents(item.sourceDisplayNames.join(", "))}
+                    </span>
+                  ) : null}
+                </span>
+              </label>
+            ))}
+          </div>
         </Dialog>
       ) : null}
     </section>

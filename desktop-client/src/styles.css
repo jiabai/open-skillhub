@@ -680,6 +680,51 @@ select:focus-visible {
   line-height: 1.4;
 }
 
+.dialog-path-picker {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.dialog-path-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.65rem;
+  border: 1px solid var(--osh-border);
+  border-radius: calc(var(--osh-radius) * 0.75);
+  padding: 0.7rem 0.8rem;
+  cursor: pointer;
+}
+
+.dialog-path-option:focus-within {
+  border-color: var(--osh-accent);
+  box-shadow: 0 0 0 2px var(--osh-accent-border);
+}
+
+.dialog-path-option input {
+  flex: 0 0 auto;
+  margin-top: 0.2rem;
+  accent-color: var(--osh-accent);
+}
+
+.dialog-path-option__content {
+  display: grid;
+  gap: 0.15rem;
+  min-width: 0;
+}
+
+.dialog-path-option__path {
+  font-family: var(--osh-font-mono);
+  font-size: 0.82rem;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.dialog-path-option__agents {
+  color: var(--osh-muted);
+  font-size: 0.78rem;
+  line-height: 1.4;
+}
+
 .dialog-actions {
   display: flex;
   flex-wrap: wrap;

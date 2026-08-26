@@ -117,6 +117,11 @@ export interface AppDictionary {
     delete: string
     deleting: string
     openFolder: string
+    openPathDialogTitle: string
+    openPathDialogDescription: (name: string, count: number) => string
+    openPathDialogPathLabel: (path: string) => string
+    openPathDialogPathAgents: (agents: string) => string
+    openPathDialogConfirm: string
     sourceAgents: (value: string) => string
     localVersion: (value: string) => string
     localPath: (value: string) => string

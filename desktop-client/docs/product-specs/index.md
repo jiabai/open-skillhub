@@ -22,5 +22,6 @@
 - `2026-05-13-hermes-categorized-skill-layout.md` - Hermes categorized skill layout support for scan, metadata read, distribution, and project services (English)
 - `2026-05-13-linux-cli-distribution.md` - Linux CLI skill distribution for global and explicit project agent targets (English)
 - `2026-05-14-linux-cli-packaged-deployment.md` - Linux CLI package-and-install-script deployment spec (Chinese)
+- `2026-08-27-responsive-review-workspace.md` - Unified responsive desktop Shell for Home, Updates, Local Skills, and Projects, including Renderer-orchestrated multi-select distribution
 
 Canonical rule: work from the local product spec first.

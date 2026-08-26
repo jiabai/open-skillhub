@@ -15,6 +15,8 @@ from backend.models.audit_log import AuditLog
 from backend.models.skill import Skill
 from backend.models.skill_version import SkillVersion
 from backend.models.user import User
+from backend.repositories.skill import SkillRepository
+from backend.repositories.skill_version import SkillVersionRepository
 
 
 async def _create_client_token(client, *, email: str, username: str, role: str = "admin"):
@@ -71,6 +73,33 @@ def _skill_zip_bytes(
         for path, content in (extra_files or {}).items():
             archive.writestr(path, content)
     return buffer.getvalue()
+
+
+def _install_strict_description_guard(monkeypatch, *, max_length: int = 500) -> None:
+    original_skill_create = SkillRepository.create
+    original_skill_update = SkillRepository.update
+    original_version_create = SkillVersionRepository.create_version
+
+    def assert_description_length(kwargs: dict) -> None:
+        description = kwargs.get("description")
+        if description is not None:
+            assert len(str(description)) <= max_length
+
+    async def strict_skill_create(self, *args, **kwargs):
+        assert_description_length(kwargs)
+        return await original_skill_create(self, *args, **kwargs)
+
+    async def strict_skill_update(self, db_obj, *args, **kwargs):
+        assert_description_length(kwargs)
+        return await original_skill_update(self, db_obj, *args, **kwargs)
+
+    async def strict_version_create(self, *args, **kwargs):
+        assert_description_length(kwargs)
+        return await original_version_create(self, *args, **kwargs)
+
+    monkeypatch.setattr(SkillRepository, "create", strict_skill_create)
+    monkeypatch.setattr(SkillRepository, "update", strict_skill_update)
+    monkeypatch.setattr(SkillVersionRepository, "create_version", strict_version_create)
 
 
 async def _post_client_skill_upload(
@@ -403,6 +432,121 @@ async def test_client_skill_upload_creates_new_skill_and_audit_event(client, asy
     assert upload_event.details["name"] == "client-created-skill"
     assert upload_event.details["version"] == "1.0.0"
     assert upload_event.details["client_api"] is True
+
+
+@pytest.mark.asyncio
+async def test_client_skill_upload_create_accepts_long_description_under_strict_persistence(
+    client,
+    async_session,
+    tmp_path,
+    monkeypatch,
+):
+    monkeypatch.setenv("SKILL_STORAGE_PATH", str(tmp_path))
+    monkeypatch.setattr(settings, "SKILL_STORAGE_PATH", str(tmp_path))
+    _install_strict_description_guard(monkeypatch)
+    access_token, api_token = await _create_client_token(
+        client,
+        email="client-upload-long-create@example.com",
+        username="clientuploadlongcreate",
+        role="member",
+    )
+    long_description = "d" * 914
+
+    response = await _post_client_skill_upload(
+        client,
+        api_token,
+        file_content=_skill_zip_bytes(
+            "client-long-description-create",
+            description=long_description,
+        ),
+    )
+
+    assert response.status_code == 201, response.text
+    payload = response.json()
+    assert payload["description"] == long_description[:500]
+
+    detail = await client.get(
+        f"/api/v1/skills/{payload['id']}",
+        headers={"Authorization": f"Bearer {access_token}"},
+    )
+    assert detail.status_code == 200
+    assert detail.json()["description"] == long_description[:500]
+
+    version = await async_session.scalar(
+        select(SkillVersion).where(SkillVersion.skill_id == payload["id"])
+    )
+    assert version is not None
+    assert version.description == long_description[:500]
+
+    skill = await async_session.get(Skill, payload["id"])
+    assert skill is not None
+    archived_skill_md = (
+        get_skill_versions_dir(skill.user_id, payload["name"])
+        / payload["version"]
+        / "SKILL.md"
+    )
+    assert long_description in archived_skill_md.read_text(encoding="utf-8")
+
+
+@pytest.mark.asyncio
+async def test_client_skill_upload_append_accepts_long_description_under_strict_persistence(
+    client,
+    async_session,
+    tmp_path,
+    monkeypatch,
+):
+    monkeypatch.setenv("SKILL_STORAGE_PATH", str(tmp_path))
+    monkeypatch.setattr(settings, "SKILL_STORAGE_PATH", str(tmp_path))
+    _install_strict_description_guard(monkeypatch)
+    access_token, api_token = await _create_client_token(
+        client,
+        email="client-upload-long-append@example.com",
+        username="clientuploadlongappend",
+        role="member",
+    )
+    headers = {"Authorization": f"Bearer {access_token}"}
+    created = await client.post(
+        "/api/v1/skills",
+        json={"name": "client-long-description-append", "description": "Initial"},
+        headers=headers,
+    )
+    assert created.status_code == 201
+    skill_id = created.json()["id"]
+    long_description = "a" * 914
+
+    response = await _post_client_skill_upload(
+        client,
+        api_token,
+        file_content=_skill_zip_bytes(
+            "client-long-description-append",
+            "2.0.0",
+            description=long_description,
+        ),
+        data={"skill_uuid": skill_id},
+    )
+
+    assert response.status_code == 201, response.text
+    detail = await client.get(f"/api/v1/skills/{skill_id}", headers=headers)
+    assert detail.status_code == 200
+    assert detail.json()["description"] == long_description[:500]
+
+    version = await async_session.scalar(
+        select(SkillVersion).where(
+            SkillVersion.skill_id == skill_id,
+            SkillVersion.version == "2.0.0",
+        )
+    )
+    assert version is not None
+    assert version.description == long_description[:500]
+
+    skill = await async_session.get(Skill, skill_id)
+    assert skill is not None
+    archived_skill_md = (
+        get_skill_versions_dir(skill.user_id, "client-long-description-append")
+        / "2.0.0"
+        / "SKILL.md"
+    )
+    assert long_description in archived_skill_md.read_text(encoding="utf-8")
 
 
 @pytest.mark.asyncio

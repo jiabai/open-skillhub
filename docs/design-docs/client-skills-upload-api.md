@@ -54,6 +54,19 @@ Token，否则调用方很难判断权限、审计和错误语义。
 
 这是现有 `SkillUploadCoordinator.upload_zip_from_path()` 已支持的语义，应继续复用。
 
+### 上传描述是受限摘要
+
+`SKILL.md` 来自外部技能生态，其 frontmatter `description` 可能长于 SkillDrive 当前
+`Skill.description` / `SkillVersion.description` 的 500 字符摘要字段。Console API
+手工创建和编辑已经通过 Pydantic 强制该上限，但 ZIP 上传此前绕过了该输入契约；
+SQLite 测试环境又不会严格执行 `VARCHAR(500)`，导致问题只在线上 PostgreSQL 暴露为
+通用 500。
+
+所有 ZIP 上传模式必须在服务层持久化之前，将 description 规范化为前 500 个字符。
+该规则属于技能领域数据约束，应由共享常量/函数表达，并同时供 schema 上限和上传
+服务使用。规范化后的值用于 Skill、SkillVersion、响应和索引元数据；上传的 ZIP 与
+版本目录保持原样，因此原始描述仍随技能包完整保存。
+
 ## 权限和所有权
 
 - 认证依赖使用 `require_api_token_permission("skill.upload")`。
@@ -107,3 +120,4 @@ Token，否则调用方很难判断权限、审计和错误语义。
 - 创建模式以 ZIP 内 `SKILL.md` 为准。
 - 更新模式只追加版本，不改变 SKILL 归属。
 - 错误、审计、归档和版本递增都复用后端现有能力。
+- 数据库中的 description 是最多 500 字符的检索/展示摘要；ZIP 是完整源内容。

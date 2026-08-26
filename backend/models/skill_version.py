@@ -1,6 +1,7 @@
 from sqlalchemy import JSON, ForeignKey, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
+from backend.domain.skill_description import MAX_SKILL_DESCRIPTION_LENGTH
 from backend.models.base import Base, TimestampMixin, UUIDPrimaryKeyMixin
 
 
@@ -10,7 +11,7 @@ class SkillVersion(UUIDPrimaryKeyMixin, TimestampMixin, Base):
 
     skill_id: Mapped[str] = mapped_column(String(36), ForeignKey("skills.id", ondelete="CASCADE"), index=True)
     version: Mapped[str] = mapped_column(String(50))
-    description: Mapped[str] = mapped_column(String(500), default="")
+    description: Mapped[str] = mapped_column(String(MAX_SKILL_DESCRIPTION_LENGTH), default="")
     dependencies: Mapped[list[str]] = mapped_column(JSON, default=list)
     dependency_spec: Mapped[dict] = mapped_column(JSON, default=dict)
     dependency_spec_version: Mapped[str | None] = mapped_column(String(20), nullable=True)

@@ -3,6 +3,7 @@ from datetime import datetime
 from sqlalchemy import Boolean, DateTime, ForeignKey, JSON, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
+from backend.domain.skill_description import MAX_SKILL_DESCRIPTION_LENGTH
 from backend.models.base import Base, TimestampMixin, UUIDPrimaryKeyMixin
 
 
@@ -12,7 +13,7 @@ class Skill(UUIDPrimaryKeyMixin, TimestampMixin, Base):
 
     user_id: Mapped[str] = mapped_column(String(36), ForeignKey("users.id", ondelete="CASCADE"), index=True)
     name: Mapped[str] = mapped_column(String(120))
-    description: Mapped[str] = mapped_column(String(500), default="")
+    description: Mapped[str] = mapped_column(String(MAX_SKILL_DESCRIPTION_LENGTH), default="")
     tags: Mapped[list[str]] = mapped_column(JSON, default=list)
     visibility: Mapped[str] = mapped_column(String(20), default="private")
     enterprise_id: Mapped[str | None] = mapped_column(String(100), nullable=True, index=True)

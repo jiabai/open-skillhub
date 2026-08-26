@@ -5,6 +5,7 @@ import zipfile
 from loguru import logger
 
 from backend.config.settings import settings
+from backend.domain.skill_description import normalize_skill_description
 from backend.core.utils.skill_hash import compute_skill_content_hash
 from backend.core.utils.skill_archive import bump_patch_version, list_archive_versions, save_archive, save_archive_from_path
 from backend.core.utils.skill_storage import clear_skill_current_dir, get_skill_versions_dir, get_user_skill_dir, validate_skill_name
@@ -132,7 +133,9 @@ class SkillUploadCoordinator:
             if existing:
                 version = await self.next_version(skill, repo)
                 logger.debug(f"[UPLOAD_ZIP] Version already exists, auto-incremented: {version}")
-            description = str(metadata.get("description") or frontmatter.get("description") or skill.description)
+            description = normalize_skill_description(
+                metadata.get("description") or frontmatter.get("description") or skill.description
+            )
             dependencies = normalize_dependencies(metadata.get("dependencies") or frontmatter.get("dependencies"))
             explicit_dependency_spec = normalize_dependency_spec(
                 metadata.get("dependency_spec") or frontmatter.get("dependency_spec")
@@ -251,7 +254,7 @@ class SkillUploadCoordinator:
                     version = "1.0.0"
                     logger.debug(f"[UPLOAD_ZIP_CREATE] Auto-generated version: {version}")
                 version = validate_version(version)
-            description = str(frontmatter.get("description") or "").strip()
+            description = normalize_skill_description(frontmatter.get("description"))
             visibility_value = (visibility or "private").strip().lower()
             if visibility_value not in {"private", "team", "enterprise"}:
                 raise SkillError(SkillErrorCode.INVALID_VISIBILITY)

@@ -20,12 +20,18 @@
 4. 复用现有上传链路：`stream_upload_to_temp_file()`、`SkillService.upload_zip_from_path()`、`SkillService.upload_zip_create_skill_from_path()` 和统一错误映射。
 5. 上传成功后写入审计日志，追加版本记录 `skill.upload`，创建新 SKILL 记录 `skill.create`。
 6. 增加客户端接口回归测试，覆盖认证、权限、创建、追加版本、错误响应和审计日志。
+7. 接受真实生态中 description 超过数据库摘要字段上限的 SKILL 包；服务端在持久化
+   `Skill.description` 和 `SkillVersion.description` 前，将上传来源的描述规范化为最多
+   500 个字符，不因 PostgreSQL 严格长度约束返回通用 500。ZIP 内原始 `SKILL.md`
+   和归档内容保持不变。
 
 ## 非目标
 
 - 不支持非 ZIP 格式的单文件上传；客户端上传场景只接受完整 SKILL 包。
 - 不改变现有 `POST /api/v1/skills/upload` 的行为、认证方式或响应形状。
 - 不改变 SKILL 数据模型、版本模型、归档格式或存储路径。
+- 不扩大 Console API 手工创建/编辑 description 的 500 字符输入契约；本次只修复
+  外部 ZIP frontmatter/metadata 绕过该契约后触发的持久化异常。
 - 不在本接口中实现 SKILL 编辑、删除、版本回滚或下载。
 - 不在本轮改动桌面客户端；桌面客户端调用可以在接口落地后单独计划。
 - 不让创建模式通过 `metadata` 覆盖 `SKILL.md` frontmatter；创建新 SKILL 时以 ZIP 内 `SKILL.md` 的 `slug` / `name` 身份为准。
@@ -164,6 +170,11 @@ async def upload_client_skill(
 - 追加已有 SKILL 版本：调用 `service.upload_zip_from_path(current_user, skill_uuid, filename, temp_path, metadata_text=metadata)`。
 - 创建新 SKILL：调用 `service.upload_zip_create_skill_from_path(current_user, filename, temp_path, visibility)`。服务层优先使用合法 `slug` 作为服务端 SKILL `name`，否则回退到合法 `name`，以支持 `name` 作为展示标题的本地技能包。
 - 不为客户端上传新增一套解析、解压、归档或版本递增逻辑。
+- ZIP frontmatter 或更新 metadata 提供的 description 进入数据库前，统一使用领域层
+  的 500 字符摘要规范化规则。该规则同时覆盖创建新 SKILL、追加版本以及 Console
+  ZIP 上传所复用的同一服务链路，避免不同入口再次出现数据库差异。
+- 规范化只影响数据库/API 摘要字段；版本目录和保存的 ZIP 仍保留调用方上传的完整
+  `SKILL.md`。
 
 ### 审计日志
 
@@ -193,3 +204,8 @@ async def upload_client_skill(
 - 创建模式传入 `metadata` 返回 `400` 和 `INVALID_METADATA`。
 - 上传操作写入审计日志，并能区分 `skill.upload` 与 `skill.create`。
 - 现有 `POST /api/v1/skills/upload` 行为不受影响。
+- description 超过 500 字符的有效 ZIP 在 PostgreSQL 严格约束等价测试下仍返回
+  `201`；响应、Skill 记录和 SkillVersion 记录的摘要均为确定性的前 500 个字符，
+  原始 ZIP 内容不被重写。
+- 创建模式和追加版本模式都覆盖上述长 description 回归场景；测试必须能在修复前
+  复现通用 500，而不是只依赖 SQLite 宽松的 `VARCHAR` 行为。

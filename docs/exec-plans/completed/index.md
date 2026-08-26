@@ -37,6 +37,8 @@
 | `local-skill-grouping-tasks.md` | 9-task execution checklist completed; types, grouping logic, UI rewrite, batch operations, i18n, test fixtures, and full validation passed |
 | `skill-delete-confirmation-plan.md` | Delete confirmation dialog with destructive confirm (type-to-confirm) implemented in Local Skills view; shows full paths, agent ownership, permanent deletion warning; 8 new i18n keys, 5 new test cases, 195 tests passing, build succeeding |
 | `skill-delete-confirmation-tasks.md` | 4-task execution checklist completed; i18n keys, dialog UI, destructive confirm, test adaptation, and full validation passed |
+| `local-skill-upload-description-limit-plan.md` | Client ZIP uploads now cap external descriptions at the existing 500-character summary limit before Skill/SkillVersion persistence; strict create/append regression tests reproduce the old 500 and pass after the fix, with backend/desktop/docs gates passing |
+| `local-skill-upload-description-limit-tasks.md` | Completed checklist for diagnosing and fixing long-description upload failures, including archive preservation and debug-log cleanup |
 
 ## Notes
 

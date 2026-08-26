@@ -1,13 +1,14 @@
 from datetime import datetime
 from typing import Literal
 
+from backend.domain.skill_description import MAX_SKILL_DESCRIPTION_LENGTH
 from backend.domain.skill_visibility import SkillVisibilityValue, WritableSkillVisibility
 from pydantic import AliasChoices, BaseModel, Field
 
 
 class SkillCreate(BaseModel):
     name: str = Field(min_length=1, max_length=100)
-    description: str = Field(default="", max_length=500)
+    description: str = Field(default="", max_length=MAX_SKILL_DESCRIPTION_LENGTH)
     tags: list[str] = Field(default_factory=list, max_length=50)
     visible: WritableSkillVisibility = Field(
         default="private",
@@ -17,7 +18,7 @@ class SkillCreate(BaseModel):
 
 class SkillUpdate(BaseModel):
     name: str | None = Field(default=None, min_length=1, max_length=100)
-    description: str | None = Field(default=None, max_length=500)
+    description: str | None = Field(default=None, max_length=MAX_SKILL_DESCRIPTION_LENGTH)
     tags: list[str] | None = Field(default=None, max_length=50)
     visible: WritableSkillVisibility | None = Field(
         default=None,

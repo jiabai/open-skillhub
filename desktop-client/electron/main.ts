@@ -539,6 +539,10 @@ async function createApplicationServices(): Promise<void> {
 
     const row = snapshot.rows.find((item) => item.rowKey === normalizedRowKey)
 
+    console.log(
+      `[DEBUG-upload] rowKey=${normalizedRowKey} status=${snapshot.serverLookupStatus} found=${Boolean(row)} uploadable=${row?.uploadable} remoteSkillId=${row?.remoteSkillId ?? "null"} name=${row?.name ?? "null"} path=${row?.packageRootPath ?? "?"}`
+    )
+
     if (!row) {
       throw new Error(`Unknown local skill row: ${normalizedRowKey}`)
     }
@@ -559,8 +563,11 @@ async function createApplicationServices(): Promise<void> {
         apiBaseUrl: runtimeConfig.apiBaseUrl,
         apiToken: runtimeConfig.apiToken,
         artifactPath: preparedPackage.artifactPath,
-        fileName: preparedPackage.fileName
+        fileName: preparedPackage.fileName,
+        skillId: row.remoteSkillId,
+        skillName: row.name
       })
+      console.log(`[DEBUG-upload] success id=${uploadedSkill.id} name=${uploadedSkill.name} version=${uploadedSkill.version}`)
       const refreshedSnapshot = await refreshLocalSkillsSnapshot()
 
       return {

@@ -4,6 +4,8 @@
 
 | File | Outcome |
 |------|---------|
+| [local-skill-content-hash-compare.md](local-skill-content-hash-compare.md) | Local Skills inventory now falls back to backend-identical SHA-256 content-hash comparison when the semver comparison is not decisive, surfacing `update-available` for drifted local content (e.g. skills without a `version` field) |
+| [local-skill-version-compare.md](local-skill-version-compare.md) | Local Skills inventory now compares local semver against remote semver, classifying local-newer rows as `update-available` with a warning badge and enabled upload button |
 | [2026-05-14-architecture-deepening.md](2026-05-14-architecture-deepening.md) | Desktop-client now has shared Client Skill API and Skill Package Tree modules used by Electron, Linux CLI, Local Skills upload, and Project Skill import without changing public behavior |
 | [2026-05-14-architecture-deepening-tasks.md](2026-05-14-architecture-deepening-tasks.md) | Completed TDD task checklist for the desktop-client architecture deepening refactor |
 | [2026-05-13-linux-cli-distribution.md](2026-05-13-linux-cli-distribution.md) | Desktop-client now builds a separate `skilldrive-cli` Node CLI for local install and server-backed global/project skill sync, with XDG storage, dry-run planning, scoped CLI sync state, and v1 encrypted-download refusal |

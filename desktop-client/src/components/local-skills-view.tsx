@@ -34,6 +34,8 @@ function serverStateLabel(row: LocalSkillInventoryRow, labels: ReturnType<typeof
       return labels.unknown
     case "invalid-local":
       return labels.invalidLocal
+    case "update-available":
+      return labels.updateAvailable
   }
 }
 
@@ -47,6 +49,8 @@ function badgeTone(row: LocalSkillInventoryRow) {
       return "destructive" as const
     case "unknown":
       return "neutral" as const
+    case "update-available":
+      return "warning" as const
   }
 }
 
@@ -200,18 +204,10 @@ export function LocalSkillsView({
                     <div className="update-item__header">
                       <div>
                         <h3>{name}</h3>
-                        <div style={{ display: "flex", flexWrap: "wrap", gap: "0.35rem", marginTop: "0.25rem" }}>
-                          {group.items.map((item) => (
-                            <span key={item.rowKey} className="muted mono" style={{
-                              fontSize: "0.75rem",
-                              padding: "0.1rem 0.4rem",
-                              borderRadius: "0.25rem",
-                              background: "var(--muted)",
-                              opacity: 0.7
-                            }}>
-                              {item.packageRootPath.split(/[\\/]/).filter(Boolean).slice(-2).join("/")}
-                            </span>
-                          ))}
+                        <div style={{ marginTop: "0.25rem" }}>
+                          <span className="muted mono" style={{ fontSize: "0.75rem" }}>
+                            {copy.localPath(group.items.map((item) => item.packageRootPath).join(", "))}
+                          </span>
                         </div>
                       </div>
                       <div className="update-item__actions">
@@ -261,12 +257,14 @@ export function LocalSkillsView({
       {pendingDeleteGroup ? (
         <Dialog
           open={true}
+          size="narrow"
           onClose={handleCancelDelete}
           title={copy.deleteConfirmTitle}
           description={copy.deleteConfirmDescription(pendingDeleteGroup.name, pendingDeleteGroup.pathCount)}
+          closeLabel={dictionary.common.close}
           footer={
-            <>
-              <Button variant="secondary" onClick={handleCancelDelete}>
+            <div className="dialog-actions">
+              <Button variant="outline" onClick={handleCancelDelete}>
                 {dictionary.common.cancel}
               </Button>
               <Button
@@ -276,39 +274,34 @@ export function LocalSkillsView({
               >
                 {copy.deleteConfirmButton}
               </Button>
-            </>
+            </div>
           }
         >
-          <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
-            <div className="callout callout--warning" role="alert">
-              {copy.deleteConfirmWarning}
-            </div>
-            <div>
-              <strong>{copy.deleteConfirmPathsTitle}</strong>
-              <ul style={{ margin: "0.5rem 0 0 0", paddingLeft: "1.2rem" }}>
-                {pendingDeleteGroup.items.map((item) => (
-                  <li key={item.rowKey}>
-                    <code style={{ fontSize: "0.85rem" }}>{item.packageRootPath}</code>
-                    <div className="muted" style={{ fontSize: "0.8rem" }}>
-                      {copy.deleteConfirmPathAgent(item.sourceDisplayNames.join(", "))}
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            </div>
-            <div>
-              <label htmlFor="delete-confirm-input" style={{ display: "block", marginBottom: "0.25rem" }}>
-                {copy.deleteConfirmDestructiveHint}
-              </label>
-              <Input
-                id="delete-confirm-input"
-                value={confirmText}
-                onChange={(e) => setConfirmText(e.target.value)}
-                placeholder={copy.deleteConfirmDestructivePlaceholder}
-                autoFocus
-              />
-            </div>
+          <div className="callout callout--warning" role="alert">
+            <span>{copy.deleteConfirmWarning}</span>
+            <ul className="dialog-path-list">
+              {pendingDeleteGroup.items.map((item) => (
+                <li key={item.rowKey}>
+                  <code>{item.packageRootPath}</code>
+                  <span className="dialog-path-list__agents">
+                    {copy.deleteConfirmPathAgent(item.sourceDisplayNames.join(", "))}
+                  </span>
+                </li>
+              ))}
+            </ul>
           </div>
+          <label className="form-field" htmlFor="delete-confirm-input">
+            <span className="form-label">{copy.deleteConfirmDestructiveHint}</span>
+            <Input
+              id="delete-confirm-input"
+              value={confirmText}
+              onChange={(e) => setConfirmText(e.target.value)}
+              placeholder={copy.deleteConfirmDestructivePlaceholder}
+              autoComplete="off"
+              spellCheck={false}
+              autoFocus
+            />
+          </label>
         </Dialog>
       ) : null}
     </section>

@@ -5,6 +5,8 @@ export interface UploadLocalSkillPackageRequest {
   apiToken: string | null
   artifactPath: string
   fileName: string
+  skillId?: string | null
+  skillName?: string | null
   fetchImpl?: typeof fetch
 }
 
@@ -49,6 +51,13 @@ export async function uploadLocalSkillPackage(
   formData.set("file", new Blob([fileBytes], { type: "application/zip" }), request.fileName)
   formData.set("visibility", "private")
 
+  const skillId = request.skillId?.trim() || null
+  if (skillId) {
+    // Updating an existing server skill: without skill_uuid the backend takes the
+    // create-skill path and rejects duplicate names with SKILL_ALREADY_EXISTS.
+    formData.set("skill_uuid", skillId)
+  }
+
   const fetchImpl = request.fetchImpl ?? fetch
   const response = await fetchImpl(joinApiUrl(request.apiBaseUrl, "/api/v1/client/skills/upload"), {
     method: "POST",
@@ -63,14 +72,15 @@ export async function uploadLocalSkillPackage(
     throw new Error(createUploadErrorMessage(response.status, response.statusText, payload))
   }
 
-  const name = normalizeString(payload.name)
+  // The update path (skill_uuid) responds without id/name; fall back to the caller-supplied values.
+  const name = normalizeString(payload.name) ?? request.skillName?.trim() ?? null
 
   if (!name) {
     throw new Error("Client upload response is missing the uploaded skill name")
   }
 
   return {
-    id: normalizeString(payload.id),
+    id: normalizeString(payload.id) ?? skillId,
     name,
     version: normalizeString(payload.version) ?? normalizeString(payload.current_version)
   }

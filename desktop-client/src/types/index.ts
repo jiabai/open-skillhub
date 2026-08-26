@@ -134,7 +134,7 @@ export type LocalSkillServerLookupStatus =
   | "network-error"
   | "error"
 
-export type LocalSkillServerState = "existing" | "missing" | "unknown" | "invalid-local"
+export type LocalSkillServerState = "existing" | "missing" | "unknown" | "invalid-local" | "update-available"
 
 export interface LocalSkillInventoryRow {
   rowKey: string

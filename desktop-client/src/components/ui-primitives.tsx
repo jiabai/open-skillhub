@@ -122,6 +122,7 @@ type DialogProps = {
   description: string
   onClose: () => void
   closeLabel?: string
+  size?: "default" | "narrow"
   footer?: ReactNode
   children: ReactNode
 }
@@ -132,6 +133,7 @@ export function Dialog({
   description,
   onClose,
   closeLabel = "Close",
+  size = "default",
   footer,
   children
 }: DialogProps) {
@@ -160,7 +162,7 @@ export function Dialog({
       <section
         aria-modal="true"
         aria-labelledby="app-dialog-title"
-        className="dialog-panel"
+        className={joinClassNames("dialog-panel", size === "narrow" && "dialog-panel--narrow")}
         role="dialog"
       >
         <div className="dialog-panel__header">

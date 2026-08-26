@@ -131,11 +131,11 @@ export interface AppDictionary {
       missing: string
       unknown: string
       invalidLocal: string
+      updateAvailable: string
     }
     deleteConfirmTitle: string
     deleteConfirmDescription: (name: string, count: number) => string
     deleteConfirmWarning: string
-    deleteConfirmPathsTitle: string
     deleteConfirmPathAgent: (agents: string) => string
     deleteConfirmDestructiveHint: string
     deleteConfirmDestructivePlaceholder: string

@@ -2,8 +2,9 @@ import { createHash } from "node:crypto"
 import { readFile, readdir } from "node:fs/promises"
 import { basename, join, normalize, posix, win32 } from "node:path"
 
-import { parseStrictSemver } from "@/core/pre-distribution-check/version-compare"
+import { compareStrictSemverVersions, parseStrictSemver } from "@/core/pre-distribution-check/version-compare"
 import { enumerateSkillDirectories } from "@/adapters/agents/skill-layout"
+import { computeSkillContentHash } from "@/adapters/agents/base"
 import type {
   AgentDetectionSnapshot,
   AgentId,
@@ -28,6 +29,7 @@ export interface LocalSkillInventoryServiceDependencies {
   platform?: NodeJS.Platform
   readDirectory?: (path: string, options: { withFileTypes: true }) => Promise<DirectoryEntry[]>
   readTextFile?: (path: string, encoding: BufferEncoding) => Promise<string | Buffer>
+  computeContentHash?: (rootPath: string) => Promise<string>
 }
 
 export interface LocalSkillInventoryService {
@@ -209,6 +211,7 @@ function createServerState(args: {
   name: string | null
   remoteSkill: RemoteSkillSummary | undefined
   serverLookupStatus: LocalSkillServerLookupStatus
+  localVersion: string | null
 }): LocalSkillServerState {
   if (args.validationState !== "valid") {
     return "invalid-local"
@@ -218,7 +221,19 @@ function createServerState(args: {
     return "unknown"
   }
 
-  return args.name && args.remoteSkill ? "existing" : "missing"
+  if (!args.name || !args.remoteSkill) {
+    return "missing"
+  }
+
+  const remoteVersion = args.remoteSkill.version
+  if (args.localVersion && remoteVersion) {
+    const comparison = compareStrictSemverVersions(args.localVersion, remoteVersion)
+    if (comparison === "installed-newer") {
+      return "update-available"
+    }
+  }
+
+  return "existing"
 }
 
 function sortRows(rows: LocalSkillInventoryRow[]): LocalSkillInventoryRow[] {
@@ -248,7 +263,7 @@ function compareLocalVersions(a: LocalSkillInventoryRow, b: LocalSkillInventoryR
 
 function pickPrimaryRow(items: LocalSkillInventoryRow[]): LocalSkillInventoryRow {
   const sorted = [...items].sort(compareLocalVersions)
-  return sorted.find((r) => r.validationState === "valid" && r.serverState === "existing")
+  return sorted.find((r) => r.validationState === "valid" && (r.serverState === "existing" || r.serverState === "update-available"))
     ?? sorted.find((r) => r.validationState === "valid")
     ?? sorted[0]
 }
@@ -318,6 +333,7 @@ export function createLocalSkillInventoryService(
   const readTextFile =
     dependencies.readTextFile ??
     ((path: string, encoding: BufferEncoding) => readFile(path, encoding))
+  const computeContentHash = dependencies.computeContentHash ?? computeSkillContentHash
 
   async function discoverCandidates(snapshot: AgentDetectionSnapshot): Promise<LocalCandidate[]> {
     const candidates: LocalCandidate[] = []
@@ -359,6 +375,7 @@ export function createLocalSkillInventoryService(
     displayNamesByAgent: Map<AgentId, string>
     remoteSkillsByName: Map<string, RemoteSkillSummary>
     serverLookupStatus: LocalSkillServerLookupStatus
+    computeContentHash: (rootPath: string) => Promise<string>
   }): Promise<LocalSkillInventoryRow> {
     let name: string | null = null
     let localVersion: string | null = null
@@ -387,12 +404,33 @@ export function createLocalSkillInventoryService(
     }
 
     const remoteSkill = name ? args.remoteSkillsByName.get(name) : undefined
-    const serverState = createServerState({
+    let serverState = createServerState({
       validationState,
       name,
       remoteSkill,
-      serverLookupStatus: args.serverLookupStatus
+      serverLookupStatus: args.serverLookupStatus,
+      localVersion
     })
+
+    // Content-hash fallback: when the semver comparison cannot decide (version missing,
+    // non-semver, or equal), compare the local package content hash against the server hash.
+    if (serverState === "existing" && remoteSkill && remoteSkill.contentHash) {
+      const comparison =
+        localVersion && remoteSkill.version
+          ? compareStrictSemverVersions(localVersion, remoteSkill.version)
+          : "unknown"
+
+      if (comparison !== "installed-older") {
+        try {
+          const localContentHash = await args.computeContentHash(args.candidate.packageRootPath)
+          if (localContentHash !== remoteSkill.contentHash) {
+            serverState = "update-available"
+          }
+        } catch {
+          // Hash computation failed (e.g. unreadable file); keep the existing state.
+        }
+      }
+    }
 
     return {
       rowKey: createRowKey(args.candidate.packageRootPath, name, platform),
@@ -408,7 +446,7 @@ export function createLocalSkillInventoryService(
       serverState,
       remoteSkillId: remoteSkill?.id ?? null,
       remoteVersion: remoteSkill?.version ?? null,
-      uploadable: validationState === "valid" && serverState === "missing"
+      uploadable: validationState === "valid" && (serverState === "missing" || serverState === "update-available")
     }
   }
 
@@ -423,7 +461,8 @@ export function createLocalSkillInventoryService(
             candidate,
             displayNamesByAgent,
             remoteSkillsByName,
-            serverLookupStatus: input.serverLookupStatus
+            serverLookupStatus: input.serverLookupStatus,
+            computeContentHash
           })
         )
       )

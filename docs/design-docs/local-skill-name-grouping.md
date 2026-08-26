@@ -74,7 +74,7 @@ groupRowKeys?: string[]  // 组内所有 rowKey，用于批量删除
 
 `LocalSkillsView` 从渲染 `rows` 改为渲染 `groupedRows`：
 
-- **名称行**：SKILL 名称 + 路径标签
+- **名称行**：SKILL 名称 + 路径标签（每个标签显示 `packageRootPath` 的绝对路径，如 `C:\Users\bicho\.claude\skills\improve-codebase-architecture`）
 - **操作行**：服务端状态徽章 + 路径数量徽章 + 上传/删除按钮
 - **元信息行**：来源代理、本地版本、远端版本、远端 ID、版本冲突警告
 
@@ -122,7 +122,7 @@ const groupedRows = snapshot.groupedRows?.length
 |------|----------|------|
 | `src/types/index.ts` | 新增类型 | `LocalSkillGroupRow`，扩展 `LocalSkillsInventorySnapshot` 和 `LocalSkillDeletePayload` |
 | `src/core/local-skills/local-skill-inventory-service.ts` | 新增函数 | `pickPrimaryRow`、`groupSkillRowsByName`，更新 `refresh()` |
-| `src/components/local-skills-view.tsx` | 重写 | 从渲染 `rows` 改为渲染 `groupedRows`，新增路径标签和版本冲突警告 |
+| `src/components/local-skills-view.tsx` | 重写 | 从渲染 `rows` 改为渲染 `groupedRows`，新增路径标签（显示绝对路径）和版本冲突警告 |
 | `src/app/App.tsx` | 修改 | `handleDeleteLocalSkill` 增加 `groupRowKeys` 参数 |
 | `electron/main.ts` | 修改 | `deleteLocalSkillByRowKey` 支持批量删除 |
 | `src/i18n/messages/en-US.ts` | 新增键 | `pathCount`、`versionConflict` |

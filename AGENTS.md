@@ -1,5 +1,12 @@
 # SkillDrive AGENTS.md
 
+## ⚠️ Non-Negotiable Rules
+
+- **NO CODE CHANGES** for non-trivial tasks without first producing spec + plan documents
+- Documentation is the gate that unlocks implementation — not an optional afterthought
+- When in doubt whether a task is trivial, follow the full gated flow; do NOT guess and code
+- Read `WORKFLOW.md` and `.trae/rules/workflow-gate.md` before starting any non-trivial work
+
 ## Quick Entry
 
 - Architecture map: `docs/ARCHITECTURE.md`
@@ -41,7 +48,7 @@
 ## Working Rules
 
 - Start with the narrowest relevant `AGENTS.md`, then read deeper docs only as needed.
-- Follow `WORKFLOW.md` as the mandatory project workflow and `docs/EXECUTION_GATES.md` before closing work; use the lightweight path only when `WORKFLOW.md` explicitly allows it.
+- **MUST NOT** skip documentation for non-trivial tasks. Create spec → plan → tasks before writing code. Use the lightweight path ONLY for trivial changes as strictly defined in `WORKFLOW.md` and `.trae/rules/workflow-gate.md`.
 - Repo-wide active work lives under `docs/exec-plans/active/`; use sibling task checklist files in that directory when a plan needs explicit execution checkpoints.
 - `desktop-client/` keeps its own `desktop-client/task-tracker.md`; do not create a second parallel tracker inside that subproject.
 - When architecture or process changes, update the matching file in `docs/`.
@@ -54,12 +61,11 @@
 
 ## Development Flow
 
-1. Read `WORKFLOW.md` and decide whether the task requires the full gated flow or the lightweight path.
-2. Read the relevant spec or plan in `docs/product-specs/` or `docs/exec-plans/`, or create/update them when the workflow requires it.
-3. Inspect the code path you are about to change.
-4. Implement the smallest end-to-end change that satisfies the approved scope.
-5. Run the execution gates for the affected area, starting with the narrowest useful validation and broadening when risk requires it.
-6. Update documentation when structure, decisions, process, or operational guidance changed.
+1. Read `WORKFLOW.md` and `.trae/rules/workflow-gate.md` — classify the task as trivial or non-trivial.
+2. For non-trivial tasks: **STOP** and create/update spec + plan before any code changes.
+3. For trivial tasks only: read the relevant spec or plan, inspect code, implement, validate.
+4. Run the execution gates for the affected area, starting with the narrowest useful validation.
+5. Update documentation when structure, decisions, process, or operational guidance changed.
 
 ## Common Commands
 

@@ -205,7 +205,7 @@ function shouldSkipContentHashFile(relativeFilePath: string): boolean {
   return fileName === ".DS_Store" || fileName === "Thumbs.db" || parts.includes("__MACOSX")
 }
 
-async function computeSkillContentHash(rootPath: string): Promise<string> {
+export async function computeSkillContentHash(rootPath: string): Promise<string> {
   const relativeFilePaths = (await collectRelativeFiles(rootPath))
     .filter((relativeFilePath) => !shouldSkipContentHashFile(relativeFilePath))
     .sort()

@@ -85,4 +85,37 @@ describe("uploadLocalSkillPackage", () => {
       })
     ).rejects.toThrow("SKILL_ALREADY_EXISTS: Skill already exists")
   })
+
+  it("sends skill_uuid when updating an existing server skill", async () => {
+    const root = createTempRoot()
+    const artifactPath = join(root, "update.zip")
+    const fetchImpl = vi.fn(async () => ({
+      ok: true,
+      status: 200,
+      statusText: "OK",
+      json: async () => ({
+        version: "1.0.3",
+        current_version: "1.0.3"
+      })
+    }))
+    writeFileSync(artifactPath, Buffer.from("zip-bytes"))
+
+    const result = await uploadLocalSkillPackage({
+      apiBaseUrl: "http://localhost:8001",
+      apiToken: "ask_live_token",
+      artifactPath,
+      fileName: "update.zip",
+      skillId: "remote-skill-id",
+      skillName: "vibe-coding-launcher",
+      fetchImpl
+    })
+
+    const body = fetchImpl.mock.calls[0][1]?.body as FormData
+    expect(body.get("skill_uuid")).toBe("remote-skill-id")
+    expect(result).toEqual({
+      id: "remote-skill-id",
+      name: "vibe-coding-launcher",
+      version: "1.0.3"
+    })
+  })
 })

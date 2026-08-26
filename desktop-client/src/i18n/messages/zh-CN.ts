@@ -120,7 +120,7 @@ export const zhCNDictionary = {
     openFolder: "打开目录",
     sourceAgents: (value: string) => `来源 ${value}`,
     localVersion: (value: string) => `本地 ${value}`,
-    localPath: (value: string) => `路径 ${value}`,
+    localPath: (value: string) => `目录 ${value}`,
     remoteVersion: (value: string) => `远程 ${value}`,
     remoteId: (value: string) => `远程 ID ${value}`,
     validationReason: (value: string) => `校验 ${value}`,
@@ -131,15 +131,15 @@ export const zhCNDictionary = {
       existing: "服务端已存在",
       missing: "服务端缺失",
       unknown: "服务端未知",
-      invalidLocal: "本地 SKILL 无效"
+      invalidLocal: "本地 SKILL 无效",
+      updateAvailable: "可上传更新服务端"
     },
-    deleteConfirmTitle: "删除 SKILL",
-    deleteConfirmDescription: (name: string, count: number) => `这将从 ${count} 个位置永久删除 '${name}'。`,
-    deleteConfirmWarning: "此操作无法撤销。以下文件将从磁盘永久删除：",
-    deleteConfirmPathsTitle: "即将删除的路径：",
+    deleteConfirmTitle: "删除 Skill",
+    deleteConfirmDescription: (name: string, count: number) => `将从 ${count} 个位置永久删除“${name}”。`,
+    deleteConfirmWarning: "此操作无法撤销。以下路径将从磁盘永久删除：",
     deleteConfirmPathAgent: (agents: string) => `使用者：${agents}`,
-    deleteConfirmDestructiveHint: "输入 SKILL 名称以确认删除：",
-    deleteConfirmDestructivePlaceholder: "在此输入 SKILL 名称",
+    deleteConfirmDestructiveHint: "输入 Skill 名称以确认删除：",
+    deleteConfirmDestructivePlaceholder: "Skill 名称",
     deleteConfirmButton: "删除"
   },
   projectsView: {

@@ -119,18 +119,21 @@ Server presence states:
 
 | State | Meaning | Upload |
 |-------|---------|--------|
-| `existing` | A server skill has the same safe SKILL identity | Hidden |
+| `existing` | A server skill has the same safe SKILL identity and version is equal or local is lower | Hidden |
+| `update-available` | A server skill has the same safe SKILL identity and local semver is higher than remote | Visible when local package is valid |
 | `missing` | No server skill has the same safe SKILL identity | Visible when local package is valid |
 | `unknown` | Server list failed or auth/config is unavailable | Hidden |
 | `invalid-local` | Local root cannot be uploaded safely | Hidden |
 
-When a local row is `existing`, display the remote skill ID and latest remote
-version as secondary metadata. Do not use remote skill ID as the local row key.
+When a local row is `existing` or `update-available`, display the remote skill ID and latest remote version as secondary metadata. Do not use remote skill ID as the local row key.
+
+Version comparison uses semver (`major.minor.patch`). Non-semver versions fall
+back to `existing`/`missing` without version-based classification.
 
 ## Upload Behavior
 
 Upload is available only for a valid local package root with server presence
-`missing`.
+`missing` or `update-available`.
 
 Upload flow:
 

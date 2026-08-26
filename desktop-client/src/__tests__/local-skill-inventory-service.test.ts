@@ -193,7 +193,9 @@ describe("createLocalSkillInventoryService", () => {
       }
     ]
 
-    const snapshot = await createLocalSkillInventoryService().refresh({
+    const snapshot = await createLocalSkillInventoryService({
+      computeContentHash: async () => "hash-self-improving"
+    }).refresh({
       detectionSnapshot: createDetectionSnapshot(targetPath),
       remoteSkills,
       serverLookupStatus: "ok",
@@ -280,6 +282,164 @@ describe("createLocalSkillInventoryService", () => {
       validationState: "valid",
       serverState: "unknown",
       uploadable: false
+    })
+  })
+
+  describe("content-hash fallback", () => {
+    function createRemoteSkill(overrides: Partial<RemoteSkillSummary> = {}): RemoteSkillSummary {
+      return {
+        id: "remote-hash-skill",
+        name: "hash-skill",
+        version: "1.0.0",
+        contentHash: "remote-hash",
+        updatedAt: "2026-08-26T00:00:00.000Z",
+        ...overrides
+      }
+    }
+
+    it("marks update-available when local content hash differs and version is missing", async () => {
+      const targetPath = createTempRoot()
+      writeSkill(targetPath, "hash-skill", "name: hash-skill")
+
+      const snapshot = await createLocalSkillInventoryService({
+        computeContentHash: async () => "local-hash-different"
+      }).refresh({
+        detectionSnapshot: createDetectionSnapshot(targetPath),
+        remoteSkills: [createRemoteSkill()],
+        serverLookupStatus: "ok",
+        serverLookupMessage: null
+      })
+
+      expect(snapshot.rows[0]).toMatchObject({
+        serverState: "update-available",
+        uploadable: true
+      })
+    })
+
+    it("marks update-available when versions are equal but content hash differs", async () => {
+      const targetPath = createTempRoot()
+      writeSkill(targetPath, "hash-skill", "name: hash-skill\nversion: 1.0.0")
+
+      const snapshot = await createLocalSkillInventoryService({
+        computeContentHash: async () => "local-hash-different"
+      }).refresh({
+        detectionSnapshot: createDetectionSnapshot(targetPath),
+        remoteSkills: [createRemoteSkill()],
+        serverLookupStatus: "ok",
+        serverLookupMessage: null
+      })
+
+      expect(snapshot.rows[0]).toMatchObject({
+        serverState: "update-available",
+        uploadable: true
+      })
+    })
+
+    it("keeps existing when the local content hash matches the server", async () => {
+      const targetPath = createTempRoot()
+      writeSkill(targetPath, "hash-skill", "name: hash-skill")
+
+      const snapshot = await createLocalSkillInventoryService({
+        computeContentHash: async () => "remote-hash"
+      }).refresh({
+        detectionSnapshot: createDetectionSnapshot(targetPath),
+        remoteSkills: [createRemoteSkill()],
+        serverLookupStatus: "ok",
+        serverLookupMessage: null
+      })
+
+      expect(snapshot.rows[0]).toMatchObject({
+        serverState: "existing",
+        uploadable: false
+      })
+    })
+
+    it("keeps existing when the local version is older even if the hash differs", async () => {
+      const targetPath = createTempRoot()
+      writeSkill(targetPath, "hash-skill", "name: hash-skill\nversion: 0.9.0")
+
+      const snapshot = await createLocalSkillInventoryService({
+        computeContentHash: async () => "local-hash-different"
+      }).refresh({
+        detectionSnapshot: createDetectionSnapshot(targetPath),
+        remoteSkills: [createRemoteSkill()],
+        serverLookupStatus: "ok",
+        serverLookupMessage: null
+      })
+
+      expect(snapshot.rows[0]).toMatchObject({
+        serverState: "existing",
+        uploadable: false
+      })
+    })
+
+    it("keeps existing when the remote content hash is null", async () => {
+      const targetPath = createTempRoot()
+      writeSkill(targetPath, "hash-skill", "name: hash-skill")
+
+      let hashCalls = 0
+      const snapshot = await createLocalSkillInventoryService({
+        computeContentHash: async () => {
+          hashCalls += 1
+          return "local-hash-different"
+        }
+      }).refresh({
+        detectionSnapshot: createDetectionSnapshot(targetPath),
+        remoteSkills: [createRemoteSkill({ contentHash: null })],
+        serverLookupStatus: "ok",
+        serverLookupMessage: null
+      })
+
+      expect(snapshot.rows[0]).toMatchObject({
+        serverState: "existing",
+        uploadable: false
+      })
+      expect(hashCalls).toBe(0)
+    })
+
+    it("falls back to existing when hash computation fails", async () => {
+      const targetPath = createTempRoot()
+      writeSkill(targetPath, "hash-skill", "name: hash-skill")
+
+      const snapshot = await createLocalSkillInventoryService({
+        computeContentHash: async () => {
+          throw new Error("EACCES")
+        }
+      }).refresh({
+        detectionSnapshot: createDetectionSnapshot(targetPath),
+        remoteSkills: [createRemoteSkill()],
+        serverLookupStatus: "ok",
+        serverLookupMessage: null
+      })
+
+      expect(snapshot.rows[0]).toMatchObject({
+        serverState: "existing",
+        uploadable: false
+      })
+    })
+
+    it("does not compute the hash when the semver comparison already decides", async () => {
+      const targetPath = createTempRoot()
+      writeSkill(targetPath, "hash-skill", "name: hash-skill\nversion: 2.0.0")
+
+      let hashCalls = 0
+      const snapshot = await createLocalSkillInventoryService({
+        computeContentHash: async () => {
+          hashCalls += 1
+          return "irrelevant"
+        }
+      }).refresh({
+        detectionSnapshot: createDetectionSnapshot(targetPath),
+        remoteSkills: [createRemoteSkill()],
+        serverLookupStatus: "ok",
+        serverLookupMessage: null
+      })
+
+      expect(snapshot.rows[0]).toMatchObject({
+        serverState: "update-available",
+        uploadable: true
+      })
+      expect(hashCalls).toBe(0)
     })
   })
 })

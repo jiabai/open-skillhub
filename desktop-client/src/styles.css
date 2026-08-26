@@ -609,6 +609,10 @@ select:focus-visible {
   overflow: hidden;
 }
 
+.dialog-panel--narrow {
+  width: min(28rem, calc(100vw - 2rem));
+}
+
 .dialog-panel__header {
   display: flex;
   align-items: flex-start;
@@ -650,6 +654,30 @@ select:focus-visible {
   color: var(--osh-muted);
   font-size: 0.88rem;
   line-height: 1.45;
+}
+
+.dialog-path-list {
+  display: grid;
+  gap: 0.55rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.dialog-path-list code {
+  display: block;
+  font-family: var(--osh-font-mono);
+  font-size: 0.85rem;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.dialog-path-list__agents {
+  display: block;
+  margin-top: 0.15rem;
+  color: var(--osh-muted);
+  font-size: 0.8rem;
+  line-height: 1.4;
 }
 
 .dialog-actions {

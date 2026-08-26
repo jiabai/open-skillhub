@@ -21,7 +21,7 @@ without an explicit distribution approval.
 - No automatic or bulk upload.
 - No editing local skill files.
 - No local directory writes.
-- No server version append for existing server skills in v1.
+- No server version append for existing server skills in v1 (upload replaces the whole package, not just version-bump metadata)
 - No persisted local inventory database.
 - No browser-session JWT Console API calls.
 
@@ -86,7 +86,7 @@ export type LocalSkillValidationState =
   | "unreadable"
   | "not-directory"
 
-export type LocalSkillServerState = "existing" | "missing" | "unknown" | "invalid-local"
+export type LocalSkillServerState = "existing" | "missing" | "unknown" | "invalid-local" | "update-available"
 
 export interface LocalSkillInventoryRow {
   rowKey: string
@@ -158,10 +158,23 @@ Presence lookup:
 1. Fetch `GET /api/v1/client/skills`.
 2. Build a `Map<string, RemoteSkillSummary>` keyed by exact server skill name.
 3. For each valid local row, set:
-   - `existing` when a server skill with the same resolved identity exists
+   - `update-available` when a server skill with the same resolved identity exists and the local version is a higher semver than the remote version
+   - `update-available` when a server skill with the same resolved identity exists, the semver comparison is not decisive (versions equal, non-semver, or local version missing), and the computed local package content hash differs from the server `content_hash`
+   - `existing` when a server skill with the same resolved identity exists and the local version is a lower semver (hash is not consulted; uploading would downgrade the server)
    - `missing` when list succeeds and no same-identity server skill exists
 4. For invalid local rows, set `invalid-local`.
 5. If server list fails, set valid local rows to `unknown`.
+
+Version comparison uses `compareStrictSemverVersions` from
+`../../src/core/pre-distribution-check/version-compare.ts`. Non-semver versions
+fall back to the content-hash comparison described above.
+
+Content-hash fallback uses `computeSkillContentHash` from
+`../../src/adapters/agents/base.ts` — the same SHA-256 algorithm as the backend
+(`backend/core/utils/skill_hash.py`). The hash is computed only when the name
+matched, the server lookup succeeded, the remote `contentHash` is non-null, and
+the semver comparison is not decisive. Hash computation errors fall back to
+`existing` without failing the refresh.
 
 Exact identity matching keeps desktop behavior aligned with backend duplicate
 name rules. Case folding must not be introduced in the client unless the backend
@@ -200,9 +213,17 @@ Fields:
 
 - `file`: created ZIP package
 - `visibility`: `private`
+- `skill_uuid`: the server skill id — sent when the local row matches an existing
+  server skill (`existing`/`update-available` with a known `remoteSkillId`) so the
+  backend takes the update-version path. Without it the backend create-skill path
+  rejects duplicate names with `SKILL_ALREADY_EXISTS`.
+- `skillName` (client-side fallback): the update path responds without `id`/`name`,
+  so the helper falls back to the caller-supplied skill id/name.
 
-Do not send `skill_uuid` or `metadata` in this v1. Existing server skills are
-not uploadable from Local Skills Management.
+Local Skills Management supports upload for server-missing skills (create path,
+no `skill_uuid`) and local-newer/content-drifted skills (`update-available`,
+update path with `skill_uuid`); existing server skills with equal or higher
+versions are not uploadable from this view.
 
 The helper must use the API token from runtime config and follow the same auth
 failure behavior as existing Client API list/download calls.
@@ -256,8 +277,7 @@ UI rules:
 - Do not render Upload for `existing`, `unknown`, or invalid rows.
 - Keep row height stable across uploading/error states.
 - Use existing activity feedback patterns for success and errors.
-- Local path display may be truncated but must remain inspectable through a
-  tooltip or secondary detail pattern already used by the app.
+- Local path display should show the full absolute path (e.g., `C:\Users\bicho\.claude\skills\improve-codebase-architecture`) in path tags, not truncated to last segments.
 
 ## 12. Security Rules
 

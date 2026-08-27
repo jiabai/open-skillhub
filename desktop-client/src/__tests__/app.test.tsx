@@ -445,7 +445,7 @@ describe("App", () => {
     expect(styles).toContain(".app-main:has(.review-action-bar)")
   })
 
-  it("places the Home review preview below metrics in the wide right rail", () => {
+  it("places the Home review preview below metrics spanning the full row", () => {
     const styles = readFileSync("src/styles.css", "utf8")
     const wideStart = styles.indexOf("@media (min-width: 1440px)")
     const mediumStart = styles.indexOf("/* Medium workspace", wideStart)
@@ -457,7 +457,8 @@ describe("App", () => {
     expect(homeStyles).toContain(".home-layout__primary")
     expect(homeStyles).toContain("grid-column: 1 / -1")
     expect(homeStyles).toContain(".home-layout__secondary")
-    expect(homeStyles).toContain("grid-column: 2")
+    expect(homeStyles).toContain("grid-column: 1 / -1")
+    expect(homeStyles).not.toContain("grid-column: 2")
     expect(homeStyles).not.toContain("position: fixed")
     expect(homeStyles).not.toContain("position: sticky")
   })

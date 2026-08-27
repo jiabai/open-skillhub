@@ -4,6 +4,7 @@
 
 | File | Outcome |
 |------|---------|
+| [2026-08-28-home-review-card-full-width.md](2026-08-28-home-review-card-full-width.md) | Wide-screen Home review preview now spans the full row below the metrics region, aligned with the metrics' left and right edges; medium and narrow layouts remain stacked |
 | [2026-08-28-home-review-card-placement.md](2026-08-28-home-review-card-placement.md) | Home now places the review preview below the metrics on wide screens while preserving the existing right-rail width; medium and narrow layouts remain stacked |
 | [2026-08-27-responsive-review-workspace.md](2026-08-27-responsive-review-workspace.md) | Unified responsive Shell across Home, Updates, Local Skills, and Projects, with an Updates-only review action bar and renderer-only sequential multi-select distribution orchestration |
 | [2026-08-26-local-skill-group-path-picker.md](2026-08-26-local-skill-group-path-picker.md) | Local Skills grouped cards now open single paths directly and require explicit path selection before opening same-name groups with multiple local directories |

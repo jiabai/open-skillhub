@@ -1291,12 +1291,9 @@ select:focus-visible {
     align-items: start;
   }
 
-  .home-layout__primary {
-    grid-column: 1 / -1;
-  }
-
+  .home-layout__primary,
   .home-layout__secondary {
-    grid-column: 2;
+    grid-column: 1 / -1;
   }
 
   .review-workspace__layout {

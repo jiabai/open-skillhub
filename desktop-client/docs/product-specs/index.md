@@ -23,6 +23,6 @@
 - `2026-05-13-linux-cli-distribution.md` - Linux CLI skill distribution for global and explicit project agent targets (English)
 - `2026-05-14-linux-cli-packaged-deployment.md` - Linux CLI package-and-install-script deployment spec (Chinese)
 - `2026-08-27-responsive-review-workspace.md` - Unified responsive desktop Shell for Home, Updates, Local Skills, and Projects, including Renderer-orchestrated multi-select distribution
-- `2026-08-28-home-review-card-placement.md` - Home review preview placement below metrics while preserving the wide-screen right-rail width
+- `2026-08-28-home-review-card-placement.md` - Home review preview placement below metrics spanning the full row width on wide screens
 
 Canonical rule: work from the local product spec first.

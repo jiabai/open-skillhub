@@ -1,5 +1,9 @@
 import type { PendingSyncUpdate, PreDistributionCheckSnapshot } from "@/types"
 import { PageIntro } from "@/components/ui-primitives"
+import {
+  BatchDistributionControls,
+  type BatchDistributionControlsProps
+} from "@/components/batch-distribution-controls"
 import { PendingUpdatesPanel } from "@/components/pending-updates-panel"
 import { useI18n } from "@/i18n/use-i18n"
 
@@ -10,6 +14,7 @@ type UpdatesViewProps = {
   isPreDistributionCheckStale: boolean
   pendingUpdates: PendingSyncUpdate[]
   preDistributionCheckSnapshot: PreDistributionCheckSnapshot | null
+  batchControls: BatchDistributionControlsProps
   onDistribute: (pendingUpdate: PendingSyncUpdate) => void
   onReconcileInstalled: (pendingUpdate: PendingSyncUpdate) => void
   onRefreshPreDistributionCheck: () => void
@@ -22,6 +27,7 @@ export function UpdatesView({
   isPreDistributionCheckStale,
   pendingUpdates,
   preDistributionCheckSnapshot,
+  batchControls,
   onDistribute,
   onReconcileInstalled,
   onRefreshPreDistributionCheck
@@ -35,6 +41,7 @@ export function UpdatesView({
         title={dictionary.updatesView.title}
         summary={dictionary.updatesView.summary}
       />
+      <BatchDistributionControls {...batchControls} />
       <PendingUpdatesPanel
         isLoading={isLoading}
         isPreDistributionChecking={isPreDistributionChecking}

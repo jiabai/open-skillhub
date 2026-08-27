@@ -102,7 +102,26 @@ export const zhCNDictionary = {
     eyebrow: "审核队列",
     title: "全部待审核更新",
     inventoryTitle: "库存",
-    summary: "在把技能分发到已配置的本地代理目标之前，先检查每个待审核更新。"
+    summary: "在把技能分发到已配置的本地代理目标之前，先检查每个待审核更新。",
+    batch: {
+      controlsLabel: "批量分发控制",
+      selectionLabel: "批量更新选择",
+      selectAll: "选择所有可分发更新",
+      selectItem: (name: string) => `选择 ${name}`,
+      clear: "清除选择",
+      distribute: "分发选中的更新",
+      selected: (selected: number, total: number) =>
+        `已选择 ${selected} / ${total} 个可分发更新`,
+      progress: (completed: number, total: number) =>
+        `正在分发 ${Math.min(completed + 1, total)} / ${total} 个更新`,
+      completed: "批量分发完成",
+      completedWithWarnings: "批量分发完成但有警告",
+      summary: (succeeded: number, partial: number, failed: number, total: number) =>
+        `已处理 ${total} 个更新：${succeeded} 个成功、${partial} 个部分成功、${failed} 个失败。`,
+      confirmationTitle: "确认批量分发",
+      confirmationDescription: (names: string[]) => names.join("、"),
+      unknownError: "未知错误"
+    }
   },
   localSkillsView: {
     eyebrow: "",

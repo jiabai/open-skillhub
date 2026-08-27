@@ -102,6 +102,27 @@ export interface AppDictionary {
     title: string
     inventoryTitle: string
     summary: string
+    batch: {
+      controlsLabel: string
+      selectionLabel: string
+      selectAll: string
+      selectItem: (name: string) => string
+      clear: string
+      distribute: string
+      selected: (selected: number, total: number) => string
+      progress: (completed: number, total: number) => string
+      completed: string
+      completedWithWarnings: string
+      summary: (
+        succeeded: number,
+        partial: number,
+        failed: number,
+        total: number
+      ) => string
+      confirmationTitle: string
+      confirmationDescription: (names: string[]) => string
+      unknownError: string
+    }
   }
   localSkillsView: {
     eyebrow: string

@@ -104,7 +104,26 @@ export const enUSDictionary = {
     eyebrow: "Review queue",
     title: "All pending updates",
     inventoryTitle: "Inventory",
-    summary: "Inspect every pending skill update before distributing it to configured local agent targets."
+    summary: "Inspect every pending skill update before distributing it to configured local agent targets.",
+    batch: {
+      controlsLabel: "Batch distribution controls",
+      selectionLabel: "Batch update selection",
+      selectAll: "Select all eligible updates",
+      selectItem: (name: string) => `Select ${name}`,
+      clear: "Clear selection",
+      distribute: "Distribute selected updates",
+      selected: (selected: number, total: number) =>
+        `${selected} selected of ${total} eligible updates`,
+      progress: (completed: number, total: number) =>
+        `Distributing ${Math.min(completed + 1, total)} of ${total} updates`,
+      completed: "Batch distribution completed",
+      completedWithWarnings: "Batch distribution completed with warnings",
+      summary: (succeeded: number, partial: number, failed: number, total: number) =>
+        `${total} of ${total} updates processed: ${succeeded} succeeded, ${partial} partial, ${failed} failed.`,
+      confirmationTitle: "Confirm batch distribution",
+      confirmationDescription: (names: string[]) => names.join(", "),
+      unknownError: "Unknown error"
+    }
   },
   localSkillsView: {
     eyebrow: "",

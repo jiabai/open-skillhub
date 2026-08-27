@@ -59,48 +59,6 @@ type DistributionConfirmationSummary = {
 
 type DistributionConfirmationMode = "single" | "batch"
 
-type BatchLabels = {
-  selectAll: string
-  selectItem: (name: string) => string
-  clear: string
-  distribute: string
-  selected: (selected: number, total: number) => string
-  progress: (completed: number, total: number) => string
-  completed: string
-  completedWithWarnings: string
-  summary: (succeeded: number, partial: number, failed: number, total: number) => string
-}
-
-function getBatchLabels(locale: AppLocale): BatchLabels {
-  if (locale === "zh-CN") {
-    return {
-      selectAll: "选择所有可分发更新",
-      selectItem: (name) => `选择 ${name}`,
-      clear: "清除选择",
-      distribute: "分发选中的更新",
-      selected: (selected, total) => `已选择 ${selected} / ${total} 个可分发更新`,
-      progress: (completed, total) => `正在分发 ${Math.min(completed + 1, total)} / ${total} 个更新`,
-      completed: "批量分发完成",
-      completedWithWarnings: "批量分发完成但有警告",
-      summary: (succeeded, partial, failed, total) =>
-        `已处理 ${total} 个更新：${succeeded} 个成功、${partial} 个部分成功、${failed} 个失败。`
-    }
-  }
-
-  return {
-    selectAll: "Select all eligible updates",
-    selectItem: (name) => `Select ${name}`,
-    clear: "Clear selection",
-    distribute: "Distribute selected updates",
-    selected: (selected, total) => `${selected} selected of ${total} eligible updates`,
-    progress: (completed, total) => `Distributing ${Math.min(completed + 1, total)} of ${total} updates`,
-    completed: "Batch distribution completed",
-    completedWithWarnings: "Batch distribution completed with warnings",
-    summary: (succeeded, partial, failed, total) =>
-      `${total} of ${total} updates processed: ${succeeded} succeeded, ${partial} partial, ${failed} failed.`
-  }
-}
-
 const initialState: DesktopSyncState = {
   localRecords: [],
   pendingUpdates: [],
@@ -323,7 +281,6 @@ export function App() {
     preDistributionCheckSnapshot !== null &&
     (preDistributionCheckSnapshot.pendingUpdateFingerprint !== pendingUpdateFingerprint ||
       isPreDistributionCheckExpired)
-  const batchLabels = getBatchLabels(selectedLocale)
   const isBatchRunning = isBatchRunningState
   const selectedPendingUpdates = useMemo(
     () =>
@@ -1167,7 +1124,7 @@ export function App() {
           dictionary.activity.distributionFailedTitle,
           dictionary.activity.distributionFailedDetail(
             pendingUpdate?.name ?? item.remoteSkillId,
-            item.errorMessage ?? "Unknown error"
+            item.errorMessage ?? dictionary.updatesView.batch.unknownError
           ),
           "warning"
         )
@@ -1186,9 +1143,9 @@ export function App() {
     })
     const batchActivity = createActivityEntry(
       summary.partialCount > 0 || summary.failedCount > 0
-        ? batchLabels.completedWithWarnings
-        : batchLabels.completed,
-      batchLabels.summary(
+        ? dictionary.updatesView.batch.completedWithWarnings
+        : dictionary.updatesView.batch.completed,
+      dictionary.updatesView.batch.summary(
         summary.succeededCount,
         summary.partialCount,
         summary.failedCount,
@@ -1206,7 +1163,7 @@ export function App() {
     } catch (error: unknown) {
       const message = getErrorMessage(error)
       setErrorMessage(message)
-      const detail = batchLabels.summary(
+      const detail = dictionary.updatesView.batch.summary(
         summary.succeededCount,
         summary.partialCount,
         summary.failedCount,
@@ -1790,91 +1747,33 @@ export function App() {
             onImportSkill={handleImportProjectSkill}
           />
         ) : (
-          <>
-            <div className="card" aria-label="Batch distribution controls">
-              <div className="card__content">
-                <div className="page-intro">
-                  <p className="card__description" role="status">
-                    {isBatchRunning && batchProgress ? (
-                      batchLabels.progress(batchProgress.completed, batchProgress.total)
-                    ) : batchResults ? (
-                      <>
-                        <strong>
-                          {batchResults.partialCount > 0 || batchResults.failedCount > 0
-                            ? batchLabels.completedWithWarnings
-                            : batchLabels.completed}
-                        </strong>{" "}
-                        {batchLabels.summary(
-                          batchResults.succeededCount,
-                          batchResults.partialCount,
-                          batchResults.failedCount,
-                          batchResults.items.length
-                        )}
-                      </>
-                    ) : (
-                      batchLabels.selected(selectedPendingUpdates.length, eligiblePendingUpdateCount)
-                    )}
-                  </p>
-                  {syncState.pendingUpdates.length > 0 ? (
-                    <div aria-label="Batch update selection" className="list-stack">
-                      {syncState.pendingUpdates.map((pendingUpdate) => (
-                        <label key={pendingUpdate.remoteSkillId}>
-                          <input
-                            type="checkbox"
-                            aria-label={batchLabels.selectItem(pendingUpdate.name)}
-                            checked={selectedUpdateIds.includes(pendingUpdate.remoteSkillId)}
-                            disabled={
-                              isBatchRunning ||
-                              getBatchEligibility(
-                                pendingUpdate,
-                                preDistributionCheckSnapshot,
-                                isPreDistributionCheckStale
-                              ) !== "eligible"
-                            }
-                            onChange={() => toggleUpdateSelection(pendingUpdate.remoteSkillId)}
-                          />
-                        </label>
-                      ))}
-                    </div>
-                  ) : null}
-                  <div className="page-intro__actions">
-                    <Button
-                      variant="outline"
-                      disabled={isBatchRunning || eligiblePendingUpdateCount === 0}
-                      onClick={selectAllEligibleUpdates}
-                    >
-                      {batchLabels.selectAll}
-                    </Button>
-                    <Button
-                      variant="outline"
-                      disabled={isBatchRunning || selectedUpdateIds.length === 0}
-                      onClick={clearUpdateSelection}
-                    >
-                      {batchLabels.clear}
-                    </Button>
-                    <Button
-                      variant="primary"
-                      disabled={isBatchRunning || selectedPendingUpdates.length === 0}
-                      onClick={requestBatchDistributionConfirmation}
-                    >
-                      {batchLabels.distribute}
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            </div>
-            <UpdatesView
-              isLoading={isLoading}
-              isPreDistributionChecking={isPreDistributionChecking}
-              isPreDistributionCheckStale={isPreDistributionCheckStale}
-              pendingUpdates={syncState.pendingUpdates}
-              preDistributionCheckSnapshot={preDistributionCheckSnapshot}
-              busyUpdateId={busyUpdateId}
-              onDistribute={requestDistributionConfirmation}
-              onReconcileInstalled={handleReconcileInstalled}
-              onRefreshPreDistributionCheck={handleRefreshPreDistributionCheck}
-            />
-          </>
+          <UpdatesView
+            isLoading={isLoading}
+            isPreDistributionChecking={isPreDistributionChecking}
+            isPreDistributionCheckStale={isPreDistributionCheckStale}
+            pendingUpdates={syncState.pendingUpdates}
+            preDistributionCheckSnapshot={preDistributionCheckSnapshot}
+            batchControls={{
+              pendingUpdates: syncState.pendingUpdates,
+              preDistributionCheckSnapshot,
+              isPreDistributionCheckStale,
+              selectedUpdateIds,
+              selectedPendingUpdateCount: selectedPendingUpdates.length,
+              eligiblePendingUpdateCount,
+              isBatchRunning,
+              batchProgress,
+              batchResults,
+              batchLabels: dictionary.updatesView.batch,
+              onToggleUpdateSelection: toggleUpdateSelection,
+              onSelectAllEligibleUpdates: selectAllEligibleUpdates,
+              onClearUpdateSelection: clearUpdateSelection,
+              onRequestBatchDistributionConfirmation: requestBatchDistributionConfirmation
+            }}
+            busyUpdateId={busyUpdateId}
+            onDistribute={requestDistributionConfirmation}
+            onReconcileInstalled={handleReconcileInstalled}
+            onRefreshPreDistributionCheck={handleRefreshPreDistributionCheck}
+          />
         )}
 
         <SettingsDrawer
@@ -1905,12 +1804,14 @@ export function App() {
             open
             title={
               pendingDistributionConfirmation.length > 1
-                ? "Confirm batch distribution"
+                ? dictionary.updatesView.batch.confirmationTitle
                 : dictionary.distributionConfirmation.title
             }
             description={
               pendingDistributionConfirmation.length > 1
-                ? pendingDistributionConfirmation.map((pendingUpdate) => pendingUpdate.name).join(", ")
+                ? dictionary.updatesView.batch.confirmationDescription(
+                    pendingDistributionConfirmation.map((pendingUpdate) => pendingUpdate.name)
+                  )
                 : dictionary.distributionConfirmation.description(
                     pendingDistributionConfirmation[0]?.name ?? ""
                   )

@@ -15,6 +15,15 @@ On Windows, it should behave like a notification-area utility: a tray-opened win
 - `Settings` is a drawer that owns backend URL, token state, connection testing, target agents, bridge state, and activity.
 - `Activity` explains what happened after sync or distribution runs, but it should not crowd the home page.
 
+## Responsive Review Workspace
+
+- The renderer uses one shared sidebar Shell for Home, Updates, Local Skills, and Projects. The wide layout keeps the 13.5rem sidebar and expands the page content; compact layouts use a 4.5rem icon rail with accessible labels preserved for keyboard and assistive technology users.
+- The Shell has three documented responsive bands: wide (`>= 1440px`), medium (`1100px–1439px`), and compact (`< 1100px`). Wide pages can expose side-by-side summaries and details, medium pages keep review context above dense content, and compact pages collapse dense surfaces into single-column cards.
+- `Updates` is the only page that renders the sticky review action bar. It is scoped to the workspace content area, reserves bottom space while present, and exposes selection, eligible-count, target-count, progress, and aggregate completion state. It is not rendered for Home, Local Skills, or Projects.
+- Home is a read-only review preview: it shows health and review metrics plus at most the first three pending updates, and routes operators to `Updates` for distribution or reconciliation.
+- Local Skills keeps the inventory and adds one contextual detail card for the selected same-name group. The detail shows paths, source agents, versions, server state, validation, and the existing upload/open/delete actions without replacing the multi-path picker or destructive confirmation flow.
+- Projects uses a master-detail layout on wide and medium screens. The project list remains available beside the selected project details; on compact screens selecting a project hides the list and exposes a Back action to return to the list.
+
 ## Visual Language
 
 - Align desktop-client with the Web console: persisted light/dark mode, restrained cards, clear top navigation, muted supporting text, and compact action buttons.

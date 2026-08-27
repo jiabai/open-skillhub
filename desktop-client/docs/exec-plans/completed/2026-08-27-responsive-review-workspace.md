@@ -13,9 +13,9 @@
 ## Status
 
 - Product spec: approved on 2026-08-27.
-- Implementation: not started.
+- Implementation: complete on 2026-08-27; all implementation batches and completion documentation are recorded below.
 - Canonical spec: `desktop-client/docs/product-specs/2026-08-27-responsive-review-workspace.md`.
-- Review gate: implementation must not start until this plan is explicitly approved.
+- Review gate: satisfied; the implementation was approved before execution and the completed plan is archived with validation evidence.
 
 ## Scope decomposition
 
@@ -70,7 +70,7 @@ No batch IPC, backend API, database, Agent adapter, or filesystem-write changes 
 - Create: `desktop-client/src/core/review/batch-distribution.ts`
 - Create: `desktop-client/src/__tests__/batch-distribution.test.ts`
 
-- [ ] **Step 1: Write failing eligibility and execution tests**
+- [x] **Step 1: Write failing eligibility and execution tests**
 
 Create fixtures for one fresh eligible item, one all-installed item, and one item with an `error` target. Cover default selection, stable input order, partial results, thrown failures, progress callbacks, and continuation.
 
@@ -157,7 +157,7 @@ describe("batch distribution", () => {
 })
 ```
 
-- [ ] **Step 2: Run the unit test and verify RED**
+- [x] **Step 2: Run the unit test and verify RED**
 
 Run:
 
@@ -167,7 +167,7 @@ cd desktop-client && npm test -- src/__tests__/batch-distribution.test.ts
 
 Expected: FAIL because `@/core/review/batch-distribution` does not exist.
 
-- [ ] **Step 3: Implement the pure controller**
+- [x] **Step 3: Implement the pure controller**
 
 Implement these public contracts without importing React or the IPC client:
 
@@ -269,11 +269,11 @@ export async function runDistributionBatch(
 }
 ```
 
-- [ ] **Step 4: Run the unit test and verify GREEN**
+- [x] **Step 4: Run the unit test and verify GREEN**
 
 Run the same focused test. Expected: PASS.
 
-- [ ] **Step 5: Commit the controller batch**
+- [x] **Step 5: Commit the controller batch**
 
 ```bash
 git add desktop-client/src/core/review/batch-distribution.ts desktop-client/src/__tests__/batch-distribution.test.ts
@@ -287,7 +287,7 @@ git commit -m "feat(desktop): add batch distribution controller"
 - Modify: `desktop-client/src/app/App.tsx`
 - Modify: `desktop-client/src/__tests__/app.test.tsx`
 
-- [ ] **Step 1: Add failing integration tests for default selection, one confirmation, stable calls, navigation lock, and refresh-once**
+- [x] **Step 1: Add failing integration tests for default selection, one confirmation, stable calls, navigation lock, and refresh-once**
 
 Add a two-item fresh snapshot fixture and assert:
 
@@ -318,7 +318,7 @@ it("distributes all selected safe updates after one confirmation", async () => {
 
 Add separate tests that an `error` item starts unchecked, a rejected first item does not prevent the second call, the progress copy appears, and Home/Local Skills/Projects navigation buttons are disabled during execution.
 
-- [ ] **Step 2: Run the focused App tests and verify RED**
+- [x] **Step 2: Run the focused App tests and verify RED**
 
 ```bash
 cd desktop-client && npm test -- src/__tests__/app.test.tsx -t "selected safe updates|rejected batch item|batch navigation"
@@ -326,7 +326,7 @@ cd desktop-client && npm test -- src/__tests__/app.test.tsx -t "selected safe up
 
 Expected: FAIL because the current UI has no batch selection or batch action.
 
-- [ ] **Step 3: Add orchestration state and refresh-driven default selection**
+- [x] **Step 3: Add orchestration state and refresh-driven default selection**
 
 Replace the single pending confirmation state with:
 
@@ -354,7 +354,7 @@ useEffect(() => {
 
 Add callbacks for one toggle, all eligible, and clear. Preserve pending-update order when producing the selected list.
 
-- [ ] **Step 4: Refactor execution to run all items, record per-item activity, then refresh once**
+- [x] **Step 4: Refactor execution to run all items, record per-item activity, then refresh once**
 
 Use `runDistributionBatch` with `desktopClient.distributePendingUpdate`. Do not call the existing refresh-bearing `executeDistribution` inside the loop. After the runner finishes:
 
@@ -367,15 +367,15 @@ setBatchResults(summary)
 
 For each `summary.items`, append the existing success/warning/failure activity entry using the matched `PendingSyncUpdate`. Add one localized batch summary entry. If the final refresh fails, preserve the completed batch summary and show the existing refresh-warning pattern.
 
-- [ ] **Step 5: Lock conflicting top-level operations during execution**
+- [x] **Step 5: Lock conflicting top-level operations during execution**
 
 Derive `isBatchDistributing = batchProgress?.currentSkillId !== null`. Pass it into `AppShell`; disable refresh, navigation, selection, Settings, theme changes, and reconcile actions while true. Do not disable window close or Electron lifecycle behavior.
 
-- [ ] **Step 6: Run the focused App tests and verify GREEN**
+- [x] **Step 6: Run the focused App tests and verify GREEN**
 
 Run the tests from Step 2. Expected: PASS.
 
-- [ ] **Step 7: Commit App orchestration**
+- [x] **Step 7: Commit App orchestration**
 
 ```bash
 git add desktop-client/src/app/App.tsx desktop-client/src/__tests__/app.test.tsx
@@ -396,7 +396,7 @@ git commit -m "feat(desktop): orchestrate selected update distribution"
 - Modify: `desktop-client/src/i18n/messages/zh-CN.ts`
 - Modify: `desktop-client/src/__tests__/app.test.tsx`
 
-- [ ] **Step 1: Write failing semantic UI tests**
+- [x] **Step 1: Write failing semantic UI tests**
 
 Cover five-column table headers, checkbox labels, blocked reason text, selected count, target count, `Select all distributable`, `Clear selection`, Updates-only sticky bar, and card-equivalent data in the DOM.
 
@@ -409,7 +409,7 @@ expect(screen.getByRole("button", { name: "Clear selection" })).toBeInTheDocumen
 expect(screen.getByTestId("review-action-bar")).toHaveTextContent("2 selected")
 ```
 
-- [ ] **Step 2: Run the targeted renderer tests and verify RED**
+- [x] **Step 2: Run the targeted renderer tests and verify RED**
 
 ```bash
 cd desktop-client && npm test -- src/__tests__/app.test.tsx -t "review workspace|selection controls|blocked target"
@@ -417,7 +417,7 @@ cd desktop-client && npm test -- src/__tests__/app.test.tsx -t "review workspace
 
 Expected: FAIL on missing table, selection controls, and summary.
 
-- [ ] **Step 3: Add typed localized copy**
+- [x] **Step 3: Add typed localized copy**
 
 Add a `reviewWorkspace` dictionary section with the same shape in all three files:
 
@@ -444,7 +444,7 @@ reviewWorkspace: {
 
 English and Chinese values must be natural, not literal token substitutions. Reuse `common` strings only when the meaning is identical.
 
-- [ ] **Step 4: Implement focused components**
+- [x] **Step 4: Implement focused components**
 
 `ReviewSummary` receives counts and last-check text only. `ReviewActionBar` receives selection/progress values and callbacks only. `UpdatesReviewWorkspace` receives pending rows, eligibility lookup, selection state, and existing reconcile/precheck callbacks. It must render one semantic table plus CSS-driven card labels rather than duplicate interactive controls for desktop and mobile.
 
@@ -470,7 +470,7 @@ type UpdatesReviewWorkspaceProps = {
 
 Render blocked items with a text reason and unchecked disabled checkbox. Render installed items with the existing reconcile action. Only eligible items can enter the selection.
 
-- [ ] **Step 5: Replace `PendingUpdatesPanel` in `UpdatesView`**
+- [x] **Step 5: Replace `PendingUpdatesPanel` in `UpdatesView`**
 
 Keep `PageIntro`, warning callouts, empty/loading states, and refresh-check behavior. Delete `pending-updates-panel.tsx` only after no imports remain:
 
@@ -480,7 +480,7 @@ rg -n "PendingUpdatesPanel|pending-updates-panel" desktop-client/src
 
 Expected before deletion: no matches outside the file being removed.
 
-- [ ] **Step 6: Run tests and verify GREEN**
+- [x] **Step 6: Run tests and verify GREEN**
 
 Run the targeted tests, then:
 
@@ -490,7 +490,7 @@ cd desktop-client && npm test -- src/__tests__/batch-distribution.test.ts src/__
 
 Expected: PASS.
 
-- [ ] **Step 7: Commit the Updates workspace**
+- [x] **Step 7: Commit the Updates workspace**
 
 ```bash
 git add desktop-client/src/components desktop-client/src/i18n/messages desktop-client/src/__tests__/app.test.tsx
@@ -508,7 +508,7 @@ git commit -m "feat(desktop): build responsive updates review workspace"
 - Modify: `desktop-client/src/i18n/messages/zh-CN.ts`
 - Modify: `desktop-client/src/__tests__/app.test.tsx`
 
-- [ ] **Step 1: Write failing Shell tests**
+- [x] **Step 1: Write failing Shell tests**
 
 Assert one navigation landmark, four links/buttons with current-page state, visible connection status, Settings/theme/refresh controls, and disabled navigation during a batch:
 
@@ -519,7 +519,7 @@ expect(screen.getByText("Connected")).toBeInTheDocument()
 expect(screen.getByRole("button", { name: "Updates" })).toBeDisabled()
 ```
 
-- [ ] **Step 2: Run Shell-focused tests and verify RED**
+- [x] **Step 2: Run Shell-focused tests and verify RED**
 
 ```bash
 cd desktop-client && npm test -- src/__tests__/app.test.tsx -t "sidebar shell|batch navigation"
@@ -527,7 +527,7 @@ cd desktop-client && npm test -- src/__tests__/app.test.tsx -t "sidebar shell|ba
 
 Expected: FAIL because current navigation is in a two-row top header and has no `aria-current` or execution lock.
 
-- [ ] **Step 3: Implement the Shell structure**
+- [x] **Step 3: Implement the Shell structure**
 
 Use lucide icons already in dependencies (`House`, `RefreshCw`, `FolderOpen`, `PanelsTopLeft`, `Settings`). Preserve visible labels in normal sidebar mode and accessible names in compact mode. The DOM skeleton must remain single-source across breakpoints:
 
@@ -547,7 +547,7 @@ Use lucide icons already in dependencies (`House`, `RefreshCw`, `FolderOpen`, `P
 
 Add `navigationLocked: boolean` to `AppShellProps`; every navigation/global-action handler is disabled while locked.
 
-- [ ] **Step 4: Add the three responsive Shell breakpoints**
+- [x] **Step 4: Add the three responsive Shell breakpoints**
 
 Use CSS grid with these explicit rules:
 
@@ -564,11 +564,11 @@ Use CSS grid with these explicit rules:
 
 Do not use viewport-wide fixed overlays over the sidebar. Keep the existing dark/light semantic tokens.
 
-- [ ] **Step 5: Run Shell tests and verify GREEN**
+- [x] **Step 5: Run Shell tests and verify GREEN**
 
 Run the test from Step 2. Expected: PASS.
 
-- [ ] **Step 6: Commit the shared Shell**
+- [x] **Step 6: Commit the shared Shell**
 
 ```bash
 git add desktop-client/src/components/app-shell.tsx desktop-client/src/styles.css desktop-client/src/i18n/messages desktop-client/src/__tests__/app.test.tsx
@@ -584,7 +584,7 @@ git commit -m "feat(desktop): add responsive sidebar shell"
 - Modify: `desktop-client/src/styles.css`
 - Modify: `desktop-client/src/__tests__/app.test.tsx`
 
-- [ ] **Step 1: Write a failing Home behavior test**
+- [x] **Step 1: Write a failing Home behavior test**
 
 ```ts
 it("routes review work from Home to Updates", async () => {
@@ -599,7 +599,7 @@ it("routes review work from Home to Updates", async () => {
 
 Also retain assertions for four metrics, bridge/configuration warnings, three-item maximum, and Settings guidance.
 
-- [ ] **Step 2: Run Home-focused tests and verify RED**
+- [x] **Step 2: Run Home-focused tests and verify RED**
 
 ```bash
 cd desktop-client && npm test -- src/__tests__/app.test.tsx -t "routes review work from Home|Home"
@@ -607,19 +607,19 @@ cd desktop-client && npm test -- src/__tests__/app.test.tsx -t "routes review wo
 
 Expected: the new no-distribute assertion fails against current Home.
 
-- [ ] **Step 3: Remove direct distribution/reconcile props from Home**
+- [x] **Step 3: Remove direct distribution/reconcile props from Home**
 
 Remove `busyUpdateId`, `onDistribute`, `onReconcileInstalled`, and detailed precheck action controls from `HomeViewProps`. Keep compact status badges and the `onViewUpdates` CTA. Update `App.tsx` call sites accordingly.
 
-- [ ] **Step 4: Apply the responsive Home layout**
+- [x] **Step 4: Apply the responsive Home layout**
 
 Keep a metric grid and a review-preview panel. At `>= 1440px`, use two columns; below `1100px`, use one column. Do not add Home-only persisted state.
 
-- [ ] **Step 5: Run Home tests and verify GREEN**
+- [x] **Step 5: Run Home tests and verify GREEN**
 
 Run the focused tests. Expected: PASS.
 
-- [ ] **Step 6: Commit Home migration**
+- [x] **Step 6: Commit Home migration**
 
 ```bash
 git add desktop-client/src/components/home-view.tsx desktop-client/src/app/App.tsx desktop-client/src/styles.css desktop-client/src/__tests__/app.test.tsx
@@ -637,7 +637,7 @@ git commit -m "feat(desktop): focus Home on review summary"
 - Modify: `desktop-client/src/i18n/messages/zh-CN.ts`
 - Modify: `desktop-client/src/__tests__/app.test.tsx`
 
-- [ ] **Step 1: Write failing detail-selection tests**
+- [x] **Step 1: Write failing detail-selection tests**
 
 Assert that selecting a grouped row exposes name, full path, source Agents, version, server state, and the same upload/open/delete actions without bypassing existing dialogs. Assert Enter and Space select the same row.
 
@@ -648,7 +648,7 @@ expect(within(detail).getByText("D:\\skills\\frontend-design")).toBeInTheDocumen
 expect(within(detail).getByText(/Codex/)).toBeInTheDocument()
 ```
 
-- [ ] **Step 2: Run Local Skills tests and verify RED**
+- [x] **Step 2: Run Local Skills tests and verify RED**
 
 ```bash
 cd desktop-client && npm test -- src/__tests__/app.test.tsx -t "Local Skills detail|grouped local skill"
@@ -656,15 +656,15 @@ cd desktop-client && npm test -- src/__tests__/app.test.tsx -t "Local Skills det
 
 Expected: FAIL because no persistent contextual detail region exists.
 
-- [ ] **Step 3: Add selected-group state without replacing path-picker semantics**
+- [x] **Step 3: Add selected-group state without replacing path-picker semantics**
 
 Add `selectedGroupKey` and derive `selectedGroup`. Row selection opens detail; the explicit open-folder control retains the current direct-open/single-path and radio-dialog/multi-path behavior. Avoid a clickable `<article role="button">` containing nested buttons; use a real `Inspect` button or separate non-nested row action.
 
-- [ ] **Step 4: Render and style contextual detail**
+- [x] **Step 4: Render and style contextual detail**
 
 Render one `<aside aria-label={copy.detailLabel(name)}>` as the second grid item. At wide widths it occupies the contextual-detail column; below `1100px` the same element flows immediately beneath the inventory list as an inline detail card. Do not duplicate the content or action callbacks. Add localized `inspect`, `detailLabel`, `usedBy`, and `paths` copy.
 
-- [ ] **Step 5: Re-run existing destructive and multi-path regressions**
+- [x] **Step 5: Re-run existing destructive and multi-path regressions**
 
 ```bash
 cd desktop-client && npm test -- src/__tests__/app.test.tsx -t "Local Skills|delete|path"
@@ -672,7 +672,7 @@ cd desktop-client && npm test -- src/__tests__/app.test.tsx -t "Local Skills|del
 
 Expected: PASS, including type-to-confirm delete and path picker tests.
 
-- [ ] **Step 6: Commit Local Skills migration**
+- [x] **Step 6: Commit Local Skills migration**
 
 ```bash
 git add desktop-client/src/components/local-skills-view.tsx desktop-client/src/styles.css desktop-client/src/i18n/messages desktop-client/src/__tests__/app.test.tsx
@@ -687,7 +687,7 @@ git commit -m "feat(desktop): add responsive local skill details"
 - Modify: `desktop-client/src/styles.css`
 - Modify: `desktop-client/src/__tests__/app.test.tsx`
 
-- [ ] **Step 1: Write failing master-detail tests**
+- [x] **Step 1: Write failing master-detail tests**
 
 At the DOM level, assert that selecting a project keeps the project list available and renders project Skill details in a labelled region. Preserve add/rename/remove/import dialog assertions.
 
@@ -698,7 +698,7 @@ expect(screen.getByRole("region", { name: "SkillDrive skills" })).toBeInTheDocum
 expect(screen.getByRole("button", { name: "Import Skill" })).toBeInTheDocument()
 ```
 
-- [ ] **Step 2: Run Projects tests and verify RED**
+- [x] **Step 2: Run Projects tests and verify RED**
 
 ```bash
 cd desktop-client && npm test -- src/__tests__/app.test.tsx -t "Projects master detail|project operations"
@@ -706,15 +706,15 @@ cd desktop-client && npm test -- src/__tests__/app.test.tsx -t "Projects master 
 
 Expected: FAIL because the selected-project branch replaces the list.
 
-- [ ] **Step 3: Remove the early-return split and compose list plus detail**
+- [x] **Step 3: Remove the early-return split and compose list plus detail**
 
 Extract `renderProjectList()` and `renderProjectDetail(selectedProject)` local render helpers or focused child components in the same file. The wide DOM includes both; CSS controls narrow presentation. Keep `selectedProjectId` owned by `App.tsx` and preserve current refresh/import callbacks.
 
-- [ ] **Step 4: Add narrow list/detail navigation semantics**
+- [x] **Step 4: Add narrow list/detail navigation semantics**
 
 Below `1100px`, selecting a project hides the visual list and reveals detail with a Back button; the list may remain mounted only if hidden content is also removed from tab order. Above the breakpoint, hide the Back button and show both columns.
 
-- [ ] **Step 5: Re-run all Project operation tests**
+- [x] **Step 5: Re-run all Project operation tests**
 
 ```bash
 cd desktop-client && npm test -- src/__tests__/app.test.tsx -t "Project"
@@ -722,7 +722,7 @@ cd desktop-client && npm test -- src/__tests__/app.test.tsx -t "Project"
 
 Expected: PASS for add, rename, remove, folder open, refresh, validation, and import.
 
-- [ ] **Step 6: Commit Projects migration**
+- [x] **Step 6: Commit Projects migration**
 
 ```bash
 git add desktop-client/src/components/projects-view.tsx desktop-client/src/styles.css desktop-client/src/__tests__/app.test.tsx
@@ -736,11 +736,11 @@ git commit -m "feat(desktop): add responsive project master detail"
 - Modify: `desktop-client/src/styles.css`
 - Modify: `desktop-client/src/__tests__/app.test.tsx`
 
-- [ ] **Step 1: Add structural accessibility assertions**
+- [x] **Step 1: Add structural accessibility assertions**
 
 Cover unique landmarks, no nested interactive controls, `aria-current`, visible textual blocked status, progress `role="status"`, and action-bar presence only on Updates with a non-empty selection.
 
-- [ ] **Step 2: Run all renderer tests and fix regressions without weakening assertions**
+- [x] **Step 2: Run all renderer tests and fix regressions without weakening assertions**
 
 ```bash
 cd desktop-client && npm test -- src/__tests__/app.test.tsx
@@ -748,7 +748,7 @@ cd desktop-client && npm test -- src/__tests__/app.test.tsx
 
 Expected: PASS.
 
-- [ ] **Step 3: Finish the three breakpoint layouts**
+- [x] **Step 3: Finish the three breakpoint layouts**
 
 Use exactly one media-query source for each threshold:
 
@@ -761,7 +761,7 @@ Use exactly one media-query source for each threshold:
 
 Ensure `.app-main` reserves at least the action bar height only when the bar is rendered. Use content-area `position: sticky; bottom: 0` or a content-column fixed inset; never cover the sidebar.
 
-- [ ] **Step 4: Run full desktop tests and typecheck**
+- [x] **Step 4: Run full desktop tests and typecheck**
 
 ```bash
 cd desktop-client && npm test
@@ -770,7 +770,7 @@ cd desktop-client && npm run typecheck:electron
 
 Expected: all tests PASS and TypeScript exits 0.
 
-- [ ] **Step 5: Commit responsive/accessibility completion**
+- [x] **Step 5: Commit responsive/accessibility completion**
 
 ```bash
 git add desktop-client/src/styles.css desktop-client/src/__tests__/app.test.tsx
@@ -789,11 +789,11 @@ git commit -m "fix(desktop): complete responsive review accessibility"
 - Modify: `desktop-client/docs/exec-plans/active/index.md`
 - Modify: `desktop-client/docs/exec-plans/completed/index.md`
 
-- [ ] **Step 1: Update durable design and architecture truth**
+- [x] **Step 1: Update durable design and architecture truth**
 
 Document the implemented Shell breakpoints, Updates-only action bar, Home read-only preview, Local Skills detail behavior, Projects master-detail behavior, and Renderer-only batch boundary. Do not describe planned behavior as implemented until its tests and build pass.
 
-- [ ] **Step 2: Run the production build**
+- [x] **Step 2: Run the production build**
 
 ```bash
 cd desktop-client && npm run build
@@ -801,7 +801,7 @@ cd desktop-client && npm run build
 
 Expected: Electron typecheck and all Vite builds exit 0.
 
-- [ ] **Step 3: Perform visual verification at the three CSS widths**
+- [x] **Step 3: Perform visual verification at the three CSS widths**
 
 Use the same populated state when possible and inspect Home, Updates, Local Skills, and Projects at:
 
@@ -811,7 +811,9 @@ Use the same populated state when possible and inspect Home, Updates, Local Skil
 
 Record any state that cannot be exercised and its residual risk in this plan. Capture screenshots for internal comparison; do not claim visual verification from DOM tests alone.
 
-- [ ] **Step 4: Run repository hard gates**
+Completion evidence: a read-only browser check exercised the shared shell and all four routes at `1280x720` (medium band); the sidebar/content split had no horizontal overflow. The browser session used for this check could not override the viewport, so the `>= 1440px` and `< 1100px` bands were not directly screenshot-verified. The check used the bridge-unavailable/empty-data state rather than populated review data. DOM/accessibility assertions, CSS inspection, and the production build cover structure, but manual visual fit for the two unverified width bands and populated data remains residual QA risk.
+
+- [x] **Step 4: Run repository hard gates**
 
 ```bash
 python scripts/validate_agents_docs.py --level ERROR
@@ -820,15 +822,15 @@ git diff --check
 
 Expected: 0 documentation errors and no whitespace errors.
 
-- [ ] **Step 5: Update plan Progress, Decisions, validation evidence, and task tracker**
+- [x] **Step 5: Update plan Progress, Decisions, validation evidence, and task tracker**
 
 Record exact commands and outcomes. Add genuine follow-up debt to `desktop-client/docs/exec-plans/tech-debt-tracker.md`; do not create speculative debt.
 
-- [ ] **Step 6: Archive the completed plan and update indexes**
+- [x] **Step 6: Archive the completed plan and update indexes**
 
 Move this file only after all required gates pass and no required work remains. Update active/completed indexes in the same commit.
 
-- [ ] **Step 7: Commit documentation and completion evidence**
+- [x] **Step 7: Commit documentation and completion evidence**
 
 ```bash
 git add desktop-client/docs desktop-client/task-tracker.md
@@ -860,16 +862,25 @@ git commit -m "docs(desktop): complete responsive review workspace"
 ## Progress
 
 - [x] 2026-08-27: Product spec and visual direction approved.
-- [x] 2026-08-27: Execution plan written; implementation remains gated on explicit review.
-- [ ] Task 1: Batch controller.
-- [ ] Task 2: App orchestration.
-- [ ] Task 3: Updates workspace.
-- [ ] Task 4: Shared Shell.
-- [ ] Task 5: Home.
-- [ ] Task 6: Local Skills.
-- [ ] Task 7: Projects.
-- [ ] Task 8: Responsive/accessibility completion.
-- [ ] Task 9: Documentation and gates.
+- [x] 2026-08-27: Execution plan approved and implementation completed in the isolated worktree.
+- [x] Task 1: Batch controller (`ed0dcb2`).
+- [x] Task 2: App orchestration and execution locks (`c5838ad`, `6c1cdc1`, `9923a4c`, `856cc6a`, `1349bff`, `1914433`).
+- [x] Task 3: Updates workspace (`dd1bdec`, `3b8211d`).
+- [x] Task 4: Shared Shell (`ef54cf1`).
+- [x] Task 5: Home (`57e25e4`).
+- [x] Task 6: Local Skills (`c360066`).
+- [x] Task 7: Projects (`77a117f`).
+- [x] Task 8: Responsive/accessibility completion (`05c2d11`).
+- [x] Task 9: Durable documentation, plan archival, and completion gates (this commit).
+
+## Completion evidence
+
+- `cd desktop-client && npm test`: PASS, 38 files and 227 tests.
+- `cd desktop-client && npm run typecheck:electron`: PASS.
+- `cd desktop-client && npm run build`: PASS.
+- `git diff --check`: PASS with no output.
+- Visual check: `1280x720` medium-band read-only browser inspection covered all four routes without horizontal overflow; direct screenshot verification of the wide and compact bands, and populated review data, was unavailable in the current browser session. See Task 9 Step 3 for the residual risk.
+- No backend, IPC channel, database, adapter, or persistence changes were made for this workspace.
 
 ## Plan self-review checklist
 

@@ -91,6 +91,9 @@ safety + backend Client API + cache-owned temporary ZIP staging
 project skills core -> persisted project records + catalog project targets +
 shared package tree safety + filesystem scan/import services
 
+review workspace renderer -> pure batch review controller + existing App state
+review workspace renderer -> existing single-skill distribution callback -> IPC
+
 shared Client Skill API -> backend Client API + cache-owned temporary package
 staging
 
@@ -139,6 +142,13 @@ agent adapters -> local agent installations and skill directories
   sync state; server-backed `sync` updates CLI scoped sync records after
   successful writes.
 - Shared type contracts live in `src/types/` instead of being redefined across layers.
+
+### Review workspace orchestration boundary
+
+- Multi-select review orchestration is renderer-only. `src/core/review/batch-distribution.ts` is a pure controller that derives eligibility, creates the safe default selection, runs selected skill IDs sequentially, and aggregates succeeded, partial, and failed item results.
+- `src/app/App.tsx` owns ephemeral selection, confirmation, progress, execution lock, and the single refresh after the batch completes. The Updates workspace renders the table, summary, and Updates-only sticky action bar from that state.
+- Each batch item reuses the existing single-skill distribution callback and its existing Electron IPC/service path. The batch controller does not write files, access secrets, call the backend directly, or introduce a second distribution implementation.
+- This feature does not add batch IPC channels, backend endpoints, database entities, persistence, or Agent adapter behavior. Privileged operations remain behind the existing preload and typed IPC boundary.
 
 ## Layer Boundaries
 

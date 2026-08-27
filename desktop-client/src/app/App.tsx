@@ -1129,6 +1129,25 @@ export function App() {
       return
     }
 
+    if (remoteSkillIds.length === 1) {
+      const pendingUpdate = orderedUpdates[0]
+      setBatchProgress({
+        completed: 0,
+        total: 1,
+        currentSkillId: pendingUpdate.remoteSkillId
+      })
+      setIsBatchRunningState(true)
+      setBatchResults(null)
+
+      try {
+        await executeDistribution(pendingUpdate)
+      } finally {
+        setBatchProgress({ completed: 1, total: 1, currentSkillId: null })
+        setIsBatchRunningState(false)
+      }
+      return
+    }
+
     setBatchProgress({ completed: 0, total: remoteSkillIds.length, currentSkillId: remoteSkillIds[0] })
     setIsBatchRunningState(true)
     setBatchResults(null)

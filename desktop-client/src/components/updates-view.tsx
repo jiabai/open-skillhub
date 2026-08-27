@@ -1,10 +1,9 @@
 import type { PendingSyncUpdate, PreDistributionCheckSnapshot } from "@/types"
 import { PageIntro } from "@/components/ui-primitives"
 import {
-  BatchDistributionControls,
   type BatchDistributionControlsProps
 } from "@/components/batch-distribution-controls"
-import { PendingUpdatesPanel } from "@/components/pending-updates-panel"
+import { UpdatesReviewWorkspace } from "@/components/updates-review-workspace"
 import { useI18n } from "@/i18n/use-i18n"
 
 type UpdatesViewProps = {
@@ -43,8 +42,7 @@ export function UpdatesView({
         title={dictionary.updatesView.title}
         summary={dictionary.updatesView.summary}
       />
-      <BatchDistributionControls {...batchControls} />
-      <PendingUpdatesPanel
+      <UpdatesReviewWorkspace
         isLoading={isLoading}
         isBatchRunning={isBatchRunning}
         isPreDistributionChecking={isPreDistributionChecking}
@@ -52,9 +50,16 @@ export function UpdatesView({
         pendingUpdates={pendingUpdates}
         preDistributionCheckSnapshot={preDistributionCheckSnapshot}
         busyUpdateId={busyUpdateId}
+        selectedUpdateIds={batchControls.selectedUpdateIds}
+        batchProgress={batchControls.batchProgress}
+        batchResults={batchControls.batchResults}
+        onToggleSelected={batchControls.onToggleUpdateSelection}
+        onSelectAll={batchControls.onSelectAllEligibleUpdates}
+        onClearSelection={batchControls.onClearUpdateSelection}
+        onRequestDistribution={batchControls.onRequestBatchDistributionConfirmation}
         onDistribute={onDistribute}
         onReconcileInstalled={onReconcileInstalled}
-        onRefreshPreDistributionCheck={onRefreshPreDistributionCheck}
+        onRefreshCheck={onRefreshPreDistributionCheck}
       />
     </section>
   )

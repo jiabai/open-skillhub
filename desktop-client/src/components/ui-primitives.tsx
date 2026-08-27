@@ -36,7 +36,7 @@ export function Button({
 
 type CardProps = HTMLAttributes<HTMLElement> & {
   flat?: boolean
-  as?: "section" | "article" | "div"
+  as?: "section" | "article" | "div" | "aside"
 }
 
 export function Card({ as: Component = "section", className, flat, ...props }: CardProps) {

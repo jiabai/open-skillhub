@@ -2020,6 +2020,97 @@ describe("App", () => {
     })
   })
 
+  it("renders the Updates review workspace with semantic table and safe selection controls", async () => {
+    const pendingUpdates = [
+      {
+        remoteSkillId: "skill-a",
+        name: "Skill A",
+        localVersion: null,
+        localContentHash: null,
+        remoteVersion: "1.0.0",
+        remoteContentHash: "hash-a",
+        reason: "not-installed" as const
+      },
+      {
+        remoteSkillId: "skill-blocked",
+        name: "Skill Blocked",
+        localVersion: "0.9.0",
+        localContentHash: "hash-old",
+        remoteVersion: "1.0.0",
+        remoteContentHash: "hash-blocked",
+        reason: "update" as const
+      },
+      {
+        remoteSkillId: "skill-installed",
+        name: "Skill Installed",
+        localVersion: "1.0.0",
+        localContentHash: "hash-installed",
+        remoteVersion: "1.0.0",
+        remoteContentHash: "hash-installed",
+        reason: "update" as const
+      }
+    ]
+
+    mockDesktopClient.refreshSync.mockResolvedValueOnce({
+      ...emptySyncState,
+      pendingUpdates,
+      lastRefreshedAt: "2026-04-17T00:00:00.000Z"
+    })
+    mockDesktopClient.refreshPreDistributionCheck.mockResolvedValueOnce({
+      results: {
+        "skill-a": {
+          codex: {
+            ...defaultAgentDetection.agentStatuses[0],
+            contentComparison: "not-installed"
+          }
+        },
+        "skill-blocked": {
+          codex: {
+            ...defaultAgentDetection.agentStatuses[0],
+            contentComparison: "error",
+            errorMessage: "Target path could not be read."
+          }
+        },
+        "skill-installed": {
+          codex: {
+            ...defaultAgentDetection.agentStatuses[0],
+            contentComparison: "installed"
+          }
+        }
+      },
+      checkedAt: "2026-04-17T00:00:01.000Z",
+      expiresAt: "2099-04-17T00:00:01.000Z",
+      pendingUpdateFingerprint:
+        "skill-a@1.0.0@hash-a|skill-blocked@1.0.0@hash-blocked|skill-installed@1.0.0@hash-installed",
+      targetAgentIds: ["codex"],
+      totalDurationMs: 1,
+      globalErrors: []
+    })
+
+    render(<App />)
+    fireEvent.click(screen.getByRole("button", { name: "Updates" }))
+
+    await waitFor(() => {
+      expect(screen.getByRole("columnheader", { name: "Select" })).toBeInTheDocument()
+    })
+
+    expect(screen.getByRole("columnheader", { name: "Status" })).toBeInTheDocument()
+    expect(screen.getByRole("columnheader", { name: "Change" })).toBeInTheDocument()
+    expect(screen.getByRole("columnheader", { name: "Targets" })).toBeInTheDocument()
+    expect(screen.getByRole("columnheader", { name: "Version" })).toBeInTheDocument()
+    expect(screen.getByRole("checkbox", { name: "Select Skill A" })).toBeChecked()
+    expect(screen.getByRole("checkbox", { name: "Select Skill Blocked" })).not.toBeChecked()
+    expect(screen.getByRole("checkbox", { name: "Select Skill Blocked" })).toBeDisabled()
+    expect(screen.getByText("1 item blocked by target checks")).toBeInTheDocument()
+    expect(screen.getByText("Target path could not be read.")).toBeInTheDocument()
+    expect(screen.getByTestId("review-action-bar")).toHaveTextContent("1 selected")
+    expect(screen.getByTestId("review-action-bar")).toHaveTextContent("1 write target")
+    expect(screen.getByRole("button", { name: "Select all eligible updates" })).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "Clear selection" })).toBeInTheDocument()
+    expect(screen.getByText("Skill Installed")).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "Sync record Skill Installed" })).toBeInTheDocument()
+  })
+
   describe("Local Skills delete confirmation", () => {
     it("shows delete confirmation dialog when delete button is clicked", async () => {
       render(<App />)

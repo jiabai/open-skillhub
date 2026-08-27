@@ -124,6 +124,34 @@ export interface AppDictionary {
       unknownError: string
     }
   }
+  reviewWorkspace: {
+    steps: string
+    connected: string
+    selected: (count: number) => string
+    blocked: (count: number) => string
+    writeTargets: (count: number) => string
+    selectItem: (name: string) => string
+    selectAll: string
+    clearSelection: string
+    distributeSelected: (count: number) => string
+    distributing: (completed: number, total: number) => string
+    columns: {
+      select: string
+      status: string
+      change: string
+      targets: string
+      version: string
+    }
+    statuses: {
+      ready: string
+      blocked: string
+      installed: string
+    }
+    blockedReason: string
+    summaryTitle: string
+    confirmationTitle: (count: number) => string
+    batchCompleted: (succeeded: number, partial: number, failed: number) => string
+  }
   localSkillsView: {
     eyebrow: string
     title: string

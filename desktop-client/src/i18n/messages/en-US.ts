@@ -125,6 +125,39 @@ export const enUSDictionary = {
       unknownError: "Unknown error"
     }
   },
+  reviewWorkspace: {
+    steps: "Review workflow",
+    connected: "Target checks are current",
+    selected: (count: number) => `${count} selected`,
+    blocked: (count: number) =>
+      `${count} item${count === 1 ? "" : "s"} blocked by target checks`,
+    writeTargets: (count: number) =>
+      `${count} write target${count === 1 ? "" : "s"}`,
+    selectItem: (name: string) => `Select ${name}`,
+    selectAll: "Select all eligible updates",
+    clearSelection: "Clear selection",
+    distributeSelected: (_count: number) => "Distribute selected updates",
+    distributing: (completed: number, total: number) =>
+      `Distributing ${Math.min(completed + 1, total)} of ${total} updates`,
+    columns: {
+      select: "Select",
+      status: "Status",
+      change: "Change",
+      targets: "Targets",
+      version: "Version"
+    },
+    statuses: {
+      ready: "Ready",
+      blocked: "Blocked",
+      installed: "Installed"
+    },
+    blockedReason:
+      "Blocked by target checks. Refresh the check or resolve the target issue before distributing.",
+    summaryTitle: "Review summary",
+    confirmationTitle: (count: number) => `Confirm distribution of ${count} update${count === 1 ? "" : "s"}`,
+    batchCompleted: (succeeded: number, partial: number, failed: number) =>
+      `${succeeded} succeeded, ${partial} partial, ${failed} failed`
+  },
   localSkillsView: {
     eyebrow: "",
     title: "Local Skills",

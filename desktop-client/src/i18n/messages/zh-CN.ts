@@ -123,6 +123,36 @@ export const zhCNDictionary = {
       unknownError: "未知错误"
     }
   },
+  reviewWorkspace: {
+    steps: "审核流程",
+    connected: "目标检查结果是最新的",
+    selected: (count: number) => `已选择 ${count} 项`,
+    blocked: (count: number) => `有 ${count} 项因目标检查被阻止`,
+    writeTargets: (count: number) => `${count} 个写入目标`,
+    selectItem: (name: string) => `选择 ${name}`,
+    selectAll: "选择所有可分发更新",
+    clearSelection: "清除选择",
+    distributeSelected: (_count: number) => "分发选中的更新",
+    distributing: (completed: number, total: number) =>
+      `正在分发 ${Math.min(completed + 1, total)} / ${total} 个更新`,
+    columns: {
+      select: "选择",
+      status: "状态",
+      change: "变更",
+      targets: "目标",
+      version: "版本"
+    },
+    statuses: {
+      ready: "就绪",
+      blocked: "已阻止",
+      installed: "已安装"
+    },
+    blockedReason: "目标检查阻止了分发。请刷新检查或先解决目标问题。",
+    summaryTitle: "审核摘要",
+    confirmationTitle: (count: number) => `确认分发 ${count} 个更新`,
+    batchCompleted: (succeeded: number, partial: number, failed: number) =>
+      `${succeeded} 个成功、${partial} 个部分成功、${failed} 个失败`
+  },
   localSkillsView: {
     eyebrow: "",
     title: "本地 SKILL",

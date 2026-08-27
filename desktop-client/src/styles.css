@@ -616,6 +616,53 @@ select:focus-visible {
   gap: 0.75rem;
 }
 
+.projects-master-detail {
+  display: grid;
+  gap: 1rem;
+  min-width: 0;
+}
+
+.projects-master-detail__list,
+.projects-master-detail__detail {
+  min-width: 0;
+}
+
+.projects-master-detail__detail {
+  display: grid;
+  gap: 1rem;
+}
+
+.projects-master-detail__project--selected {
+  border-color: var(--osh-accent);
+  box-shadow: 0 0 0 2px var(--osh-accent-border);
+}
+
+.projects-master-detail__back {
+  display: none;
+}
+
+@media (min-width: 1100px) {
+  .projects-master-detail {
+    grid-template-columns: minmax(16rem, 0.75fr) minmax(0, 1.25fr);
+    align-items: start;
+  }
+
+  .projects-master-detail__detail {
+    position: sticky;
+    top: 6rem;
+  }
+}
+
+@media (max-width: 1099px) {
+  .projects-master-detail--selected .projects-master-detail__list {
+    display: none;
+  }
+
+  .projects-master-detail__back {
+    display: inline-flex;
+  }
+}
+
 .local-skills-layout {
   display: grid;
   gap: 1rem;

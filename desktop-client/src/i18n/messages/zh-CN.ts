@@ -213,6 +213,7 @@ export const zhCNDictionary = {
     eyebrow: "",
     title: "项目",
     summary: "",
+    detailLabel: (name: string) => `${name} SKILL`,
     addProject: "添加项目",
     addProjectTitle: "添加项目",
     addProjectDescription: "选择一个本地项目目录，用来扫描项目级代理 SKILL。",

@@ -1269,11 +1269,23 @@ describe("App", () => {
       expect(screen.getByText("Example Project")).toBeInTheDocument()
     })
 
+    const projectRow = screen.getByText("Example Project").closest("article")
+    expect(projectRow).not.toBeNull()
+    expect(projectRow).not.toHaveAttribute("role", "button")
+
     fireEvent.click(screen.getByRole("button", { name: "Open" }))
 
     await waitFor(() => {
       expect(mockDesktopClient.scanProjectSkills).toHaveBeenCalledWith({ projectId: "project-1" })
-      expect(screen.getByRole("heading", { name: "Example Project" })).toBeInTheDocument()
+      expect(
+        within(screen.getByRole("region", { name: "Example Project skills" })).getByRole("heading", {
+          name: "Example Project"
+        })
+      ).toBeInTheDocument()
+      expect(screen.getByRole("navigation", { name: "SkillDrive Desktop" })).toBeInTheDocument()
+      expect(screen.getByRole("button", { name: "Open" })).toBeInTheDocument()
+      expect(screen.getByRole("region", { name: "Example Project skills" })).toBeInTheDocument()
+      expect(screen.getByRole("button", { name: "Back" })).toBeInTheDocument()
       expect(screen.getByText("project-skill")).toBeInTheDocument()
       expect(screen.getByText("global-only")).toBeInTheDocument()
       expect(screen.getByText("Project")).toBeInTheDocument()

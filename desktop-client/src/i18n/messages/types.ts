@@ -212,6 +212,7 @@ export interface AppDictionary {
     eyebrow: string
     title: string
     summary: string
+    detailLabel: (name: string) => string
     addProject: string
     addProjectTitle: string
     addProjectDescription: string

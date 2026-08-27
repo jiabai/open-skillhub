@@ -218,6 +218,7 @@ export const enUSDictionary = {
     eyebrow: "",
     title: "Projects",
     summary: "",
+    detailLabel: (name: string) => `${name} skills`,
     addProject: "Add Project",
     addProjectTitle: "Add project",
     addProjectDescription: "Choose a local project folder to scan for project-level agent skills.",

@@ -250,29 +250,32 @@ export function ProjectsView({
     )
   }
 
-  if (selectedProject) {
-    return (
-      <section className="page-stack" aria-labelledby="project-detail-heading">
+  const renderProjectDetail = (project: ProjectEntry) => (
+    <section
+      className="projects-master-detail__detail"
+      role="region"
+      aria-label={copy.detailLabel(project.name)}
+    >
         <PageIntro
           eyebrow={copy.eyebrow}
-          title={selectedProject.name}
-          summary={selectedProject.path}
+          title={project.name}
+          summary={project.path}
           actions={
             <>
-              <Button variant="outline" onClick={onBackToList}>
+              <Button className="projects-master-detail__back" variant="outline" onClick={onBackToList}>
                 {copy.back}
               </Button>
               <Button
                 variant="outline"
                 disabled={!bridgeAvailable || busy}
-                onClick={() => onOpenProjectFolder(selectedProject.id)}
+                onClick={() => onOpenProjectFolder(project.id)}
               >
                 {copy.openFolder}
               </Button>
               <Button
                 variant="secondary"
                 disabled={!bridgeAvailable || isScanning}
-                onClick={() => onRefreshProjectSkills(selectedProject.id)}
+                onClick={() => onRefreshProjectSkills(project.id)}
               >
                 {isScanning ? copy.scanning : copy.refreshSkills}
               </Button>
@@ -286,16 +289,15 @@ export function ProjectsView({
           }
         />
 
-        {errorMessage ? <div className="callout callout--warning">{errorMessage}</div> : null}
         {scanSnapshot?.errors.map((error) => (
           <div className="callout callout--warning" key={error}>
             {error}
           </div>
         ))}
 
-        <Card aria-labelledby="project-detail-heading">
+        <Card aria-labelledby="project-skills-heading">
           <CardHeader>
-            <CardTitle id="project-detail-heading">{copy.skillCount(scanSnapshot?.rows.length ?? 0)}</CardTitle>
+            <CardTitle id="project-skills-heading">{copy.skillCount(scanSnapshot?.rows.length ?? 0)}</CardTitle>
             <CardDescription>
               {copy.targetCount(scanSnapshot?.targets.length ?? 0)}
             </CardDescription>
@@ -391,12 +393,74 @@ export function ProjectsView({
             </div>
           </Dialog>
         ) : null}
-      </section>
-    )
-  }
+    </section>
+  )
+
+  const renderProjectList = () => (
+    <Card aria-labelledby="projects-list-heading">
+      <CardHeader>
+        <CardTitle id="projects-list-heading">{copy.projectsCount(snapshot?.projects.length ?? 0)}</CardTitle>
+        {!snapshot ? <CardDescription>{copy.noSnapshot}</CardDescription> : null}
+      </CardHeader>
+      <CardContent>
+        {isLoading && !snapshot ? <div className="callout">{copy.loading}</div> : null}
+        {!isLoading && snapshot?.projects.length === 0 ? (
+          <div className="callout">{copy.empty}</div>
+        ) : null}
+        {snapshot && snapshot.projects.length > 0 ? (
+          <div className="stack-list">
+            {sortedProjects.map((project) => {
+              const isSelected = project.id === selectedProjectId
+
+              return (
+                <article
+                  className={`update-item${isSelected ? " projects-master-detail__project--selected" : ""}`}
+                  key={project.id}
+                  aria-current={isSelected ? "true" : undefined}
+                >
+                  <div className="update-item__header">
+                    <div>
+                      <h3>{project.name}</h3>
+                      <span className="muted mono">{project.path}</span>
+                    </div>
+                    <div className="update-item__actions">
+                      <Button
+                        aria-pressed={isSelected}
+                        size="sm"
+                        onClick={() => void onSelectProject(project)}
+                      >
+                        {copy.open}
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setRenameProject(project)
+                          setRenameName(project.name)
+                        }}
+                      >
+                        {copy.rename}
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setRemoveProject(project)}
+                      >
+                        {copy.remove}
+                      </Button>
+                    </div>
+                  </div>
+                </article>
+              )
+            })}
+          </div>
+        ) : null}
+      </CardContent>
+    </Card>
+  )
 
   return (
-    <section className="page-stack" aria-labelledby="projects-heading">
+    <section className="page-stack" aria-label={copy.title}>
       <PageIntro
         eyebrow={copy.eyebrow}
         title={copy.title}
@@ -415,71 +479,12 @@ export function ProjectsView({
       ) : null}
       {errorMessage ? <div className="callout callout--warning">{errorMessage}</div> : null}
 
-      <Card aria-labelledby="projects-heading">
-        <CardHeader>
-          <CardTitle id="projects-heading">{copy.projectsCount(snapshot?.projects.length ?? 0)}</CardTitle>
-          {!snapshot ? <CardDescription>{copy.noSnapshot}</CardDescription> : null}
-        </CardHeader>
-        <CardContent>
-          {isLoading && !snapshot ? <div className="callout">{copy.loading}</div> : null}
-          {!isLoading && snapshot?.projects.length === 0 ? (
-            <div className="callout">{copy.empty}</div>
-          ) : null}
-          {snapshot && snapshot.projects.length > 0 ? (
-            <div className="stack-list">
-              {sortedProjects.map((project) => (
-                <article
-                  className="update-item"
-                  key={project.id}
-                  role="button"
-                  tabIndex={0}
-                  style={{ cursor: "pointer" }}
-                  onClick={() => onSelectProject(project)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" || e.key === " ") {
-                      e.preventDefault()
-                      onSelectProject(project)
-                    }
-                  }}
-                >
-                  <div className="update-item__header">
-                    <div>
-                      <h3>{project.name}</h3>
-                      <span className="muted mono">{project.path}</span>
-                    </div>
-                    <div className="update-item__actions">
-                      <Button size="sm" onClick={() => onSelectProject(project)}>
-                        {copy.open}
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          setRenameProject(project)
-                          setRenameName(project.name)
-                        }}
-                      >
-                        {copy.rename}
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          setRemoveProject(project)
-                        }}
-                      >
-                        {copy.remove}
-                      </Button>
-                    </div>
-                  </div>
-                </article>
-              ))}
-            </div>
-          ) : null}
-        </CardContent>
-      </Card>
+      <div
+        className={`projects-master-detail${selectedProject ? " projects-master-detail--selected" : ""}`}
+      >
+        <div className="projects-master-detail__list">{renderProjectList()}</div>
+        {selectedProject ? renderProjectDetail(selectedProject) : null}
+      </div>
 
       {addOpen ? (
         <Dialog

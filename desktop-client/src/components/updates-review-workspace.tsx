@@ -147,6 +147,51 @@ function getLastCheckText(
   return formatted ? lastChecked(formatted) : refreshNeededLabel
 }
 
+function ReviewBatchStatus({
+  isBatchRunning,
+  batchProgress,
+  batchResults
+}: Pick<UpdatesReviewWorkspaceProps, "isBatchRunning" | "batchProgress" | "batchResults">) {
+  const { dictionary } = useI18n()
+  const copy = dictionary.reviewWorkspace
+  const batchCopy = dictionary.updatesView.batch
+
+  if (isBatchRunning && batchProgress) {
+    return (
+      <p className="card__description" role="status" data-testid="review-batch-status">
+        {copy.distributing(batchProgress.completed, batchProgress.total)}
+      </p>
+    )
+  }
+
+  if (!batchResults) {
+    return null
+  }
+
+  return (
+    <p className="card__description" role="status" data-testid="review-batch-status">
+      <strong>
+        {batchResults.partialCount > 0 || batchResults.failedCount > 0
+          ? batchCopy.completedWithWarnings
+          : batchCopy.completed}
+      </strong>{" "}
+      {batchCopy.summary(
+        batchResults.succeededCount,
+        batchResults.partialCount,
+        batchResults.failedCount,
+        batchResults.items.length
+      )}
+      <span className="muted">
+        {copy.batchCompleted(
+          batchResults.succeededCount,
+          batchResults.partialCount,
+          batchResults.failedCount
+        )}
+      </span>
+    </p>
+  )
+}
+
 export function UpdatesReviewWorkspace({
   pendingUpdates,
   preDistributionCheckSnapshot,
@@ -208,8 +253,9 @@ export function UpdatesReviewWorkspace({
     locale
   )
   const hasGlobalErrors = (preDistributionCheckSnapshot?.globalErrors.length ?? 0) > 0
-  const showActionBar =
-    selectedUpdates.length > 0 || isBatchRunning || batchResults !== null
+  const showActionBar = selectedUpdates.length > 0
+  const showBatchStatusOutsideActionBar =
+    !showActionBar && ((isBatchRunning && batchProgress !== null) || batchResults !== null)
 
   return (
     <Card className="review-workspace" aria-labelledby="review-workspace-heading">
@@ -240,6 +286,14 @@ export function UpdatesReviewWorkspace({
               <span key={message}>{message}</span>
             ))}
           </div>
+        ) : null}
+
+        {showBatchStatusOutsideActionBar ? (
+          <ReviewBatchStatus
+            isBatchRunning={isBatchRunning}
+            batchProgress={batchProgress}
+            batchResults={batchResults}
+          />
         ) : null}
 
         {pendingUpdates.length === 0 ? (

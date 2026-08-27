@@ -1757,7 +1757,7 @@ describe("App", () => {
       pendingUpdates,
       lastRefreshedAt: "2026-04-17T00:00:00.000Z"
     })
-    mockDesktopClient.refreshPreDistributionCheck.mockResolvedValueOnce({
+    const preDistributionCheckSnapshot = {
       results: {
         "skill-a": { codex: { ...defaultAgentDetection.agentStatuses[0], contentComparison: "not-installed" } },
         "skill-error": { codex: { ...defaultAgentDetection.agentStatuses[0], contentComparison: "error" } },
@@ -1769,8 +1769,15 @@ describe("App", () => {
       targetAgentIds: ["codex"],
       totalDurationMs: 1,
       globalErrors: []
+    }
+    mockDesktopClient.refreshPreDistributionCheck
+      .mockResolvedValueOnce(preDistributionCheckSnapshot)
+      .mockResolvedValueOnce(preDistributionCheckSnapshot)
+    mockDesktopClient.refreshSync.mockResolvedValueOnce({
+      ...emptySyncState,
+      pendingUpdates,
+      lastRefreshedAt: "2026-04-17T00:00:05.000Z"
     })
-    mockDesktopClient.refreshSync.mockResolvedValueOnce(emptySyncState)
     mockDesktopClient.distributePendingUpdate.mockImplementation(async (skillId: string) => ({
       skillId,
       name: skillId,
@@ -1808,6 +1815,12 @@ describe("App", () => {
       expect(mockDesktopClient.distributePendingUpdate).toHaveBeenNthCalledWith(2, "skill-b")
       expect(screen.getByText("Batch distribution completed")).toBeInTheDocument()
     })
+    expect(screen.getByTestId("review-action-bar")).toBeInTheDocument()
+    fireEvent.click(screen.getByRole("button", { name: "Clear selection" }))
+    await waitFor(() => {
+      expect(screen.queryByTestId("review-action-bar")).not.toBeInTheDocument()
+    })
+    expect(screen.getByTestId("review-batch-status")).toHaveTextContent("Batch distribution completed")
     expect(mockDesktopClient.distributePendingUpdate).toHaveBeenCalledTimes(2)
     expect(mockDesktopClient.refreshSync).toHaveBeenCalledTimes(2)
   })

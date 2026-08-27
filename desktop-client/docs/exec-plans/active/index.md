@@ -10,6 +10,7 @@
 | [2026-05-03-macos-release-packaging-tasks.md](2026-05-03-macos-release-packaging-tasks.md) | Task checklist for macOS packaging documentation, future implementation, and future macOS-machine validation |
 | [2026-05-14-linux-cli-packaged-deployment.md](2026-05-14-linux-cli-packaged-deployment.md) | Plan for replacing Linux CLI npm-link deployment with a tarball and install-script workflow |
 | [2026-05-14-linux-cli-packaged-deployment-tasks.md](2026-05-14-linux-cli-packaged-deployment-tasks.md) | Task checklist for Linux CLI packaged deployment documentation, future implementation, and Linux validation |
+| [2026-08-28-home-review-card-placement.md](2026-08-28-home-review-card-placement.md) | Move the Home review preview below metrics while preserving the wide-screen right-rail width |
 ## Working Agreement
 
 - Update the plan itself when scope, progress, or discoveries change.

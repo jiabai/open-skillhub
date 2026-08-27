@@ -1,18 +1,22 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui-primitives"
 import { useI18n } from "@/i18n/use-i18n"
 
+export type ReviewSummaryCheckStatus = "current" | "stale" | "missing" | "error"
+
 type ReviewSummaryProps = {
   selectedCount: number
   blockedCount: number
   writeTargetCount: number
   lastCheckText: string
+  checkStatus: ReviewSummaryCheckStatus
 }
 
 export function ReviewSummary({
   selectedCount,
   blockedCount,
   writeTargetCount,
-  lastCheckText
+  lastCheckText,
+  checkStatus
 }: ReviewSummaryProps) {
   const { dictionary } = useI18n()
   const copy = dictionary.reviewWorkspace
@@ -24,7 +28,7 @@ export function ReviewSummary({
         <CardTitle id="review-summary-heading">{copy.summaryTitle}</CardTitle>
       </CardHeader>
       <CardContent>
-        <p className="review-summary__connection">{copy.connected}</p>
+        <p className="review-summary__connection">{copy.checkStatus[checkStatus]}</p>
         <dl className="review-summary__stats">
           <div>
             <dt>{copy.selected(selectedCount)}</dt>

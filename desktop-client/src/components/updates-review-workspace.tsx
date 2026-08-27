@@ -12,7 +12,7 @@ import {
   getPreDistributionCheckResults
 } from "@/components/pre-distribution-check-summary"
 import { ReviewActionBar } from "@/components/review-action-bar"
-import { ReviewSummary } from "@/components/review-summary"
+import { ReviewSummary, type ReviewSummaryCheckStatus } from "@/components/review-summary"
 import {
   Badge,
   Button,
@@ -116,6 +116,35 @@ function getWriteTargetCount(
       return result?.contentComparison !== "installed"
     })
   ).length
+}
+
+function getReviewSummaryCheckStatus(
+  pendingUpdates: PendingSyncUpdate[],
+  snapshot: PreDistributionCheckSnapshot | null,
+  isStale: boolean
+): ReviewSummaryCheckStatus {
+  if (isStale) {
+    return "stale"
+  }
+
+  if (!snapshot) {
+    return "missing"
+  }
+
+  if (
+    snapshot.globalErrors.length > 0 ||
+    snapshot.targetAgentIds.length === 0 ||
+    pendingUpdates.some((pendingUpdate) =>
+      snapshot.targetAgentIds.some((agentId) => {
+        const result = snapshot.results[pendingUpdate.remoteSkillId]?.[agentId]
+        return result === undefined || result.contentComparison === "error"
+      })
+    )
+  ) {
+    return "error"
+  }
+
+  return "current"
 }
 
 function getLastCheckText(
@@ -251,6 +280,11 @@ export function UpdatesReviewWorkspace({
     precheckCopy.refreshNeeded,
     precheckCopy.lastChecked,
     locale
+  )
+  const checkStatus = getReviewSummaryCheckStatus(
+    pendingUpdates,
+    preDistributionCheckSnapshot,
+    isPreDistributionCheckStale
   )
   const hasGlobalErrors = (preDistributionCheckSnapshot?.globalErrors.length ?? 0) > 0
   const showActionBar = selectedUpdates.length > 0
@@ -451,6 +485,7 @@ export function UpdatesReviewWorkspace({
               blockedCount={blockedCount}
               writeTargetCount={writeTargetCount}
               lastCheckText={lastCheckText}
+              checkStatus={checkStatus}
             />
           </div>
         )}

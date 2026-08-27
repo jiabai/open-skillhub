@@ -127,7 +127,12 @@ export const enUSDictionary = {
   },
   reviewWorkspace: {
     steps: "Review workflow",
-    connected: "Target checks are current",
+    checkStatus: {
+      current: "Target checks are current",
+      stale: "Target checks are stale",
+      missing: "Target checks have not run",
+      error: "Target checks reported errors"
+    },
     selected: (count: number) => `${count} selected`,
     blocked: (count: number) =>
       `${count} item${count === 1 ? "" : "s"} blocked by target checks`,

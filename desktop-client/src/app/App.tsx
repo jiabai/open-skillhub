@@ -325,6 +325,10 @@ export function App() {
   }, [isPreDistributionCheckStale, pendingUpdateFingerprint, preDistributionCheckSnapshot])
 
   useEffect(() => {
+    setBatchResults(null)
+  }, [pendingUpdateFingerprint])
+
+  useEffect(() => {
     document.documentElement.lang = selectedLocale
   }, [selectedLocale])
 
@@ -952,6 +956,7 @@ export function App() {
       return
     }
 
+    setBatchResults(null)
     setSelectedUpdateIds((current) =>
       current.includes(remoteSkillId)
         ? current.filter((selectedId) => selectedId !== remoteSkillId)
@@ -964,6 +969,7 @@ export function App() {
       return
     }
 
+    setBatchResults(null)
     setSelectedUpdateIds(
       createDefaultBatchSelection(
         syncState.pendingUpdates,
@@ -978,6 +984,7 @@ export function App() {
       return
     }
 
+    setBatchResults(null)
     setSelectedUpdateIds([])
   }
 
@@ -1072,14 +1079,55 @@ export function App() {
       syncState.pendingUpdates.map((pendingUpdate) => [pendingUpdate.remoteSkillId, pendingUpdate])
     )
     const orderedUpdates = pendingUpdates
-      .map((pendingUpdate) => pendingUpdatesById.get(pendingUpdate.remoteSkillId) ?? pendingUpdate)
+      .map((pendingUpdate) => pendingUpdatesById.get(pendingUpdate.remoteSkillId))
       .filter((pendingUpdate): pendingUpdate is PendingSyncUpdate => pendingUpdate !== undefined)
     const remoteSkillIds = orderedUpdates.map((pendingUpdate) => pendingUpdate.remoteSkillId)
-    setPendingDistributionConfirmation(null)
-    setPendingDistributionConfirmationMode("single")
+
     if (remoteSkillIds.length === 0 || !bridgeAvailable) {
+      setPendingDistributionConfirmation(null)
+      setPendingDistributionConfirmationMode("single")
       return
     }
+
+    const hasCurrentPreDistributionCheck =
+      preDistributionCheckSnapshot !== null && !isPreDistributionCheckStale
+    const allConfirmedUpdatesAreCurrentAndEligible =
+      orderedUpdates.length === pendingUpdates.length &&
+      hasCurrentPreDistributionCheck &&
+      orderedUpdates.every(
+        (pendingUpdate) =>
+          getBatchEligibility(
+            pendingUpdate,
+            preDistributionCheckSnapshot,
+            isPreDistributionCheckStale
+          ) === "eligible"
+      )
+
+    if (!allConfirmedUpdatesAreCurrentAndEligible) {
+      const guardMessage = isPreDistributionCheckStale
+        ? dictionary.preDistributionCheck.stale
+        : preDistributionCheckSnapshot === null
+          ? dictionary.preDistributionCheck.refreshNeeded
+          : dictionary.reviewWorkspace.blockedReason
+
+      setPendingDistributionConfirmation(null)
+      setPendingDistributionConfirmationMode("single")
+      setErrorMessage(guardMessage)
+      setActivity((current) =>
+        [
+          createActivityEntry(
+            dictionary.preDistributionCheck.globalErrorsTitle,
+            guardMessage,
+            "warning"
+          ),
+          ...current
+        ].slice(0, 5)
+      )
+      return
+    }
+
+    setPendingDistributionConfirmation(null)
+    setPendingDistributionConfirmationMode("single")
 
     if (confirmationMode === "single") {
       await executeDistribution(orderedUpdates[0])

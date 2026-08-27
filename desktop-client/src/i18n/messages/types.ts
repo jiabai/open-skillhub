@@ -126,7 +126,12 @@ export interface AppDictionary {
   }
   reviewWorkspace: {
     steps: string
-    connected: string
+    checkStatus: {
+      current: string
+      stale: string
+      missing: string
+      error: string
+    }
     selected: (count: number) => string
     blocked: (count: number) => string
     writeTargets: (count: number) => string

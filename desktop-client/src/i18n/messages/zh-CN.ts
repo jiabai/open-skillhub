@@ -125,7 +125,12 @@ export const zhCNDictionary = {
   },
   reviewWorkspace: {
     steps: "审核流程",
-    connected: "目标检查结果是最新的",
+    checkStatus: {
+      current: "目标检查结果是最新的",
+      stale: "目标检查结果已过期",
+      missing: "尚未执行目标检查",
+      error: "目标检查报告了错误"
+    },
     selected: (count: number) => `已选择 ${count} 项`,
     blocked: (count: number) => `有 ${count} 项因目标检查被阻止`,
     writeTargets: (count: number) => `${count} 个写入目标`,

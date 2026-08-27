@@ -139,6 +139,40 @@ const defaultAgentDetection = {
   ]
 }
 
+function createReadyPreDistributionCheckSnapshot(
+  pendingUpdates: Array<{
+    remoteSkillId: string
+    remoteVersion: string
+    remoteContentHash?: string | null
+  }>
+) {
+  return {
+    results: Object.fromEntries(
+      pendingUpdates.map((pendingUpdate) => [
+        pendingUpdate.remoteSkillId,
+        {
+          codex: {
+            ...defaultAgentDetection.agentStatuses[0],
+            contentComparison: "not-installed" as const
+          }
+        }
+      ])
+    ),
+    checkedAt: "2026-04-17T00:00:01.000Z",
+    expiresAt: "2099-04-17T00:00:01.000Z",
+    pendingUpdateFingerprint: pendingUpdates
+      .map(
+        (pendingUpdate) =>
+          `${pendingUpdate.remoteSkillId}@${pendingUpdate.remoteVersion}@${pendingUpdate.remoteContentHash ?? ""}`
+      )
+      .sort()
+      .join("|"),
+    targetAgentIds: ["codex" as const],
+    totalDurationMs: 1,
+    globalErrors: []
+  }
+}
+
 const defaultLocalSkillsSnapshot = {
   checkedAt: "2026-05-02T00:00:00.000Z",
   rows: [
@@ -973,7 +1007,7 @@ describe("App", () => {
       expect(mockDesktopClient.refreshLocalSkills).toHaveBeenCalledTimes(1)
       expect(screen.getByRole("heading", { name: "Local Skills" })).toBeInTheDocument()
       expect(screen.getByText("local-only")).toBeInTheDocument()
-      expect(screen.getByText(/Codex/)).toBeInTheDocument()
+      expect(screen.getAllByText(/Codex/).length).toBeGreaterThan(0)
     })
 
     fireEvent.click(screen.getByRole("button", { name: "Upload" }))
@@ -1353,6 +1387,11 @@ describe("App", () => {
       expect(screen.getByText("Refresh check to read installed target content before distribution.")).toBeInTheDocument()
       expect(screen.queryByText("Codex: Installed")).not.toBeInTheDocument()
     })
+
+    fireEvent.click(screen.getByRole("button", { name: "Updates" }))
+    await waitFor(() => {
+      expect(screen.getByText("Target checks have not run")).toBeInTheDocument()
+    })
   })
 
   it("syncs the local record instead of distributing when every target already has the remote content", async () => {
@@ -1520,6 +1559,11 @@ describe("App", () => {
         lastRefreshedAt: "2026-04-17T00:00:05.000Z"
       })
 
+    mockDesktopClient.refreshPreDistributionCheck.mockResolvedValueOnce(
+      createReadyPreDistributionCheckSnapshot([
+        { remoteSkillId: "skill-a", remoteVersion: "1.0.0" }
+      ])
+    )
     mockDesktopClient.distributePendingUpdate.mockResolvedValue({
       skillId: "skill-a",
       name: "Skill A",
@@ -1547,7 +1591,7 @@ describe("App", () => {
     await waitFor(() => {
       expect(screen.getByRole("dialog", { name: "Confirm distribution" })).toBeInTheDocument()
       expect(screen.getByText("Will write to")).toBeInTheDocument()
-      expect(screen.getByText(/Codex/)).toBeInTheDocument()
+      expect(screen.getAllByText(/Codex/).length).toBeGreaterThan(0)
       expect(screen.getByText(/Claude Code/)).toBeInTheDocument()
       expect(screen.getByText("Missing assistants skipped")).toBeInTheDocument()
       expect(screen.getByText("Gemini CLI")).toBeInTheDocument()
@@ -1585,6 +1629,11 @@ describe("App", () => {
       successfulDistributionCount: 0,
       lastRefreshedAt: "2026-04-17T00:00:00.000Z"
     })
+    mockDesktopClient.refreshPreDistributionCheck.mockResolvedValueOnce(
+      createReadyPreDistributionCheckSnapshot([
+        { remoteSkillId: "skill-a", remoteVersion: "1.0.0" }
+      ])
+    )
 
     render(<App />)
 
@@ -1624,6 +1673,11 @@ describe("App", () => {
         lastRefreshedAt: "2026-04-17T00:00:00.000Z"
       })
       .mockRejectedValueOnce(new Error("refresh unavailable"))
+    mockDesktopClient.refreshPreDistributionCheck.mockResolvedValueOnce(
+      createReadyPreDistributionCheckSnapshot([
+        { remoteSkillId: "skill-a", remoteVersion: "1.0.0" }
+      ])
+    )
 
     mockDesktopClient.distributePendingUpdate.mockResolvedValue({
       skillId: "skill-a",
@@ -1687,6 +1741,11 @@ describe("App", () => {
         successfulDistributionCount: 0,
         lastRefreshedAt: "2026-04-17T00:00:05.000Z"
       })
+    mockDesktopClient.refreshPreDistributionCheck.mockResolvedValueOnce(
+      createReadyPreDistributionCheckSnapshot([
+        { remoteSkillId: "skill-a", remoteVersion: "1.0.0" }
+      ])
+    )
 
     mockDesktopClient.distributePendingUpdate.mockResolvedValue({
       skillId: "skill-a",
@@ -1819,8 +1878,13 @@ describe("App", () => {
     fireEvent.click(screen.getByRole("button", { name: "Clear selection" }))
     await waitFor(() => {
       expect(screen.queryByTestId("review-action-bar")).not.toBeInTheDocument()
+      expect(screen.queryByTestId("review-batch-status")).not.toBeInTheDocument()
     })
-    expect(screen.getByTestId("review-batch-status")).toHaveTextContent("Batch distribution completed")
+    fireEvent.click(screen.getByRole("checkbox", { name: "Select Skill A" }))
+    await waitFor(() => {
+      expect(screen.getByTestId("review-action-bar")).toHaveTextContent("1 selected")
+      expect(screen.getByTestId("review-action-bar")).not.toHaveTextContent("Batch distribution completed")
+    })
     expect(mockDesktopClient.distributePendingUpdate).toHaveBeenCalledTimes(2)
     expect(mockDesktopClient.refreshSync).toHaveBeenCalledTimes(2)
   })
@@ -1958,6 +2022,100 @@ describe("App", () => {
         )
       ).toBeInTheDocument()
     })
+  })
+
+  it.each([
+    {
+      label: "the pre-distribution check is missing",
+      snapshot: null
+    },
+    {
+      label: "the pre-distribution check is stale",
+      snapshot: {
+        results: {
+          "skill-a": {
+            codex: { ...defaultAgentDetection.agentStatuses[0], contentComparison: "not-installed" }
+          }
+        },
+        checkedAt: "2026-04-17T00:00:01.000Z",
+        expiresAt: "2020-04-17T00:00:01.000Z",
+        pendingUpdateFingerprint: "skill-a@1.0.0@hash-a",
+        targetAgentIds: ["codex"],
+        totalDurationMs: 1,
+        globalErrors: []
+      }
+    },
+    {
+      label: "the pre-distribution check fingerprint changed",
+      snapshot: {
+        results: {
+          "skill-a": {
+            codex: { ...defaultAgentDetection.agentStatuses[0], contentComparison: "not-installed" }
+          }
+        },
+        checkedAt: "2026-04-17T00:00:01.000Z",
+        expiresAt: "2099-04-17T00:00:01.000Z",
+        pendingUpdateFingerprint: "skill-a@1.0.0@hash-old",
+        targetAgentIds: ["codex"],
+        totalDurationMs: 1,
+        globalErrors: []
+      }
+    },
+    {
+      label: "a target check reports an error",
+      snapshot: {
+        results: {
+          "skill-a": {
+            codex: {
+              ...defaultAgentDetection.agentStatuses[0],
+              contentComparison: "error",
+              errorMessage: "Target path could not be read."
+            }
+          }
+        },
+        checkedAt: "2026-04-17T00:00:01.000Z",
+        expiresAt: "2099-04-17T00:00:01.000Z",
+        pendingUpdateFingerprint: "skill-a@1.0.0@hash-a",
+        targetAgentIds: ["codex"],
+        totalDurationMs: 1,
+        globalErrors: []
+      }
+    }
+  ])("does not distribute when $label", async ({ snapshot }) => {
+    mockDesktopClient.refreshSync.mockResolvedValueOnce({
+      ...emptySyncState,
+      pendingUpdates: [
+        {
+          remoteSkillId: "skill-a",
+          name: "Skill A",
+          localVersion: null,
+          localContentHash: null,
+          remoteVersion: "1.0.0",
+          remoteContentHash: "hash-a",
+          reason: "not-installed" as const
+        }
+      ]
+    })
+    mockDesktopClient.refreshPreDistributionCheck.mockResolvedValueOnce(
+      snapshot ?? {
+        results: {},
+        checkedAt: "2026-04-17T00:00:01.000Z",
+        expiresAt: "2099-04-17T00:00:01.000Z",
+        pendingUpdateFingerprint: "",
+        targetAgentIds: [],
+        totalDurationMs: 1,
+        globalErrors: []
+      }
+    )
+
+    render(<App />)
+
+    const distributeButton = await screen.findByRole("button", { name: "Distribute Skill A" })
+    fireEvent.click(distributeButton)
+    const dialog = await screen.findByRole("dialog", { name: "Confirm distribution" })
+    fireEvent.click(within(dialog).getByRole("button", { name: "Confirm distribution" }))
+
+    expect(mockDesktopClient.distributePendingUpdate).not.toHaveBeenCalled()
   })
 
   it("locks batch navigation while distribution is in progress", async () => {
@@ -2116,6 +2274,7 @@ describe("App", () => {
     expect(screen.getByRole("checkbox", { name: "Select Skill Blocked" })).toBeDisabled()
     expect(screen.getByText("1 item blocked by target checks")).toBeInTheDocument()
     expect(screen.getByText("Target path could not be read.")).toBeInTheDocument()
+    expect(screen.getByText("Target checks reported errors")).toBeInTheDocument()
     expect(screen.getByTestId("review-action-bar")).toHaveTextContent("1 selected")
     expect(screen.getByTestId("review-action-bar")).toHaveTextContent("1 write target")
     expect(screen.getByRole("button", { name: "Select all eligible updates" })).toBeInTheDocument()

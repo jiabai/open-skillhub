@@ -2,6 +2,7 @@
 
 ## In Progress
 
+- [ ] Responsive desktop review workspace (2026-08-27) ✅ Spec approved; plan-phase validation requires `python scripts/validate_agents_docs.py --level ERROR` and `git diff --check`; implementation is gated on review of `docs/exec-plans/active/2026-08-27-responsive-review-workspace.md`.
 - [ ] Desktop Windows packaging documentation and validation plan (2026-05-03) ✅ Docs phase requires `python scripts/validate_agents_docs.py --level ERROR` and `git diff --check`; future release phase requires Windows installer validation. See `docs/exec-plans/active/2026-05-03-desktop-windows-packaging.md`
 - [ ] macOS release packaging and runbook (2026-05-03) ✅ Cross-platform extraction is implemented and Windows-validated; initial macOS packaging intentionally keeps `forceCodeSigning: false` and `notarize: false` until a paid Developer ID release path is approved. See `docs/exec-plans/active/2026-05-03-macos-release-packaging.md`
 - [ ] Linux CLI packaged deployment (2026-05-14) ✅ `package:linux-cli`, installer scripts, tests, Windows-side package assembly validation, and non-encrypted sync ZIP cache naming are implemented; Linux target-machine install/upgrade/uninstall validation remains open. See `docs/exec-plans/active/2026-05-14-linux-cli-packaged-deployment.md`

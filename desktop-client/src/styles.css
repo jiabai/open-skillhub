@@ -336,6 +336,19 @@ select:focus-visible {
   gap: 1rem;
 }
 
+@media (min-width: 1440px) {
+  .home-layout {
+    grid-template-columns: minmax(0, 1.1fr) minmax(22rem, 0.9fr);
+    align-items: start;
+  }
+}
+
+@media (max-width: 1099px) {
+  .home-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
 .home-layout__primary,
 .home-layout__secondary {
   display: grid;

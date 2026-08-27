@@ -972,11 +972,12 @@ describe("App", () => {
       expect(screen.getByText("Skill C")).toBeInTheDocument()
     })
 
+    expect(screen.queryByRole("button", { name: "Distribute Skill A" })).not.toBeInTheDocument()
     expect(screen.queryByText("Skill D")).not.toBeInTheDocument()
     expect(screen.queryByRole("heading", { name: "Distribution targets" })).not.toBeInTheDocument()
     expect(screen.queryByRole("heading", { name: "Recent actions" })).not.toBeInTheDocument()
 
-    fireEvent.click(screen.getByRole("button", { name: "Updates" }))
+    fireEvent.click(screen.getByRole("button", { name: "View all updates" }))
 
     await waitFor(() => {
       expect(screen.getByRole("heading", { name: "All pending updates" })).toBeInTheDocument()
@@ -1483,15 +1484,16 @@ describe("App", () => {
     })
 
     render(<App />)
+    fireEvent.click(screen.getByRole("button", { name: "Updates" }))
 
     await waitFor(() => {
       expect(
-        screen.getByRole("button", { name: "Sync local record for Skill A" })
+        screen.getByRole("button", { name: "Sync record Skill A" })
       ).toBeInTheDocument()
       expect(screen.queryByRole("button", { name: "Distribute Skill A" })).not.toBeInTheDocument()
     })
 
-    fireEvent.click(screen.getByRole("button", { name: "Sync local record for Skill A" }))
+    fireEvent.click(screen.getByRole("button", { name: "Sync record Skill A" }))
 
     await waitFor(() => {
       expect(mockDesktopClient.reconcileInstalledSkill).toHaveBeenCalledWith("skill-a")
@@ -1604,6 +1606,7 @@ describe("App", () => {
     expect(screen.getByRole("heading", { name: "Review updates" })).toBeInTheDocument()
     expect(screen.getByRole("button", { name: "Home" })).toBeInTheDocument()
     expect(screen.getByRole("button", { name: "Updates" })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole("button", { name: "Updates" }))
 
     await waitFor(() => {
       expect(screen.getByText("Skill A")).toBeInTheDocument()
@@ -1655,11 +1658,12 @@ describe("App", () => {
     })
     mockDesktopClient.refreshPreDistributionCheck.mockResolvedValueOnce(
       createReadyPreDistributionCheckSnapshot([
-        { remoteSkillId: "skill-a", remoteVersion: "1.0.0" }
+        { remoteSkillId: "skill-a", remoteVersion: "1.0.0", remoteContentHash: "hash-new" }
       ])
     )
 
     render(<App />)
+    fireEvent.click(screen.getByRole("button", { name: "Updates" }))
 
     await waitFor(() => {
       expect(screen.getByRole("button", { name: "Distribute Skill A" })).toBeInTheDocument()
@@ -1715,6 +1719,7 @@ describe("App", () => {
     })
 
     render(<App />)
+    fireEvent.click(screen.getByRole("button", { name: "Updates" }))
 
     await waitFor(() => {
       expect(screen.getByRole("button", { name: "Distribute Skill A" })).toBeInTheDocument()
@@ -1786,6 +1791,7 @@ describe("App", () => {
     })
 
     render(<App />)
+    fireEvent.click(screen.getByRole("button", { name: "Updates" }))
 
     await waitFor(() => {
       expect(screen.getByRole("button", { name: "Distribute Skill A" })).toBeInTheDocument()
@@ -2133,12 +2139,12 @@ describe("App", () => {
     )
 
     render(<App />)
+    fireEvent.click(screen.getByRole("button", { name: "Updates" }))
 
-    const distributeButton = await screen.findByRole("button", { name: "Distribute Skill A" })
-    fireEvent.click(distributeButton)
-    const dialog = await screen.findByRole("dialog", { name: "Confirm distribution" })
-    fireEvent.click(within(dialog).getByRole("button", { name: "Confirm distribution" }))
-
+    await waitFor(() => {
+      expect(screen.getByText("Skill A")).toBeInTheDocument()
+      expect(screen.queryByRole("button", { name: "Distribute Skill A" })).not.toBeInTheDocument()
+    })
     expect(mockDesktopClient.distributePendingUpdate).not.toHaveBeenCalled()
   })
 

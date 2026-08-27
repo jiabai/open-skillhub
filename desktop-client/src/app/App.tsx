@@ -1764,9 +1764,6 @@ export function App() {
             preDistributionCheckSnapshot={preDistributionCheckSnapshot}
             isPreDistributionChecking={isPreDistributionChecking}
             isPreDistributionCheckStale={isPreDistributionCheckStale}
-            busyUpdateId={busyUpdateId}
-            onDistribute={requestDistributionConfirmation}
-            onReconcileInstalled={handleReconcileInstalled}
             onOpenSettings={handleOpenSettings}
             onViewUpdates={() => setActiveView("updates")}
           />

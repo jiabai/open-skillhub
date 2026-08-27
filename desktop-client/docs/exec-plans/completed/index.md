@@ -4,6 +4,7 @@
 
 | File | Outcome |
 |------|---------|
+| [2026-08-28-home-review-card-placement.md](2026-08-28-home-review-card-placement.md) | Home now places the review preview below the metrics on wide screens while preserving the existing right-rail width; medium and narrow layouts remain stacked |
 | [2026-08-27-responsive-review-workspace.md](2026-08-27-responsive-review-workspace.md) | Unified responsive Shell across Home, Updates, Local Skills, and Projects, with an Updates-only review action bar and renderer-only sequential multi-select distribution orchestration |
 | [2026-08-26-local-skill-group-path-picker.md](2026-08-26-local-skill-group-path-picker.md) | Local Skills grouped cards now open single paths directly and require explicit path selection before opening same-name groups with multiple local directories |
 | [local-skill-content-hash-compare.md](local-skill-content-hash-compare.md) | Local Skills inventory now falls back to backend-identical SHA-256 content-hash comparison when the semver comparison is not decisive, surfacing `update-available` for drifted local content (e.g. skills without a `version` field) |

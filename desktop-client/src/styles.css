@@ -1291,6 +1291,14 @@ select:focus-visible {
     align-items: start;
   }
 
+  .home-layout__primary {
+    grid-column: 1 / -1;
+  }
+
+  .home-layout__secondary {
+    grid-column: 2;
+  }
+
   .review-workspace__layout {
     grid-template-columns: minmax(0, 1fr) minmax(18rem, 19rem);
   }

@@ -445,6 +445,23 @@ describe("App", () => {
     expect(styles).toContain(".app-main:has(.review-action-bar)")
   })
 
+  it("places the Home review preview below metrics in the wide right rail", () => {
+    const styles = readFileSync("src/styles.css", "utf8")
+    const wideStart = styles.indexOf("@media (min-width: 1440px)")
+    const mediumStart = styles.indexOf("/* Medium workspace", wideStart)
+    const wideStyles = styles.slice(wideStart, mediumStart)
+    const homeStart = wideStyles.indexOf(".home-layout")
+    const reviewWorkspaceStart = wideStyles.indexOf(".review-workspace__layout", homeStart)
+    const homeStyles = wideStyles.slice(homeStart, reviewWorkspaceStart)
+
+    expect(homeStyles).toContain(".home-layout__primary")
+    expect(homeStyles).toContain("grid-column: 1 / -1")
+    expect(homeStyles).toContain(".home-layout__secondary")
+    expect(homeStyles).toContain("grid-column: 2")
+    expect(homeStyles).not.toContain("position: fixed")
+    expect(homeStyles).not.toContain("position: sticky")
+  })
+
   it("keeps landmarks unique and interactive controls out of interactive ancestors", async () => {
     render(<App />)
 

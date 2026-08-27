@@ -13,8 +13,8 @@
 ## Status
 
 - Product spec: approved by the user on 2026-08-28.
-- Implementation plan: Draft for Review.
-- Implementation: not started; production code must not change until this plan is approved.
+- Implementation plan: approved by the user on 2026-08-28.
+- Implementation: complete; the plan is archived with final documentation checks recorded below.
 - Canonical spec: desktop-client/docs/product-specs/2026-08-28-home-review-card-placement.md.
 
 ## Scope decomposition
@@ -39,7 +39,7 @@ expected.
 | desktop-client/task-tracker.md | Completion record for the user-visible Home layout adjustment. |
 | desktop-client/docs/exec-plans/active/index.md | Register the active plan during implementation. |
 | desktop-client/docs/exec-plans/completed/index.md | Register the archived plan after all gates pass. |
-| desktop-client/docs/exec-plans/active/2026-08-28-home-review-card-placement.md | Living implementation plan and validation evidence; move unchanged to completed/ at completion. |
+| desktop-client/docs/exec-plans/completed/2026-08-28-home-review-card-placement.md | Completed implementation plan and validation evidence. |
 
 ## Decisions locked by the approved spec
 
@@ -59,7 +59,7 @@ expected.
 
 - Modify: desktop-client/src/__tests__/app.test.tsx near the existing responsive CSS contract test.
 
-- [ ] **Step 1: Add a focused failing assertion**
+- [x] **Step 1: Add a focused failing assertion**
 
 Add a separate test that extracts the existing wide media block and asserts the
 approved grid contract:
@@ -80,7 +80,7 @@ it("places the Home review preview below metrics in the wide right rail", () => 
 })
 ~~~
 
-- [ ] **Step 2: Run the focused test and verify RED**
+- [x] **Step 2: Run the focused test and verify RED**
 
 Run:
 
@@ -97,7 +97,7 @@ container and does not assign grid columns to the Home children.
 
 - Modify: desktop-client/src/styles.css in the existing @media (min-width: 1440px) block after the .home-layout rule.
 
-- [ ] **Step 1: Add the approved placement rules**
+- [x] **Step 1: Add the approved placement rules**
 
 Keep the existing column definition and add only these declarations:
 
@@ -115,7 +115,7 @@ The first child occupies the full first row. The second child is auto-placed int
 column 2 on the next row, preserving the exact existing right-rail width without
 a new pixel-based width or an empty placeholder component.
 
-- [ ] **Step 2: Run the focused test and verify GREEN**
+- [x] **Step 2: Run the focused test and verify GREEN**
 
 Run:
 
@@ -125,7 +125,7 @@ cd desktop-client && npm test -- src/__tests__/app.test.tsx -t "places the Home 
 
 Expected: PASS.
 
-- [ ] **Step 3: Inspect the final CSS block**
+- [x] **Step 3: Inspect the final CSS block**
 
 Run:
 
@@ -142,7 +142,7 @@ and that no new breakpoint or fixed/sticky positioning was added.
 
 - No additional production files are expected.
 
-- [ ] **Step 1: Run the full renderer integration suite**
+- [x] **Step 1: Run the full renderer integration suite**
 
 Run:
 
@@ -153,7 +153,7 @@ cd desktop-client && npm test -- src/__tests__/app.test.tsx
 Expected: PASS, including Home empty/configuration/error states, the three-item
 preview limit, Home-to-Updates navigation, and existing Updates workflows.
 
-- [ ] **Step 2: Run all Desktop tests**
+- [x] **Step 2: Run all Desktop tests**
 
 Run:
 
@@ -163,7 +163,7 @@ cd desktop-client && npm test
 
 Expected: PASS for the complete Desktop test suite.
 
-- [ ] **Step 3: Run Electron typecheck and production build**
+- [x] **Step 3: Run Electron typecheck and production build**
 
 Run:
 
@@ -175,7 +175,7 @@ cd desktop-client && npm run build
 Expected: both commands exit 0; the build must complete renderer, Electron, and
 preload outputs without modifying tracked source files.
 
-- [ ] **Step 4: Run repository hard gates**
+- [x] **Step 4: Run repository hard gates**
 
 Run:
 
@@ -188,7 +188,7 @@ Expected: documentation validation reports 0 errors, and git diff --check report
 no whitespace errors. Any existing validator warnings should be recorded in the
 completion notes rather than silently ignored.
 
-- [ ] **Step 5: Perform visual breakpoint checks**
+- [x] **Step 5: Perform visual breakpoint checks**
 
 Inspect the Desktop Home in the existing renderer/browser test surface at:
 
@@ -210,7 +210,7 @@ not fixed or sticky and that the View all updates action remains available.
 - Move: desktop-client/docs/exec-plans/active/2026-08-28-home-review-card-placement.md to desktop-client/docs/exec-plans/completed/2026-08-28-home-review-card-placement.md.
 - Modify: desktop-client/docs/exec-plans/completed/index.md.
 
-- [ ] **Step 1: Record implementation and validation evidence in this plan**
+- [x] **Step 1: Record implementation and validation evidence in this plan**
 
 Before moving the file, update Status, Progress, and Validation Results with the
 exact commands and observed outcomes. Use this shape:
@@ -226,18 +226,18 @@ exact commands and observed outcomes. Use this shape:
 - git diff --check - PASS with no whitespace errors.
 ~~~
 
-- [ ] **Step 2: Update the local task tracker**
+- [x] **Step 2: Update the local task tracker**
 
 Add one completed item under ## Done describing that Home now places the review
 preview below metrics on wide screens while preserving the right-rail width, and
 link the completed plan.
 
-- [ ] **Step 3: Archive the plan and update both indexes**
+- [x] **Step 3: Archive the plan and update both indexes**
 
 Remove the active-plan entry and add a completed-plan entry using the repository's
 existing relative-link style. Do not leave a duplicate active copy.
 
-- [ ] **Step 4: Re-run documentation and diff gates after archiving**
+- [x] **Step 4: Re-run documentation and diff gates after archiving**
 
 Run:
 
@@ -247,6 +247,35 @@ git diff --check
 ~~~
 
 Expected: 0 documentation errors and no whitespace errors.
+
+The final post-archive run reported 0 documentation errors and 9 existing
+warnings; git diff --check reported no whitespace errors.
+
+## Progress
+
+- [x] 2026-08-28: Product spec approved and committed as 7480e3e.
+- [x] 2026-08-28: Implementation plan approved and committed as 15567c5.
+- [x] 2026-08-28: Added the failing wide Home placement contract test and observed the expected failure.
+- [x] 2026-08-28: Added the two approved wide-screen CSS grid placement rules.
+- [x] 2026-08-28: Verified 1600px, 1280px, and 900px renderer layouts; wide Home uses the right rail on the next row, narrower widths remain stacked, and compact body scroll width does not exceed the viewport.
+- [x] 2026-08-28: Updated the Desktop task tracker and archived this plan in the completed-plan index.
+
+## Validation Results
+
+- `npm.cmd test -- src/__tests__/app.test.tsx -t "places the Home review preview below metrics"` - PASS after the CSS implementation; the preceding run against the unmodified CSS failed at the missing `.home-layout__primary` rule as expected.
+- `npm.cmd test -- src/__tests__/app.test.tsx` - PASS, 48 tests.
+- `npm.cmd test` - PASS, 38 test files and 228 tests.
+- `npm.cmd run typecheck:electron` - PASS.
+- `npm.cmd run build` - PASS, including renderer, Electron, and preload builds.
+- Renderer visual check - PASS at 1600px, 1280px, and 900px. At 1600px, primary bounds were 1320px wide and the secondary review region was 586.8px wide in the second row with `position: static`; at 1280px and 900px the regions were stacked. At 900px, body scroll width was 885px against a 900px viewport.
+- `python scripts/validate_agents_docs.py --level ERROR` - PASS with 0 errors and 9 pre-existing warnings before final archival updates.
+- `git diff --check` - PASS with no whitespace errors; Git reported expected LF-to-CRLF working-copy warnings.
+
+## Outcome
+
+Home now keeps its existing wide-screen two-column geometry while placing the
+review preview below the full-width metrics region in the existing right rail.
+No production API, IPC, persistence, or other page behavior changed.
 
 ## Spec coverage
 

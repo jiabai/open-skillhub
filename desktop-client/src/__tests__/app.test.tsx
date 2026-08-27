@@ -386,6 +386,35 @@ const multiPathLocalSkillsSnapshot = {
   ]
 }
 
+const detailLocalSkillRow = {
+  ...defaultLocalSkillsSnapshot.rows[0],
+  rowKey: "row-frontend-design",
+  name: "frontend-design",
+  localVersion: "1.2.0",
+  packageRootPath: "D:\\skills\\frontend-design",
+  remoteSkillId: "frontend-design-id",
+  remoteVersion: "1.0.0",
+  serverState: "update-available" as const,
+  uploadable: true
+}
+
+const detailLocalSkillsSnapshot = {
+  ...defaultLocalSkillsSnapshot,
+  rows: [detailLocalSkillRow],
+  groupedRows: [
+    {
+      groupKey: "group-frontend-design",
+      name: "frontend-design",
+      items: [detailLocalSkillRow],
+      primary: detailLocalSkillRow,
+      sourceDisplayNames: ["Codex"],
+      pathCount: 1,
+      uploadable: true,
+      hasVersionConflict: false
+    }
+  ]
+}
+
 async function openLocalSkillsView() {
   render(<App />)
 
@@ -1044,6 +1073,42 @@ describe("App", () => {
     })
   })
 
+  it("shows contextual details for an inspected Local Skill group", async () => {
+    mockDesktopClient.refreshLocalSkills.mockResolvedValueOnce(detailLocalSkillsSnapshot)
+
+    await openLocalSkillsView()
+
+    fireEvent.click(await screen.findByRole("button", { name: "Inspect frontend-design" }))
+    expect(mockDesktopClient.openLocalSkillFolder).not.toHaveBeenCalled()
+
+    const detail = screen.getByRole("complementary", { name: "frontend-design details" })
+    expect(within(detail).getByRole("heading", { name: "frontend-design" })).toBeInTheDocument()
+    expect(within(detail).getByText("D:\\skills\\frontend-design")).toBeInTheDocument()
+    expect(within(detail).getByText(/Codex/)).toBeInTheDocument()
+    expect(within(detail).getAllByText("Local 1.2.0")).not.toHaveLength(0)
+    expect(within(detail).getByText("Remote 1.0.0")).toBeInTheDocument()
+    expect(within(detail).getByText("Update available on server")).toBeInTheDocument()
+    expect(within(detail).getByRole("button", { name: "Upload" })).toBeInTheDocument()
+    expect(within(detail).getByRole("button", { name: "Open Folder" })).toBeInTheDocument()
+    expect(within(detail).getByRole("button", { name: "Delete" })).toBeInTheDocument()
+
+    fireEvent.click(within(detail).getByRole("button", { name: "Open Folder" }))
+    await waitFor(() => {
+      expect(mockDesktopClient.openLocalSkillFolder).toHaveBeenCalledWith({ rowKey: detailLocalSkillRow.rowKey })
+    })
+  })
+
+  it.each(["Enter", " "]) ("selects the same Local Skill group with %s on Inspect", async (key) => {
+    mockDesktopClient.refreshLocalSkills.mockResolvedValueOnce(detailLocalSkillsSnapshot)
+
+    await openLocalSkillsView()
+
+    const inspect = await screen.findByRole("button", { name: "Inspect frontend-design" })
+    fireEvent.keyDown(inspect, { key })
+
+    expect(screen.getByRole("complementary", { name: "frontend-design details" })).toBeInTheDocument()
+  })
+
   it("opens a multi-path group dialog without opening a folder before confirmation", async () => {
     mockDesktopClient.refreshLocalSkills.mockResolvedValueOnce(multiPathLocalSkillsSnapshot)
 
@@ -1051,7 +1116,7 @@ describe("App", () => {
 
     const groupCard = screen.getByRole("heading", { name: "vibe-coding-launcher" }).closest("article")
     expect(groupCard).not.toBeNull()
-    fireEvent.click(groupCard!)
+    fireEvent.click(within(groupCard!).getByRole("button", { name: "Open Folder" }))
 
     const dialog = await screen.findByRole("dialog", { name: "Choose local path" })
     expect(dialog).toHaveTextContent(multiPathPrimaryRow.packageRootPath)
@@ -1068,7 +1133,7 @@ describe("App", () => {
 
     const groupCard = screen.getByRole("heading", { name: "vibe-coding-launcher" }).closest("article")
     expect(groupCard).not.toBeNull()
-    fireEvent.click(groupCard!)
+    fireEvent.click(within(groupCard!).getByRole("button", { name: "Open Folder" }))
     await screen.findByRole("dialog", { name: "Choose local path" })
 
     fireEvent.click(screen.getAllByRole("radio")[1])
@@ -1089,7 +1154,7 @@ describe("App", () => {
 
     const groupCard = screen.getByRole("heading", { name: "vibe-coding-launcher" }).closest("article")
     expect(groupCard).not.toBeNull()
-    fireEvent.click(groupCard!)
+    fireEvent.click(within(groupCard!).getByRole("button", { name: "Open Folder" }))
     await screen.findByRole("dialog", { name: "Choose local path" })
 
     fireEvent.click(screen.getByRole("button", { name: "Cancel" }))
@@ -1103,7 +1168,7 @@ describe("App", () => {
 
     const groupCard = screen.getByRole("heading", { name: "local-only" }).closest("article")
     expect(groupCard).not.toBeNull()
-    fireEvent.click(groupCard!)
+    fireEvent.click(within(groupCard!).getByRole("button", { name: "Open Folder" }))
 
     await waitFor(() => {
       expect(mockDesktopClient.openLocalSkillFolder).toHaveBeenCalledWith({ rowKey: "row-local-only" })

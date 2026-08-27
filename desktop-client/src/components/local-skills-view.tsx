@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react"
+import { useMemo, useState, type KeyboardEvent } from "react"
 import { Badge, Button, Card, CardContent, CardDescription, CardHeader, CardTitle, Dialog, Input, PageIntro } from "@/components/ui-primitives"
 import { useI18n } from "@/i18n/use-i18n"
 import type { LocalSkillGroupRow, LocalSkillInventoryRow, LocalSkillsInventorySnapshot } from "@/types"
@@ -89,6 +89,7 @@ export function LocalSkillsView({
   const [confirmText, setConfirmText] = useState<string>("")
   const [pendingOpenGroup, setPendingOpenGroup] = useState<LocalSkillGroupRow | null>(null)
   const [selectedOpenRowKey, setSelectedOpenRowKey] = useState<string | null>(null)
+  const [selectedGroupKey, setSelectedGroupKey] = useState<string | null>(null)
 
   const groupedRows = useMemo(() => {
     if (!snapshot) return []
@@ -106,6 +107,11 @@ export function LocalSkillsView({
       hasVersionConflict: false
     }))
   }, [snapshot])
+
+  const selectedGroup = useMemo(
+    () => groupedRows.find((group) => group.groupKey === selectedGroupKey) ?? null,
+    [groupedRows, selectedGroupKey]
+  )
 
   const handleConfirmDelete = () => {
     if (!pendingDeleteGroup) return
@@ -131,6 +137,34 @@ export function LocalSkillsView({
 
     onOpenFolder(selectedRow)
     handleCloseOpenPathDialog()
+  }
+
+  const handleGroupUpload = (group: LocalSkillGroupRow) => {
+    if (group.primary.uploadable) {
+      onUpload(group.primary)
+    }
+  }
+
+  const handleGroupDelete = (group: LocalSkillGroupRow) => {
+    setPendingDeleteGroup(group)
+    setConfirmText("")
+  }
+
+  const handleGroupOpen = (group: LocalSkillGroupRow) => {
+    if (group.pathCount <= 1) {
+      onOpenFolder(group.primary)
+      return
+    }
+
+    setPendingOpenGroup(group)
+    setSelectedOpenRowKey(group.items[0]?.rowKey ?? null)
+  }
+
+  const handleInspectKeyDown = (group: LocalSkillGroupRow, event: KeyboardEvent<HTMLButtonElement>) => {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault()
+      setSelectedGroupKey(group.groupKey)
+    }
   }
 
   return (
@@ -166,115 +200,190 @@ export function LocalSkillsView({
         </div>
       ) : null}
 
-      <Card aria-labelledby="local-skills-heading">
-        <CardHeader>
-          <CardTitle id="local-skills-list-heading">{dictionary.updatesView.inventoryTitle}</CardTitle>
-          <CardDescription>
-            {snapshot ? `${groupedRows.length} local skill${groupedRows.length === 1 ? "" : "s"}` : copy.noSnapshot}
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {isRefreshing && !snapshot ? <div className="callout">{copy.loading}</div> : null}
-          {!isRefreshing && !snapshot ? <div className="callout">{copy.noSnapshot}</div> : null}
-          {snapshot && groupedRows.length === 0 ? <div className="callout">{copy.empty}</div> : null}
+      <div className="local-skills-layout">
+        <Card aria-labelledby="local-skills-list-heading">
+          <CardHeader>
+            <CardTitle id="local-skills-list-heading">{dictionary.updatesView.inventoryTitle}</CardTitle>
+            <CardDescription>
+              {snapshot ? `${groupedRows.length} local skill${groupedRows.length === 1 ? "" : "s"}` : copy.noSnapshot}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {isRefreshing && !snapshot ? <div className="callout">{copy.loading}</div> : null}
+            {!isRefreshing && !snapshot ? <div className="callout">{copy.noSnapshot}</div> : null}
+            {snapshot && groupedRows.length === 0 ? <div className="callout">{copy.empty}</div> : null}
 
-          {snapshot && groupedRows.length > 0 ? (
-            <div className="stack-list">
-              {groupedRows.map((group) => {
-                const name = groupDisplayName(group)
-                const isBusy = isGroupBusy(group, uploadingRowKey, deletingRowKey)
-                const isUploading = uploadingRowKey !== null && group.items.some((r) => r.rowKey === uploadingRowKey)
-                const isDeleting = deletingRowKey !== null && group.items.some((r) => r.rowKey === deletingRowKey)
+            {snapshot && groupedRows.length > 0 ? (
+              <div className="stack-list">
+                {groupedRows.map((group) => {
+                  const name = groupDisplayName(group)
+                  const isSelected = selectedGroupKey === group.groupKey
+                  const isBusy = isGroupBusy(group, uploadingRowKey, deletingRowKey)
+                  const isUploading = uploadingRowKey !== null && group.items.some((r) => r.rowKey === uploadingRowKey)
+                  const isDeleting = deletingRowKey !== null && group.items.some((r) => r.rowKey === deletingRowKey)
 
-                const handleGroupUpload = () => {
-                  const primary = group.primary
-                  if (primary.uploadable) {
-                    onUpload(primary)
-                  }
-                }
-
-                const handleGroupDelete = () => {
-                  setPendingDeleteGroup(group)
-                  setConfirmText("")
-                }
-
-                const handleGroupOpen = () => {
-                  if (group.pathCount <= 1) {
-                    onOpenFolder(group.primary)
-                    return
-                  }
-
-                  setPendingOpenGroup(group)
-                  setSelectedOpenRowKey(group.items[0]?.rowKey ?? null)
-                }
-
-                return (
-                  <article
-                    className="update-item"
-                    key={group.groupKey}
-                    role="button"
-                    tabIndex={0}
-                    style={{ cursor: "pointer" }}
-                    onClick={handleGroupOpen}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" || e.key === " ") {
-                        e.preventDefault()
-                        handleGroupOpen()
-                      }
-                    }}
-                  >
-                    <div className="update-item__header">
-                      <div>
-                        <h3>{name}</h3>
-                        <div style={{ marginTop: "0.25rem" }}>
-                          <span className="muted mono" style={{ fontSize: "0.75rem" }}>
-                            {copy.localPath(group.items.map((item) => item.packageRootPath).join(", "))}
+                  return (
+                    <article
+                      className={`update-item local-skill-item${isSelected ? " local-skill-item--selected" : ""}`}
+                      key={group.groupKey}
+                      aria-current={isSelected ? "true" : undefined}
+                    >
+                      <div className="update-item__header">
+                        <div>
+                          <h3>{name}</h3>
+                          <div style={{ marginTop: "0.25rem" }}>
+                            <span className="muted mono" style={{ fontSize: "0.75rem" }}>
+                              {copy.localPath(group.items.map((item) => item.packageRootPath).join(", "))}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="update-item__actions">
+                          <Badge tone={badgeToneForGroup(group)}>
+                            {serverStateLabel(group.primary, copy.serverStateLabels)}
+                          </Badge>
+                          {group.pathCount > 1 ? (
+                            <Badge tone="neutral">{copy.pathCount(group.pathCount)}</Badge>
+                          ) : null}
+                          <span className="local-skill-item__actions">
+                            <Button
+                              size="sm"
+                              variant={isSelected ? "primary" : "outline"}
+                              aria-pressed={isSelected}
+                              onClick={() => setSelectedGroupKey(group.groupKey)}
+                              onKeyDown={(event) => handleInspectKeyDown(group, event)}
+                            >
+                              {copy.inspect(name)}
+                            </Button>
+                            <Button size="sm" variant="secondary" disabled={isBusy} onClick={() => handleGroupOpen(group)}>
+                              {copy.openFolder}
+                            </Button>
+                            {group.uploadable ? (
+                              <Button size="sm" disabled={isBusy} onClick={() => handleGroupUpload(group)}>
+                                {isUploading ? copy.uploading : copy.upload}
+                              </Button>
+                            ) : null}
+                            <Button
+                              size="sm"
+                              variant="secondary"
+                              disabled={isBusy || pendingDeleteGroup !== null}
+                              onClick={() => handleGroupDelete(group)}
+                            >
+                              {isDeleting ? copy.deleting : copy.delete}
+                            </Button>
                           </span>
                         </div>
                       </div>
-                      <div className="update-item__actions">
-                        <Badge tone={badgeToneForGroup(group)}>
-                          {serverStateLabel(group.primary, copy.serverStateLabels)}
-                        </Badge>
-                        {group.pathCount > 1 ? (
-                          <Badge tone="neutral">{copy.pathCount(group.pathCount)}</Badge>
+                      <div className="update-item__meta">
+                        <span>{copy.sourceAgents(group.sourceDisplayNames.join(", "))}</span>
+                        <span>{copy.localVersion(versionLabel(group, dictionary.common.nA))}</span>
+                        {group.primary.remoteVersion ? <span>{copy.remoteVersion(group.primary.remoteVersion)}</span> : null}
+                        {group.primary.remoteSkillId ? <span className="mono">{copy.remoteId(group.primary.remoteSkillId)}</span> : null}
+                        {group.hasVersionConflict ? (
+                          <span style={{ color: "var(--osh-warning)" }}>{copy.versionConflict}</span>
                         ) : null}
-                        <span style={{ display: "flex", gap: "0.45rem" }}>
-                          {group.uploadable ? (
-                            <Button size="sm" disabled={isBusy} onClick={(e) => { e.stopPropagation(); handleGroupUpload() }}>
-                              {isUploading ? copy.uploading : copy.upload}
-                            </Button>
-                          ) : null}
-                          <Button
-                            size="sm"
-                            variant="secondary"
-                            disabled={isBusy || pendingDeleteGroup !== null}
-                            onClick={(e) => { e.stopPropagation(); handleGroupDelete() }}
-                          >
-                            {isDeleting ? copy.deleting : copy.delete}
-                          </Button>
-                        </span>
+                        {group.items.find((r) => r.validationMessage)?.validationMessage ? (
+                          <span>{copy.validationReason(group.items.find((r) => r.validationMessage)!.validationMessage!)}</span>
+                        ) : null}
                       </div>
-                    </div>
-                    <div className="update-item__meta">
-                      <span>{copy.sourceAgents(group.sourceDisplayNames.join(", "))}</span>
-                      <span>{copy.localVersion(versionLabel(group, dictionary.common.nA))}</span>
-                      {group.primary.remoteVersion ? <span>{copy.remoteVersion(group.primary.remoteVersion)}</span> : null}
-                      {group.primary.remoteSkillId ? <span className="mono">{copy.remoteId(group.primary.remoteSkillId)}</span> : null}
-                      {group.hasVersionConflict ? (
-                        <span style={{ color: "var(--warning)" }}>{copy.versionConflict ?? "Version mismatch across paths"}</span>
-                      ) : null}
-                      {group.items.find((r) => r.validationMessage)?.validationMessage ? (
-                        <span>{copy.validationReason(group.items.find((r) => r.validationMessage)!.validationMessage!)}</span>
-                      ) : null}
-                    </div>
-                  </article>
-                )
-              })}
-            </div>
-          ) : null}
-        </CardContent>
-      </Card>
+                    </article>
+                  )
+                })}
+              </div>
+            ) : null}
+          </CardContent>
+        </Card>
+
+        {selectedGroup ? (
+          <Card
+            as="aside"
+            className="local-skills-detail"
+            aria-label={copy.detailLabel(selectedGroup.name)}
+          >
+            <CardHeader>
+              <CardTitle>{selectedGroup.name}</CardTitle>
+              <CardDescription>
+                {copy.paths}: {copy.pathCount(selectedGroup.pathCount)}
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="local-skills-detail__content">
+              <dl className="local-skills-detail__facts">
+                <div>
+                  <dt>{copy.localVersionLabel}</dt>
+                  <dd>{copy.localVersion(versionLabel(selectedGroup, dictionary.common.nA))}</dd>
+                </div>
+                <div>
+                  <dt>{copy.remoteVersionLabel}</dt>
+                  <dd>{copy.remoteVersion(selectedGroup.primary.remoteVersion ?? dictionary.common.nA)}</dd>
+                </div>
+                <div>
+                  <dt>{copy.serverStateLabel}</dt>
+                  <dd>
+                    <Badge tone={badgeToneForGroup(selectedGroup)}>
+                      {serverStateLabel(selectedGroup.primary, copy.serverStateLabels)}
+                    </Badge>
+                  </dd>
+                </div>
+                <div>
+                  <dt>{copy.validationState(selectedGroup.primary.validationState)}</dt>
+                  <dd>
+                    {selectedGroup.primary.validationMessage
+                      ? copy.validationReason(selectedGroup.primary.validationMessage)
+                      : dictionary.common.nA}
+                  </dd>
+                </div>
+              </dl>
+
+              <div className="local-skills-detail__section">
+                <h3>{copy.paths}</h3>
+                <ul className="local-skills-detail__path-list">
+                  {selectedGroup.items.map((item) => (
+                    <li key={item.rowKey}>
+                      <code>{item.packageRootPath}</code>
+                      <span>{copy.usedBy(item.sourceDisplayNames.join(", ") || dictionary.common.nA)}</span>
+                      <span>{copy.localVersion(item.localVersion ?? dictionary.common.nA)}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+
+              {selectedGroup.hasVersionConflict ? (
+                <div className="callout callout--warning" role="alert">
+                  {copy.versionConflict}
+                </div>
+              ) : null}
+
+              <div className="local-skills-detail__actions">
+                <Button
+                  variant="secondary"
+                  disabled={isGroupBusy(selectedGroup, uploadingRowKey, deletingRowKey)}
+                  onClick={() => handleGroupOpen(selectedGroup)}
+                >
+                  {copy.openFolder}
+                </Button>
+                {selectedGroup.uploadable ? (
+                  <Button
+                    disabled={isGroupBusy(selectedGroup, uploadingRowKey, deletingRowKey)}
+                    onClick={() => handleGroupUpload(selectedGroup)}
+                  >
+                    {uploadingRowKey !== null && selectedGroup.items.some((item) => item.rowKey === uploadingRowKey)
+                      ? copy.uploading
+                      : copy.upload}
+                  </Button>
+                ) : null}
+                <Button
+                  variant="secondary"
+                  disabled={isGroupBusy(selectedGroup, uploadingRowKey, deletingRowKey) || pendingDeleteGroup !== null}
+                  onClick={() => handleGroupDelete(selectedGroup)}
+                >
+                  {deletingRowKey !== null && selectedGroup.items.some((item) => item.rowKey === deletingRowKey)
+                    ? copy.deleting
+                    : copy.delete}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        ) : null}
+      </div>
 
       {pendingDeleteGroup ? (
         <Dialog

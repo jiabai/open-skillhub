@@ -171,6 +171,14 @@ export interface AppDictionary {
     delete: string
     deleting: string
     openFolder: string
+    inspect: (name: string) => string
+    detailLabel: (name: string) => string
+    paths: string
+    usedBy: (value: string) => string
+    localVersionLabel: string
+    remoteVersionLabel: string
+    serverStateLabel: string
+    validationState: (value: string) => string
     openPathDialogTitle: string
     openPathDialogDescription: (name: string, count: number) => string
     openPathDialogPathLabel: (path: string) => string

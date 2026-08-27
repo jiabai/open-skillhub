@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs"
+
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
@@ -430,6 +432,37 @@ async function openLocalSkillsView() {
 }
 
 describe("App", () => {
+  it("keeps responsive layout rules consolidated around the three supported bands", () => {
+    const styles = readFileSync("src/styles.css", "utf8")
+
+    expect(styles.match(/@media \(min-width: 1440px\)/g)).toHaveLength(1)
+    expect(styles.match(/@media \(min-width: 1100px\) and \(max-width: 1439px\)/g)).toHaveLength(1)
+    expect(styles.match(/@media \(max-width: 1099px\)/g)).toHaveLength(1)
+    expect(styles).not.toContain("@media (max-width: 820px)")
+    expect(styles).not.toContain("@media (max-width: 1100px)")
+    expect(styles).not.toContain("@media (min-width: 1100px) {")
+    expect(styles).toContain("@media (prefers-reduced-motion: reduce)")
+    expect(styles).toContain(".app-main:has(.review-action-bar)")
+  })
+
+  it("keeps landmarks unique and interactive controls out of interactive ancestors", async () => {
+    render(<App />)
+
+    await waitFor(() => {
+      expect(screen.getByRole("heading", { name: "Needs review" })).toBeInTheDocument()
+    })
+
+    expect(screen.getAllByRole("main")).toHaveLength(1)
+    expect(screen.getAllByRole("navigation", { name: "SkillDrive Desktop" })).toHaveLength(1)
+
+    const interactiveAncestors = "button, a, [role='button'], [role='link']"
+    for (const control of document.querySelectorAll(
+      "button, a, input, select, textarea, [role='button'], [role='link'], [role='checkbox'], [role='radio']"
+    )) {
+      expect(control.parentElement?.closest(interactiveAncestors)).toBeNull()
+    }
+  })
+
   it("renders the shared sidebar shell with one navigation landmark and an active page", async () => {
     render(<App />)
 
@@ -2284,7 +2317,9 @@ describe("App", () => {
       expect(screen.getByRole("button", { name: "Distribute selected updates" })).toBeDisabled()
       expect(screen.getByRole("button", { name: "Refresh Check" })).toBeDisabled()
       expect(screen.getByRole("button", { name: "Distribute Skill A" })).toBeDisabled()
-      expect(screen.getByText("Distributing 1 of 1 updates")).toBeInTheDocument()
+      expect(within(screen.getByTestId("review-action-bar")).getByRole("status")).toHaveTextContent(
+        "Distributing 1 of 1 updates"
+      )
     })
 
     resolveDistribution?.({
@@ -2392,6 +2427,13 @@ describe("App", () => {
     expect(screen.getByRole("button", { name: "Clear selection" })).toBeInTheDocument()
     expect(screen.getByText("Skill Installed")).toBeInTheDocument()
     expect(screen.getByRole("button", { name: "Sync record Skill Installed" })).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole("button", { name: "Home" }))
+    await waitFor(() => {
+      expect(screen.getByRole("heading", { name: "Needs review" })).toBeInTheDocument()
+      expect(screen.queryByTestId("review-action-bar")).not.toBeInTheDocument()
+    })
+    expect(screen.getByRole("button", { name: "Home" })).toHaveAttribute("aria-current", "page")
   })
 
   describe("Local Skills delete confirmation", () => {

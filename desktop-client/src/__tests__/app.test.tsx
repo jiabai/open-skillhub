@@ -1959,42 +1959,21 @@ describe("App", () => {
           remoteVersion: "1.0.0",
           remoteContentHash: "hash-a",
           reason: "not-installed" as const
-        },
-        {
-          remoteSkillId: "skill-b",
-          name: "Skill B",
-          localVersion: null,
-          localContentHash: null,
-          remoteVersion: "1.0.0",
-          remoteContentHash: "hash-b",
-          reason: "not-installed" as const
         }
       ]
     })
     mockDesktopClient.refreshPreDistributionCheck.mockResolvedValueOnce({
       results: {
-        "skill-a": { codex: { ...defaultAgentDetection.agentStatuses[0], contentComparison: "not-installed" } },
-        "skill-b": { codex: { ...defaultAgentDetection.agentStatuses[0], contentComparison: "not-installed" } }
+        "skill-a": { codex: { ...defaultAgentDetection.agentStatuses[0], contentComparison: "not-installed" } }
       },
       checkedAt: "2026-04-17T00:00:01.000Z",
       expiresAt: "2099-04-17T00:00:01.000Z",
-      pendingUpdateFingerprint: "skill-a@1.0.0@hash-a|skill-b@1.0.0@hash-b",
+      pendingUpdateFingerprint: "skill-a@1.0.0@hash-a",
       targetAgentIds: ["codex"],
       totalDurationMs: 1,
       globalErrors: []
     })
-    mockDesktopClient.distributePendingUpdate
-      .mockReturnValueOnce(distribution)
-      .mockResolvedValueOnce({
-        skillId: "skill-b",
-        name: "Skill B",
-        version: "1.0.0",
-        extractedPath: null,
-        targets: [],
-        succeededAgentIds: ["codex"],
-        failedAgentIds: [],
-        syncedToLocalState: true
-      })
+    mockDesktopClient.distributePendingUpdate.mockReturnValueOnce(distribution)
 
     render(<App />)
     fireEvent.click(screen.getByRole("button", { name: "Updates" }))
@@ -2013,7 +1992,7 @@ describe("App", () => {
       expect(screen.getByRole("button", { name: "Updates" })).toBeDisabled()
       expect(screen.getByRole("button", { name: "Refresh" })).toBeDisabled()
       expect(screen.getByRole("button", { name: "Settings" })).toBeEnabled()
-      expect(screen.getByText("Distributing 1 of 2 updates")).toBeInTheDocument()
+      expect(screen.getByText("Distributing 1 of 1 updates")).toBeInTheDocument()
     })
 
     fireEvent.click(screen.getByRole("button", { name: "Settings" }))

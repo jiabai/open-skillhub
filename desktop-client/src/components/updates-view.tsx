@@ -9,6 +9,7 @@ import { useI18n } from "@/i18n/use-i18n"
 
 type UpdatesViewProps = {
   busyUpdateId: string | null
+  isBatchRunning: boolean
   isLoading: boolean
   isPreDistributionChecking: boolean
   isPreDistributionCheckStale: boolean
@@ -22,6 +23,7 @@ type UpdatesViewProps = {
 
 export function UpdatesView({
   busyUpdateId,
+  isBatchRunning,
   isLoading,
   isPreDistributionChecking,
   isPreDistributionCheckStale,
@@ -44,6 +46,7 @@ export function UpdatesView({
       <BatchDistributionControls {...batchControls} />
       <PendingUpdatesPanel
         isLoading={isLoading}
+        isBatchRunning={isBatchRunning}
         isPreDistributionChecking={isPreDistributionChecking}
         isPreDistributionCheckStale={isPreDistributionCheckStale}
         pendingUpdates={pendingUpdates}

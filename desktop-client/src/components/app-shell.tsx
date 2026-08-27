@@ -74,7 +74,12 @@ export function AppShell({
                 theme={theme}
                 onToggleTheme={onToggleTheme}
               />
-              <Button variant="outline" size="sm" onClick={onOpenSettings}>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={navigationLocked}
+                onClick={onOpenSettings}
+              >
                 {dictionary.common.settings}
               </Button>
             </div>

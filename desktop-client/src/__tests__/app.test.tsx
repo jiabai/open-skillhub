@@ -1930,6 +1930,10 @@ describe("App", () => {
     fireEvent.click(screen.getByRole("button", { name: "Distribute selected updates" }))
     const dialog = await screen.findByRole("dialog", { name: "Confirm distribution" })
     fireEvent.click(within(dialog).getByRole("button", { name: "Confirm distribution" }))
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Settings" })).toBeEnabled()
+    })
     fireEvent.click(screen.getByRole("button", { name: "Settings" }))
 
     await waitFor(() => {
@@ -1991,12 +1995,15 @@ describe("App", () => {
     await waitFor(() => {
       expect(screen.getByRole("button", { name: "Updates" })).toBeDisabled()
       expect(screen.getByRole("button", { name: "Refresh" })).toBeDisabled()
-      expect(screen.getByRole("button", { name: "Settings" })).toBeEnabled()
+      expect(screen.getByRole("button", { name: "Settings" })).toBeDisabled()
+      expect(screen.getByRole("checkbox", { name: "Select Skill A" })).toBeDisabled()
+      expect(screen.getByRole("button", { name: "Select all eligible updates" })).toBeDisabled()
+      expect(screen.getByRole("button", { name: "Clear selection" })).toBeDisabled()
+      expect(screen.getByRole("button", { name: "Distribute selected updates" })).toBeDisabled()
+      expect(screen.getByRole("button", { name: "Refresh Check" })).toBeDisabled()
+      expect(screen.getByRole("button", { name: "Distribute Skill A" })).toBeDisabled()
       expect(screen.getByText("Distributing 1 of 1 updates")).toBeInTheDocument()
     })
-
-    fireEvent.click(screen.getByRole("button", { name: "Settings" }))
-    expect(screen.getByRole("dialog", { name: "Desktop settings" })).toBeInTheDocument()
 
     resolveDistribution?.({
       skillId: "skill-a",

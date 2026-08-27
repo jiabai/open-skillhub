@@ -12,6 +12,7 @@ type PendingUpdatesPanelProps = {
   preDistributionCheckSnapshot: PreDistributionCheckSnapshot | null
   busyUpdateId: string | null
   isLoading: boolean
+  isBatchRunning: boolean
   isPreDistributionChecking: boolean
   isPreDistributionCheckStale: boolean
   onDistribute: (pendingUpdate: PendingSyncUpdate) => void
@@ -28,6 +29,7 @@ export function PendingUpdatesPanel({
   preDistributionCheckSnapshot,
   busyUpdateId,
   isLoading,
+  isBatchRunning,
   isPreDistributionChecking,
   isPreDistributionCheckStale,
   onDistribute,
@@ -51,7 +53,7 @@ export function PendingUpdatesPanel({
           {pendingUpdates.length > 0 ? (
             <Button
               variant="secondary"
-              disabled={isPreDistributionChecking}
+              disabled={isBatchRunning || isPreDistributionChecking}
               onClick={onRefreshPreDistributionCheck}
             >
               {isPreDistributionChecking
@@ -110,7 +112,7 @@ export function PendingUpdatesPanel({
                         <Button
                           variant="secondary"
                           onClick={() => onReconcileInstalled(pendingUpdate)}
-                          disabled={isBusy}
+                          disabled={isBatchRunning || isBusy}
                           aria-label={`${dictionary.pendingUpdatesPanel.syncLocalRecord} ${pendingUpdate.name}`}
                         >
                           {isBusy
@@ -121,7 +123,7 @@ export function PendingUpdatesPanel({
                         <Button
                           variant="primary"
                           onClick={() => onDistribute(pendingUpdate)}
-                          disabled={isBusy}
+                          disabled={isBatchRunning || isBusy}
                           aria-label={`${dictionary.pendingUpdatesPanel.distribute} ${pendingUpdate.name}`}
                         >
                           {isBusy ? dictionary.pendingUpdatesPanel.distributing : dictionary.pendingUpdatesPanel.distribute}

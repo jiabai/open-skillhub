@@ -1243,6 +1243,10 @@ export function App() {
   }
 
   const handleOpenAgentPathsConfigDir = async () => {
+    if (isBatchRunning) {
+      return
+    }
+
     if (!bridgeAvailable) {
       setErrorMessage(createBridgeUnavailableMessage(selectedLocale, dictionary.agentsPanel.openConfigDir))
       return
@@ -1264,6 +1268,14 @@ export function App() {
         ].slice(0, 5)
       )
     }
+  }
+
+  const handleOpenSettings = () => {
+    if (isBatchRunning) {
+      return
+    }
+
+    setSettingsOpen(true)
   }
 
   const handleToggleTheme = async () => {
@@ -1687,7 +1699,7 @@ export function App() {
         canRefresh={configurationReady}
         canToggleTheme
         onNavigate={handleNavigate}
-        onOpenSettings={() => setSettingsOpen(true)}
+        onOpenSettings={handleOpenSettings}
         onRefresh={handleRefresh}
         onToggleTheme={handleToggleTheme}
       >
@@ -1707,7 +1719,7 @@ export function App() {
             busyUpdateId={busyUpdateId}
             onDistribute={requestDistributionConfirmation}
             onReconcileInstalled={handleReconcileInstalled}
-            onOpenSettings={() => setSettingsOpen(true)}
+            onOpenSettings={handleOpenSettings}
             onViewUpdates={() => setActiveView("updates")}
           />
         ) : activeView === "local-skills" ? (
@@ -1748,6 +1760,7 @@ export function App() {
           />
         ) : (
           <UpdatesView
+            isBatchRunning={isBatchRunning}
             isLoading={isLoading}
             isPreDistributionChecking={isPreDistributionChecking}
             isPreDistributionCheckStale={isPreDistributionCheckStale}

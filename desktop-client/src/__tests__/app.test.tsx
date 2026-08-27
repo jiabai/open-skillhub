@@ -401,6 +401,30 @@ async function openLocalSkillsView() {
 }
 
 describe("App", () => {
+  it("renders the shared sidebar shell with one navigation landmark and an active page", async () => {
+    render(<App />)
+
+    const navigation = screen.getByRole("navigation", { name: "SkillDrive Desktop" })
+
+    await waitFor(() => {
+      expect(within(navigation).getAllByRole("button")).toHaveLength(4)
+      expect(screen.getByText("Desktop bridge connected")).toBeInTheDocument()
+    })
+
+    expect(within(navigation).getByRole("button", { name: "Home" })).toHaveAttribute(
+      "aria-current",
+      "page"
+    )
+    expect(screen.getByRole("button", { name: "Refresh" })).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "Settings" })).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "Toggle theme" })).toBeInTheDocument()
+    expect(navigation.closest(".app-sidebar")).toBeInTheDocument()
+    expect(navigation.closest(".app-shell")?.querySelector(".app-workspace")).toBeInTheDocument()
+    expect(navigation.closest(".app-shell")?.querySelector(".workspace-toolbar")).toBeInTheDocument()
+    expect(navigation.closest(".app-shell")?.querySelector(".app-main")).toBeInTheDocument()
+    expect(within(navigation).getByText("Home")).toHaveClass("btn__label")
+  })
+
   it("exposes a desktop client API surface", () => {
     expect(window.desktopClient).toBeDefined()
     expect(window.desktopClient?.getConfiguration).toBeTypeOf("function")
@@ -2164,9 +2188,13 @@ describe("App", () => {
     )
 
     await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Home" })).toBeDisabled()
       expect(screen.getByRole("button", { name: "Updates" })).toBeDisabled()
+      expect(screen.getByRole("button", { name: "Local Skills" })).toBeDisabled()
+      expect(screen.getByRole("button", { name: "Projects" })).toBeDisabled()
       expect(screen.getByRole("button", { name: "Refresh" })).toBeDisabled()
       expect(screen.getByRole("button", { name: "Settings" })).toBeDisabled()
+      expect(screen.getByRole("button", { name: "Toggle theme" })).toBeDisabled()
       expect(screen.getByRole("checkbox", { name: "Select Skill A" })).toBeDisabled()
       expect(screen.getByRole("button", { name: "Select all eligible updates" })).toBeDisabled()
       expect(screen.getByRole("button", { name: "Clear selection" })).toBeDisabled()

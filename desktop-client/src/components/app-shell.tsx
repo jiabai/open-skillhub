@@ -1,5 +1,7 @@
 import type { ReactNode } from "react"
 
+import { FolderOpen, House, PanelsTopLeft, RefreshCw, Settings } from "lucide-react"
+
 import { ThemeToggle } from "@/components/theme-toggle"
 import { Badge, Button } from "@/components/ui-primitives"
 import { useI18n } from "@/i18n/use-i18n"
@@ -14,7 +16,7 @@ type AppShellProps = {
   canToggleTheme: boolean
   isRefreshing: boolean
   isSavingTheme: boolean
-  navigationLocked?: boolean
+  navigationLocked: boolean
   pendingUpdateCount: number
   theme: AppTheme
   onNavigate: (view: AppView) => void
@@ -31,7 +33,7 @@ export function AppShell({
   canToggleTheme,
   isRefreshing,
   isSavingTheme,
-  navigationLocked = false,
+  navigationLocked,
   pendingUpdateCount,
   theme,
   onNavigate,
@@ -41,91 +43,101 @@ export function AppShell({
   children
 }: AppShellProps) {
   const { dictionary } = useI18n()
+  const navigationItems = [
+    { view: "home" as const, label: dictionary.appShell.navigation.home, Icon: House },
+    { view: "updates" as const, label: dictionary.appShell.navigation.updates, Icon: RefreshCw },
+    {
+      view: "local-skills" as const,
+      label: dictionary.appShell.navigation.localSkills,
+      Icon: FolderOpen
+    },
+    { view: "projects" as const, label: dictionary.appShell.navigation.projects, Icon: PanelsTopLeft }
+  ]
 
   return (
     <main className="app-shell">
-      <header className="app-header">
-        <div className="app-header__inner">
-          <div className="app-header__top">
-            <div className="brand" aria-label={dictionary.appShell.desktopClientLabel}>
-              <div className="brand__mark" aria-hidden="true">
-                SD
-              </div>
-              <div>
-                <p className="brand__title">{dictionary.appShell.brandTitle}</p>
-                <p className="brand__subtitle">{dictionary.appShell.brandSubtitle}</p>
-              </div>
-            </div>
-
-            <div className="page-intro__actions">
-              <Badge tone={pendingUpdateCount > 0 ? "warning" : "success"}>
-                {dictionary.common.pending(pendingUpdateCount)}
-              </Badge>
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={!canRefresh || isRefreshing || navigationLocked}
-                onClick={onRefresh}
-              >
-                {isRefreshing ? dictionary.common.refreshing : dictionary.common.refresh}
-              </Button>
-              <ThemeToggle
-                disabled={!canToggleTheme || isSavingTheme || navigationLocked}
-                theme={theme}
-                onToggleTheme={onToggleTheme}
-              />
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={navigationLocked}
-                onClick={onOpenSettings}
-              >
-                {dictionary.common.settings}
-              </Button>
-            </div>
+      <aside className="app-sidebar">
+        <div className="brand" aria-label={dictionary.appShell.desktopClientLabel}>
+          <div className="brand__mark" aria-hidden="true">
+            SD
           </div>
-
-          <div className="app-header__top">
-            <nav className="app-nav" aria-label={dictionary.appShell.desktopClientLabel}>
-              <Button
-                variant={activeView === "home" ? "nav-active" : "ghost"}
-                size="sm"
-                disabled={navigationLocked}
-                onClick={() => onNavigate("home")}
-              >
-                {dictionary.appShell.navigation.home}
-              </Button>
-              <Button
-                variant={activeView === "updates" ? "nav-active" : "ghost"}
-                size="sm"
-                disabled={navigationLocked}
-                onClick={() => onNavigate("updates")}
-              >
-                {dictionary.appShell.navigation.updates}
-              </Button>
-              <Button
-                variant={activeView === "local-skills" ? "nav-active" : "ghost"}
-                size="sm"
-                disabled={navigationLocked}
-                onClick={() => onNavigate("local-skills")}
-              >
-                {dictionary.appShell.navigation.localSkills}
-              </Button>
-              <Button
-                variant={activeView === "projects" ? "nav-active" : "ghost"}
-                size="sm"
-                disabled={navigationLocked}
-                onClick={() => onNavigate("projects")}
-              >
-                {dictionary.appShell.navigation.projects}
-              </Button>
-            </nav>
-            <span className="badge">{bridgeStatus}</span>
+          <div className="brand__copy">
+            <p className="brand__title">{dictionary.appShell.brandTitle}</p>
+            <p className="brand__subtitle">{dictionary.appShell.brandSubtitle}</p>
           </div>
         </div>
-      </header>
 
-      <div className="app-main">{children}</div>
+        <nav className="app-nav" aria-label={dictionary.appShell.desktopClientLabel}>
+          {navigationItems.map(({ view, label, Icon }) => (
+            <Button
+              aria-current={activeView === view ? "page" : undefined}
+              aria-label={label}
+              className="app-nav__button"
+              disabled={navigationLocked}
+              key={view}
+              title={label}
+              variant={activeView === view ? "nav-active" : "ghost"}
+              onClick={() => onNavigate(view)}
+            >
+              <Icon aria-hidden="true" className="app-nav__icon" />
+              <span className="btn__label">{label}</span>
+            </Button>
+          ))}
+        </nav>
+
+        <div className="app-sidebar__footer">
+          <div
+            aria-label={bridgeStatus}
+            className="app-sidebar__status"
+            role="status"
+            title={bridgeStatus}
+          >
+            <span aria-hidden="true" className="app-sidebar__status-dot" />
+            <span className="app-sidebar__footer-copy">{bridgeStatus}</span>
+          </div>
+        </div>
+      </aside>
+
+      <div className="app-workspace">
+        <header className="workspace-toolbar">
+          <div className="workspace-toolbar__actions">
+            <Badge tone={pendingUpdateCount > 0 ? "warning" : "success"}>
+              {dictionary.common.pending(pendingUpdateCount)}
+            </Badge>
+            <Button
+              disabled={!canRefresh || isRefreshing || navigationLocked}
+              title={isRefreshing ? dictionary.common.refreshing : dictionary.common.refresh}
+              variant="outline"
+              onClick={onRefresh}
+            >
+              <RefreshCw
+                aria-hidden="true"
+                className={isRefreshing ? "refresh-icon is-spinning" : "refresh-icon"}
+              />
+              <span className="btn__label">
+                {isRefreshing ? dictionary.common.refreshing : dictionary.common.refresh}
+              </span>
+            </Button>
+            <ThemeToggle
+              disabled={!canToggleTheme || isSavingTheme || navigationLocked}
+              theme={theme}
+              onToggleTheme={onToggleTheme}
+            />
+            <Button
+              aria-label={dictionary.common.settings}
+              disabled={navigationLocked}
+              title={dictionary.common.settings}
+              variant="outline"
+              onClick={onOpenSettings}
+            >
+              <Settings aria-hidden="true" className="workspace-toolbar__icon" />
+              <span className="btn__label">{dictionary.common.settings}</span>
+            </Button>
+          </div>
+        </header>
+
+        <div className="app-main">{children}</div>
+      </div>
     </main>
   )
 }

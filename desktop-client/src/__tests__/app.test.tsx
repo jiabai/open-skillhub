@@ -1721,6 +1721,319 @@ describe("App", () => {
     })
   })
 
+  it("selected safe updates are distributed in pending order after one confirmation", async () => {
+    const pendingUpdates = [
+      {
+        remoteSkillId: "skill-a",
+        name: "Skill A",
+        localVersion: null,
+        localContentHash: null,
+        remoteVersion: "1.0.0",
+        remoteContentHash: "hash-a",
+        reason: "not-installed" as const
+      },
+      {
+        remoteSkillId: "skill-error",
+        name: "Skill Error",
+        localVersion: null,
+        localContentHash: null,
+        remoteVersion: "1.0.0",
+        remoteContentHash: "hash-error",
+        reason: "not-installed" as const
+      },
+      {
+        remoteSkillId: "skill-b",
+        name: "Skill B",
+        localVersion: null,
+        localContentHash: null,
+        remoteVersion: "1.0.0",
+        remoteContentHash: "hash-b",
+        reason: "not-installed" as const
+      }
+    ]
+
+    mockDesktopClient.refreshSync.mockResolvedValueOnce({
+      ...emptySyncState,
+      pendingUpdates,
+      lastRefreshedAt: "2026-04-17T00:00:00.000Z"
+    })
+    mockDesktopClient.refreshPreDistributionCheck.mockResolvedValueOnce({
+      results: {
+        "skill-a": { codex: { ...defaultAgentDetection.agentStatuses[0], contentComparison: "not-installed" } },
+        "skill-error": { codex: { ...defaultAgentDetection.agentStatuses[0], contentComparison: "error" } },
+        "skill-b": { codex: { ...defaultAgentDetection.agentStatuses[0], contentComparison: "update" } }
+      },
+      checkedAt: "2026-04-17T00:00:01.000Z",
+      expiresAt: "2099-04-17T00:00:01.000Z",
+      pendingUpdateFingerprint: "skill-a@1.0.0@hash-a|skill-b@1.0.0@hash-b|skill-error@1.0.0@hash-error",
+      targetAgentIds: ["codex"],
+      totalDurationMs: 1,
+      globalErrors: []
+    })
+    mockDesktopClient.refreshSync.mockResolvedValueOnce(emptySyncState)
+    mockDesktopClient.distributePendingUpdate.mockImplementation(async (skillId: string) => ({
+      skillId,
+      name: skillId,
+      version: "1.0.0",
+      extractedPath: null,
+      targets: [],
+      succeededAgentIds: ["codex"],
+      failedAgentIds: [],
+      syncedToLocalState: true
+    }))
+
+    render(<App />)
+
+    fireEvent.click(screen.getByRole("button", { name: "Updates" }))
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Select all eligible updates" })).toBeInTheDocument()
+    })
+    expect(screen.getByRole("checkbox", { name: "Select Skill A" })).toBeChecked()
+    expect(screen.getByRole("checkbox", { name: "Select Skill B" })).toBeChecked()
+    expect(screen.getByRole("checkbox", { name: "Select Skill Error" })).toBeDisabled()
+    expect(screen.getByText("2 selected of 2 eligible updates")).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole("button", { name: "Distribute selected updates" }))
+    const dialog = await screen.findByRole("dialog", { name: "Confirm batch distribution" })
+    expect(dialog).toHaveTextContent("Skill A")
+    expect(dialog).toHaveTextContent("Skill B")
+    expect(dialog).not.toHaveTextContent("Skill Error")
+    expect(mockDesktopClient.distributePendingUpdate).not.toHaveBeenCalled()
+
+    fireEvent.click(within(dialog).getByRole("button", { name: "Confirm distribution" }))
+
+    await waitFor(() => {
+      expect(mockDesktopClient.distributePendingUpdate).toHaveBeenNthCalledWith(1, "skill-a")
+      expect(mockDesktopClient.distributePendingUpdate).toHaveBeenNthCalledWith(2, "skill-b")
+      expect(screen.getByText("Batch distribution completed")).toBeInTheDocument()
+    })
+    expect(mockDesktopClient.distributePendingUpdate).toHaveBeenCalledTimes(2)
+    expect(mockDesktopClient.refreshSync).toHaveBeenCalledTimes(2)
+  })
+
+  it("continues after a rejected batch item and reports progress", async () => {
+    const pendingUpdates = [
+      {
+        remoteSkillId: "skill-a",
+        name: "Skill A",
+        localVersion: null,
+        localContentHash: null,
+        remoteVersion: "1.0.0",
+        remoteContentHash: "hash-a",
+        reason: "not-installed" as const
+      },
+      {
+        remoteSkillId: "skill-b",
+        name: "Skill B",
+        localVersion: null,
+        localContentHash: null,
+        remoteVersion: "1.0.0",
+        remoteContentHash: "hash-b",
+        reason: "not-installed" as const
+      }
+    ]
+    mockDesktopClient.refreshSync.mockResolvedValueOnce({ ...emptySyncState, pendingUpdates })
+    mockDesktopClient.refreshPreDistributionCheck.mockResolvedValueOnce({
+      results: {
+        "skill-a": { codex: { ...defaultAgentDetection.agentStatuses[0], contentComparison: "not-installed" } },
+        "skill-b": { codex: { ...defaultAgentDetection.agentStatuses[0], contentComparison: "not-installed" } }
+      },
+      checkedAt: "2026-04-17T00:00:01.000Z",
+      expiresAt: "2099-04-17T00:00:01.000Z",
+      pendingUpdateFingerprint: "skill-a@1.0.0@hash-a|skill-b@1.0.0@hash-b",
+      targetAgentIds: ["codex"],
+      totalDurationMs: 1,
+      globalErrors: []
+    })
+    mockDesktopClient.refreshSync.mockResolvedValueOnce(emptySyncState)
+    mockDesktopClient.distributePendingUpdate
+      .mockRejectedValueOnce(new Error("network down"))
+      .mockResolvedValueOnce({
+        skillId: "skill-b",
+        name: "Skill B",
+        version: "1.0.0",
+        extractedPath: null,
+        targets: [],
+        succeededAgentIds: ["codex"],
+        failedAgentIds: [],
+        syncedToLocalState: true
+      })
+
+    render(<App />)
+    fireEvent.click(screen.getByRole("button", { name: "Updates" }))
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Distribute selected updates" })).toBeInTheDocument()
+    })
+    fireEvent.click(screen.getByRole("button", { name: "Distribute selected updates" }))
+    fireEvent.click(
+      within(await screen.findByRole("dialog", { name: "Confirm batch distribution" })).getByRole(
+        "button",
+        { name: "Confirm distribution" }
+      )
+    )
+
+    await waitFor(() => {
+      expect(screen.getByText("Batch distribution completed with warnings")).toBeInTheDocument()
+      expect(screen.getByText(/2 of 2 updates processed:/)).toBeInTheDocument()
+    })
+    expect(mockDesktopClient.distributePendingUpdate).toHaveBeenNthCalledWith(1, "skill-a")
+    expect(mockDesktopClient.distributePendingUpdate).toHaveBeenNthCalledWith(2, "skill-b")
+    expect(mockDesktopClient.refreshSync).toHaveBeenCalledTimes(2)
+  })
+
+  it("keeps a one-item batch on the single distribution activity path", async () => {
+    mockDesktopClient.refreshSync
+      .mockResolvedValueOnce({
+        ...emptySyncState,
+        pendingUpdates: [
+          {
+            remoteSkillId: "skill-a",
+            name: "Skill A",
+            localVersion: null,
+            localContentHash: null,
+            remoteVersion: "1.0.0",
+            remoteContentHash: "hash-a",
+            reason: "not-installed" as const
+          }
+        ]
+      })
+      .mockRejectedValueOnce(new Error("refresh unavailable"))
+    mockDesktopClient.refreshPreDistributionCheck.mockResolvedValueOnce({
+      results: {
+        "skill-a": { codex: { ...defaultAgentDetection.agentStatuses[0], contentComparison: "not-installed" } }
+      },
+      checkedAt: "2026-04-17T00:00:01.000Z",
+      expiresAt: "2099-04-17T00:00:01.000Z",
+      pendingUpdateFingerprint: "skill-a@1.0.0@hash-a",
+      targetAgentIds: ["codex"],
+      totalDurationMs: 1,
+      globalErrors: []
+    })
+    mockDesktopClient.distributePendingUpdate.mockResolvedValueOnce({
+      skillId: "skill-a",
+      name: "Skill A",
+      version: "1.0.0",
+      extractedPath: null,
+      targets: [{ agentId: "codex", success: true, errorMessage: null }],
+      succeededAgentIds: ["codex"],
+      failedAgentIds: [],
+      syncedToLocalState: true
+    })
+
+    render(<App />)
+    fireEvent.click(screen.getByRole("button", { name: "Updates" }))
+    await waitFor(() => {
+      expect(screen.getByRole("checkbox", { name: "Select Skill A" })).toBeChecked()
+    })
+
+    fireEvent.click(screen.getByRole("button", { name: "Distribute selected updates" }))
+    const dialog = await screen.findByRole("dialog", { name: "Confirm distribution" })
+    fireEvent.click(within(dialog).getByRole("button", { name: "Confirm distribution" }))
+    fireEvent.click(screen.getByRole("button", { name: "Settings" }))
+
+    await waitFor(() => {
+      expect(screen.getByRole("dialog", { name: "Desktop settings" })).toBeInTheDocument()
+      expect(screen.getByText("Distribution completed with refresh warning")).toBeInTheDocument()
+      expect(
+        screen.getByText(
+          "Skill A was sent to 1 configured agent target. Refreshing the review snapshot then failed: refresh unavailable"
+        )
+      ).toBeInTheDocument()
+    })
+  })
+
+  it("locks batch navigation while distribution is in progress", async () => {
+    let resolveDistribution: ((value: unknown) => void) | undefined
+    const distribution = new Promise((resolve) => {
+      resolveDistribution = resolve
+    })
+    mockDesktopClient.refreshSync.mockResolvedValueOnce({
+      ...emptySyncState,
+      pendingUpdates: [
+        {
+          remoteSkillId: "skill-a",
+          name: "Skill A",
+          localVersion: null,
+          localContentHash: null,
+          remoteVersion: "1.0.0",
+          remoteContentHash: "hash-a",
+          reason: "not-installed" as const
+        },
+        {
+          remoteSkillId: "skill-b",
+          name: "Skill B",
+          localVersion: null,
+          localContentHash: null,
+          remoteVersion: "1.0.0",
+          remoteContentHash: "hash-b",
+          reason: "not-installed" as const
+        }
+      ]
+    })
+    mockDesktopClient.refreshPreDistributionCheck.mockResolvedValueOnce({
+      results: {
+        "skill-a": { codex: { ...defaultAgentDetection.agentStatuses[0], contentComparison: "not-installed" } },
+        "skill-b": { codex: { ...defaultAgentDetection.agentStatuses[0], contentComparison: "not-installed" } }
+      },
+      checkedAt: "2026-04-17T00:00:01.000Z",
+      expiresAt: "2099-04-17T00:00:01.000Z",
+      pendingUpdateFingerprint: "skill-a@1.0.0@hash-a|skill-b@1.0.0@hash-b",
+      targetAgentIds: ["codex"],
+      totalDurationMs: 1,
+      globalErrors: []
+    })
+    mockDesktopClient.distributePendingUpdate
+      .mockReturnValueOnce(distribution)
+      .mockResolvedValueOnce({
+        skillId: "skill-b",
+        name: "Skill B",
+        version: "1.0.0",
+        extractedPath: null,
+        targets: [],
+        succeededAgentIds: ["codex"],
+        failedAgentIds: [],
+        syncedToLocalState: true
+      })
+
+    render(<App />)
+    fireEvent.click(screen.getByRole("button", { name: "Updates" }))
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Distribute selected updates" })).toBeInTheDocument()
+    })
+    fireEvent.click(screen.getByRole("button", { name: "Distribute selected updates" }))
+    fireEvent.click(
+      within(await screen.findByRole("dialog", { name: "Confirm distribution" })).getByRole(
+        "button",
+        { name: "Confirm distribution" }
+      )
+    )
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Updates" })).toBeDisabled()
+      expect(screen.getByRole("button", { name: "Refresh" })).toBeDisabled()
+      expect(screen.getByRole("button", { name: "Settings" })).toBeEnabled()
+      expect(screen.getByText("Distributing 1 of 2 updates")).toBeInTheDocument()
+    })
+
+    fireEvent.click(screen.getByRole("button", { name: "Settings" }))
+    expect(screen.getByRole("dialog", { name: "Desktop settings" })).toBeInTheDocument()
+
+    resolveDistribution?.({
+      skillId: "skill-a",
+      name: "Skill A",
+      version: "1.0.0",
+      extractedPath: null,
+      targets: [],
+      succeededAgentIds: ["codex"],
+      failedAgentIds: [],
+      syncedToLocalState: true
+    })
+    await waitFor(() => {
+      expect(mockDesktopClient.refreshSync).toHaveBeenCalledTimes(2)
+    })
+  })
+
   describe("Local Skills delete confirmation", () => {
     it("shows delete confirmation dialog when delete button is clicked", async () => {
       render(<App />)

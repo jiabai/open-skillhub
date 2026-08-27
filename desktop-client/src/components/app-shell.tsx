@@ -14,6 +14,7 @@ type AppShellProps = {
   canToggleTheme: boolean
   isRefreshing: boolean
   isSavingTheme: boolean
+  navigationLocked?: boolean
   pendingUpdateCount: number
   theme: AppTheme
   onNavigate: (view: AppView) => void
@@ -30,6 +31,7 @@ export function AppShell({
   canToggleTheme,
   isRefreshing,
   isSavingTheme,
+  navigationLocked = false,
   pendingUpdateCount,
   theme,
   onNavigate,
@@ -62,13 +64,13 @@ export function AppShell({
               <Button
                 variant="outline"
                 size="sm"
-                disabled={!canRefresh || isRefreshing}
+                disabled={!canRefresh || isRefreshing || navigationLocked}
                 onClick={onRefresh}
               >
                 {isRefreshing ? dictionary.common.refreshing : dictionary.common.refresh}
               </Button>
               <ThemeToggle
-                disabled={!canToggleTheme || isSavingTheme}
+                disabled={!canToggleTheme || isSavingTheme || navigationLocked}
                 theme={theme}
                 onToggleTheme={onToggleTheme}
               />
@@ -83,6 +85,7 @@ export function AppShell({
               <Button
                 variant={activeView === "home" ? "nav-active" : "ghost"}
                 size="sm"
+                disabled={navigationLocked}
                 onClick={() => onNavigate("home")}
               >
                 {dictionary.appShell.navigation.home}
@@ -90,6 +93,7 @@ export function AppShell({
               <Button
                 variant={activeView === "updates" ? "nav-active" : "ghost"}
                 size="sm"
+                disabled={navigationLocked}
                 onClick={() => onNavigate("updates")}
               >
                 {dictionary.appShell.navigation.updates}
@@ -97,6 +101,7 @@ export function AppShell({
               <Button
                 variant={activeView === "local-skills" ? "nav-active" : "ghost"}
                 size="sm"
+                disabled={navigationLocked}
                 onClick={() => onNavigate("local-skills")}
               >
                 {dictionary.appShell.navigation.localSkills}
@@ -104,6 +109,7 @@ export function AppShell({
               <Button
                 variant={activeView === "projects" ? "nav-active" : "ghost"}
                 size="sm"
+                disabled={navigationLocked}
                 onClick={() => onNavigate("projects")}
               >
                 {dictionary.appShell.navigation.projects}

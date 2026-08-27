@@ -12,6 +12,13 @@ import { getDictionary } from "@/i18n/get-dictionary"
 import { I18nProvider } from "@/i18n/i18n-provider"
 import { resolveLocale } from "@/i18n/config"
 import { desktopClient } from "@/lib/ipc-client"
+import {
+  createDefaultBatchSelection,
+  getBatchEligibility,
+  runDistributionBatch,
+  type BatchDistributionSummary,
+  type BatchProgress
+} from "@/core/review/batch-distribution"
 import type {
   AppLocale,
   AppTheme,
@@ -48,6 +55,50 @@ type DistributionConfirmationSummary = {
   writeTargets: string[]
   skippedTargets: string[]
   missingAgents: string[]
+}
+
+type DistributionConfirmationMode = "single" | "batch"
+
+type BatchLabels = {
+  selectAll: string
+  selectItem: (name: string) => string
+  clear: string
+  distribute: string
+  selected: (selected: number, total: number) => string
+  progress: (completed: number, total: number) => string
+  completed: string
+  completedWithWarnings: string
+  summary: (succeeded: number, partial: number, failed: number, total: number) => string
+}
+
+function getBatchLabels(locale: AppLocale): BatchLabels {
+  if (locale === "zh-CN") {
+    return {
+      selectAll: "选择所有可分发更新",
+      selectItem: (name) => `选择 ${name}`,
+      clear: "清除选择",
+      distribute: "分发选中的更新",
+      selected: (selected, total) => `已选择 ${selected} / ${total} 个可分发更新`,
+      progress: (completed, total) => `正在分发 ${Math.min(completed + 1, total)} / ${total} 个更新`,
+      completed: "批量分发完成",
+      completedWithWarnings: "批量分发完成但有警告",
+      summary: (succeeded, partial, failed, total) =>
+        `已处理 ${total} 个更新：${succeeded} 个成功、${partial} 个部分成功、${failed} 个失败。`
+    }
+  }
+
+  return {
+    selectAll: "Select all eligible updates",
+    selectItem: (name) => `Select ${name}`,
+    clear: "Clear selection",
+    distribute: "Distribute selected updates",
+    selected: (selected, total) => `${selected} selected of ${total} eligible updates`,
+    progress: (completed, total) => `Distributing ${Math.min(completed + 1, total)} of ${total} updates`,
+    completed: "Batch distribution completed",
+    completedWithWarnings: "Batch distribution completed with warnings",
+    summary: (succeeded, partial, failed, total) =>
+      `${total} of ${total} updates processed: ${succeeded} succeeded, ${partial} partial, ${failed} failed.`
+  }
 }
 
 const initialState: DesktopSyncState = {
@@ -131,7 +182,7 @@ function createDistributionTargetLabel(
 }
 
 function createDistributionConfirmationSummary(
-  pendingUpdate: PendingSyncUpdate,
+  pendingUpdates: PendingSyncUpdate[],
   detectionSnapshot: AgentDetectionSnapshot | null,
   preDistributionCheckSnapshot: PreDistributionCheckSnapshot | null,
   isPreDistributionCheckStale: boolean
@@ -144,11 +195,6 @@ function createDistributionConfirmationSummary(
     }
   }
 
-  const resultsByAgent =
-    preDistributionCheckSnapshot && !isPreDistributionCheckStale
-      ? preDistributionCheckSnapshot.results[pendingUpdate.remoteSkillId] ?? {}
-      : {}
-
   const writeTargets: string[] = []
   const skippedTargets: string[] = []
 
@@ -158,13 +204,20 @@ function createDistributionConfirmationSummary(
       target.coveredAgentIds,
       target.targetPath
     )
-    const everyCoveredAgentIsSame =
-      target.coveredAgentIds.length > 0 &&
-      target.coveredAgentIds.every(
-        (agentId) => resultsByAgent[agentId]?.contentComparison === "installed"
+    const everyUpdateSkipsTarget = pendingUpdates.every((pendingUpdate) => {
+      const resultsByAgent =
+        preDistributionCheckSnapshot && !isPreDistributionCheckStale
+          ? preDistributionCheckSnapshot.results[pendingUpdate.remoteSkillId] ?? {}
+          : {}
+      return (
+        target.coveredAgentIds.length > 0 &&
+        target.coveredAgentIds.every(
+          (agentId) => resultsByAgent[agentId]?.contentComparison === "installed"
+        )
       )
+    })
 
-    if (everyCoveredAgentIsSame) {
+    if (everyUpdateSkipsTarget) {
       skippedTargets.push(targetLabel)
     } else {
       writeTargets.push(targetLabel)
@@ -230,8 +283,14 @@ export function App() {
   const [busyUpdateId, setBusyUpdateId] = useState<string | null>(null)
   const [busyLocalSkillRowKey, setBusyLocalSkillRowKey] = useState<string | null>(null)
   const [busyLocalSkillDeleteRowKey, setBusyLocalSkillDeleteRowKey] = useState<string | null>(null)
+  const [selectedUpdateIds, setSelectedUpdateIds] = useState<string[]>([])
   const [pendingDistributionConfirmation, setPendingDistributionConfirmation] =
-    useState<PendingSyncUpdate | null>(null)
+    useState<PendingSyncUpdate[] | null>(null)
+  const [pendingDistributionConfirmationMode, setPendingDistributionConfirmationMode] =
+    useState<DistributionConfirmationMode>("single")
+  const [batchProgress, setBatchProgress] = useState<BatchProgress | null>(null)
+  const [batchResults, setBatchResults] = useState<BatchDistributionSummary | null>(null)
+  const [isBatchRunningState, setIsBatchRunningState] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [projectErrorMessage, setProjectErrorMessage] = useState<string | null>(null)
   const [configState, setConfigState] = useState<ConfigurationState | null>(null)
@@ -264,6 +323,49 @@ export function App() {
     preDistributionCheckSnapshot !== null &&
     (preDistributionCheckSnapshot.pendingUpdateFingerprint !== pendingUpdateFingerprint ||
       isPreDistributionCheckExpired)
+  const batchLabels = getBatchLabels(selectedLocale)
+  const isBatchRunning = isBatchRunningState
+  const selectedPendingUpdates = useMemo(
+    () =>
+      syncState.pendingUpdates.filter((pendingUpdate) =>
+        selectedUpdateIds.includes(pendingUpdate.remoteSkillId)
+      ).filter(
+        (pendingUpdate) =>
+          getBatchEligibility(
+            pendingUpdate,
+            preDistributionCheckSnapshot,
+            isPreDistributionCheckStale
+          ) === "eligible"
+      ),
+    [
+      isPreDistributionCheckStale,
+      preDistributionCheckSnapshot,
+      selectedUpdateIds,
+      syncState.pendingUpdates
+    ]
+  )
+  const eligiblePendingUpdateCount = useMemo(
+    () =>
+      syncState.pendingUpdates.filter(
+        (pendingUpdate) =>
+          getBatchEligibility(
+            pendingUpdate,
+            preDistributionCheckSnapshot,
+            isPreDistributionCheckStale
+          ) === "eligible"
+      ).length,
+    [isPreDistributionCheckStale, preDistributionCheckSnapshot, syncState.pendingUpdates]
+  )
+
+  useEffect(() => {
+    setSelectedUpdateIds(
+      createDefaultBatchSelection(
+        syncState.pendingUpdates,
+        preDistributionCheckSnapshot,
+        isPreDistributionCheckStale
+      )
+    )
+  }, [isPreDistributionCheckStale, pendingUpdateFingerprint, preDistributionCheckSnapshot])
 
   useEffect(() => {
     document.documentElement.lang = selectedLocale
@@ -598,7 +700,7 @@ export function App() {
   }, [bridgeAvailable, initialLocale])
 
   const handleRefresh = async () => {
-    if (!bridgeAvailable) {
+    if (!bridgeAvailable || isBatchRunning) {
       return
     }
 
@@ -649,6 +751,10 @@ export function App() {
   }
 
   const handleSaveConfiguration = async (payload: ConfigurationPayload) => {
+    if (isBatchRunning) {
+      return
+    }
+
     if (!bridgeAvailable) {
       const message = createBridgeUnavailableMessage(selectedLocale, dictionary.configPanel.saveAction)
       setConnectionTestResult(null)
@@ -736,6 +842,10 @@ export function App() {
   }
 
   const handleChangeLocale = async (locale: AppLocale) => {
+    if (isBatchRunning) {
+      return
+    }
+
     hasLocaleOverride.current = true
     setSelectedLocale(locale)
 
@@ -761,6 +871,10 @@ export function App() {
   }
 
   const handleTestConnection = async (payload: ConfigurationPayload) => {
+    if (isBatchRunning) {
+      return
+    }
+
     if (!bridgeAvailable) {
       setErrorMessage(null)
       setConnectionTestResult({
@@ -807,6 +921,10 @@ export function App() {
   }
 
   const handleClearConfiguration = async () => {
+    if (isBatchRunning) {
+      return
+    }
+
     if (!bridgeAvailable) {
       return
     }
@@ -858,8 +976,70 @@ export function App() {
     }
   }
 
+  const toggleUpdateSelection = (remoteSkillId: string) => {
+    if (isBatchRunning) {
+      return
+    }
+
+    const pendingUpdate = syncState.pendingUpdates.find(
+      (candidate) => candidate.remoteSkillId === remoteSkillId
+    )
+    if (
+      !pendingUpdate ||
+      getBatchEligibility(
+        pendingUpdate,
+        preDistributionCheckSnapshot,
+        isPreDistributionCheckStale
+      ) !== "eligible"
+    ) {
+      return
+    }
+
+    setSelectedUpdateIds((current) =>
+      current.includes(remoteSkillId)
+        ? current.filter((selectedId) => selectedId !== remoteSkillId)
+        : [...current, remoteSkillId]
+    )
+  }
+
+  const selectAllEligibleUpdates = () => {
+    if (isBatchRunning) {
+      return
+    }
+
+    setSelectedUpdateIds(
+      createDefaultBatchSelection(
+        syncState.pendingUpdates,
+        preDistributionCheckSnapshot,
+        isPreDistributionCheckStale
+      )
+    )
+  }
+
+  const clearUpdateSelection = () => {
+    if (isBatchRunning) {
+      return
+    }
+
+    setSelectedUpdateIds([])
+  }
+
   const requestDistributionConfirmation = (pendingUpdate: PendingSyncUpdate) => {
-    setPendingDistributionConfirmation(pendingUpdate)
+    if (isBatchRunning) {
+      return
+    }
+
+    setPendingDistributionConfirmationMode("single")
+    setPendingDistributionConfirmation([pendingUpdate])
+  }
+
+  const requestBatchDistributionConfirmation = () => {
+    if (isBatchRunning || selectedPendingUpdates.length === 0) {
+      return
+    }
+
+    setPendingDistributionConfirmationMode("batch")
+    setPendingDistributionConfirmation(selectedPendingUpdates)
   }
 
   const executeDistribution = async (pendingUpdate: PendingSyncUpdate) => {
@@ -925,17 +1105,110 @@ export function App() {
   }
 
   const handleConfirmDistribution = async () => {
-    if (!pendingDistributionConfirmation) {
+    if (!pendingDistributionConfirmation || pendingDistributionConfirmation.length === 0) {
       return
     }
 
-    const pendingUpdate = pendingDistributionConfirmation
+    const pendingUpdates = pendingDistributionConfirmation
+    const confirmationMode = pendingDistributionConfirmationMode
+    const pendingUpdatesById = new Map(
+      syncState.pendingUpdates.map((pendingUpdate) => [pendingUpdate.remoteSkillId, pendingUpdate])
+    )
+    const orderedUpdates = pendingUpdates
+      .map((pendingUpdate) => pendingUpdatesById.get(pendingUpdate.remoteSkillId) ?? pendingUpdate)
+      .filter((pendingUpdate): pendingUpdate is PendingSyncUpdate => pendingUpdate !== undefined)
+    const remoteSkillIds = orderedUpdates.map((pendingUpdate) => pendingUpdate.remoteSkillId)
     setPendingDistributionConfirmation(null)
-    await executeDistribution(pendingUpdate)
+    setPendingDistributionConfirmationMode("single")
+    if (remoteSkillIds.length === 0 || !bridgeAvailable) {
+      return
+    }
+
+    if (confirmationMode === "single") {
+      await executeDistribution(orderedUpdates[0])
+      return
+    }
+
+    setBatchProgress({ completed: 0, total: remoteSkillIds.length, currentSkillId: remoteSkillIds[0] })
+    setIsBatchRunningState(true)
+    setBatchResults(null)
+
+    const summary = await runDistributionBatch(
+      remoteSkillIds,
+      (remoteSkillId) => desktopClient.distributePendingUpdate(remoteSkillId),
+      (progress) => setBatchProgress(progress)
+    )
+    setBatchResults(summary)
+
+    const updateById = new Map(orderedUpdates.map((pendingUpdate) => [pendingUpdate.remoteSkillId, pendingUpdate]))
+    const itemActivities = summary.items.map((item) => {
+      const pendingUpdate = updateById.get(item.remoteSkillId)
+      if (item.status === "failed") {
+        return createActivityEntry(
+          dictionary.activity.distributionFailedTitle,
+          dictionary.activity.distributionFailedDetail(
+            pendingUpdate?.name ?? item.remoteSkillId,
+            item.errorMessage ?? "Unknown error"
+          ),
+          "warning"
+        )
+      }
+
+      const detail = item.result
+        ? createDistributionDetail(selectedLocale, item.result)
+        : pendingUpdate?.name ?? item.remoteSkillId
+      return createActivityEntry(
+        item.status === "succeeded"
+          ? dictionary.activity.distributionCompletedTitle
+          : dictionary.activity.distributionCompletedWithWarningsTitle,
+        dictionary.activity.distributionCompletedDetail(detail),
+        item.status === "succeeded" ? "success" : "warning"
+      )
+    })
+    const batchActivity = createActivityEntry(
+      summary.partialCount > 0 || summary.failedCount > 0
+        ? batchLabels.completedWithWarnings
+        : batchLabels.completed,
+      batchLabels.summary(
+        summary.succeededCount,
+        summary.partialCount,
+        summary.failedCount,
+        summary.items.length
+      ),
+      summary.partialCount > 0 || summary.failedCount > 0 ? "warning" : "success"
+    )
+
+    try {
+      const refreshedState = await desktopClient.refreshSync()
+      setSyncState(refreshedState)
+      await refreshPreDistributionCheckForState(refreshedState)
+      setErrorMessage(null)
+      setActivity((current) => [batchActivity, ...itemActivities.reverse(), ...current].slice(0, 5))
+    } catch (error: unknown) {
+      const message = getErrorMessage(error)
+      setErrorMessage(message)
+      const detail = batchLabels.summary(
+        summary.succeededCount,
+        summary.partialCount,
+        summary.failedCount,
+        summary.items.length
+      )
+      setActivity((current) => [
+        batchActivity,
+        createActivityEntry(
+          dictionary.activity.distributionCompletedWithRefreshWarningTitle,
+          dictionary.activity.distributionCompletedWithRefreshWarningDetail(detail, message),
+          "warning"
+        ),
+        ...itemActivities.reverse(),
+        ...current
+      ].slice(0, 5))
+    }
+    setIsBatchRunningState(false)
   }
 
   const handleReconcileInstalled = async (pendingUpdate: PendingSyncUpdate) => {
-    if (!bridgeAvailable) {
+    if (!bridgeAvailable || isBatchRunning) {
       return
     }
 
@@ -978,10 +1251,18 @@ export function App() {
   }
 
   const handleRefreshPreDistributionCheck = async () => {
+    if (isBatchRunning) {
+      return
+    }
+
     await refreshPreDistributionCheckForState(syncState)
   }
 
   const handleRefreshAgentDetection = async () => {
+    if (isBatchRunning) {
+      return
+    }
+
     await refreshAgentDetectionState()
   }
 
@@ -1010,6 +1291,10 @@ export function App() {
   }
 
   const handleToggleTheme = async () => {
+    if (isBatchRunning) {
+      return
+    }
+
     if (!bridgeAvailable) {
       setErrorMessage(
         createBridgeUnavailableMessage(selectedLocale, dictionary.themeToggle.saveAction)
@@ -1049,6 +1334,10 @@ export function App() {
   }
 
   const handleNavigate = (view: AppView) => {
+    if (isBatchRunning) {
+      return
+    }
+
     setActiveView(view)
 
     if (view === "local-skills" && configurationReady && localSkillsSnapshot === null) {
@@ -1414,6 +1703,7 @@ export function App() {
       <AppShell
         activeView={activeView}
         bridgeStatus={bridgeStatus}
+        navigationLocked={isBatchRunning}
         pendingUpdateCount={syncState.pendingUpdates.length}
         theme={selectedTheme}
         isRefreshing={isLoading}
@@ -1481,17 +1771,91 @@ export function App() {
             onImportSkill={handleImportProjectSkill}
           />
         ) : (
-          <UpdatesView
-            isLoading={isLoading}
-            isPreDistributionChecking={isPreDistributionChecking}
-            isPreDistributionCheckStale={isPreDistributionCheckStale}
-            pendingUpdates={syncState.pendingUpdates}
-            preDistributionCheckSnapshot={preDistributionCheckSnapshot}
-            busyUpdateId={busyUpdateId}
-            onDistribute={requestDistributionConfirmation}
-            onReconcileInstalled={handleReconcileInstalled}
-            onRefreshPreDistributionCheck={handleRefreshPreDistributionCheck}
-          />
+          <>
+            <div className="card" aria-label="Batch distribution controls">
+              <div className="card__content">
+                <div className="page-intro">
+                  <p className="card__description" role="status">
+                    {isBatchRunning && batchProgress ? (
+                      batchLabels.progress(batchProgress.completed, batchProgress.total)
+                    ) : batchResults ? (
+                      <>
+                        <strong>
+                          {batchResults.partialCount > 0 || batchResults.failedCount > 0
+                            ? batchLabels.completedWithWarnings
+                            : batchLabels.completed}
+                        </strong>{" "}
+                        {batchLabels.summary(
+                          batchResults.succeededCount,
+                          batchResults.partialCount,
+                          batchResults.failedCount,
+                          batchResults.items.length
+                        )}
+                      </>
+                    ) : (
+                      batchLabels.selected(selectedPendingUpdates.length, eligiblePendingUpdateCount)
+                    )}
+                  </p>
+                  {syncState.pendingUpdates.length > 0 ? (
+                    <div aria-label="Batch update selection" className="list-stack">
+                      {syncState.pendingUpdates.map((pendingUpdate) => (
+                        <label key={pendingUpdate.remoteSkillId}>
+                          <input
+                            type="checkbox"
+                            aria-label={batchLabels.selectItem(pendingUpdate.name)}
+                            checked={selectedUpdateIds.includes(pendingUpdate.remoteSkillId)}
+                            disabled={
+                              isBatchRunning ||
+                              getBatchEligibility(
+                                pendingUpdate,
+                                preDistributionCheckSnapshot,
+                                isPreDistributionCheckStale
+                              ) !== "eligible"
+                            }
+                            onChange={() => toggleUpdateSelection(pendingUpdate.remoteSkillId)}
+                          />
+                        </label>
+                      ))}
+                    </div>
+                  ) : null}
+                  <div className="page-intro__actions">
+                    <Button
+                      variant="outline"
+                      disabled={isBatchRunning || eligiblePendingUpdateCount === 0}
+                      onClick={selectAllEligibleUpdates}
+                    >
+                      {batchLabels.selectAll}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      disabled={isBatchRunning || selectedUpdateIds.length === 0}
+                      onClick={clearUpdateSelection}
+                    >
+                      {batchLabels.clear}
+                    </Button>
+                    <Button
+                      variant="primary"
+                      disabled={isBatchRunning || selectedPendingUpdates.length === 0}
+                      onClick={requestBatchDistributionConfirmation}
+                    >
+                      {batchLabels.distribute}
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <UpdatesView
+              isLoading={isLoading}
+              isPreDistributionChecking={isPreDistributionChecking}
+              isPreDistributionCheckStale={isPreDistributionCheckStale}
+              pendingUpdates={syncState.pendingUpdates}
+              preDistributionCheckSnapshot={preDistributionCheckSnapshot}
+              busyUpdateId={busyUpdateId}
+              onDistribute={requestDistributionConfirmation}
+              onReconcileInstalled={handleReconcileInstalled}
+              onRefreshPreDistributionCheck={handleRefreshPreDistributionCheck}
+            />
+          </>
         )}
 
         <SettingsDrawer
@@ -1520,15 +1884,32 @@ export function App() {
         {pendingDistributionConfirmation && distributionConfirmationSummary ? (
           <Dialog
             open
-            title={dictionary.distributionConfirmation.title}
-            description={dictionary.distributionConfirmation.description(
-              pendingDistributionConfirmation.name
-            )}
+            title={
+              pendingDistributionConfirmation.length > 1
+                ? "Confirm batch distribution"
+                : dictionary.distributionConfirmation.title
+            }
+            description={
+              pendingDistributionConfirmation.length > 1
+                ? pendingDistributionConfirmation.map((pendingUpdate) => pendingUpdate.name).join(", ")
+                : dictionary.distributionConfirmation.description(
+                    pendingDistributionConfirmation[0]?.name ?? ""
+                  )
+            }
             closeLabel={dictionary.common.close}
-            onClose={() => setPendingDistributionConfirmation(null)}
+            onClose={() => {
+              setPendingDistributionConfirmation(null)
+              setPendingDistributionConfirmationMode("single")
+            }}
             footer={
               <div className="dialog-actions">
-                <Button variant="outline" onClick={() => setPendingDistributionConfirmation(null)}>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setPendingDistributionConfirmation(null)
+                    setPendingDistributionConfirmationMode("single")
+                  }}
+                >
                   {dictionary.distributionConfirmation.cancel}
                 </Button>
                 <Button variant="destructive" onClick={handleConfirmDistribution}>

@@ -177,13 +177,14 @@ The desktop client provides five core UI panels for operator interaction:
 **Activity Panel**
 - Shows recent action history with timestamps
 - Entry types: neutral (info), success (completed), warning (issues)
-- Provides audit trail for distribution operations and sync events
+- Provides a session-scoped view of distribution and sync events for the current run
+- Activity is not persisted and resets when the app restarts
 - Empty state when no recent actions recorded
 
 ## Current Implementation Gaps
 
-- The SQLite state store does not yet persist full distribution history or backup metadata.
-- The broader brainstorming design assumed richer recoverability than the current implementation provides.
+- The SQLite state store does not persist full distribution history or backup metadata; this is a deliberate v1 scope reduction (documented non-goal), not an open implementation gap.
+- The richer recoverability imagined in earlier brainstorming (per-run distribution history, backups, cached catalog snapshots, agent inventory) is explicitly out of v1 scope.
 
 ## Architecture Boundaries
 
@@ -207,7 +208,10 @@ The desktop client provides five core UI panels for operator interaction:
 ## Persistence Requirements
 
 - Pending updates and local distributed-skill records survive restarts.
-- If v1 claims restart-safe activity history, the state store must expand to persist it explicitly.
+- Restart-safe persistence covers only the pending-update queue and the distributed-skill
+  snapshot (last local/remote version and content hash).
+- Activity history is session-scoped and is NOT persisted across restarts.
+- Persistent distribution history and backups are v1 non-goals.
 - Product copy must not promise persisted distribution history until it exists in the schema.
 
 ## References

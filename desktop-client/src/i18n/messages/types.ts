@@ -30,6 +30,8 @@ export interface AppDictionary {
     brandTitle: string
     brandSubtitle: string
     desktopClientLabel: string
+    collapseSidebar: string
+    expandSidebar: string
     navigation: {
       home: string
       localSkills: string

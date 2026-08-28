@@ -1,6 +1,7 @@
 import type { ReactNode } from "react"
+import { useCallback, useEffect, useState } from "react"
 
-import { Boxes, FolderOpen, House, PanelsTopLeft, RefreshCw, Settings } from "lucide-react"
+import { Boxes, ChevronsLeft, ChevronsRight, FolderOpen, House, PanelsTopLeft, RefreshCw, Settings } from "lucide-react"
 
 import { ThemeToggle } from "@/components/theme-toggle"
 import { Badge, Button } from "@/components/ui-primitives"
@@ -43,6 +44,28 @@ export function AppShell({
   children
 }: AppShellProps) {
   const { dictionary } = useI18n()
+
+  const [collapsed, setCollapsed] = useState<boolean>(() => {
+    if (typeof window === "undefined") return false
+    try {
+      return window.localStorage.getItem("skilldrive:sidebarCollapsed") === "true"
+    } catch {
+      return false
+    }
+  })
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem("skilldrive:sidebarCollapsed", String(collapsed))
+    } catch {
+      /* ignore storage errors (private mode, quota, etc.) */
+    }
+  }, [collapsed])
+
+  const toggleSidebar = useCallback(() => {
+    setCollapsed((prev) => !prev)
+  }, [])
+
   const navigationItems = [
     { view: "home" as const, label: dictionary.appShell.navigation.home, Icon: House },
     { view: "updates" as const, label: dictionary.appShell.navigation.updates, Icon: RefreshCw },
@@ -54,8 +77,12 @@ export function AppShell({
     { view: "projects" as const, label: dictionary.appShell.navigation.projects, Icon: PanelsTopLeft }
   ]
 
+  const shellClasses = collapsed ? "app-shell app-shell--collapsed" : "app-shell"
+  const ToggleIcon = collapsed ? ChevronsRight : ChevronsLeft
+  const toggleLabel = collapsed ? dictionary.appShell.expandSidebar : dictionary.appShell.collapseSidebar
+
   return (
-    <main className="app-shell">
+    <main className={shellClasses}>
       <aside className="app-sidebar">
         <div className="brand" aria-label={dictionary.appShell.desktopClientLabel}>
           <div className="brand__mark" aria-hidden="true">
@@ -95,6 +122,17 @@ export function AppShell({
             <span aria-hidden="true" className="app-sidebar__status-dot" />
             <span className="app-sidebar__footer-copy">{bridgeStatus}</span>
           </div>
+          <Button
+            aria-expanded={!collapsed}
+            aria-label={toggleLabel}
+            className="sidebar-toggle-btn"
+            disabled={navigationLocked}
+            title={toggleLabel}
+            variant="ghost"
+            onClick={toggleSidebar}
+          >
+            <ToggleIcon aria-hidden="true" className="sidebar-toggle-btn__icon" />
+          </Button>
         </div>
       </aside>
 

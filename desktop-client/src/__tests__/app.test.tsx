@@ -505,6 +505,80 @@ describe("App", () => {
     expect(within(navigation).getByText("Home")).toHaveClass("btn__label")
   })
 
+  describe("sidebar collapse toggle", () => {
+    const STORAGE_KEY = "skilldrive:sidebarCollapsed"
+
+    afterEach(() => {
+      window.localStorage.removeItem(STORAGE_KEY)
+    })
+
+    it("renders expanded by default with collapse toggle button (aria-expanded true)", async () => {
+      render(<App />)
+
+      const navigation = screen.getByRole("navigation", { name: "SkillDrive Desktop" })
+      await waitFor(() => {
+        expect(within(navigation).getByRole("button", { name: "Home" })).toBeInTheDocument()
+      })
+
+      const toggle = screen.getByRole("button", { name: "Collapse sidebar" })
+      expect(toggle).toBeInTheDocument()
+      expect(toggle).toHaveAttribute("aria-expanded", "true")
+
+      const shell = navigation.closest(".app-shell")
+      expect(shell).toBeInTheDocument()
+      expect(shell).not.toHaveClass("app-shell--collapsed")
+    })
+
+    it("toggles to collapsed state, persists, and swaps aria-expanded/label", async () => {
+      render(<App />)
+
+      const navigation = screen.getByRole("navigation", { name: "SkillDrive Desktop" })
+      await waitFor(() => {
+        expect(within(navigation).getByRole("button", { name: "Home" })).toBeInTheDocument()
+      })
+
+      const toggle = screen.getByRole("button", { name: "Collapse sidebar" })
+      fireEvent.click(toggle)
+
+      // After collapse: label and aria should swap
+      await waitFor(() => {
+        expect(toggle).toHaveAttribute("aria-expanded", "false")
+        expect(toggle).toHaveAttribute("aria-label", "Expand sidebar")
+      })
+
+      const shell = navigation.closest(".app-shell")
+      expect(shell).toHaveClass("app-shell--collapsed")
+      expect(window.localStorage.getItem(STORAGE_KEY)).toBe("true")
+
+      // Toggle back to expanded
+      fireEvent.click(toggle)
+      await waitFor(() => {
+        expect(toggle).toHaveAttribute("aria-expanded", "true")
+        expect(toggle).toHaveAttribute("aria-label", "Collapse sidebar")
+      })
+      expect(shell).not.toHaveClass("app-shell--collapsed")
+      expect(window.localStorage.getItem(STORAGE_KEY)).toBe("false")
+    })
+
+    it("restores collapsed state from localStorage on first render", async () => {
+      window.localStorage.setItem(STORAGE_KEY, "true")
+
+      render(<App />)
+
+      const navigation = screen.getByRole("navigation", { name: "SkillDrive Desktop" })
+      await waitFor(() => {
+        expect(within(navigation).getByRole("button", { name: "Home" })).toBeInTheDocument()
+      })
+
+      const shell = navigation.closest(".app-shell")
+      expect(shell).toHaveClass("app-shell--collapsed")
+
+      const toggle = screen.getByRole("button", { name: "Expand sidebar" })
+      expect(toggle).toBeInTheDocument()
+      expect(toggle).toHaveAttribute("aria-expanded", "false")
+    })
+  })
+
   it("exposes a desktop client API surface", () => {
     expect(window.desktopClient).toBeDefined()
     expect(window.desktopClient?.getConfiguration).toBeTypeOf("function")

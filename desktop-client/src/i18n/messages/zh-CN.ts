@@ -31,6 +31,8 @@ export const zhCNDictionary = {
     brandTitle: "SkillDrive",
     brandSubtitle: "桌面审核客户端",
     desktopClientLabel: "SkillDrive 桌面端",
+    collapseSidebar: "收起边栏",
+    expandSidebar: "展开边栏",
     navigation: {
       home: "首页",
       localSkills: "全局",

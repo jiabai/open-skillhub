@@ -39,6 +39,7 @@
 | `skill-delete-confirmation-tasks.md` | 4-task execution checklist completed; i18n keys, dialog UI, destructive confirm, test adaptation, and full validation passed |
 | `local-skill-upload-description-limit-plan.md` | Client ZIP uploads now cap external descriptions at the existing 500-character summary limit before Skill/SkillVersion persistence; strict create/append regression tests reproduce the old 500 and pass after the fix, with backend/desktop/docs gates passing |
 | `local-skill-upload-description-limit-tasks.md` | Completed checklist for diagnosing and fixing long-description upload failures, including archive preservation and debug-log cleanup |
+| `desktop-sidebar-collapse-toggle-plan.md` | Desktop client manual sidebar collapse/expand toggle completed: ChevronsLeft/ChevronsRight button in brand area, hover-reveal, localStorage (`skilldrive:sidebarCollapsed`) persistence, `.app-shell--collapsed` icon-rail class, narrow-screen (`<=1099px`) button suppression; 3 new regression tests, 231 tests passing, build and docs gates clean |
 
 ## Notes
 

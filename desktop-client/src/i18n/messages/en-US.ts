@@ -31,6 +31,8 @@ export const enUSDictionary = {
     brandTitle: "SkillDrive",
     brandSubtitle: "Desktop review client",
     desktopClientLabel: "SkillDrive Desktop",
+    collapseSidebar: "Collapse sidebar",
+    expandSidebar: "Expand sidebar",
     navigation: {
       home: "Home",
       localSkills: "Local Skills",

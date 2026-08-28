@@ -392,6 +392,7 @@ const detailLocalSkillRow = {
   ...defaultLocalSkillsSnapshot.rows[0],
   rowKey: "row-frontend-design",
   name: "frontend-design",
+  description: "A frontend design skill.",
   localVersion: "1.2.0",
   packageRootPath: "D:\\skills\\frontend-design",
   remoteSkillId: "frontend-design-id",
@@ -1186,14 +1187,13 @@ describe("App", () => {
       expect(mockDesktopClient.refreshLocalSkills).toHaveBeenCalledTimes(1)
       expect(screen.getByRole("heading", { name: "Local Skills" })).toBeInTheDocument()
       expect(screen.getByText("local-only")).toBeInTheDocument()
-      expect(screen.getAllByText(/Codex/).length).toBeGreaterThan(0)
+      expect(screen.getByText("No description")).toBeInTheDocument()
     })
 
     fireEvent.click(screen.getByRole("button", { name: "Upload" }))
 
     await waitFor(() => {
       expect(mockDesktopClient.uploadLocalSkill).toHaveBeenCalledWith("row-local-only")
-      expect(screen.getByText(/uploaded-skill/)).toBeInTheDocument()
       expect(screen.queryByRole("button", { name: "Upload" })).not.toBeInTheDocument()
     })
   })
@@ -1208,6 +1208,7 @@ describe("App", () => {
 
     const detail = screen.getByRole("complementary", { name: "frontend-design details" })
     expect(within(detail).getByRole("heading", { name: "frontend-design" })).toBeInTheDocument()
+    expect(within(detail).getByText("A frontend design skill.")).toBeInTheDocument()
     expect(within(detail).getByText("D:\\skills\\frontend-design")).toBeInTheDocument()
     expect(within(detail).getByText(/Codex/)).toBeInTheDocument()
     expect(within(detail).getAllByText("Local 1.2.0")).not.toHaveLength(0)
@@ -1232,6 +1233,19 @@ describe("App", () => {
     fireEvent.keyDown(inspect, { key })
 
     expect(screen.getByRole("complementary", { name: "frontend-design details" })).toBeInTheDocument()
+  })
+
+  it("closes the inspected Local Skill detail panel", async () => {
+    mockDesktopClient.refreshLocalSkills.mockResolvedValueOnce(detailLocalSkillsSnapshot)
+
+    await openLocalSkillsView()
+
+    fireEvent.click(await screen.findByRole("button", { name: "Inspect frontend-design" }))
+    expect(screen.getByRole("complementary", { name: "frontend-design details" })).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole("button", { name: "Close detail" }))
+
+    expect(screen.queryByRole("complementary", { name: "frontend-design details" })).not.toBeInTheDocument()
   })
 
   it("opens a multi-path group dialog without opening a folder before confirmation", async () => {
@@ -1345,7 +1359,7 @@ describe("App", () => {
     await waitFor(() => {
       expect(mockDesktopClient.uploadLocalSkill).toHaveBeenCalledWith("row-local-only")
       expect(mockDesktopClient.refreshLocalSkills).toHaveBeenCalledTimes(2)
-      expect(screen.getByText(/uploaded-skill/)).toBeInTheDocument()
+      expect(screen.queryByRole("button", { name: "Upload" })).not.toBeInTheDocument()
     })
   })
 

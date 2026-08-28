@@ -229,13 +229,8 @@ export function LocalSkillsView({
                       aria-current={isSelected ? "true" : undefined}
                     >
                       <div className="update-item__header">
-                        <div>
+                        <div className="local-skill-item__content">
                           <h3>{name}</h3>
-                          <div style={{ marginTop: "0.25rem" }}>
-                            <span className="muted mono" style={{ fontSize: "0.75rem" }}>
-                              {copy.localPath(group.items.map((item) => item.packageRootPath).join(", "))}
-                            </span>
-                          </div>
                         </div>
                         <div className="update-item__actions">
                           <Badge tone={badgeToneForGroup(group)}>
@@ -273,18 +268,9 @@ export function LocalSkillsView({
                           </span>
                         </div>
                       </div>
-                      <div className="update-item__meta">
-                        <span>{copy.sourceAgents(group.sourceDisplayNames.join(", "))}</span>
-                        <span>{copy.localVersion(versionLabel(group, dictionary.common.nA))}</span>
-                        {group.primary.remoteVersion ? <span>{copy.remoteVersion(group.primary.remoteVersion)}</span> : null}
-                        {group.primary.remoteSkillId ? <span className="mono">{copy.remoteId(group.primary.remoteSkillId)}</span> : null}
-                        {group.hasVersionConflict ? (
-                          <span style={{ color: "var(--osh-warning)" }}>{copy.versionConflict}</span>
-                        ) : null}
-                        {group.items.find((r) => r.validationMessage)?.validationMessage ? (
-                          <span>{copy.validationReason(group.items.find((r) => r.validationMessage)!.validationMessage!)}</span>
-                        ) : null}
-                      </div>
+                      <p className="local-skill-item__description muted">
+                        {group.primary.description ?? copy.noDescription}
+                      </p>
                     </article>
                   )
                 })}
@@ -300,13 +286,27 @@ export function LocalSkillsView({
             aria-label={copy.detailLabel(selectedGroup.name)}
           >
             <CardHeader>
-              <CardTitle>{selectedGroup.name}</CardTitle>
+              <div className="local-skills-detail__title">
+                <CardTitle>{selectedGroup.name}</CardTitle>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  aria-label={copy.closeDetail}
+                  onClick={() => setSelectedGroupKey(null)}
+                >
+                  {dictionary.common.close}
+                </Button>
+              </div>
               <CardDescription>
                 {copy.paths}: {copy.pathCount(selectedGroup.pathCount)}
               </CardDescription>
             </CardHeader>
             <CardContent className="local-skills-detail__content">
               <dl className="local-skills-detail__facts">
+                <div>
+                  <dt>{copy.descriptionLabel}</dt>
+                  <dd>{selectedGroup.primary.description ?? copy.noDescription}</dd>
+                </div>
                 <div>
                   <dt>{copy.localVersionLabel}</dt>
                   <dd>{copy.localVersion(versionLabel(selectedGroup, dictionary.common.nA))}</dd>

@@ -40,6 +40,7 @@ type ParsedSkillMetadata = {
   name: string | null
   slug: string | null
   version: string | null
+  description: string | null
 }
 
 type LocalCandidate = {
@@ -76,7 +77,8 @@ function parseSkillFrontmatter(markdown: string): ParsedSkillMetadata {
     return {
       name: null,
       slug: null,
-      version: null
+      version: null,
+      description: null
     }
   }
 
@@ -86,32 +88,89 @@ function parseSkillFrontmatter(markdown: string): ParsedSkillMetadata {
     return {
       name: null,
       slug: null,
-      version: null
+      version: null,
+      description: null
     }
   }
 
   const fields = new Map<string, string>()
   const frontmatter = normalized.slice(4, endIndex)
 
-  for (const line of frontmatter.split("\n")) {
-    const separatorIndex = line.indexOf(":")
+  let blockKey: string | null = null
+  let blockStyle: "literal" | "folded" | null = null
+  let blockLines: string[] = []
+
+  const commitBlock = () => {
+    if (blockKey !== null) {
+      const joined =
+        blockStyle === "folded"
+          ? blockLines.join(" ").replace(/\s+/g, " ").trim()
+          : blockLines.join("\n").replace(/\n+$/, "").trim()
+
+      if (joined) {
+        fields.set(blockKey, joined)
+      }
+    }
+
+    blockKey = null
+    blockStyle = null
+    blockLines = []
+  }
+
+  for (const rawLine of frontmatter.split("\n")) {
+    if (blockKey !== null) {
+      // Indented lines extend the block scalar; blank lines inside it are preserved.
+      if (/^[ \t]/.test(rawLine)) {
+        blockLines.push(rawLine.trim())
+        continue
+      }
+
+      if (rawLine.trim() === "") {
+        blockLines.push("")
+        continue
+      }
+
+      // A non-indented, non-empty line ends the block scalar.
+      commitBlock()
+    }
+
+    const separatorIndex = rawLine.indexOf(":")
 
     if (separatorIndex < 0) {
       continue
     }
 
-    const key = line.slice(0, separatorIndex).trim()
-    const value = normalizeMetadataValue(line.slice(separatorIndex + 1))
+    const key = rawLine.slice(0, separatorIndex).trim()
+    const rawValue = rawLine.slice(separatorIndex + 1).trim()
+
+    if (rawValue === "|" || rawValue === "|-" || rawValue === "|+") {
+      blockKey = key
+      blockStyle = "literal"
+      blockLines = []
+      continue
+    }
+
+    if (rawValue === ">" || rawValue === ">-" || rawValue === ">+") {
+      blockKey = key
+      blockStyle = "folded"
+      blockLines = []
+      continue
+    }
+
+    const value = normalizeMetadataValue(rawValue)
 
     if (value !== null) {
       fields.set(key, value)
     }
   }
 
+  commitBlock()
+
   return {
     name: fields.get("name") ?? null,
     slug: fields.get("slug") ?? null,
-    version: fields.get("version") ?? null
+    version: fields.get("version") ?? null,
+    description: fields.get("description") ?? null
   }
 }
 
@@ -378,6 +437,7 @@ export function createLocalSkillInventoryService(
     computeContentHash: (rootPath: string) => Promise<string>
   }): Promise<LocalSkillInventoryRow> {
     let name: string | null = null
+    let description: string | null = null
     let localVersion: string | null = null
     let validationState: LocalSkillValidationState = "valid"
     let validationError: unknown = null
@@ -386,8 +446,12 @@ export function createLocalSkillInventoryService(
       const skillMarkdown = await readTextFile(join(args.candidate.packageRootPath, "SKILL.md"), "utf8")
       const metadata = parseSkillFrontmatter(String(skillMarkdown))
 
-      name = resolveLocalSkillIdentity(metadata)
+      // Assign description/version before resolving identity: identity resolution
+      // can throw (e.g. an invalid skill name), which is a separate concern from
+      // whether the description was present.
+      description = metadata.description
       localVersion = metadata.version
+      name = resolveLocalSkillIdentity(metadata)
     } catch (error) {
       validationError = error
       validationState =
@@ -435,6 +499,7 @@ export function createLocalSkillInventoryService(
     return {
       rowKey: createRowKey(args.candidate.packageRootPath, name, platform),
       name,
+      description,
       localVersion,
       packageRootPath: args.candidate.packageRootPath,
       sourceAgents: args.candidate.sourceAgents,

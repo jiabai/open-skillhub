@@ -27,13 +27,6 @@
    - Tech debt 源链接检查：tech-debt-tracker.md 中 Source 列引用的文件必须存在（缺失记 ERROR）
    - Completed 计划状态检查：completed/ 下的 plan 若有 Status 行且非已完结状态（Completed/Archived）记 WARN
 
-5. 桌面客户端任务跟踪器检查
-   - 验证 desktop-client/task-tracker.md 是否存在
-   - 检查是否包含标准区段：In Progress、Todo、Done
-   - 检查是否使用 checkbox 格式（- [ ] 或 - [x]）
-   - 检查每个任务是否包含验证条件标记（✅）
-   - 统计待办和已完成任务数量
-
 严重级别：
 - ERROR: 必须修复的问题（文件缺失、死链、格式错误）
 - WARN: 建议修复的警告
@@ -49,7 +42,6 @@
 输出示例：
   [ERROR] docs/missing-file.md: 必需路径不存在
   [ERROR] AGENTS.md: 文档死链: ./nonexistent.md
-  [INFO] desktop-client/task-tracker.md: 5 项待办, 10 项已完成
   
   验证完成: 2 个错误, 0 个警告
 
@@ -89,8 +81,6 @@ class ValidationResult:
 
 
 BACKTICK_PATH_PATTERN = re.compile(r"`([^`]+)`")
-CHECKBOX_PATTERN = re.compile(r"^- \[[ x]\]\s+", re.MULTILINE)
-TASK_VALIDATION_MARKER = "✅"
 
 ROOT_REQUIRED_PATHS = [
     Path("AGENTS.md"),
@@ -116,8 +106,6 @@ ENTRYPOINT_FILES = [
     Path("desktop-client/AGENTS.md"),
     Path("CLAUDE.md"),
 ]
-
-TASK_TRACKER_REQUIRED_HEADINGS = ["In Progress", "Todo", "Done"]
 
 CONSTRAINT_SECTION = "约束机制"
 CONSTRAINT_MODE_PATTERN = re.compile(r"模式[：:]\s*`([^`]+)`")
@@ -291,33 +279,6 @@ def validate_completed_plan_status(directory: Path) -> list[ValidationResult]:
     return results
 
 
-def validate_desktop_task_tracker(path: Path) -> list[ValidationResult]:
-    results: list[ValidationResult] = []
-    if not path.exists():
-        results.append(ValidationResult(path, Severity.ERROR, "desktop-client 任务跟踪文件不存在"))
-        return results
-
-    text = path.read_text(encoding="utf-8")
-    headings = re.findall(r"^##\s+(.+)$", text, re.MULTILINE)
-    missing_headings = [heading for heading in TASK_TRACKER_REQUIRED_HEADINGS if heading not in headings]
-    if missing_headings:
-        results.append(ValidationResult(path, Severity.ERROR, f"缺少标准区段: {', '.join(missing_headings)}"))
-
-    task_lines = [line for line in text.splitlines() if CHECKBOX_PATTERN.match(line)]
-    if not task_lines:
-        results.append(ValidationResult(path, Severity.ERROR, "没有使用 checkbox 格式"))
-    else:
-        missing_validation = [idx + 1 for idx, line in enumerate(text.splitlines()) if CHECKBOX_PATTERN.match(line) and TASK_VALIDATION_MARKER not in line]
-        if missing_validation:
-            joined = ", ".join(f"第{line_no}行" for line_no in missing_validation)
-            results.append(ValidationResult(path, Severity.ERROR, f"任务缺少验证条件（缺少 `✅`）: {joined}"))
-
-    pending = len(re.findall(r"^- \[ \]\s+", text, re.MULTILINE))
-    completed = len(re.findall(r"^- \[x\]\s+", text, re.MULTILINE))
-    results.append(ValidationResult(path, Severity.INFO, f"{pending} 项待办, {completed} 项已完成"))
-    return results
-
-
 def validate_constraint_mechanism(root: Path) -> list[ValidationResult]:
     results: list[ValidationResult] = []
     agents_md = root / "AGENTS.md"
@@ -408,7 +369,6 @@ def validate_project(root: Path) -> list[ValidationResult]:
         results.extend(validate_plan_task_pairing(directory))
         if rel == "completed":
             results.extend(validate_completed_plan_status(directory))
-    results.extend(validate_desktop_task_tracker(root / "desktop-client" / "task-tracker.md"))
     results.extend(validate_tech_debt_source_links(root / "docs" / "exec-plans" / "tech-debt-tracker.md"))
 
     return results

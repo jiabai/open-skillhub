@@ -101,7 +101,7 @@ Modified:
 | `docs/SECURITY.md` | Record current absence of Apple signing secrets and future signing/notarization secret handling |
 | `docs/references/runtime-and-storage-surface.md` | Clarify macOS packaging command and release boundary |
 | `README.md` | Point operators at the macOS release runbook |
-| `task-tracker.md` | Track macOS release documentation and future validation |
+| `docs/exec-plans/active/index.md` | List this active plan and checklist |
 
 Implemented release configuration files:
 

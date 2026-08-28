@@ -5,7 +5,7 @@ Electron + Vite desktop shell for SkillDrive.
 ## Quick Links
 
 - `AGENTS.md`
-- `task-tracker.md`
+- `docs/exec-plans/index.md`
 - `docs/ARCHITECTURE.md`
 - `docs/design-docs/core-beliefs.md`
 - `docs/SECURITY.md`

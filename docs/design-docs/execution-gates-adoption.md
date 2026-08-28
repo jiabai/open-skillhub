@@ -14,7 +14,7 @@ SkillDrive 已经有清晰的工作流和文档结构，但此前缺少一份面
 
 1. `WORKFLOW.md` 已定义五阶段流程：Constitution、Spec、Plan、Tasks、Implementation。
 2. `AGENTS.md` 已要求非平凡任务遵循 `WORKFLOW.md`，并把重要文档入口集中在 Quick Entry。
-3. `scripts/validate_agents_docs.py` 可以验证核心文档入口、索引引用和 `desktop-client/task-tracker.md` 格式。
+3. `scripts/validate_agents_docs.py` 可以验证核心文档入口、索引引用和 `desktop-client/docs/exec-plans/` 格式。
 4. `docs/QUALITY_SCORE.md` 已作为长期质量趋势记录。
 5. 各子项目已有常用验证命令，例如后端 `uv run pytest`、`uv run ruff check .`，前端 `npm run lint` / `npm test`，桌面端 `npm test` / `npm run build`。
 

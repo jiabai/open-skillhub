@@ -141,6 +141,7 @@ export type LocalSkillServerState = "existing" | "missing" | "unknown" | "invali
 export interface LocalSkillInventoryRow {
   rowKey: string
   name: string | null
+  description?: string | null
   localVersion: string | null
   packageRootPath: string
   sourceAgents: AgentId[]

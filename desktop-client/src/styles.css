@@ -611,6 +611,32 @@ select:focus-visible {
   box-shadow: 0 0 0 2px var(--osh-accent-border);
 }
 
+.local-skills-detail__title {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.local-skill-item__content {
+  min-width: 0;
+}
+
+.local-skill-item__content h3 {
+  overflow-wrap: anywhere;
+}
+
+.local-skill-item__description {
+  margin: 0;
+  font-size: 0.85rem;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
 .local-skill-item__actions,
 .local-skills-detail__actions {
   display: flex;

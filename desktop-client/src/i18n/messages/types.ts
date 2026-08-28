@@ -168,6 +168,9 @@ export interface AppDictionary {
     loading: string
     noSnapshot: string
     empty: string
+    descriptionLabel: string
+    noDescription: string
+    closeDetail: string
     upload: string
     uploading: string
     delete: string

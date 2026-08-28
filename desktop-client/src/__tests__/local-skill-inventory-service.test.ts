@@ -181,7 +181,7 @@ describe("createLocalSkillInventoryService", () => {
     const skillPath = writeSkill(
       targetPath,
       "self-improving",
-      "name: Self-Improving Agent (With Self-Reflection)\nslug: self-improving\nversion: 1.1.3"
+      "name: Self-Improving Agent (With Self-Reflection)\nslug: self-improving\nversion: 1.1.3\ndescription: Agents that improve their own prompts and workflows."
     )
     const remoteSkills: RemoteSkillSummary[] = [
       {
@@ -205,6 +205,7 @@ describe("createLocalSkillInventoryService", () => {
     expect(snapshot.rows).toHaveLength(1)
     expect(snapshot.rows[0]).toMatchObject({
       name: "self-improving",
+      description: "Agents that improve their own prompts and workflows.",
       packageRootPath: skillPath,
       localVersion: "1.1.3",
       validationState: "valid",
@@ -238,6 +239,59 @@ describe("createLocalSkillInventoryService", () => {
       validationState: "valid",
       sourceAgents: ["hermes"],
       sourceDisplayNames: ["Hermes Agent"]
+    })
+  })
+
+  it("parses a multi-line literal block scalar description", async () => {
+    const targetPath = createTempRoot()
+    const skillPath = writeSkill(
+      targetPath,
+      "brand-guidelines",
+      `name: brand-guidelines
+description: |
+  Apply Anthropic's official brand colors and typography to artifacts.
+  A reference for shaping your own.`
+    )
+
+    const snapshot = await createLocalSkillInventoryService().refresh({
+      detectionSnapshot: createDetectionSnapshot(targetPath),
+      remoteSkills: [],
+      serverLookupStatus: "ok",
+      serverLookupMessage: null
+    })
+
+    expect(snapshot.rows).toHaveLength(1)
+    expect(snapshot.rows[0]).toMatchObject({
+      name: "brand-guidelines",
+      description:
+        "Apply Anthropic's official brand colors and typography to artifacts.\nA reference for shaping your own.",
+      validationState: "valid"
+    })
+  })
+
+  it("surfaces the description even when the frontmatter name is invalid", async () => {
+    const targetPath = createTempRoot()
+    const skillPath = writeSkill(
+      targetPath,
+      "banner-design",
+      "name: ckm:banner-design\ndescription: Design banners across formats."
+    )
+
+    const snapshot = await createLocalSkillInventoryService().refresh({
+      detectionSnapshot: createDetectionSnapshot(targetPath),
+      remoteSkills: [],
+      serverLookupStatus: "ok",
+      serverLookupMessage: null
+    })
+
+    expect(snapshot.rows).toHaveLength(1)
+    expect(snapshot.rows[0]).toMatchObject({
+      name: null,
+      description: "Design banners across formats.",
+      packageRootPath: skillPath,
+      validationState: "invalid-skill-name",
+      serverState: "invalid-local",
+      uploadable: false
     })
   })
 

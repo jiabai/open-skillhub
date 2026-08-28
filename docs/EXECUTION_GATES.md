@@ -175,7 +175,7 @@ If a hard gate fails:
 - Keep the task in progress.
 - Fix the issue or record the blocker in the active ExecPlan.
 - Do not move an active plan to completed.
-- Do not mark task-tracker items as done.
+- Do not mark ExecPlan tracker items as done.
 
 If a hard gate cannot be run:
 

@@ -62,5 +62,5 @@ On Windows, it should behave like a notification-area utility: a tray-opened win
 ## Documentation Rules
 
 - Product decisions live in `docs/product-specs/`.
-- Execution state lives in `task-tracker.md` and `docs/exec-plans/index.md`.
+- Execution state lives in `docs/exec-plans/index.md`.
 - Security-sensitive behavior belongs in `docs/SECURITY.md`, not only in README caveats.

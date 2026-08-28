@@ -105,7 +105,6 @@ Modified:
 | `docs/references/runtime-and-storage-surface.md` | Add configured packaging commands and accurate release boundary |
 | `docs/ARCHITECTURE.md` | Record packaging configuration and Windows release boundary |
 | `README.md` | Document packaging workflow and generated artifact policy |
-| `task-tracker.md` | Track active packaging documentation/validation work |
 | `docs/exec-plans/active/index.md` | List this active plan and checklist |
 
 Future implementation may modify:

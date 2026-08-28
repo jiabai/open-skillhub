@@ -4,6 +4,8 @@
 
 | File | Outcome |
 |------|---------|
+| `2026-08-28-merge-desktop-task-tracker-into-exec-plans-plan.md` | Desktop task state moved into the ExecPlan system; redundant desktop-client/task-tracker.md retired and all references removed, validator updated |
+| `2026-08-28-merge-desktop-task-tracker-into-exec-plans-tasks.md` | Execution checklist completed; docs validator passes with 0 errors |
 | `backend-consolidation-refactor-plan.md` | Backend error/response unification, skills API boundary cleanup, SkillService split, legacy fallback centralization, app composition layer slimming |
 | `backend-consolidation-refactor-tasks.md` | 6-milestone execution checklist; all milestones completed with passing regression tests and ruff checks |
 | `docker-healthcheck-standardization-plan.md` | Docker startup, migration, logging, and readiness standardization completed with end-to-end Compose runtime validation |

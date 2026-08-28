@@ -174,7 +174,6 @@ Modified:
 | `docs/design-docs/index.md` | Add packaged deployment design |
 | `docs/exec-plans/active/index.md` | Add active plan and checklist |
 | `docs/ARCHITECTURE.md` | Record target packaged deployment surface |
-| `task-tracker.md` | Track active packaged deployment work |
 
 Future implementation files:
 

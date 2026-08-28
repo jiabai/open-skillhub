@@ -50,7 +50,7 @@
 - Start with the narrowest relevant `AGENTS.md`, then read deeper docs only as needed.
 - **MUST NOT** skip documentation for non-trivial tasks. Create spec → plan → tasks before writing code. Use the lightweight path ONLY for trivial changes as strictly defined in `WORKFLOW.md` and `.trae/rules/workflow-gate.md`.
 - Repo-wide active work lives under `docs/exec-plans/active/`; use sibling task checklist files in that directory when a plan needs explicit execution checkpoints.
-- `desktop-client/` keeps its own `desktop-client/task-tracker.md`; do not create a second parallel tracker inside that subproject.
+- `desktop-client/` tracks its task state under `desktop-client/docs/exec-plans/` (active/completed plans plus `desktop-client/docs/exec-plans/tech-debt-tracker.md`). Do not create a separate task tracker file inside that subproject.
 - When architecture or process changes, update the matching file in `docs/`.
 - Keep AGENTS quick-entry paths valid and relative to the file that declares them.
 - Keep `AGENTS.md` files as maps; move detailed or fast-changing material into `docs/`.

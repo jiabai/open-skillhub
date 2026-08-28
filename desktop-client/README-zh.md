@@ -5,7 +5,7 @@ SkillDrive 的 Electron + Vite 桌面端应用。
 ## 快速链接
 
 - `AGENTS.md`
-- `task-tracker.md`
+- `docs/exec-plans/index.md`
 - `docs/ARCHITECTURE.md`
 - `docs/design-docs/core-beliefs.md`
 - `docs/SECURITY.md`

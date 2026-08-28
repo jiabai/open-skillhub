@@ -193,8 +193,11 @@ select:focus-visible {
   border-radius: 0.65rem;
   background: var(--osh-primary);
   color: var(--osh-primary-foreground);
-  font-family: var(--osh-font-mono);
-  font-weight: 700;
+}
+
+.brand__mark-icon {
+  width: 1.25rem;
+  height: 1.25rem;
 }
 
 .brand__title {

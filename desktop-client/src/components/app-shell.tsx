@@ -1,6 +1,6 @@
 import type { ReactNode } from "react"
 
-import { FolderOpen, House, PanelsTopLeft, RefreshCw, Settings } from "lucide-react"
+import { Boxes, FolderOpen, House, PanelsTopLeft, RefreshCw, Settings } from "lucide-react"
 
 import { ThemeToggle } from "@/components/theme-toggle"
 import { Badge, Button } from "@/components/ui-primitives"
@@ -59,7 +59,7 @@ export function AppShell({
       <aside className="app-sidebar">
         <div className="brand" aria-label={dictionary.appShell.desktopClientLabel}>
           <div className="brand__mark" aria-hidden="true">
-            SD
+            <Boxes className="brand__mark-icon" />
           </div>
           <div className="brand__copy">
             <p className="brand__title">{dictionary.appShell.brandTitle}</p>

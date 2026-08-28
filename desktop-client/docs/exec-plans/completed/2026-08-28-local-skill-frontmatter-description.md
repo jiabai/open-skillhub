@@ -1,7 +1,7 @@
 # 本地 SKILL 卡片精简（Frontmatter name/description）— 执行计划
 
 - 关联 spec：`docs/product-specs/2026-08-28-local-skill-frontmatter-description.md`
-- 状态：待批准
+- 状态：已归档（完成）
 - 范围：仅 `desktop-client/`
 
 ## 目标
@@ -46,3 +46,14 @@
 ## 记录
 
 - 实施中发现的信息、偏差或新决策在此补充，并保持 spec 与 plan 同步。
+
+## 验证记录（2026-08-28）
+
+- [x] `cd desktop-client && npm test` 全绿：38 个测试文件、234 个用例通过。
+- [x] `npm run build` 通过（含 typecheck:electron、vite build、build:electron）。
+- [x] `npm run typecheck:electron` 无错。
+- [x] 代码层核对：`local-skill-inventory-service.ts` 解析 description、`types/index.ts` 增字段、
+  `local-skills-view.tsx` 卡片/详情展示 description、i18n `zh-CN`/`en-US`/`types.ts` 增
+  `noDescription`/`descriptionLabel`、`styles.css` 增 `.local-skill-item__description`、
+  相关测试已更新。
+- [x] 计划已归档至 `docs/exec-plans/completed/`。

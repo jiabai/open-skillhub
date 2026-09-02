@@ -10,8 +10,6 @@
 | [2026-05-03-macos-release-packaging-tasks.md](2026-05-03-macos-release-packaging-tasks.md) | Task checklist for macOS packaging documentation, future implementation, and future macOS-machine validation |
 | [2026-05-14-linux-cli-packaged-deployment.md](2026-05-14-linux-cli-packaged-deployment.md) | Plan for replacing Linux CLI npm-link deployment with a tarball and install-script workflow |
 | [2026-05-14-linux-cli-packaged-deployment-tasks.md](2026-05-14-linux-cli-packaged-deployment-tasks.md) | Task checklist for Linux CLI packaged deployment documentation, future implementation, and Linux validation |
-| [github-actions-release-packaging-plan.md](github-actions-release-packaging-plan.md) | Plan for building and publishing Windows installer and Linux CLI release artifacts through a GitHub Actions tag-triggered workflow |
-| [github-actions-release-packaging-tasks.md](github-actions-release-packaging-tasks.md) | Task checklist for the GitHub Actions release packaging workflow implementation and validation |
 
 ## Working Agreement
 

@@ -67,7 +67,7 @@ describe("desktop package scripts", () => {
     const packageJson = JSON.parse(readFileSync(packageJsonPath, "utf8")) as PackageJson
 
     expect(packageJson.scripts?.["dist:mac"]).toBe("electron-builder --mac")
-    expect(packageJson.build?.mac?.target).toEqual(["dmg", "zip"])
+    expect(packageJson.build?.mac?.target).toEqual(["dmg"])
     expect(packageJson.build?.mac?.icon).toBe("resources/icons/icon.icns")
     expect(packageJson.build?.mac?.category).toBe("public.app-category.productivity")
     expect(packageJson.build?.mac?.identity).toBeNull()

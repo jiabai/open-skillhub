@@ -65,16 +65,17 @@ jobs:
       - name: Build
         run: npm run build
 
-      - name: Package macOS app (unsigned, universal)
-        run: npm run dist:mac -- --universal --publish never
+      - name: Package macOS app for Intel (unsigned)
+        run: npm run dist:mac -- --x64 --publish never
+
+      - name: Package macOS app for Apple Silicon (unsigned)
+        run: npm run dist:mac -- --arm64 --publish never
 
       - name: Upload macOS artifacts
         uses: actions/upload-artifact@v4
         with:
           name: macos-package
-          path: |
-            desktop-client/dist/*.dmg
-            desktop-client/dist/*.zip
+          path: desktop-client/dist/*.dmg
           if-no-files-found: error
 
   linux-cli:
@@ -138,5 +139,5 @@ jobs:
             --generate-notes \
             --title "${GITHUB_REF_NAME}" \
             artifacts/windows/*.exe \
-            artifacts/macos/*.dmg artifacts/macos/*.zip \
+            artifacts/macos/*.dmg \
             artifacts/linux-cli/*

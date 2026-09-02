@@ -13,14 +13,14 @@ produces a reviewable GitHub Release with attached, checksummed artifacts.
   dispatch (`workflow_dispatch`).
 
 - Windows job (`windows-latest`, Node 20): install dependencies, run the
-  desktop test suite, build, run `npm run dist:win` (NSIS + portable), upload
+  desktop test suite, build, run `npm run dist:win` (NSIS installer), upload
   installer artifacts.
 
 - macOS job (`macos-latest`, Node 20): install dependencies, build, run
-  `npm run dist:mac -- --universal` (unsigned dmg + zip for Intel and Apple
-  Silicon), upload the dmg/zip artifacts. The desktop test suite is not run
-  here because it contains Windows-path assumptions; tests gate the release
-  through the Windows job.
+  `npm run dist:mac -- --x64` and `npm run dist:mac -- --arm64` (unsigned
+  per-architecture dmg files for Intel and Apple Silicon), upload the dmg
+  artifacts. The desktop test suite is not run here because it contains
+  Windows-path assumptions; tests gate the release through the Windows job.
 
 - Linux CLI job (`ubuntu-latest`, Node 20): install dependencies, run
   `npm run package:linux-cli`, upload the tarball and `.sha256` artifacts.
@@ -42,11 +42,13 @@ produces a reviewable GitHub Release with attached, checksummed artifacts.
 
 - No backend or frontend console CI changes.
 
-- No changes to packaging commands or artifact layout beyond one necessary
-  builder fix: adding `!dist/mac-*/**/*` to the electron-builder `files`
-  exclusion list so universal macOS builds do not leak the x64 temp app into
-  the arm64 asar (the renderer output directory and the builder output
-  directory are both `dist/`).
+- No changes to packaging commands beyond the builder configuration fixes
+  required by CI reality: adding `!dist/mac-*/**/*`, `!dist/*.dmg`, and
+  `!dist/*.exe` to the electron-builder `files` exclusion list so sequential
+  macOS builds do not leak earlier build outputs into the asar (the renderer
+  output directory and the builder output directory are both `dist/`),
+  narrowing `win.target` to `nsis` only (dropping the portable target), and
+  narrowing `mac.target` to `dmg` only (dropping the zip target).
 
 - No release-branch or nightly build channels.
 
@@ -63,8 +65,8 @@ produces a reviewable GitHub Release with attached, checksummed artifacts.
 ## Acceptance Criteria
 
 - Pushing a `v*` tag runs all jobs; a draft or published GitHub Release for
-  the tag contains the Windows `.exe` artifacts, the macOS `.dmg`/`.zip`
-  artifacts, and the Linux CLI tarball with its `.sha256`.
+  the tag contains the Windows `.exe` installer, the macOS `.dmg` files (one
+  per architecture), and the Linux CLI tarball with its `.sha256`.
 
 - Manual dispatch runs the same build steps and exposes artifacts on the
   workflow run page without creating a release.

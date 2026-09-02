@@ -42,8 +42,15 @@ GitHub Releases API.
       first real macOS packaging validation — this config had never run on
       macOS before). Also added `--publish never` to CI `dist:win`/`dist:mac`
       invocations to suppress electron-builder's implicit CI auto-publish.
+- [x] 2026-09-03: Owner reviewed artifact sizes versus v0.1.4 and decided to
+      slim the release: dropped the Windows `portable` target (NSIS only),
+      dropped the macOS `zip` target, and replaced the universal build with
+      per-architecture dmg files (Intel + Apple Silicon). Added
+      `!dist/*.dmg` and `!dist/*.exe` to the `files` exclusion list so the
+      second sequential macOS build does not package the first build's dmg
+      into its asar.
 - [ ] Tag-path validation: confirm a `v*` tag push produces a draft release
-      with all artifacts including macOS dmg/zip.
+      with all artifacts including both macOS dmg files.
 
 ---
 
@@ -79,8 +86,8 @@ git diff --check
 Plus a manual `workflow_dispatch` run confirming:
 
 - Windows job completes `npm test`, `npm run build`, `npm run dist:win`.
-- macOS job completes `npm test`, `npm run build`, `npm run dist:mac --
-  --universal` and uploads `dist/*.dmg` and `dist/*.zip`.
+- macOS job completes `npm run build`, `npm run dist:mac -- --x64`,
+  `npm run dist:mac -- --arm64` and uploads `dist/*.dmg`.
 - Linux job completes `npm run package:linux-cli` and uploads
   `dist/linux-cli/*` (tarball + `.sha256`).
 - No release is created for the dispatch run.
@@ -88,10 +95,14 @@ Plus a manual `workflow_dispatch` run confirming:
 ## Decisions to Track
 
 - **Node version:** 20, matching `@types/node` in `desktop-client/package.json`.
-- **macOS architecture:** universal build (`npm run dist:mac -- --universal`)
-  on `macos-latest`, producing one dmg + zip that runs on both Intel and
-  Apple Silicon Macs. Unsigned; Gatekeeper requires right-click Open or
-  `xattr -cr` override — documented in the CI release runbook.
+- **macOS architecture:** per-architecture builds (`npm run dist:mac --
+  --x64` then `--arm64`) on one `macos-latest` runner, producing an Intel
+  dmg and an Apple Silicon dmg. Dropped the universal build and the zip
+  target on 2026-09-03 to keep artifact sizes close to the v0.1.4 baseline.
+  Unsigned; Gatekeeper requires right-click Open or `xattr -cr` override —
+  documented in the CI release runbook.
+- **Windows targets:** NSIS only. The `portable` target was dropped on
+  2026-09-03; v0.1.4 never shipped a portable build either.
 - **Release creation:** `softprops/action-gh-release` (or `gh release create`)
   gated on tag push only; draft release first so a human reviews assets before
   publishing.

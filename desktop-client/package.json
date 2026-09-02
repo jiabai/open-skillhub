@@ -49,14 +49,15 @@
       "!dist/mac/**/*",
       "!dist/mac-*/**/*",
       "!dist/*.zip",
+      "!dist/*.dmg",
+      "!dist/*.exe",
       "!dist/*.blockmap",
       "!dist/builder-debug.yml",
       "!dist/builder-effective-config.yaml"
     ],
     "win": {
       "target": [
-        "nsis",
-        "portable"
+        "nsis"
       ],
       "icon": "resources/icons/icon.ico"
     },
@@ -66,8 +67,7 @@
     },
     "mac": {
       "target": [
-        "dmg",
-        "zip"
+        "dmg"
       ],
       "icon": "resources/icons/icon.icns",
       "category": "public.app-category.productivity",

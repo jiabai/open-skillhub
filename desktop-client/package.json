@@ -47,6 +47,7 @@
       "dist-electron/**/*",
       "package.json",
       "!dist/mac/**/*",
+      "!dist/mac-*/**/*",
       "!dist/*.zip",
       "!dist/*.blockmap",
       "!dist/builder-debug.yml",

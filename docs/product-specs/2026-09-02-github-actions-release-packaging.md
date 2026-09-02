@@ -42,10 +42,11 @@ produces a reviewable GitHub Release with attached, checksummed artifacts.
 
 - No backend or frontend console CI changes.
 
-- No changes to packaging commands, builder configuration, or artifact layout
-  — the workflow invokes the existing validated commands
-  (`npm test`, `npm run build`, `npm run dist:win`, `npm run dist:mac`,
-  `npm run package:linux-cli`).
+- No changes to packaging commands or artifact layout beyond one necessary
+  builder fix: adding `!dist/mac-*/**/*` to the electron-builder `files`
+  exclusion list so universal macOS builds do not leak the x64 temp app into
+  the arm64 asar (the renderer output directory and the builder output
+  directory are both `dist/`).
 
 - No release-branch or nightly build channels.
 

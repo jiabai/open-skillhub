@@ -33,6 +33,15 @@ GitHub Releases API.
       the desktop suite has Windows-path assumptions (hardcoded `C:\...`
       paths, Windows absolute-path validation). Removed the Test step from
       the macOS job; tests gate the release through the Windows job.
+- [x] 2026-09-02: Second dispatch failed at the universal merge: the
+      renderer build output directory (`dist/`) collides with
+      electron-builder's output directory, so the x64 temp app
+      (`dist/mac-universal-x64-temp/`) leaked into the arm64 asar via the
+      `files: ["dist/**/*"]` glob. Fixed by adding `!dist/mac-*/**/*` to the
+      builder `files` exclusion list in `desktop-client/package.json` (the
+      first real macOS packaging validation — this config had never run on
+      macOS before). Also added `--publish never` to CI `dist:win`/`dist:mac`
+      invocations to suppress electron-builder's implicit CI auto-publish.
 - [ ] Tag-path validation: confirm a `v*` tag push produces a draft release
       with all artifacts including macOS dmg/zip.
 

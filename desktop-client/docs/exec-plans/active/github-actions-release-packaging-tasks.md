@@ -29,6 +29,11 @@
       2026-09-02): Windows, macOS, and Linux CLI jobs all passed;
       `windows-installer`, `macos-package`, and `linux-cli` artifacts
       uploaded; the draft-release job was correctly skipped.
+- [x] Re-run dispatch after slimming targets (run 33661725737 on
+      2026-09-03): all jobs passed. Artifact sizes back near the v0.1.4
+      baseline: `windows-installer` 167.5MB (NSIS only, was 334.8MB with
+      portable), `macos-package` 206.9MB (Intel + Apple Silicon dmg, was
+      351MB universal dmg + zip), `linux-cli` 4.33MB.
 - [ ] On the next tag, confirm the draft release contains the Windows
-      installers, the macOS dmg/zip, and the Linux CLI tarball with
+      installer, both macOS dmg files, and the Linux CLI tarball with
       checksum, then publish.

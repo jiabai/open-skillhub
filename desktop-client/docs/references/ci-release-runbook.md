@@ -17,7 +17,7 @@ Desktop release artifacts are built by the GitHub Actions workflow
 | Job | Runner | Steps | Artifacts |
 |-----|--------|-------|-----------|
 | Windows installer | `windows-latest` | `npm ci`, `npm test`, `npm run build`, `npm run dist:win` | `SkillDrive Desktop Setup <version>.exe` (NSIS), portable `.exe` |
-| macOS package | `macos-latest` | `npm ci`, `npm test`, `npm run build`, `npm run dist:mac -- --universal` | `SkillDrive Desktop-<version>-universal-mac.dmg` + `.zip` (unsigned) |
+| macOS package | `macos-latest` | `npm ci`, `npm run build`, `npm run dist:mac -- --universal` | `SkillDrive Desktop-<version>-universal-mac.dmg` + `.zip` (unsigned) |
 | Linux CLI package | `ubuntu-latest` | `npm ci`, `npm run package:linux-cli` | `skilldrive-cli-<version>-linux-node20.tar.gz` + `.sha256` |
 | Draft GitHub Release | `ubuntu-latest` | download artifacts, `gh release create --draft --generate-notes` | (tag push only) |
 
@@ -39,6 +39,8 @@ The Linux CLI tarball is assembled on Linux so `bin/skilldrive-cli`,
 
 - The workflow requires `permissions: contents: write` for release creation;
   it uses the default `GITHUB_TOKEN`.
+- The desktop test suite runs only in the Windows job; several tests contain
+  Windows-path assumptions and do not pass on macOS runners.
 - No code signing is configured; Windows SmartScreen warnings are expected
   for unsigned installers.
 - macOS artifacts are unsigned and not notarized (Developer ID signing is

@@ -29,6 +29,10 @@ GitHub Releases API.
       correctly skipped the draft-release job.
 - [x] 2026-09-02: Scope extended by owner request to include unsigned macOS
       dmg/zip artifacts; spec updated, macOS job added to the workflow.
+- [x] 2026-09-02: First dispatch with the macOS job failed at the Test step:
+      the desktop suite has Windows-path assumptions (hardcoded `C:\...`
+      paths, Windows absolute-path validation). Removed the Test step from
+      the macOS job; tests gate the release through the Windows job.
 - [ ] Tag-path validation: confirm a `v*` tag push produces a draft release
       with all artifacts including macOS dmg/zip.
 

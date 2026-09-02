@@ -16,9 +16,11 @@ produces a reviewable GitHub Release with attached, checksummed artifacts.
   desktop test suite, build, run `npm run dist:win` (NSIS + portable), upload
   installer artifacts.
 
-- macOS job (`macos-latest`, Node 20): install dependencies, run the desktop
-  test suite, build, run `npm run dist:mac -- --universal` (unsigned dmg +
-  zip for Intel and Apple Silicon), upload the dmg/zip artifacts.
+- macOS job (`macos-latest`, Node 20): install dependencies, build, run
+  `npm run dist:mac -- --universal` (unsigned dmg + zip for Intel and Apple
+  Silicon), upload the dmg/zip artifacts. The desktop test suite is not run
+  here because it contains Windows-path assumptions; tests gate the release
+  through the Windows job.
 
 - Linux CLI job (`ubuntu-latest`, Node 20): install dependencies, run
   `npm run package:linux-cli`, upload the tarball and `.sha256` artifacts.
@@ -66,8 +68,8 @@ produces a reviewable GitHub Release with attached, checksummed artifacts.
 - Manual dispatch runs the same build steps and exposes artifacts on the
   workflow run page without creating a release.
 
-- The Windows and macOS jobs fail if the desktop test suite fails (tests gate
-  the package step).
+- The Windows job fails if the desktop test suite fails (tests gate the
+  package step). The macOS job gates on successful build and packaging.
 
 - Artifact names derive from the package version and remain stable across
   runs.

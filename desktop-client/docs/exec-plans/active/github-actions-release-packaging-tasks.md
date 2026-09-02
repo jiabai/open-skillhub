@@ -17,7 +17,10 @@
       `docs/product-specs/index.md`.
 - [x] Run `python scripts/validate_agents_docs.py --level ERROR` and
       `git diff --check`.
-- [ ] Trigger a manual `workflow_dispatch` run and confirm both jobs pass with
+- [x] Trigger a manual `workflow_dispatch` run and confirm both jobs pass with
       artifacts attached and no release created.
+      (Run 33637864542 on 2026-09-02: Windows installer and Linux CLI jobs
+      passed; `windows-installer` and `linux-cli` artifacts uploaded; the
+      draft-release job was correctly skipped.)
 - [ ] On the next tag, confirm the draft release contains the Windows
       installers and the Linux CLI tarball with checksum, then publish.

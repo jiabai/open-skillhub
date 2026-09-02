@@ -18,6 +18,18 @@ GitHub Releases API.
 
 ---
 
+## Progress
+
+- [x] 2026-09-02: Spec approved; workflow implemented, docs updated,
+      documentation gates passed.
+- [x] 2026-09-02: Manual `workflow_dispatch` run 33637864542 passed both
+      build jobs, uploaded `windows-installer` and `linux-cli` artifacts, and
+      correctly skipped the draft-release job.
+- [ ] Tag-path validation: confirm a `v*` tag push produces a draft release
+      with all artifacts.
+
+---
+
 ## Files to Change
 
 | File | Change |

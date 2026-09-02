@@ -49,8 +49,11 @@ GitHub Releases API.
       `!dist/*.dmg` and `!dist/*.exe` to the `files` exclusion list so the
       second sequential macOS build does not package the first build's dmg
       into its asar.
-- [ ] Tag-path validation: confirm a `v*` tag push produces a draft release
-      with all artifacts including both macOS dmg files.
+- [x] Tag-path validation (2026-09-03, run 33663896024): a `v0.1.5` tag
+      push produced a draft GitHub Release with all five assets (Windows
+      NSIS installer, Intel dmg, Apple Silicon dmg, Linux CLI tarball +
+      sha256). One workflow fix was needed: `GH_REPO` env for
+      `gh release create` in a job without checkout.
 
 ---
 

@@ -34,6 +34,15 @@
       baseline: `windows-installer` 167.5MB (NSIS only, was 334.8MB with
       portable), `macos-package` 206.9MB (Intel + Apple Silicon dmg, was
       351MB universal dmg + zip), `linux-cli` 4.33MB.
-- [ ] On the next tag, confirm the draft release contains the Windows
+- [x] On the next tag, confirm the draft release contains the Windows
       installer, both macOS dmg files, and the Linux CLI tarball with
       checksum, then publish.
+      (Tag re-push of `v0.1.5` on 2026-09-03, run 33663896024: first attempt
+      failed because `gh release create` lacked repo context in a job without
+      checkout — fixed by setting `GH_REPO`; a rerun also exposed one flaky
+      `app.test.tsx` checkbox assertion that passes locally and on retry.
+      Final draft release `v0.1.5` contains all five assets:
+      `SkillDrive.Desktop.Setup.0.1.5.exe` 167.5MB,
+      `SkillDrive.Desktop-0.1.5.dmg` (Intel) 105.8MB,
+      `SkillDrive.Desktop-0.1.5-arm64.dmg` 101.4MB,
+      `skilldrive-cli-0.1.5-linux-node20.tar.gz` + `.sha256` 4.3MB.)

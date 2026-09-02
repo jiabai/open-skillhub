@@ -44,6 +44,42 @@ jobs:
           path: desktop-client/dist/*.exe
           if-no-files-found: error
 
+  macos-package:
+    name: macOS package
+    runs-on: macos-latest
+    defaults:
+      run:
+        working-directory: desktop-client
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: desktop-client/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Test
+        run: npm test
+
+      - name: Build
+        run: npm run build
+
+      - name: Package macOS app (unsigned, universal)
+        run: npm run dist:mac -- --universal
+
+      - name: Upload macOS artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-package
+          path: |
+            desktop-client/dist/*.dmg
+            desktop-client/dist/*.zip
+          if-no-files-found: error
+
   linux-cli:
     name: Linux CLI package
     runs-on: ubuntu-latest
@@ -75,7 +111,7 @@ jobs:
   release:
     name: Draft GitHub Release
     if: startsWith(github.ref, 'refs/tags/v')
-    needs: [windows-installer, linux-cli]
+    needs: [windows-installer, macos-package, linux-cli]
     runs-on: ubuntu-latest
     steps:
       - name: Download Windows artifacts
@@ -83,6 +119,12 @@ jobs:
         with:
           name: windows-installer
           path: artifacts/windows
+
+      - name: Download macOS artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: macos-package
+          path: artifacts/macos
 
       - name: Download Linux CLI artifacts
         uses: actions/download-artifact@v4
@@ -98,4 +140,6 @@ jobs:
             --draft \
             --generate-notes \
             --title "${GITHUB_REF_NAME}" \
-            artifacts/windows/*.exe artifacts/linux-cli/*
+            artifacts/windows/*.exe \
+            artifacts/macos/*.dmg artifacts/macos/*.zip \
+            artifacts/linux-cli/*

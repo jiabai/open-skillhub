@@ -5,7 +5,7 @@ Desktop release artifacts are built by the GitHub Actions workflow
 
 ## Triggers
 
-- **Tag push (`v*`)**: builds both artifacts and creates a draft GitHub
+- **Tag push (`v*`)**: builds all artifacts and creates a draft GitHub
   Release for the tag with all artifacts attached. A human reviews the assets
   and publishes the draft.
 - **Manual dispatch (`workflow_dispatch`)**: runs the same build jobs and
@@ -17,6 +17,7 @@ Desktop release artifacts are built by the GitHub Actions workflow
 | Job | Runner | Steps | Artifacts |
 |-----|--------|-------|-----------|
 | Windows installer | `windows-latest` | `npm ci`, `npm test`, `npm run build`, `npm run dist:win` | `SkillDrive Desktop Setup <version>.exe` (NSIS), portable `.exe` |
+| macOS package | `macos-latest` | `npm ci`, `npm test`, `npm run build`, `npm run dist:mac -- --universal` | `SkillDrive Desktop-<version>-universal-mac.dmg` + `.zip` (unsigned) |
 | Linux CLI package | `ubuntu-latest` | `npm ci`, `npm run package:linux-cli` | `skilldrive-cli-<version>-linux-node20.tar.gz` + `.sha256` |
 | Draft GitHub Release | `ubuntu-latest` | download artifacts, `gh release create --draft --generate-notes` | (tag push only) |
 
@@ -28,9 +29,9 @@ The Linux CLI tarball is assembled on Linux so `bin/skilldrive-cli`,
 1. Bump `desktop-client/package.json` version and commit
    (`chore: bump desktop client version to <version>`).
 2. Tag and push: `git tag v<version> && git push origin v<version>`.
-3. Wait for both build jobs and the release job to finish.
-4. Review the draft GitHub Release assets (installer exes, CLI tarball,
-   `.sha256`), then publish it.
+3. Wait for all build jobs and the release job to finish.
+4. Review the draft GitHub Release assets (Windows exes, macOS dmg/zip,
+   CLI tarball + `.sha256`), then publish it.
 5. Smoke-test the installed Windows app per the checklist in
    `../exec-plans/active/2026-05-03-desktop-windows-packaging-tasks.md`.
 
@@ -40,6 +41,13 @@ The Linux CLI tarball is assembled on Linux so `bin/skilldrive-cli`,
   it uses the default `GITHUB_TOKEN`.
 - No code signing is configured; Windows SmartScreen warnings are expected
   for unsigned installers.
+- macOS artifacts are unsigned and not notarized (Developer ID signing is
+  deferred per `2026-05-03-macos-release-packaging`). Gatekeeper will block
+  first launch: users must right-click the app and choose Open, or run
+  `xattr -cr "/Applications/SkillDrive Desktop.app"`. The dmg/zip are
+  universal builds that run on Intel and Apple Silicon Macs.
 - Local packaging commands remain valid for development:
-  `npm run dist:win` and `npm run package:linux-cli` in `desktop-client/`.
-- macOS release builds are out of scope; see `macos-release-runbook.md`.
+  `npm run dist:win`, `npm run dist:mac`, and `npm run package:linux-cli`
+  in `desktop-client/`.
+- macOS signing/notarization steps, when later approved, live in
+  `macos-release-runbook.md`.

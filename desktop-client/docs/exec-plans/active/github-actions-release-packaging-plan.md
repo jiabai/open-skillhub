@@ -1,19 +1,21 @@
 # GitHub Actions Release Packaging Plan
 
 **Goal:** Build and publish desktop client release artifacts (Windows
-installer, Linux CLI tarball) through a GitHub Actions workflow triggered by
-version tags, replacing local-machine release builds.
+installer, macOS dmg/zip, Linux CLI tarball) through a GitHub Actions
+workflow triggered by version tags, replacing local-machine release builds.
 
 **Spec:** `docs/product-specs/2026-09-02-github-actions-release-packaging.md`
 
 **Architecture:** A single workflow file `.github/workflows/desktop-release.yml`
-with two independent jobs (Windows installer, Linux CLI package). Both jobs
-reuse the already-validated local commands so CI packaging cannot drift from
-the documented packaging runbook. Release publication happens only for tag
-pushes; manual dispatch builds and uploads workflow artifacts only.
+with three independent build jobs (Windows installer, macOS package, Linux CLI
+package). All jobs reuse the already-validated local commands so CI packaging
+cannot drift from the documented packaging runbook. macOS artifacts are
+unsigned (Developer ID signing and notarization stay deferred per
+`2026-05-03-macos-release-packaging`). Release publication happens only for
+tag pushes; manual dispatch builds and uploads workflow artifacts only.
 
-**Tech Stack:** GitHub Actions (windows-latest, ubuntu-latest), Node 20,
-npm, electron-builder, existing `package:linux-cli` assembly script,
+**Tech Stack:** GitHub Actions (windows-latest, macos-latest, ubuntu-latest),
+Node 20, npm, electron-builder, existing `package:linux-cli` assembly script,
 GitHub Releases API.
 
 ---
@@ -25,8 +27,10 @@ GitHub Releases API.
 - [x] 2026-09-02: Manual `workflow_dispatch` run 33637864542 passed both
       build jobs, uploaded `windows-installer` and `linux-cli` artifacts, and
       correctly skipped the draft-release job.
+- [x] 2026-09-02: Scope extended by owner request to include unsigned macOS
+      dmg/zip artifacts; spec updated, macOS job added to the workflow.
 - [ ] Tag-path validation: confirm a `v*` tag push produces a draft release
-      with all artifacts.
+      with all artifacts including macOS dmg/zip.
 
 ---
 
@@ -62,6 +66,8 @@ git diff --check
 Plus a manual `workflow_dispatch` run confirming:
 
 - Windows job completes `npm test`, `npm run build`, `npm run dist:win`.
+- macOS job completes `npm test`, `npm run build`, `npm run dist:mac --
+  --universal` and uploads `dist/*.dmg` and `dist/*.zip`.
 - Linux job completes `npm run package:linux-cli` and uploads
   `dist/linux-cli/*` (tarball + `.sha256`).
 - No release is created for the dispatch run.
@@ -69,6 +75,10 @@ Plus a manual `workflow_dispatch` run confirming:
 ## Decisions to Track
 
 - **Node version:** 20, matching `@types/node` in `desktop-client/package.json`.
+- **macOS architecture:** universal build (`npm run dist:mac -- --universal`)
+  on `macos-latest`, producing one dmg + zip that runs on both Intel and
+  Apple Silicon Macs. Unsigned; Gatekeeper requires right-click Open or
+  `xattr -cr` override — documented in the CI release runbook.
 - **Release creation:** `softprops/action-gh-release` (or `gh release create`)
   gated on tag push only; draft release first so a human reviews assets before
   publishing.

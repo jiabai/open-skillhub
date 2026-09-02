@@ -6,6 +6,9 @@
       `workflow_dispatch` triggers.
 - [x] Add Windows installer job (`windows-latest`, Node 20): `npm ci`,
       `npm test`, `npm run build`, `npm run dist:win`, upload `dist/*.exe`.
+- [x] Add macOS package job (`macos-latest`, Node 20): `npm ci`, `npm test`,
+      `npm run build`, `npm run dist:mac -- --universal`, upload
+      `dist/*.dmg` and `dist/*.zip` (unsigned; signing deferred).
 - [x] Add Linux CLI job (`ubuntu-latest`, Node 20): `npm ci`,
       `npm run package:linux-cli`, upload `dist/linux-cli/*`.
 - [x] Add conditional release step (tag push only): create draft GitHub

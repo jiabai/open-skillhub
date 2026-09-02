@@ -25,5 +25,10 @@
       (Run 33637864542 on 2026-09-02: Windows installer and Linux CLI jobs
       passed; `windows-installer` and `linux-cli` artifacts uploaded; the
       draft-release job was correctly skipped.)
+- [x] Re-run dispatch after adding the macOS job (run 33641041370 on
+      2026-09-02): Windows, macOS, and Linux CLI jobs all passed;
+      `windows-installer`, `macos-package`, and `linux-cli` artifacts
+      uploaded; the draft-release job was correctly skipped.
 - [ ] On the next tag, confirm the draft release contains the Windows
-      installers and the Linux CLI tarball with checksum, then publish.
+      installers, the macOS dmg/zip, and the Linux CLI tarball with
+      checksum, then publish.

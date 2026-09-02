@@ -30,6 +30,7 @@ export type AgentId =
   | "codebuddy"
   | "workbuddy"
   | "hermes"
+  | "qwenworkcn"
 
 export type AgentInstallSource = "auto-detected" | "missing"
 

@@ -106,7 +106,8 @@ describe("agent adapters", () => {
       "openclaw",
       "codebuddy",
       "workbuddy",
-      "hermes"
+      "hermes",
+      "qwenworkcn"
     ]
 
     expect(supportedAgentDefinitions.map((definition) => definition.id)).toEqual(expectedAgentIds)

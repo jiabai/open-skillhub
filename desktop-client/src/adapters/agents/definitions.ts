@@ -164,10 +164,13 @@ export const supportedAgentDefinitions: AgentPathDefinition[] = [
   {
     id: "trae",
     displayName: "Trae",
-    detectionDirs: ["~/.trae"],
-    defaultTargets: [{ path: "~/.trae/skills", role: "primary" }],
+    detectionDirs: ["~/.trae", "~/.trae-cn"],
+    defaultTargets: [
+      { path: "~/.trae-cn/skills", role: "primary" },
+      { path: "~/.trae/skills", role: "primary" }
+    ],
     projectTargets: [{ path: ".trae/skills", role: "primary" }],
-    pathResolution: "all-owned"
+    pathResolution: "priority"
   },
   {
     id: "factory",
@@ -256,6 +259,14 @@ export const supportedAgentDefinitions: AgentPathDefinition[] = [
         }
       }
     ],
+    pathResolution: "all-owned"
+  },
+  {
+    id: "qwenworkcn",
+    displayName: "QwenWork CN",
+    detectionDirs: ["~/.qwenworkcn"],
+    defaultTargets: [{ path: "~/.qwenworkcn/skills", role: "primary" }],
+    projectTargets: [{ path: ".qwenworkcn/skills", role: "primary" }],
     pathResolution: "all-owned"
   }
 ]

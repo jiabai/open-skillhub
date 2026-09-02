@@ -221,6 +221,52 @@ describe("agent detection service", () => {
     expect(snapshot.uniqueTargets[0].targetPath).toBe(resolveHomePath("~/.clawdbot/skills"))
   })
 
+  it("auto-detects QwenWork CN and targets its skills directory", async () => {
+    const snapshot = await createService({
+      definitions: [definition("qwenworkcn")],
+      existingPaths: [resolveHomePath("~/.qwenworkcn")]
+    }).refresh()
+
+    expect(snapshot.installedAgentIds).toEqual(["qwenworkcn"])
+    expect(snapshot.agentStatuses[0].targetPaths).toEqual([resolveHomePath("~/.qwenworkcn/skills")])
+    expect(snapshot.uniqueTargets[0]).toMatchObject({
+      targetPath: resolveHomePath("~/.qwenworkcn/skills"),
+      primaryAgentId: "qwenworkcn"
+    })
+  })
+
+  it("selects the first existing Trae priority target", async () => {
+    const service = createService({
+      definitions: [definition("trae")],
+      existingPaths: [
+        resolveHomePath("~/.trae-cn"),
+        resolveHomePath("~/.trae-cn/skills"),
+        resolveHomePath("~/.trae/skills")
+      ]
+    })
+
+    const snapshot = await service.refresh()
+
+    expect(snapshot.installedAgentIds).toEqual(["trae"])
+    expect(snapshot.agentStatuses[0].targetPaths).toEqual([resolveHomePath("~/.trae-cn/skills")])
+    expect(snapshot.uniqueTargets).toHaveLength(1)
+    expect(snapshot.uniqueTargets[0].targetPath).toBe(resolveHomePath("~/.trae-cn/skills"))
+  })
+
+  it("falls back to the Trae international target when the CN target is missing", async () => {
+    const service = createService({
+      definitions: [definition("trae")],
+      existingPaths: [resolveHomePath("~/.trae"), resolveHomePath("~/.trae/skills")]
+    })
+
+    const snapshot = await service.refresh()
+
+    expect(snapshot.installedAgentIds).toEqual(["trae"])
+    expect(snapshot.agentStatuses[0].targetPaths).toEqual([resolveHomePath("~/.trae/skills")])
+    expect(snapshot.uniqueTargets).toHaveLength(1)
+    expect(snapshot.uniqueTargets[0].targetPath).toBe(resolveHomePath("~/.trae/skills"))
+  })
+
   it("deduplicates shared target paths while preserving covered assistants", async () => {
     const service = createService({
       definitions: [

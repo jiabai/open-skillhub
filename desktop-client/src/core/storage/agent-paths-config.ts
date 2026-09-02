@@ -163,7 +163,7 @@ const INITIAL_AGENT_PATHS_TEMPLATE: JsonRecord = {
     '"gemini-cli": { "targetPath": "~/.gemini/skills" }. ' +
     "Valid agent IDs: claude-code, cursor, windsurf, copilot, roocode, cline, " +
     "gemini-cli, codex, opencode, kilocode, amp, kiro, warp, trae, factory, " +
-    "kimi, mistral, pi, antigravity, openclaw, codebuddy, workbuddy, hermes"
+    "kimi, mistral, pi, antigravity, openclaw, codebuddy, workbuddy, hermes, qwenworkcn"
 }
 
 async function chmodUserOnly(filePath: string, platform: NodeJS.Platform): Promise<void> {

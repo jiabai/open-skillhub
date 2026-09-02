@@ -6,5 +6,6 @@
 - `macos-release-runbook.md` - operator runbook for macOS signing, notarization, stapling, and smoke testing
 - `macos-release-runbook-zh.md` - macOS 发布操作手册（中文版）
 - `linux-cli-deployment-zh.md` - Linux CLI 包化部署方案（发布包 + 部署脚本；Linux 目标机验证待执行）
+- `ci-release-runbook.md` - GitHub Actions release workflow: triggers, jobs, artifacts, and manual publishing steps
 
 These reference docs describe the current integration surface. Update them whenever backend contracts, IPC channels, or persisted entities change.
